@@ -1,4 +1,6 @@
 *.pyc
 *.pyo
 
-*.sw[p-p]
+*.swp
+*.swo
+build/*
