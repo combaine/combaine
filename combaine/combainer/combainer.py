@@ -18,31 +18,20 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
 
-import submodules
-submodules.main()
+class Combainer(object):
 
-VERSION = "0.6"
+    def __init__(self, **kwargs):
+        '''Task dispatcher object
 
-setup(
-    name="Combaine",
-    version=VERSION,
-    author="Anton Tyurin",
-    author_email="noxiouz@yandex.ru",
-    description="Distributed fault-tolerant system of\
-                 data processing based on Cocaine\
-                 (https://github.com/cocaine)",
-    url="https://github.com/noxiouz/Combaine",
-    license="LGPL3",
-    packages=[
-        'combaine',
-        'combaine.combained',
-        'combaine.combainer',
-        'combaine.plugins',
-        'combaine.utils'
-    ]
-)
+        :param
+        '''
+        pass
+
+    def destroy(self):
+        pass
+
+    def getAvailableConfigs(self):
+
+if __name__ == "__main__":
+    pass

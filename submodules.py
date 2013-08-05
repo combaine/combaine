@@ -18,31 +18,22 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+import os
+import shutil
 
-import submodules
-submodules.main()
 
-VERSION = "0.6"
+CURRENT = os.getcwd()
 
-setup(
-    name="Combaine",
-    version=VERSION,
-    author="Anton Tyurin",
-    author_email="noxiouz@yandex.ru",
-    description="Distributed fault-tolerant system of\
-                 data processing based on Cocaine\
-                 (https://github.com/cocaine)",
-    url="https://github.com/noxiouz/Combaine",
-    license="LGPL3",
-    packages=[
-        'combaine',
-        'combaine.combained',
-        'combaine.combainer',
-        'combaine.plugins',
-        'combaine.utils'
-    ]
-)
+
+def distribute_schema():
+    print('Copy schema.py')
+    shutil.copyfile('foreign/schema/schema.py', 'combaine/foreign/schema.py')
+
+
+def main():
+    print('Distribute external packages')
+    distribute_schema()
+    print('Done')
+
+if __name__ == "__main__":
+    main()
