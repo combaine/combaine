@@ -1,7 +1,7 @@
 package main
 
 import (
-	"combainer"
+	"github.com/noxiouz/Combaine/combainer"
 	"log"
 )
 
