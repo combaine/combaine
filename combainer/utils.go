@@ -22,18 +22,28 @@ type ParsingConfig struct {
 // Fetch hosts by groupname from HTTP
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	url := fmt.Sprintf("%s%s", handle, groupname)
-	log.Println("Fetch hosts: ", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	log.Println("Fetch hosts, statuscode", resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	} else {
-		return strings.Split(string(body), "\n"), nil
+	if strings.HasPrefix(url, "http:") { // Over HTTP
+		log.Println("Fetch hosts: ", url)
+		resp, err := http.Get(url)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		log.Println("Fetch hosts, statuscode", resp.StatusCode)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		} else {
+			return strings.Split(string(body), "\n"), nil
+		}
+	} else { // File
+		data, err := ioutil.ReadFile(url)
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		} else {
+			return strings.Split(string(data), "\n"), nil
+		}
 	}
 }
 

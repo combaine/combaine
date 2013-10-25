@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"launchpad.net/goyaml"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 )
@@ -15,6 +16,7 @@ type combainerMainCfg struct {
 	MaxAttemps      uint   "MAX_ATTEMPS"
 	MaxRespWaitTime uint   "MAX_RESP_WAIT_TIME"
 	MinimumPeriod   uint   "MINIMUM_PERIOD"
+	CloudHosts      string "cloud"
 }
 
 type combainerLockserverCfg struct {
@@ -32,10 +34,11 @@ type combainerConfig struct {
 }
 
 type Client struct {
-	Main     combainerMainCfg
-	LSCfg    combainerLockserverCfg
-	DLS      LockServer
-	lockname string
+	Main       combainerMainCfg
+	LSCfg      combainerLockserverCfg
+	DLS        LockServer
+	lockname   string
+	cloudHosts []string
 }
 
 type TaskResult struct {
@@ -67,7 +70,18 @@ func NewClient(config string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{m.Combainer.Main, m.Combainer.LockServerCfg, *dls, ""}, nil
+	cloudHosts, err := GetHosts(m.Combainer.Main.Http_hand, m.Combainer.Main.CloudHosts)
+	if err != nil {
+		return nil, err
+	}
+	log.Println(cloudHosts)
+	return &Client{
+		Main:       m.Combainer.Main,
+		LSCfg:      m.Combainer.LockServerCfg,
+		DLS:        *dls,
+		lockname:   "",
+		cloudHosts: cloudHosts,
+	}, nil
 }
 
 func (cl *Client) Close() {
@@ -126,14 +140,16 @@ func (cl *Client) Dispatch() {
 		select {
 		case <-time.After(limit):
 			log.Println("Timeout")
-		case answer <- TaskResult{true, "OK"}:
+		case <-time.After(time.Second * time.Duration(rand.Intn(5))):
 			if deadline.Sub(time.Now()).Nanoseconds() > 0 {
 				log.Println("Send result")
+				answer <- TaskResult{true, "OK"}
 			}
 		}
 	}
 
-	PERIOD := time.Duration(cl.Main.MinimumPeriod) * time.Second
+	PARSING_TIME := time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
+	WHOLE_TIME := time.Duration(cl.Main.MinimumPeriod) * time.Second
 
 	countOfParsingTasks := len(p_tasks)
 	countOfAggTasks := len(agg_tasks)
@@ -144,16 +160,19 @@ func (cl *Client) Dispatch() {
 	var agg_done chan TaskResult
 	var tasks_done int = 0
 	var deadline time.Time
+	var startTime time.Time
 
 	for {
 		select {
 		// Start periodically
-		case t := <-ticker.C:
-			deadline = t.Add(PERIOD)
-			log.Println(t, deadline)
+		case startTime = <-ticker.C:
+			deadline = startTime.Add(PARSING_TIME)
 			agg_done = nil
+			log.Println(startTime)
 			tasks_done = 0
-			ticker.Reset(PERIOD)
+			// Start next iteration after WHOLE_TIME
+			// despite of completed tasks
+			ticker.Reset(WHOLE_TIME)
 			par_done = make(chan TaskResult)
 			for i, task := range p_tasks {
 				log.Println("Send task number ", i, task)
@@ -167,6 +186,7 @@ func (cl *Client) Dispatch() {
 				par_done = nil
 				agg_done = make(chan TaskResult)
 				tasks_done = 0
+				deadline = startTime.Add(WHOLE_TIME)
 				for i, task := range agg_tasks {
 					log.Println("Send task number ", i, task)
 					go handleTask(task, agg_done, deadline)
