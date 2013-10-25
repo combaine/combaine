@@ -29,7 +29,7 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 			return nil, err
 		}
 		defer resp.Body.Close()
-		log.Println("Fetch hosts, statuscode", resp.StatusCode)
+		log.Println("Fetch hosts, status code", resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err

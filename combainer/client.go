@@ -94,7 +94,7 @@ func (cl *Client) Dispatch() {
 	if lockpoller != nil {
 		log.Println("Acquire Lock", cl.lockname)
 	} else {
-		log.Println("Fail")
+		log.Println("There are no locks")
 		return
 	}
 
@@ -136,7 +136,9 @@ func (cl *Client) Dispatch() {
 
 	handleTask := func(task map[string]string, answer chan TaskResult, deadline time.Time) {
 		limit := deadline.Sub(time.Now())
-		log.Println("Task time limit ", limit)
+		// Owner
+		// Task description and hash
+		log.Println("time limit ", limit) // MORE INFO
 		select {
 		case <-time.After(limit):
 			log.Println("Timeout")
@@ -175,6 +177,7 @@ func (cl *Client) Dispatch() {
 			ticker.Reset(WHOLE_TIME)
 			par_done = make(chan TaskResult)
 			for i, task := range p_tasks {
+				// Description of task
 				log.Println("Send task number ", i, task)
 				go handleTask(task, par_done, deadline)
 			}
