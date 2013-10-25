@@ -1,0 +1,13 @@
+Source: combaine
+Section: misc
+Priority: extra
+Maintainer: Anton Tyurin <noxiouz@yandex-team.ru>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.9.1
+Homepage: <insert the upstream URL, if relevant>
+
+Package: combaine
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
