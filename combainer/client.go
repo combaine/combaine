@@ -94,7 +94,7 @@ func (cl *Client) Dispatch() {
 	if lockpoller != nil {
 		log.Println("Acquire Lock", cl.lockname)
 	} else {
-		log.Println("There are no locks")
+		log.Println("There are no free locks")
 		return
 	}
 
