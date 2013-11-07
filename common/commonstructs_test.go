@@ -1,4 +1,4 @@
-package commonstructs
+package common
 
 import (
 	"fmt"

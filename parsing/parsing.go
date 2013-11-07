@@ -1,17 +1,17 @@
 package parsing
 
 import (
-	_ "encoding/json"
+	"encoding/json"
 	"fmt"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	_ "launchpad.net/goyaml"
+	"github.com/noxiouz/Combaine/common"
 )
 
 /*
-1. Fetch data
+1. Fetch data DONE
 2. Send to parsing
-3. Send datagrid application
+3. Send to datagrid application
 4. Call aggregators
 */
 
@@ -28,48 +28,70 @@ func (t *Task) String() string {
 	return fmt.Sprintf("%v", t)
 }
 
-// {"host": "imagick01g.photo.yandex.ru", "logname": "nginx/access.log", "timetail_url": "/timetail?log=", "timetail_port": 3132, "StartTime": 300}
-func Parsing(task Task) error {
+func Parsing(task Task) (err error) {
 	log := cocaine.NewLogger()
 	log.Info("Start ", task)
 	defer log.Close()
 
+	//Wrap it
 	log.Debug("Create configuration manager")
 	cfgManager := cocaine.NewService("cfgmanager")
 	defer cfgManager.Close()
 
-	log.Debug("Receive configuration file")
+	log.Debug("Fetch configuration file")
 	res := <-cfgManager.Call("enqueue", "parsing", task.Config)
-	if res.Err() != nil {
-		return res.Err()
+	if err = res.Err(); err != nil {
+		return
 	}
 
-	// var m combainerConfig
-	// err = goyaml.Unmarshal(data, &m)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	var rawCfg []byte
+	if err = res.Extract(&rawCfg); err != nil {
+		return
+	}
 
-	// fetcher := cocaine.NewService("timetail")
+	var cfg common.ParsingConfig
+	common.Encode(rawCfg, &cfg)
 
-	// js, _ := json.Marshal(struct {
-	// 	Host    string `json:"host"`
-	// 	Logname string `json:"logname"`
-	// 	URL     string `json:"timetail_url"`
-	// 	Port    int    `json:"timetail_port"`
-	// 	Tz      int    `json:"StartTime"`
-	// }{
-	// 	"imagick01g.photo.yandex.ru",
-	// 	"nginx/access.log",
-	// 	"/timetail?log=",
-	// 	3132,
-	// 	300,
-	// })
-	// fmt.Println(string(js))
-	// res := <-fetcher.Call("enqueue", "get", js)
-	// var t []byte
-	// fmt.Println(res.Err())
-	// res.Extract(&t)
-	// fmt.Println(string(t))
+	res = <-cfgManager.Call("enqueue", "common", "")
+	if err = res.Err(); err != nil {
+		return
+	}
+
+	if err = res.Extract(&rawCfg); err != nil {
+		return
+	}
+
+	var combainerCfg common.CombainerConfig
+	common.Encode(rawCfg, &combainerCfg)
+
+	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
+	cfg.DF = combainerCfg.CloudCfg.DF
+
+	common.MapUpdate(&(combainerCfg.CloudCfg.DS), &(cfg.DS))
+	cfg.DS = combainerCfg.CloudCfg.DS
+
+	fetcherType, err := common.GetType(cfg.DF)
+	if err != nil {
+		return
+	}
+
+	fetcher := cocaine.NewService(fetcherType)
+	defer fetcher.Close()
+
+	cfg.DF["host"] = task.Host
+	cfg.DF["StartTime"] = task.CurrTime - task.PrevTime
+	js, _ := json.Marshal(cfg.DF)
+
+	res = <-fetcher.Call("enqueue", "get", js)
+	if err = res.Err(); err != nil {
+		return
+	}
+
+	var t []byte
+	if err = res.Extract(&t); err != nil {
+		return
+	}
+
+	log.Info("Stop ", task)
 	return nil
 }
