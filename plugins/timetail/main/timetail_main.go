@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
+
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/plugins/timetail"
-	//"github.com/ugorji/go/codec"
-	"encoding/json"
-	"log"
 )
 
 var (
@@ -24,6 +24,7 @@ func UnpackRequest(raw_data []byte) (*timetail.InputData, error) {
 
 func get(request *cocaine.Request, response *cocaine.Response) {
 	incoming := <-request.Read()
+
 	task, err := UnpackRequest(incoming)
 	if err != nil {
 		response.ErrorMsg(1, fmt.Sprintf("%v", err))
