@@ -54,8 +54,7 @@ def parse(request, response):
     Log.info(name)
     func = plugin_import().get(name)
     if func is None:
-        response.write("Missing function %s" % name)
-        response.close()
+        response.error(-2, "Missing function %s" % name)
         raise StopIteration
     response.write(func(data))
     response.close()
