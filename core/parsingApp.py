@@ -51,13 +51,17 @@ def plugin_import():
 def parse(request, response):
     inc = yield request.read()
     name, data = msgpack.unpackb(inc)
-    Log.info(name)
-    func = plugin_import().get(name)
+    available = plugin_import()
+    func = available.get(name)
     if func is None:
         response.error(-2, "Missing function %s" % name)
         raise StopIteration
-    response.write(func(data))
-    response.close()
+    try:
+        response.write([i for i in func(data.splitlines()) if i is not None])
+    except Exception as err:
+        response.error(-3, "Exception in parsing %s" % repr(err))
+    else:
+        response.close()
 
 
 if __name__ == "__main__":

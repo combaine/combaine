@@ -7,31 +7,77 @@
 # This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
+export DEB_VERBOSE_ALL=1
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 
 PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz/Combaine
-DEB_DESTDIR=$(CURDIR)/debian/combainer
+#DEB_DESTDIR=$(CURDIR)/debian/combainer
 
 export GOPATH=$(CURDIR)
 
-build/combainer::
+# Core
+makebuilddir/combainer::
 	mkdir -p $(PACKAGE_PATH)
-	ln -sf $(CURDIR)/combainer $(PACKAGE_PATH)/combainer
+	ln -sf $(CURDIR)/common $(PACKAGE_PATH)/common
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get launchpad.net/gozk/zookeeper
-	go build -o main_combainer combainer_main.go
+	ln -sf $(CURDIR)/combainer $(PACKAGE_PATH)/combainer
+	
+build/combainer::
+	go build -o main_combainer $(CURDIR)/core/combainer_main.go
 
 install/combainer::
 	install -d $(DEB_DESTDIR)/usr/bin
 	install -m755 main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
+
+# timetail plugin
+makebuilddir/combaine-plugin-timetail::
+	ln -sf $(CURDIR)/plugins $(PACKAGE_PATH)/plugins
+
+build/combaine-plugin-timetail::
+	go build -o main_timetail plugins/timetail/main/timetail_main.go
 	
+install/combaine-plugin-timetail::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail/
+	install -m755 main_timetail  $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
+
+cleanbuilddir/combaine-plugin-timetail::
+	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
+	
+# cfgmanager
+makebuilddir/combaine-core-cfgmanager::
+	ln -sf $(CURDIR)/configmanager $(PACKAGE_PATH)/configmanager
+
+build/combaine-core-cfgmanager::
+	go build -o main_cfgmanager core/cfgmanager_main.go
+	
+install/combaine-core-cfgmanager::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager
+	install -m755 main_cfgmanager $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
+
+# parsingApp
+install/combaine-core-parsing::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
+	install -m755 core/parsingApp.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
+
+cleanbuilddir/combaine-core-parsing::
+	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
+
+# mysql plugin
+install/combaine-plugin-mysql::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
+	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
+
+cleanbuilddir/combaine-plugin-mysql::
+	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
 
 clean::
 	rm -rf src/ || true
 	rm -rf pkg/ || true
 	rm main_combainer || true
 	dh_clean
+	rm -rf $(PACKAGE_PATH)
 

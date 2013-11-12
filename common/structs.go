@@ -13,6 +13,7 @@ type ParsingConfig struct {
 	Parser     string                 `yaml:"parser"`
 	DF         map[string]interface{} `yaml:"DataFetcher"`
 	DS         map[string]interface{} `yaml:"DistributedStorage"`
+	DG         map[string]interface{} `yaml:"LocalDatabase"`
 }
 
 // Description of combainer config
@@ -40,5 +41,12 @@ type CombainerConfig struct {
 	CloudCfg struct {
 		DF map[string]interface{} `yaml:"DataFetcher"`
 		DS map[string]interface{} `yaml:"DistributedStorage"`
+		DG map[string]interface{} `yaml:"LocalDatabase"`
 	} `yaml:"cloud_config"`
+}
+
+type FetcherTask struct {
+	Target    string "Target"
+	StartTime int    "StartTime"
+	EndTime   int    "EndTime"
 }
