@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import random
 import types
@@ -7,8 +6,6 @@ import uuid
 
 import msgpack
 import MySQLdb
-#from MySQLdb.cursors import DictCursor
-#from MySQLdb.cursors import Cursor
 from warnings import filterwarnings
 
 from cocaine.worker import Worker
@@ -26,7 +23,6 @@ class MySqlDG(object):
         self.place = None
         self.tablename = ''
         try:
-            # port = config.get('local_db_port', 3306)
             unix_socket = config.get('MysqlSocket',
                                      "/var/run/mysqld/mysqld.sock")
             self.dbname = config.get('local_db_name', 'COMBAINE')
@@ -115,7 +111,7 @@ class MySqlDG(object):
 def put(request, response):
     raw = yield request.read()
     config, data = msgpack.unpackb(raw)
-    tablename = str(uuid.uuid4()).replace("-", "")[:24]
+    tablename = "CMB" + str(uuid.uuid4()).replace("-", "")[:20]
     log.info(str(config))
     log.info("Put data into %s" % tablename)
     try:
@@ -143,7 +139,21 @@ def drop(request, response):
         response.close()
 
 
+def query(request, response):
+    raw = yield request.read()
+    config, tablename, querystr = msgpack.unpackb(raw)
+    try:
+        m = MySqlDG(**config)
+        log.info("QUERY STRING: %s " % querystr)
+        res = m.perfomCustomQuery(querystr)
+    except Exception as err:
+        response.error(-99, str(err))
+    else:
+        response.write(res)
+        response.close()
+
 if __name__ == "__main__":
     W = Worker()
     W.run({"put": put,
-           "drop": drop})
+           "drop": drop,
+           "query": query})

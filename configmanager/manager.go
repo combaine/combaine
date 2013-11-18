@@ -20,16 +20,21 @@ func GetAggregateCfg(name string) ([]byte, error) {
 }
 
 func GetCommonCfg() (res []byte, err error) {
-	res, err = getConfig(fmt.Sprintf("%s%s", COMBAINE_PATH, "combaine.yaml"))
+	res, err = getConfig(fmt.Sprintf("%s%s", COMBAINE_PATH, "combaine"))
 	if err == nil {
 		return
 	}
 
-	res, err = getConfig(fmt.Sprintf("%s%s", COMBAINE_PATH, "combaine.json"))
+	res, err = getConfig(fmt.Sprintf("%s%s", COMBAINE_PATH, "combaine"))
 	return
 }
 
 func getConfig(path string) (res []byte, err error) {
-	res, err = ioutil.ReadFile(path)
+	res, err = ioutil.ReadFile(fmt.Sprintf("%s.%s", path, "yaml"))
+	if err == nil {
+		return
+	}
+
+	res, err = ioutil.ReadFile(fmt.Sprintf("%s.%s", path, "json"))
 	return
 }

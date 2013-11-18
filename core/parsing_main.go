@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	t := parsing.Task{"imagick01g.photo.yandex.ru", "photo_proxy.json", "testgroup", 100, 400, "UNIQUEID"}
+	t := parsing.Task{"imagick01g.photo.yandex.ru", "photo_proxy", "testgroup", 0, 20, "UNIQUEID"}
 	log.Println(parsing.Parsing(t))
 }

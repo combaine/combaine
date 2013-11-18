@@ -43,6 +43,7 @@ build/combaine-plugin-timetail::
 install/combaine-plugin-timetail::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail/
 	install -m755 main_timetail  $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
+	install -m660 manifests/manifest_timetail.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail/
 
 cleanbuilddir/combaine-plugin-timetail::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
@@ -57,11 +58,13 @@ build/combaine-core-cfgmanager::
 install/combaine-core-cfgmanager::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager
 	install -m755 main_cfgmanager $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
+	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/cfgmanager/
 
 # parsingApp
 install/combaine-core-parsing::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
 	install -m755 core/parsingApp.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
+	install -m660 manifests/manifest_parsing.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/parsing/
 
 cleanbuilddir/combaine-core-parsing::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
@@ -70,6 +73,7 @@ cleanbuilddir/combaine-core-parsing::
 install/combaine-plugin-mysql::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
 	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
+	install -m660 manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql/
 
 cleanbuilddir/combaine-plugin-mysql::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql

@@ -5,7 +5,7 @@ import (
 )
 
 func TestParsingRead(t *testing.T) {
-	date, err := GetParsingCfg("photo_proxy.json")
+	date, err := GetParsingCfg("photo_proxy")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,7 @@ func TestParsingRead(t *testing.T) {
 }
 
 func TestAggregateRead(t *testing.T) {
-	_, err := GetAggregateCfg("http_ok.yaml")
+	_, err := GetAggregateCfg("http_ok")
 	if err != nil {
 		t.Fatal(err)
 	}

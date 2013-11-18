@@ -2,17 +2,11 @@ package parsing
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
 )
-
-/*
-1. Fetch data DONE
-2. Send to parsing
-3. Send to datagrid application
-4. Call aggregators
-*/
 
 type Task struct {
 	Host     string
@@ -33,11 +27,11 @@ func Parsing(task Task) (err error) {
 	defer log.Close()
 
 	//Wrap it
-	log.Debug("Create configuration manager")
-	cfgManager := cocaine.NewService(common.CFGMANAGER)
+	log.Info("Create configuration manager")
+	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	defer cfgManager.Close()
 
-	log.Debug("Fetch configuration file")
+	log.Info("Fetch configuration file")
 	res := <-cfgManager.Call("enqueue", "parsing", task.Config)
 	if err = res.Err(); err != nil {
 		return
@@ -59,6 +53,18 @@ func Parsing(task Task) (err error) {
 	var combainerCfg common.CombainerConfig
 	common.Encode(rawCfg, &combainerCfg)
 
+	var aggCfg common.AggConfig
+	aggLogName := cfg.AggConfigs[0]
+	res = <-cfgManager.Call("enqueue", "aggregate", aggLogName)
+	if err = res.Err(); err != nil {
+		return
+	}
+	if err = res.Extract(&rawCfg); err != nil {
+		return
+	}
+	common.Encode(rawCfg, &aggCfg)
+	log.Info(aggCfg.Data)
+
 	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
 	cfg.DF = combainerCfg.CloudCfg.DF
 	common.MapUpdate(&(combainerCfg.CloudCfg.DS), &(cfg.DS))
@@ -72,7 +78,7 @@ func Parsing(task Task) (err error) {
 	}
 
 	log.Info(fmt.Sprintf("Use %s for fetching data", fetcherType))
-	fetcher := cocaine.NewService(fetcherType)
+	fetcher, err := cocaine.NewService(fetcherType)
 	defer fetcher.Close()
 
 	fetcherTask := common.FetcherTask{
@@ -99,7 +105,8 @@ func Parsing(task Task) (err error) {
 	}
 
 	// ParsingApp stage
-	parserApp := cocaine.NewService(common.PARSINGAPP)
+	log.Info("Send data to parsing")
+	parserApp, err := cocaine.NewService(common.PARSINGAPP)
 	defer parserApp.Close()
 	taskToParser, err := common.Pack([]interface{}{cfg.Parser, t})
 	if err != nil {
@@ -121,7 +128,7 @@ func Parsing(task Task) (err error) {
 	}
 
 	log.Info(fmt.Sprintf("Use %s for handle data", dgType))
-	datagrid := cocaine.NewService(dgType)
+	datagrid, err := cocaine.NewService(dgType)
 	defer datagrid.Close()
 	taskToDatagrid, err := common.Pack([]interface{}{cfg.DG, z})
 	if err != nil {
@@ -141,6 +148,51 @@ func Parsing(task Task) (err error) {
 		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
 	}()
 
+	ans := make(chan cocaine.ServiceResult)
+	aggTaskCounter := 0
+	for k, v := range aggCfg.Data {
+		log.Info("send to ", k)
+		aggType, err2 := common.GetType(v)
+		if err2 != nil {
+			err = err2
+			return
+		} else {
+			task, _ := common.Pack([]interface{}{v, cfg.DG, token})
+			tErr := sendMsgToAgg(aggType, task, time.Second*5, ans)
+			if tErr == nil {
+				aggTaskCounter++
+			}
+		}
+	}
+	for aggTaskCounter > 0 {
+		select {
+		case r := <-ans:
+			log.Info(r.Err())
+			aggTaskCounter--
+		case <-time.After(time.Second * 4):
+			log.Err("Deadline")
+			aggTaskCounter = 0
+		}
+	}
+
 	log.Info("Stop ", task)
 	return nil
+}
+
+func sendMsgToAgg(name string, task []byte, deadline time.Duration, out chan cocaine.ServiceResult) (err error) {
+	app, err := cocaine.NewService(name)
+	if err != nil {
+		return
+	}
+	go func() {
+		defer app.Close()
+		select {
+		case res := <-app.Call("enqueue", "aggregate_host", task):
+			out <- res
+			//log.Info("Task ok")
+		case <-time.After(deadline):
+			//log.Err(fmt.Sprintf("Failed task %s %s", task, deadline))
+		}
+	}()
+	return
 }
