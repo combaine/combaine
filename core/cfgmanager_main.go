@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/configmanager"
@@ -46,6 +47,9 @@ func main() {
 		"aggregate": aggregate,
 		"common":    common,
 	}
-	Worker := cocaine.NewWorker()
+	Worker, err := cocaine.NewWorker()
+	if err != nil {
+		log.Fatal(err)
+	}
 	Worker.Loop(binds)
 }

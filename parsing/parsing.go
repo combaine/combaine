@@ -22,7 +22,11 @@ func (t *Task) String() string {
 }
 
 func Parsing(task Task) (err error) {
-	log := cocaine.NewLogger()
+	log, err := cocaine.NewLogger()
+	if err != nil {
+		return
+	}
+
 	log.Info("Start ", task)
 	defer log.Close()
 

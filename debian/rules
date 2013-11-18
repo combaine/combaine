@@ -33,6 +33,17 @@ install/combainer::
 	install -d $(DEB_DESTDIR)/usr/bin
 	install -m755 main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
 
+makebuilddir/combaine-core::
+	ln -sf $(CURDIR)/parsing $(PACKAGE_PATH)/parsing
+
+build/combaine-core::
+	go build -o main_parsing-core $(CURDIR)/core/parsing_main.go
+
+install/combaine-core::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
+	install -m755 main_parsing-core  $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
+	install -m660 manifests/manifest_parsing-core.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
+
 # timetail plugin
 makebuilddir/combaine-plugin-timetail::
 	ln -sf $(CURDIR)/plugins $(PACKAGE_PATH)/plugins
@@ -58,13 +69,13 @@ build/combaine-core-cfgmanager::
 install/combaine-core-cfgmanager::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager
 	install -m755 main_cfgmanager $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
-	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/cfgmanager/
+	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
 
 # parsingApp
 install/combaine-core-parsing::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
 	install -m755 core/parsingApp.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
-	install -m660 manifests/manifest_parsing.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/parsing/
+	install -m660 manifests/manifest_parsing.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
 
 cleanbuilddir/combaine-core-parsing::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
@@ -77,6 +88,17 @@ install/combaine-plugin-mysql::
 
 cleanbuilddir/combaine-plugin-mysql::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
+
+
+# average plugin
+install/combaine-plugin-average::
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
+	install -m755 plugins/aggregators/average.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
+	install -m660 manifests/manifest_average.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average/
+
+cleanbuilddir/combaine-plugin-average::
+	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
+
 
 clean::
 	rm -rf src/ || true

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
@@ -52,10 +53,17 @@ func get(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	logger = cocaine.NewLogger()
+	var err error
+	logger, err = cocaine.NewLogger()
+	if err != nil {
+		log.Fatal(err)
+	}
 	binds := map[string]cocaine.EventHandler{
 		"get": get,
 	}
-	Worker := cocaine.NewWorker()
+	Worker, err := cocaine.NewWorker()
+	if err != nil {
+		log.Fatal(err)
+	}
 	Worker.Loop(binds)
 }
