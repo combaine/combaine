@@ -71,12 +71,12 @@ cleanbuilddir/combaine-core-parsing::
 
 # mysql plugin
 install/combaine-plugin-mysql::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
-	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
-	install -m660 manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql/
+	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
+	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
+	install -m660 manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
 
 cleanbuilddir/combaine-plugin-mysql::
-	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysql
+	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 
 clean::
 	rm -rf src/ || true
