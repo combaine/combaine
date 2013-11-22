@@ -6,15 +6,28 @@ Build-Depends: debhelper (>= 7), cdbs, libzookeeper-dev
 Standards-Version: 3.9.1
 Homepage: https://github.com/noxiouz/Combaine
 
+Package: combaine-presetting
+Architecture: amd64
+Depends: cocaine-tools,
+ cocaine-runtime (>= 0.10.6.6),
+ python (>= 2.6)
+
 Package: combainer
 Architecture: amd64
-Depends: ${shlibs:Depends}, ${misc:Depends}, cocaine-tools
+Depends: ${shlibs:Depends}, 
+ ${misc:Depends}, 
+ cocaine-tools,
+ cocaine-runtime (>= 0.10.6.6)
 Description: Combaine dispather daemon.
  Combaine task dispatcher.
 
 Package: combaine-core
 Architecture: amd64
-Depends: ${misc:Depends}, cocaine-tools
+Depends: ${misc:Depends}, 
+ cocaine-tools,
+ python (>= 2.6),
+ cocaine-runtime (>= 0.10.6.6),
+ combaine-presetting
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
 
@@ -22,8 +35,9 @@ Package: combaine-plugin-mysql
 Architecture: amd64
 Depends: ${shlibs:Depends},
  ${misc:Depends},
- ${python:Depends},
+ python (>= 2.6),
  cocaine-tools,
  python-mysqldb,
+ combaine-presetting,
  cocaine-framework-python (>= 0.10.6)
 Description: Plugin which allows to use MySQL queries.

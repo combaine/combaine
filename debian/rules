@@ -54,29 +54,36 @@ install/combaine-core::
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m660 manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m660 deploy_scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
+	install -m664 manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
+	install -m755 deploy_scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
 	# cfgmanager
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
 	install -m755 $(BUILD_DIR)/main_cfgmanager  $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m660 deploy_scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
+	install -m664 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
+	install -m755 deploy_scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 core/parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m660 manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m660 deploy_scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
+	install -m664 manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
+	install -m755 deploy_scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
 	# timetail
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m660 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m660 deploy_scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
+	install -m664 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	install -m755 deploy_scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
+
+# combaine-tuner
+install/combaine-presetting::
+	install -d $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
+	install -m664 presetting/profile.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
+	install -m664 presetting/runlist.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
+	install -m755 presetting/presetting.py $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 
 # mysql plugin
 install/combaine-plugin-mysql::
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
-	install -m660 manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
+	install -m664 manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
 
 cleanbuilddir/combaine-plugin-mysql::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
