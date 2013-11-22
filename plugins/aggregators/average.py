@@ -81,7 +81,7 @@ class AverageAggregator(object):
 
 def aggregate_host(request, response):
     raw = yield request.read()
-    cfg, dgcfg, token = msgpack.unpackb(raw)
+    cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
     Log.info(str(dgcfg))
     dg = Service(dgcfg['type'], blockingConnect=False)
     yield dg.connect()
@@ -92,8 +92,16 @@ def aggregate_host(request, response):
                            msgpack.packb((dgcfg,
                                           token,
                                           q)))
-    Log.info(str(res))
-    response.write(str(res))
+
+    try:
+        ret = float(res[0][0])   # SELECT COUNT(*)
+        if cfg.get('rps', '') == "YES":
+            Log.info("Recalculate to rps")
+            ret = ret/(currtime - prtime)
+    except Exception as err:
+        ret = 0
+    Log.info(str(ret))
+    response.write(str(ret))
     response.close()
 
 

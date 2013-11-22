@@ -1,5 +1,9 @@
 package common
 
+import (
+	"fmt"
+)
+
 // Description of aggregation config
 type AggConfig struct {
 	Data    map[string]map[string]interface{} `yaml:"data"`
@@ -47,6 +51,29 @@ type CombainerConfig struct {
 
 type FetcherTask struct {
 	Target    string "Target"
-	StartTime int    "StartTime"
-	EndTime   int    "EndTime"
+	StartTime int64  "StartTime"
+	EndTime   int64  "EndTime"
+}
+
+// Parsing task
+type ParsingTask struct {
+	Host     string
+	Config   string
+	Group    string
+	PrevTime int64
+	CurrTime int64
+	Id       string
+}
+
+func (t *ParsingTask) String() string {
+	return fmt.Sprintf("%v", t)
+}
+
+// Aggregate task
+type AggregationTask struct {
+	Config   string
+	Group    string
+	PrevTime int64
+	CurrTime int64
+	Id       string
 }

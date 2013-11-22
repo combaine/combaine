@@ -11,14 +11,19 @@ import (
 
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	raw := <-request.Read()
-	var task parsing.Task
+	var task common.ParsingTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	res := parsing.Parsing(task)
-	response.Write(res)
+	err = parsing.Parsing(task)
+	if err != nil {
+		response.Write(err.Error())
+	} else {
+		response.Write("OK")
+	}
+
 	response.Close()
 }
 

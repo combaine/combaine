@@ -7,78 +7,70 @@
 # This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
-export DH_VERBOSE=1
-export DEB_VERBOSE_ALL=1
+#export DH_VERBOSE=1
+#export DEB_VERBOSE_ALL=1
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 
 PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz/Combaine
-#DEB_DESTDIR=$(CURDIR)/debian/combainer
+BUILD_DIR=$(CURDIR)/build
+
+COMBAINE_LIB_PATH=/usr/lib/yandex/combaine
+CORE_APPS_PATH=$(COMBAINE_LIB_PATH)/core-apps
 
 export GOPATH=$(CURDIR)
 
-# Core
-makebuilddir/combainer::
-	mkdir -p $(PACKAGE_PATH)
-	ln -sf $(CURDIR)/common $(PACKAGE_PATH)/common
+# Combainer
+pre-build::
+	install -d $(BUILD_DIR)
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get launchpad.net/gozk/zookeeper
+	
+makebuilddir/combainer::
+	mkdir -p $(PACKAGE_PATH)
+	ln -sf $(CURDIR)/common $(PACKAGE_PATH)/common
 	ln -sf $(CURDIR)/combainer $(PACKAGE_PATH)/combainer
+	ln -sf $(CURDIR)/configmanager $(PACKAGE_PATH)/configmanager
 	
 build/combainer::
-	go build -o main_combainer $(CURDIR)/core/combainer_main.go
+	go build -o $(BUILD_DIR)/main_combainer $(CURDIR)/core/combainer_main.go
 
 install/combainer::
 	install -d $(DEB_DESTDIR)/usr/bin
-	install -m755 main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
+	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
 
+# Combaine-core
 makebuilddir/combaine-core::
 	ln -sf $(CURDIR)/parsing $(PACKAGE_PATH)/parsing
 
 build/combaine-core::
-	go build -o main_parsing-core $(CURDIR)/core/parsing_main.go
+	ln -sf $(CURDIR)/plugins $(PACKAGE_PATH)/plugins
+	go build -o $(BUILD_DIR)/main_parsing-core $(CURDIR)/core/parsing_main.go
+	go build -o $(BUILD_DIR)/main_cfgmanager $(CURDIR)/core/cfgmanager_main.go
+	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/plugins/timetail/main/timetail_main.go
 
 install/combaine-core::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
-	install -m755 main_parsing-core  $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
-	install -m660 manifests/manifest_parsing-core.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing-core
-
-# timetail plugin
-makebuilddir/combaine-plugin-timetail::
-	ln -sf $(CURDIR)/plugins $(PACKAGE_PATH)/plugins
-
-build/combaine-plugin-timetail::
-	go build -o main_timetail plugins/timetail/main/timetail_main.go
-	
-install/combaine-plugin-timetail::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail/
-	install -m755 main_timetail  $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
-	install -m660 manifests/manifest_timetail.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail/
-
-cleanbuilddir/combaine-plugin-timetail::
-	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/timetail
-	
-# cfgmanager
-makebuilddir/combaine-core-cfgmanager::
-	ln -sf $(CURDIR)/configmanager $(PACKAGE_PATH)/configmanager
-
-build/combaine-core-cfgmanager::
-	go build -o main_cfgmanager core/cfgmanager_main.go
-	
-install/combaine-core-cfgmanager::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager
-	install -m755 main_cfgmanager $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
-	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/cfgmanager/
-
-# parsingApp
-install/combaine-core-parsing::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
-	install -m755 core/parsingApp.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing
-	install -m660 manifests/manifest_parsing.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
-
-cleanbuilddir/combaine-core-parsing::
-	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/core/parsing/
+	# core-parsing
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
+	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
+	install -m660 manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
+	install -m660 deploy_scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
+	# cfgmanager
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
+	install -m755 $(BUILD_DIR)/main_cfgmanager  $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
+	install -m660 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
+	install -m660 deploy_scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
+	# parsingApp
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
+	install -m755 core/parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
+	install -m660 manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
+	install -m660 deploy_scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
+	# timetail
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	install -m660 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	install -m660 deploy_scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
 
 # mysql plugin
 install/combaine-plugin-mysql::
@@ -89,21 +81,11 @@ install/combaine-plugin-mysql::
 cleanbuilddir/combaine-plugin-mysql::
 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 
-
-# average plugin
-install/combaine-plugin-average::
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
-	install -m755 plugins/aggregators/average.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
-	install -m660 manifests/manifest_average.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average/
-
-cleanbuilddir/combaine-plugin-average::
-	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/average
-
-
 clean::
 	rm -rf src/ || true
 	rm -rf pkg/ || true
-	rm main_combainer || true
 	dh_clean
 	rm -rf $(PACKAGE_PATH)
+	rm -rf $(BUILD_DIR)
+	find . -type l | xargs rm -v $1 || true
 

@@ -47,8 +47,10 @@ func (ls *LockServer) AcquireLock(node string) chan bool {
 }
 
 func (ls *LockServer) Close() {
-	ls.stop <- true
+	log.Printf("ZZZZZZ %s", "CLOSE ZK CONN")
+	close(ls.stop)
 	ls.Zk.Close()
+	log.Printf("ZZZZZZ %s", "CLOSE ZK CONN HAS BEEN CLOSED")
 }
 
 func (ls *LockServer) poller(path string, notify chan bool) {

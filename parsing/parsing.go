@@ -8,20 +8,7 @@ import (
 	"github.com/noxiouz/Combaine/common"
 )
 
-type Task struct {
-	Host     string
-	Config   string
-	Group    string
-	PrevTime int
-	CurrTime int
-	Id       string
-}
-
-func (t *Task) String() string {
-	return fmt.Sprintf("%v", t)
-}
-
-func Parsing(task Task) (err error) {
+func Parsing(task common.ParsingTask) (err error) {
 	log, err := cocaine.NewLogger()
 	if err != nil {
 		return
@@ -35,13 +22,15 @@ func Parsing(task Task) (err error) {
 	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	defer cfgManager.Close()
 
-	log.Info("Fetch configuration file")
+	log.Info("Fetch configuration file ", task.Config)
 	res := <-cfgManager.Call("enqueue", "parsing", task.Config)
 	if err = res.Err(); err != nil {
-		return
+		log.Err(err)
+		return err
 	}
 	var rawCfg []byte
 	if err = res.Extract(&rawCfg); err != nil {
+		log.Err(err)
 		return
 	}
 	var cfg common.ParsingConfig
@@ -49,9 +38,11 @@ func Parsing(task Task) (err error) {
 
 	res = <-cfgManager.Call("enqueue", "common", "")
 	if err = res.Err(); err != nil {
+		log.Err(err)
 		return
 	}
 	if err = res.Extract(&rawCfg); err != nil {
+		log.Err(err)
 		return
 	}
 	var combainerCfg common.CombainerConfig
@@ -61,9 +52,11 @@ func Parsing(task Task) (err error) {
 	aggLogName := cfg.AggConfigs[0]
 	res = <-cfgManager.Call("enqueue", "aggregate", aggLogName)
 	if err = res.Err(); err != nil {
+		log.Err(err)
 		return
 	}
 	if err = res.Extract(&rawCfg); err != nil {
+		log.Err(err)
 		return
 	}
 	common.Encode(rawCfg, &aggCfg)
@@ -78,6 +71,7 @@ func Parsing(task Task) (err error) {
 
 	fetcherType, err := common.GetType(cfg.DF)
 	if err != nil {
+		log.Err(err)
 		return
 	}
 
@@ -161,7 +155,7 @@ func Parsing(task Task) (err error) {
 			err = err2
 			return
 		} else {
-			task, _ := common.Pack([]interface{}{v, cfg.DG, token})
+			task, _ := common.Pack([]interface{}{v, cfg.DG, token, task.PrevTime, task.CurrTime})
 			tErr := sendMsgToAgg(aggType, task, time.Second*5, ans)
 			if tErr == nil {
 				aggTaskCounter++

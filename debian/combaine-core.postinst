@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "Deploy parsing-core"
+cd /usr/lib/yandex/combaine/core-apps/parsing-core/
+./deploy.sh
+
+echo "Deploy cfgmanager"
+cd /usr/lib/yandex/combaine/core-apps/cfgmanager/
+./deploy.sh
+
+echo "Deploy parsing-app"
+cd /usr/lib/yandex/combaine/core-apps/parsing-app/
+./deploy.sh
+
+echo "Deploy timetail"
+cd /usr/lib/yandex/combaine/core-apps/timetail/
+./deploy.sh
+
+# DEBHELPER #

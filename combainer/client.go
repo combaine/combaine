@@ -3,11 +3,15 @@ package combainer
 import (
 	"fmt"
 	"io/ioutil"
-	"launchpad.net/goyaml"
 	"log"
 	"math/rand"
 	"strings"
 	"time"
+
+	"launchpad.net/goyaml"
+
+	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/noxiouz/Combaine/common"
 )
 
 type combainerMainCfg struct {
@@ -49,7 +53,6 @@ type TaskResult struct {
 // Public API
 
 func NewClient(config string) (*Client, error) {
-
 	// Read combaine.yaml
 	data, err := ioutil.ReadFile(config)
 	if err != nil {
@@ -63,7 +66,7 @@ func NewClient(config string) (*Client, error) {
 		return nil, err
 	}
 
-	// Zookeeper hosts. Commect to Zookeeper
+	// Zookeeper hosts. Connect to Zookeeper
 	hosts := m.Combainer.LockServerCfg.Hosts
 	dls, err := NewLockServer(strings.Join(hosts, ","))
 	if err != nil {
@@ -89,7 +92,7 @@ func (cl *Client) Close() {
 }
 
 func (cl *Client) Dispatch() {
-
+	defer cl.Close()
 	lockpoller := cl.acquireLock()
 	if lockpoller != nil {
 		log.Println("Acquire Lock", cl.lockname)
@@ -98,8 +101,8 @@ func (cl *Client) Dispatch() {
 		return
 	}
 
-	p_tasks := []map[string]string{}
-	agg_tasks := []map[string]string{}
+	var p_tasks []common.ParsingTask
+	var agg_tasks []common.AggregationTask
 	if res, err := loadConfig(cl.lockname); err != nil {
 		log.Println(err)
 		return
@@ -118,35 +121,24 @@ func (cl *Client) Dispatch() {
 		// Tasks for parsing
 		//host_name, config_name, group_name, previous_time, current_time
 		for _, host := range hosts {
-			p_tasks = append(p_tasks, map[string]string{
-				"target":    host,
-				"groupname": res.Groups[0],
-				"config":    cl.lockname,
+			p_tasks = append(p_tasks, common.ParsingTask{
+				Host:     host,
+				Config:   cl.lockname,
+				Group:    res.Groups[0],
+				PrevTime: -1,
+				CurrTime: -1,
+				Id:       "",
 			})
 		}
 		//groupname, config_name, agg_config_name, previous_time, current_time
 		for _, cfg := range res.AggConfigs {
-			agg_tasks = append(agg_tasks, map[string]string{
-				"target":    cfg,
-				"groupname": res.Groups[0],
-				"config":    cl.lockname,
+			agg_tasks = append(agg_tasks, common.AggregationTask{
+				Config:   cfg,
+				Group:    res.Groups[0],
+				PrevTime: -1,
+				CurrTime: -1,
+				Id:       "",
 			})
-		}
-	}
-
-	handleTask := func(task map[string]string, answer chan TaskResult, deadline time.Time) {
-		limit := deadline.Sub(time.Now())
-		// Owner
-		// Task description and hash
-		log.Println("time limit ", limit) // MORE INFO
-		select {
-		case <-time.After(limit):
-			log.Println("Timeout")
-		case <-time.After(time.Second * time.Duration(rand.Intn(5))):
-			if deadline.Sub(time.Now()).Nanoseconds() > 0 {
-				log.Println("Send result")
-				answer <- TaskResult{true, "OK"}
-			}
 		}
 	}
 
@@ -158,8 +150,8 @@ func (cl *Client) Dispatch() {
 
 	// Dispatch
 	ticker := time.NewTimer(time.Millisecond * 1)
-	var par_done chan TaskResult
-	var agg_done chan TaskResult
+	var par_done chan cocaine.ServiceResult
+	var agg_done chan cocaine.ServiceResult
 	var tasks_done int = 0
 	var deadline time.Time
 	var startTime time.Time
@@ -175,24 +167,34 @@ func (cl *Client) Dispatch() {
 			// Start next iteration after WHOLE_TIME
 			// despite of completed tasks
 			ticker.Reset(WHOLE_TIME)
-			par_done = make(chan TaskResult)
+			par_done = make(chan cocaine.ServiceResult)
 			for i, task := range p_tasks {
 				// Description of task
+				task.PrevTime = startTime.Unix()
+				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+				task.Id = fmt.Sprintf("%v", task)
+
 				log.Println("Send task number ", i, task)
-				go handleTask(task, par_done, deadline)
+				go cl.parsingTaskHandler(task, par_done, deadline)
 			}
 		// Collect parsing result
 		case res := <-par_done:
-			log.Println("Par", res)
+			var r string
+			if res.Err() == nil {
+				res.Extract(&r)
+				log.Printf("Par %v", r)
+			} else {
+				log.Printf("Erorr %s", res.Err())
+			}
 			tasks_done += 1
 			if tasks_done == countOfParsingTasks {
 				par_done = nil
-				agg_done = make(chan TaskResult)
+				agg_done = make(chan cocaine.ServiceResult)
 				tasks_done = 0
 				deadline = startTime.Add(WHOLE_TIME)
 				for i, task := range agg_tasks {
 					log.Println("Send task number ", i, task)
-					go handleTask(task, agg_done, deadline)
+					go cl.aggregationTaskHandler(task, agg_done, deadline)
 				}
 			}
 		// Collect agg results
@@ -210,6 +212,75 @@ func (cl *Client) Dispatch() {
 			log.Println("Heartbeat")
 		}
 	}
+}
+
+func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocaine.ServiceResult, deadline time.Time) {
+	limit := deadline.Sub(time.Now())
+	log.Printf("Dispatch parsing task %v %s \n", task, limit) // MORE INFO
+
+	var app *cocaine.Service
+	var err error
+	for deadline.After(time.Now()) {
+		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
+		//log.Printf("Create %s\n", host)
+		app, err = cocaine.NewService(common.PARSING, host)
+		if err == nil {
+			defer app.Close()
+			log.Printf("Create %s successfully", host)
+			break
+		} else {
+			//log.Println(err)
+		}
+		time.Sleep(200 * time.Microsecond)
+	}
+
+	if app == nil {
+		return
+	}
+
+	raw, _ := common.Pack(task)
+	select {
+	// case <-time.After(limit):
+	// 	log.Printf("Task %s has been late\n", task.Id)
+	case res := <-app.Call("enqueue", "handleTask", raw):
+		log.Printf("Receive result %v\n", res)
+		answer <- res
+	}
+}
+
+func (cl *Client) aggregationTaskHandler(task common.AggregationTask, answer chan cocaine.ServiceResult, deadline time.Time) {
+	limit := deadline.Sub(time.Now())
+	log.Printf("Dispatch aggregate task %v %s \n", task, limit) // MORE INFO
+
+	var app *cocaine.Service
+	for deadline.After(time.Now()) {
+		host := cl.getRandomHost()
+		//log.Printf("Create %s\n", host)
+		app, err := cocaine.NewService(common.AGGREGATE, host)
+		if err == nil {
+			defer app.Close()
+			log.Println("Create %s successfully", host)
+			break
+		}
+		time.Sleep(time.Millisecond * 300)
+	}
+
+	if app == nil {
+		return
+	}
+
+	raw, _ := common.Pack(task)
+	select {
+	case <-time.After(limit):
+		log.Println("Task %s has been late", task.Id)
+	case res := <-app.Call("enqueue", raw):
+		answer <- res
+	}
+}
+
+func (cl *Client) getRandomHost() string {
+	max := len(cl.cloudHosts)
+	return cl.cloudHosts[rand.Intn(max)]
 }
 
 // Private API

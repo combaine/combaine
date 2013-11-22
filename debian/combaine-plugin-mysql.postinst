@@ -1,3 +1,18 @@
 #!/bin/bash
 
+BASE=/usr/lib/yandex/combaine/plugins/mysqldg
+APPNAME=mysqldg
+
+#====================================
+MANIFEST=manifest_${APPNAME}.json
+PACKAGE=${APPNAME}.tar.gz
+
+
+cd $BASE
+rm ./$PACKAGE || true
+tar -czf ./$PACKAGE ./*
+
+echo "Deploy ${APPNAME}"
+cocaine-tool app upload --name $APPNAME --package=$PACKAGE --manifest=$MANIFEST
+
 # DEBHELPER #

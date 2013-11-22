@@ -18,12 +18,6 @@ Depends: ${misc:Depends}, cocaine-tools
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
 
-Package: combaine-plugin-timetail
-Architecture: amd64
-Depends: ${misc:Depends}, cocaine-tools
-Description: Log fether.
- Log fetcher
-
 Package: combaine-plugin-mysql
 Architecture: amd64
 Depends: ${shlibs:Depends},
@@ -33,28 +27,3 @@ Depends: ${shlibs:Depends},
  python-mysqldb,
  cocaine-framework-python (>= 0.10.6)
 Description: Plugin which allows to use MySQL queries.
-
-Package: combaine-plugin-average
-Architecture: amd64
-Depends: ${shlibs:Depends},
- ${misc:Depends},
- ${python:Depends},
- cocaine-tools,
- cocaine-framework-python (>= 0.10.6)
-Description: Average aggregator.
-
-Package: combaine-core-cfgmanager
-Architecture: amd64
-Depends: ${misc:Depends}
-Description: Configs reader.
- Log fetcher
-
-Package: combaine-core-parsing
-Architecture: amd64
-Depends: ${shlibs:Depends}, 
- ${misc:Depends},
- ${python:Depends},
- python (>= 2.6),
- cocaine-framework-python (>= 0.10.6),
- cocaine-tools
-Description: Apply parser to a data.
