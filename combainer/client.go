@@ -45,11 +45,6 @@ type Client struct {
 	cloudHosts []string
 }
 
-type TaskResult struct {
-	success bool
-	reason  string
-}
-
 // Public API
 
 func NewClient(config string) (*Client, error) {
@@ -97,7 +92,6 @@ func (cl *Client) Dispatch() {
 	if lockpoller != nil {
 		log.Println("Acquire Lock", cl.lockname)
 	} else {
-		log.Println("There are no free locks")
 		return
 	}
 
@@ -134,6 +128,7 @@ func (cl *Client) Dispatch() {
 		for _, cfg := range res.AggConfigs {
 			agg_tasks = append(agg_tasks, common.AggregationTask{
 				Config:   cfg,
+				PConfig:  cl.lockname,
 				Group:    res.Groups[0],
 				PrevTime: -1,
 				CurrTime: -1,
@@ -194,6 +189,8 @@ func (cl *Client) Dispatch() {
 				deadline = startTime.Add(WHOLE_TIME)
 				for i, task := range agg_tasks {
 					log.Println("Send task number ", i, task)
+					task.PrevTime = startTime.Unix()
+					task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
 					go cl.aggregationTaskHandler(task, agg_done, deadline)
 				}
 			}
@@ -216,20 +213,15 @@ func (cl *Client) Dispatch() {
 
 func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocaine.ServiceResult, deadline time.Time) {
 	limit := deadline.Sub(time.Now())
-	log.Printf("Dispatch parsing task %v %s \n", task, limit) // MORE INFO
 
 	var app *cocaine.Service
 	var err error
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
-		//log.Printf("Create %s\n", host)
 		app, err = cocaine.NewService(common.PARSING, host)
 		if err == nil {
 			defer app.Close()
-			log.Printf("Create %s successfully", host)
 			break
-		} else {
-			//log.Println(err)
 		}
 		time.Sleep(200 * time.Microsecond)
 	}
@@ -240,8 +232,8 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocain
 
 	raw, _ := common.Pack(task)
 	select {
-	// case <-time.After(limit):
-	// 	log.Printf("Task %s has been late\n", task.Id)
+	case <-time.After(limit):
+		log.Printf("Task %s has been late\n", task.Id)
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		log.Printf("Receive result %v\n", res)
 		answer <- res
@@ -250,16 +242,14 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocain
 
 func (cl *Client) aggregationTaskHandler(task common.AggregationTask, answer chan cocaine.ServiceResult, deadline time.Time) {
 	limit := deadline.Sub(time.Now())
-	log.Printf("Dispatch aggregate task %v %s \n", task, limit) // MORE INFO
 
 	var app *cocaine.Service
+	var err error
 	for deadline.After(time.Now()) {
-		host := cl.getRandomHost()
-		//log.Printf("Create %s\n", host)
-		app, err := cocaine.NewService(common.AGGREGATE, host)
+		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
+		app, err = cocaine.NewService(common.AGGREGATE, host)
 		if err == nil {
 			defer app.Close()
-			log.Println("Create %s successfully", host)
 			break
 		}
 		time.Sleep(time.Millisecond * 300)
@@ -273,7 +263,8 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, answer cha
 	select {
 	case <-time.After(limit):
 		log.Println("Task %s has been late", task.Id)
-	case res := <-app.Call("enqueue", raw):
+	case res := <-app.Call("enqueue", "handleTask", raw):
+		log.Println("Aggregate done ", res.Err())
 		answer <- res
 	}
 }

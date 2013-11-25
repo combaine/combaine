@@ -2,3 +2,5 @@ usr/lib/yandex/combaine/core-apps/parsing-core
 usr/lib/yandex/combaine/core-apps/cfgmanager
 usr/lib/yandex/combaine/core-apps/parsing-app
 usr/lib/yandex/combaine/core-apps/timetail
+usr/lib/yandex/combaine/core-apps/aggregate-average
+usr/lib/yandex/combaine/core-apps/aggregate-core/

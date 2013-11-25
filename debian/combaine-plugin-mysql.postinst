@@ -14,5 +14,6 @@ tar -czf ./$PACKAGE ./*
 
 echo "Deploy ${APPNAME}"
 cocaine-tool app upload --name $APPNAME --package=$PACKAGE --manifest=$MANIFEST
+cocaine-tool runlist add-app --name combaine  --app $APPNAME --profile=default
 
 #DEBHELPER#

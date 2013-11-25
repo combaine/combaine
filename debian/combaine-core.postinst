@@ -16,4 +16,11 @@ echo "Deploy timetail"
 cd /usr/lib/yandex/combaine/core-apps/timetail/
 ./deploy.sh
 
+echo "Deploy average"
+cd /usr/lib/yandex/combaine/core-apps/aggregate-average/
+./deploy.sh
+
+echo "Deploy aggregate"
+cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
+./deploy.sh
 #DEBHELPER#

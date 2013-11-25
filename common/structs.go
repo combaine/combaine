@@ -72,6 +72,7 @@ func (t *ParsingTask) String() string {
 // Aggregate task
 type AggregationTask struct {
 	Config   string
+	PConfig  string
 	Group    string
 	PrevTime int64
 	CurrTime int64
