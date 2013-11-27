@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-import collections
 import httplib
 import types
-import itertools
+import time
+import collections
+
+import yaml
+import msgpack 
 
 from cocaine.worker import Worker
+from cocaine.logging import Logger
+from cocaine.services import Service
 
 agave_headers = {
         "User-Agent": "Yandex/Agave",
@@ -13,27 +18,19 @@ agave_headers = {
         "TE": "deflate,gzip;q=0.3"
 }
 
-try:
-    agave_hosts = parse_common_cfg('combaine')["cloud_config"]['agave_hosts']
-except Exception as err:
-    print err
+agave_hosts = []
+
 
 class Agave(object):
-    """
-    type: agave
-    items: [20x, 30x, 50/20x]
-    graph_name: http_ok
-    graph_template: http_ok
-    """
+
     def __init__(self, **config):
-        self.logger = CommonLogger()
+        self.logger = Logger()
         self.graph_name = config.get("graph_name")
         self.graph_template = config.get("graph_template")
         self.fields = config.get("Fields")
-        self.template_dict = {  "template" : self.graph_template,
-                                "title"    : self.graph_name,
-                                "graphname": self.graph_name
-                        }
+        self.template_dict = {"template": self.graph_template,
+                              "title": self.graph_name,
+                              "graphname": self.graph_name}
         self.items = config.get('items', [])
         self.logger.debug(self.template_dict)
 
@@ -42,7 +39,7 @@ class Agave(object):
         template = "/api/update/%(group)s/%(graphname)s?values=%(values)s&ts=%(time)i&template=%(template)s&title=%(title)s" % self.template_dict
         self.__send_point(template)
 
-    def __send_point2(self, url):
+    def __send_point(self, url):
         for agv_host in agave_hosts:
             conn = httplib.HTTPConnection(agv_host, timeout=1)
             headers = agave_headers
@@ -52,47 +49,48 @@ class Agave(object):
                 _r = conn.getresponse()
                 self.logger.info("%s %s %s %s %s" % (agv_host, _r.status, _r.reason, _r.read().strip('\r\n'), url))
             except Exception as err:
-                self.logger.error("Unable to connect to one agave")
+                self.logger.error("Unable to connect to %s" % agv_host)
             else:
                 _r.close()
 
-    def __send_point(self, url):
-        AsCli = AsyncHTTP()
-        res = AsCli.fetch(dict((agv_host, "http://%s%s" % (agv_host, url)) for agv_host in agave_hosts),\
-                             timeout=1)
-        for label, ans in res.iteritems():
-            self.logger.info("%s %s %s %s" % (ans.request.url,
-                                             ans.code,
-                                             ans.reason,
-                                             ans.body.rstrip('\r\n')))
-
-
-    def data_filter(self, data):
-        return [res for res in data if res.aggname in self.items]
-
     def send(self, data):
-        data = self.data_filter(data)
-        for_send = collections.defaultdict(list)
-        for aggres in data:
-            for sbg_name, val in aggres.values:
-                _sbg = sbg_name if sbg_name == aggres.groupname else "-".join((aggres.groupname, sbg_name))
-                if isinstance(val, types.ListType): # Quantile
-                    l = itertools.izip(self.fields, val)
-                    _value = "+".join(("%s:%s" % x for x in l))
-                else: # Simle single value
-                    _value = "%s:%s" % (aggres.aggname, val)
-                for_send[_sbg].append(_value)
-                time = aggres.time
+        self.logger.info(str(data))
+        output = collections.defaultdict(list)
+        for aggname in self.items:
+            values = data.get(aggname)
+            if values is None:
+                self.logger.warn("Values for %s are missing" % aggname)
+                continue
+            for subgroup, result in values.iteritems():
+                if isinstance(result, types.ListType):
+                    self.logger.warn("Quantile hasn't supported yet")
+                    val = None
+                    continue
+                else:
+                    val = "%s:%s" % (aggname, result)
+                    self.logger.info(val)
+                output[subgroup].append(val)
 
-        for name, val in for_send.iteritems():
-            frmt_dict = { "group"   : name,
-                          "values"  : "+".join(val),
-                          "time"    : time
-            }
+        for name, val in output.iteritems():
+            frmt_dict = {"group": name,
+                         "values": "+".join(val),
+                         "time": int(time.time())}
             self.__makeUrls(frmt_dict)
 
-PLUGIN_CLASS = Agave
+
+def send(request, response):
+    global agave_hosts
+    req = yield request.read()
+    raw_cfg = yield Service("cfgmanager").enqueue("common", "")
+    cfg = yaml.load(raw_cfg)
+    agave_hosts = cfg['cloud_config']['agave_hosts']
+    inc = msgpack.unpackb(req)
+    agave = Agave(**inc['Config'])
+    agave.send(inc['Data'])
+    response.write("ok")
+    response.close()
 
 
 if __name__ == "__main__":
     W = Worker()
+    W.run({"send": send})

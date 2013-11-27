@@ -23,4 +23,8 @@ cd /usr/lib/yandex/combaine/core-apps/aggregate-average/
 echo "Deploy aggregate"
 cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
 ./deploy.sh
+
+echo "Deploy agave"
+cd /usr/lib/yandex/combaine/core-apps/agave/
+./deploy.sh
 #DEBHELPER#

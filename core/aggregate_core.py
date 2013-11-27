@@ -43,7 +43,7 @@ def split_hosts_by_dc(http_hand_url, groupname):
     host_dict = collections.defaultdict(list)
     for item in hosts.splitlines():
         dc, host = item.split('\t')
-        host_dict[dc].append(host)
+        host_dict["%s-%s" % (groupname, dc)].append(host)
     return host_dict
 
 #{'Group': 'photo-proxy', 'CurrTime': -1, 'Config': 'http_ok_timings', 'Id': '', 'PrevTime': -1}
@@ -64,13 +64,18 @@ def aggreagate(request, response):
     hosts = split_hosts_by_dc(httphand, task['Group'])
     log.info(str(hosts))
 
+    result = {}
+
     for name, cfg in aggcfg.get('data', {}).iteritems():
         mapping = {}
+
         log.info("Send to %s %s" % (name, cfg['type']))
         app = cache.get(cfg['type'])
         if app is None:
             log.info("Skip %s" % cfg['type'])
             continue
+
+        result[name] = {}
 
         for subgroup, value in hosts.iteritems():
             subgroup_data = list()
@@ -86,11 +91,33 @@ def aggreagate(request, response):
             mapping[subgroup] = subgroup_data
             res = yield app.enqueue("aggregate_group", msgpack.packb((cfg, subgroup_data)))
             log.error("name %s subgroup %s result %s, %d" % (name, subgroup, res, len(subgroup_data)))
+            result[name][subgroup]=res
+
         all_data = []
         for v in mapping.itervalues():
             all_data.extend(v)
         res = yield app.enqueue("aggregate_group", msgpack.packb((cfg, all_data)))
         log.error("name %s ALL %s %d" % (name, res, len(all_data)))
+        result[name][task['Group']] = res
+
+    futures = []
+    for name, item in aggcfg.get('senders', {}).iteritems():
+        try:
+            s = Service(item.get("type", "MISSING"))
+        except Exception as err:
+            log.error(str(err))
+        else:
+            futures.append(s.enqueue("send", msgpack.packb({"Config": item, "Data": result})))
+
+    for fut in futures:
+        try:
+            res = yield fut
+            log.info("res %s" % res)
+        except Exception as err:
+            log.error(str(err))
+
+    log.error("DONE")
+    log.info("Result %s" % str(result))
     response.write("ok")        
     response.close()
 

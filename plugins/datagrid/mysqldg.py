@@ -26,7 +26,9 @@ class MySqlDG(object):
             unix_socket = config.get('MysqlSocket',
                                      "/var/run/mysqld/mysqld.sock")
             self.dbname = config.get('local_db_name', 'COMBAINE')
-            self.db = MySQLdb.connect(unix_socket=unix_socket, user='root', )
+            self.user = config.get('user', 'root')
+            self.password = config.get('password', "")
+            self.db = MySQLdb.connect(unix_socket=unix_socket, user=self.user, passwd=self.password)
             self.cursor = self.db.cursor()
             self.cursor.execute('CREATE DATABASE IF NOT EXISTS %s' % self.dbname)
             self.db.commit()

@@ -1,3 +1,26 @@
+combaine (0.6-4) lucid; urgency=low
+
+  * Fix some bugs.
+    * Mysql: add password and user options
+    * Summa: fix rps
+    * Combainer: Improve client.go
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 27 Nov 2013 13:40:00 +0400
+
+combaine (0.6-3) lucid; urgency=low
+
+  * Add agave. Some bug fixes in client 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 26 Nov 2013 17:07:05 +0400
+
+combaine (0.6-2) lucid; urgency=low
+
+  * Fix some bugs:
+    * combainer: Trim empty host
+    * mysqldg: add user/password
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 25 Nov 2013 13:42:07 +0400
+
 combaine (0.6-1) unstable; urgency=low
 
   * Initial release. Add dispatcher.

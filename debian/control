@@ -9,7 +9,7 @@ Homepage: https://github.com/noxiouz/Combaine
 Package: combaine-presetting
 Architecture: amd64
 Depends: cocaine-tools,
- cocaine-runtime (>= 0.10.6.6),
+ cocaine-runtime (>= 0.11),
  python (>= 2.6)
 
 Package: combainer
@@ -17,7 +17,7 @@ Architecture: amd64
 Depends: ${shlibs:Depends}, 
  ${misc:Depends}, 
  cocaine-tools,
- cocaine-runtime (>= 0.10.6.6)
+ cocaine-runtime (>= 0.11)
 Description: Combaine dispather daemon.
  Combaine task dispatcher.
 
@@ -26,6 +26,8 @@ Architecture: amd64
 Depends: ${misc:Depends}, 
  cocaine-tools,
  python (>= 2.6),
+ python-yaml,
+ cocaine-framework-python (>= 0.11),
  cocaine-runtime (>= 0.10.6.6),
  combaine-presetting
 Description: Core task handlers.
@@ -39,5 +41,5 @@ Depends: ${shlibs:Depends},
  cocaine-tools,
  python-mysqldb,
  combaine-presetting,
- cocaine-framework-python (>= 0.10.6)
+ cocaine-framework-python (>= 0.11)
 Description: Plugin which allows to use MySQL queries.

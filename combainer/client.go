@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"launchpad.net/goyaml"
@@ -140,14 +141,14 @@ func (cl *Client) Dispatch() {
 	PARSING_TIME := time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
 	WHOLE_TIME := time.Duration(cl.Main.MinimumPeriod) * time.Second
 
-	countOfParsingTasks := len(p_tasks)
-	countOfAggTasks := len(agg_tasks)
+	// countOfParsingTasks := len(p_tasks)
+	// countOfAggTasks := len(agg_tasks)
 
 	// Dispatch
 	ticker := time.NewTimer(time.Millisecond * 1)
-	var par_done chan cocaine.ServiceResult
-	var agg_done chan cocaine.ServiceResult
-	var tasks_done int = 0
+	var parsingDone chan bool
+	var aggregateDone chan bool
+	//var tasks_done int = 0
 	var deadline time.Time
 	var startTime time.Time
 
@@ -156,13 +157,15 @@ func (cl *Client) Dispatch() {
 		// Start periodically
 		case startTime = <-ticker.C:
 			deadline = startTime.Add(PARSING_TIME)
-			agg_done = nil
+			aggregateDone = nil
 			log.Println(startTime)
-			tasks_done = 0
+
+			var wg sync.WaitGroup
+			// tasks_done = 0
 			// Start next iteration after WHOLE_TIME
 			// despite of completed tasks
 			ticker.Reset(WHOLE_TIME)
-			par_done = make(chan cocaine.ServiceResult)
+			parsingDone = make(chan bool)
 			for i, task := range p_tasks {
 				// Description of task
 				task.PrevTime = startTime.Unix()
@@ -170,38 +173,36 @@ func (cl *Client) Dispatch() {
 				task.Id = fmt.Sprintf("%v", task)
 
 				log.Println("Send task number ", i, task)
-				go cl.parsingTaskHandler(task, par_done, deadline)
+				go cl.parsingTaskHandler(task, &wg, deadline)
+				wg.Add(1)
 			}
+			go func() {
+				wg.Wait()
+				log.Println("Parsing ended")
+				parsingDone <- true
+			}()
 		// Collect parsing result
-		case res := <-par_done:
-			var r string
-			if res.Err() == nil {
-				res.Extract(&r)
-				log.Printf("Par %v", r)
-			} else {
-				log.Printf("Erorr %s", res.Err())
+		case <-parsingDone:
+			var wg sync.WaitGroup
+			parsingDone = nil
+			aggregateDone = make(chan bool)
+			//tasks_done = 0
+			deadline = startTime.Add(WHOLE_TIME)
+			for i, task := range agg_tasks {
+				task.PrevTime = startTime.Unix()
+				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+				log.Println("Send task number ", i, task)
+				wg.Add(1)
+				go cl.aggregationTaskHandler(task, &wg, deadline)
 			}
-			tasks_done += 1
-			if tasks_done == countOfParsingTasks {
-				par_done = nil
-				agg_done = make(chan cocaine.ServiceResult)
-				tasks_done = 0
-				deadline = startTime.Add(WHOLE_TIME)
-				for i, task := range agg_tasks {
-					log.Println("Send task number ", i, task)
-					task.PrevTime = startTime.Unix()
-					task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
-					go cl.aggregationTaskHandler(task, agg_done, deadline)
-				}
-			}
+			go func() {
+				wg.Wait()
+				log.Println("Aggregate ended")
+				aggregateDone <- true
+			}()
 		// Collect agg results
-		case res := <-agg_done:
-			log.Println("Agg", res)
-			tasks_done += 1
-			if tasks_done == countOfAggTasks {
-				agg_done = nil
-				tasks_done = 0
-			}
+		case <-aggregateDone:
+			aggregateDone = nil
 		case <-lockpoller: // Lock
 			log.Println("do exit")
 			return
@@ -211,7 +212,8 @@ func (cl *Client) Dispatch() {
 	}
 }
 
-func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocaine.ServiceResult, deadline time.Time) {
+func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
+	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
 	var app *cocaine.Service
@@ -235,12 +237,12 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, answer chan cocain
 	case <-time.After(limit):
 		log.Printf("Task %s has been late\n", task.Id)
 	case res := <-app.Call("enqueue", "handleTask", raw):
-		log.Printf("Receive result %v\n", res)
-		answer <- res
+		log.Printf("Receive result %v\n", res.Err())
 	}
 }
 
-func (cl *Client) aggregationTaskHandler(task common.AggregationTask, answer chan cocaine.ServiceResult, deadline time.Time) {
+func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
+	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
 	var app *cocaine.Service
@@ -265,7 +267,6 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, answer cha
 		log.Println("Task %s has been late", task.Id)
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		log.Println("Aggregate done ", res.Err())
-		answer <- res
 	}
 }
 

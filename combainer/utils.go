@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"launchpad.net/goyaml"
-	"log"
+	"log/syslog"
 	"net/http"
 	"strings"
 )
@@ -34,7 +34,8 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 		if err != nil {
 			return nil, err
 		} else {
-			return strings.Split(string(body), "\n"), nil
+			s := strings.TrimSuffix(string(body), "\n")
+			return strings.Split(s, "\n"), nil
 		}
 	} else { // File
 		data, err := ioutil.ReadFile(url)
@@ -42,7 +43,8 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 			log.Println(err)
 			return nil, err
 		} else {
-			return strings.Split(string(data), "\n"), nil
+			s := strings.TrimSuffix(string(data), "\n")
+			return strings.Split(s, "\n"), nil
 		}
 	}
 }

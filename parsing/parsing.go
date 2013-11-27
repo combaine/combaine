@@ -244,13 +244,15 @@ func Parsing(task common.ParsingTask) (err error) {
 
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):
-					log.Info("Task ok", res)
 					if res.Err() != nil {
+						log.Errf("%s Task failed  %s", task.Id, res.Err())
 						return
 					}
+
 					var raw_res []byte
 					err = res.Extract(&raw_res)
 					if err != nil {
+						log.Errf("%s Unable to extract result. %s", task.Id, err.Error())
 						return
 					}
 					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
