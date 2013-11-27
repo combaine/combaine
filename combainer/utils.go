@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"launchpad.net/goyaml"
-	"log/syslog"
+	"log"
 	"net/http"
 	"strings"
 )
