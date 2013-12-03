@@ -47,6 +47,58 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 	}
 }
 
+// Wrapper around cfgmanager. TBD: move to common
+type cfgWrapper struct {
+	cfgManager *cocaine.Service
+	log        *cocaine.Logger
+}
+
+func (m *cfgWrapper) GetParsingConfig(name string) (cfg common.ParsingConfig, err error) {
+	res := <-m.cfgManager.Call("enqueue", "parsing", name)
+	if err = res.Err(); err != nil {
+		return
+	}
+	var rawCfg []byte
+	if err = res.Extract(&rawCfg); err != nil {
+		return
+	}
+	err = common.Encode(rawCfg, &cfg)
+	return
+}
+
+func (m *cfgWrapper) GetAggregateConfig(name string) (cfg common.AggConfig, err error) {
+	res := <-m.cfgManager.Call("enqueue", "aggregate", name)
+	if err = res.Err(); err != nil {
+		log.Err(err)
+		return
+	}
+	var rawCfg []byte
+	if err = res.Extract(&rawCfg); err != nil {
+		log.Err(err)
+		return
+	}
+
+	err = common.Encode(rawCfg, &cfg)
+	return
+}
+
+func (m *cfgWrapper) GetCommon() (combainerCfg common.CombainerConfig, err error) {
+	res := <-m.cfgManager.Call("enqueue", "common", "")
+	if err = res.Err(); err != nil {
+		return
+	}
+	var rawCfg []byte
+	if err = res.Extract(&rawCfg); err != nil {
+		return
+	}
+	err = common.Encode(rawCfg, &combainerCfg)
+	return
+}
+
+func (m *cfgWrapper) Close() {
+	m.cfgManager.Close()
+}
+
 func Parsing(task common.ParsingTask) (err error) {
 	log, err := lazyLoggerInitialization()
 	log, err = lazyLoggerInitialization()
@@ -54,8 +106,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 
-	log.Info(task.Id, " Start")
-	//defer log.Close()
+	log.Info(task.Id, " Start parsing.")
 
 	//Wrap it
 	log.Info(task.Id, " Create configuration manager")
@@ -64,47 +115,32 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(err.Error())
 		return
 	}
-	defer cfgManager.Close()
+	cfgWrap := cfgWrapper{cfgManager, log}
+	defer cfgWrap.Close()
 
 	log.Info(task.Id, " Fetch configuration file ", task.Config)
-	res := <-cfgManager.Call("enqueue", "parsing", task.Config)
-	if err = res.Err(); err != nil {
-		log.Err(task.Id, err.Error())
-		return err
-	}
-	var rawCfg []byte
-	if err = res.Extract(&rawCfg); err != nil {
-		log.Err(task.Id, err)
+	cfg, err := cfgWrap.GetParsingConfig(task.Config)
+	if err != nil {
+		log.Err(err.Error())
 		return
 	}
-	var cfg common.ParsingConfig
-	common.Encode(rawCfg, &cfg)
 
-	res = <-cfgManager.Call("enqueue", "common", "")
-	if err = res.Err(); err != nil {
-		log.Err(err)
+	combainerCfg, err := cfgWrap.GetCommon()
+	if err != nil {
+		log.Err(err.Error())
 		return
 	}
-	if err = res.Extract(&rawCfg); err != nil {
-		log.Err(err)
-		return
-	}
-	var combainerCfg common.CombainerConfig
-	common.Encode(rawCfg, &combainerCfg)
 
-	var aggCfg common.AggConfig
-	aggLogName := cfg.AggConfigs[0]
-	res = <-cfgManager.Call("enqueue", "aggregate", aggLogName)
-	if err = res.Err(); err != nil {
-		log.Err(err)
-		return
+	aggCfgs := make(map[string]common.AggConfig)
+	for _, name := range cfg.AggConfigs {
+		aggCfg, err := cfgWrap.GetAggregateConfig(name)
+		if err != nil {
+			log.Err(err.Error())
+			return err
+		}
+		aggCfgs[name] = aggCfg
 	}
-	if err = res.Extract(&rawCfg); err != nil {
-		log.Err(err)
-		return
-	}
-	common.Encode(rawCfg, &aggCfg)
-	log.Info(aggCfg.Data)
+	log.Info(aggCfgs)
 
 	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
 	cfg.DF = combainerCfg.CloudCfg.DF
@@ -140,7 +176,7 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	js, _ := common.Pack(ft)
 
-	res = <-fetcher.Call("enqueue", "get", js)
+	res := <-fetcher.Call("enqueue", "get", js)
 	if err = res.Err(); err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
@@ -214,55 +250,57 @@ func Parsing(task common.ParsingTask) (err error) {
 	defer func() {
 		taskToDatagrid, _ = common.Pack([]interface{}{cfg.DG, token})
 		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
-		log.Err("Drop table")
+		log.Info("Drop table")
 	}()
 
 	var wg sync.WaitGroup
-	for k, v := range aggCfg.Data {
-		aggType, err2 := common.GetType(v)
-		log.Info(task.Id, fmt.Sprintf(" Send to %s type %s %v", k, aggType, v))
-		if err2 != nil {
-			err = err2
-			return
-		} else {
-			wg.Add(1)
-			go func(name string, k string, v interface{}, deadline time.Duration) {
-				defer wg.Done()
-				log, err := lazyLoggerInitialization()
-				storage, err := lazyStorageInitialization()
-				if err != nil {
-					return
-				}
-
-				app, err := cocaine.NewService(name)
-				if err != nil {
-					log.Info(task.Id, " ", name, err.Error())
-					return
-				}
-				defer app.Close()
-				t, _ := common.Pack([]interface{}{v, cfg.DG, token, task.PrevTime, task.CurrTime})
-
-				select {
-				case res := <-app.Call("enqueue", "aggregate_host", t):
-					if res.Err() != nil {
-						log.Errf("%s Task failed  %s", task.Id, res.Err())
-						return
-					}
-
-					var raw_res []byte
-					err = res.Extract(&raw_res)
+	for aggLogName, aggCfg := range aggCfgs {
+		for k, v := range aggCfg.Data {
+			aggType, err2 := common.GetType(v)
+			log.Info(task.Id, fmt.Sprintf(" Send to %s %s type %s %v", aggLogName, k, aggType, v))
+			if err2 != nil {
+				err = err2
+				return
+			} else {
+				wg.Add(1)
+				go func(name string, k string, v interface{}, deadline time.Duration) {
+					defer wg.Done()
+					log, err := lazyLoggerInitialization()
+					storage, err := lazyStorageInitialization()
 					if err != nil {
-						log.Errf("%s Unable to extract result. %s", task.Id, err.Error())
 						return
 					}
-					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
-					log.Info("Key ", key, " ", raw_res)
-					_, _ = <-storage.Call("cache_write", "combaine", key, raw_res)
-					log.Info("Key write ", key)
-				case <-time.After(deadline):
-					log.Err(fmt.Sprintf("Failed task %s %s", task.Id, deadline))
-				}
-			}(aggType, k, v, time.Second*5)
+
+					app, err := cocaine.NewService(name)
+					if err != nil {
+						log.Info(task.Id, " ", name, err.Error())
+						return
+					}
+					defer app.Close()
+					t, _ := common.Pack([]interface{}{v, cfg.DG, token, task.PrevTime, task.CurrTime})
+
+					select {
+					case res := <-app.Call("enqueue", "aggregate_host", t):
+						if res.Err() != nil {
+							log.Errf("%s Task failed  %s", task.Id, res.Err())
+							return
+						}
+
+						var raw_res []byte
+						err = res.Extract(&raw_res)
+						if err != nil {
+							log.Errf("%s Unable to extract result. %s", task.Id, err.Error())
+							return
+						}
+						key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
+						log.Info("Key ", key, " ", raw_res)
+						_, _ = <-storage.Call("cache_write", "combaine", key, raw_res)
+						log.Info("Key write ", key)
+					case <-time.After(deadline):
+						log.Err(fmt.Sprintf("Failed task %s %s", task.Id, deadline))
+					}
+				}(aggType, k, v, time.Second*5)
+			}
 		}
 	}
 	wg.Wait()
