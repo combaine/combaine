@@ -76,6 +76,11 @@ install/combaine-core::
 	install -m755 plugins/aggregators/average.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
 	install -m664 manifests/manifest_aggregate-average.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
 	install -m755 deploy_scripts/deploy_aggregate-average.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average/deploy.sh
+	# quant
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
+	install -m755 plugins/aggregators/quant.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
+	install -m664 manifests/manifest_aggregate-quant.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
+	install -m755 deploy_scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
 	# agave
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 plugins/senders/agave.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave

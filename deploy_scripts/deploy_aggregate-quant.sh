@@ -1,8 +1,8 @@
 #!/bin/bash
 
-APPNAME=summa
-MANIFEST=manifest_aggregate-average.json
-PACKAGE=summa.tar.gz
+APPNAME=quant
+MANIFEST=manifest_aggregate-quant.json
+PACKAGE=quant.tar.gz
 
 rm ./$PACKAGE || true
 tar -czf ./$PACKAGE ./*
