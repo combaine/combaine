@@ -257,6 +257,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		time.Sleep(time.Millisecond * 300)
 	}
 
+	fmt.Println(*app)
 	if app == nil {
 		return
 	}
@@ -266,7 +267,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 	case <-time.After(limit):
 		log.Println("Task %s has been late", task.Id)
 	case res := <-app.Call("enqueue", "handleTask", raw):
-		log.Println("Aggregate done ", res.Err())
+		log.Println("Aggregate done ", res)
 	}
 }
 

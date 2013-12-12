@@ -12,15 +12,22 @@ Log = Logger()
 TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
 
+
 def aggregate_host(request, response):
     raw = yield request.read()
-    cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
-    Log.info(str(cfg))
+    #cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
+    TASK = msgpack.unpackb(raw)
+    Log.info("Handle task %s" % TASK)
+    cfg = TASK['config']  # config of aggregator
+    dgcfg = TASK['dgconfig']
+    token = TASK['token']
+    prtime = TASK['prevtime']
+    currtime = TASK['currtime']
+    taskId = TASK['id']
     dg = Service(dgcfg['type'])
-    #yield dg.connect()
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
-    Log.info("QUERY: %s" % q)
+    Log.info("%s QUERY: %s" % (taskId, q))
     res = yield dg.enqueue("query",
                            msgpack.packb((dgcfg,
                                           token,
@@ -28,12 +35,12 @@ def aggregate_host(request, response):
 
     try:
         ret = float(res[0][0])   # SELECT COUNT(*)
+        Log.info("%s Result from DG %s" % (taskId, ret))
         if cfg.get('rps'):
-            Log.info("Recalculate to rps")
             ret = ret / (currtime - prtime)
     except Exception:
         ret = 0
-    Log.info(str(ret))
+    Log.info("%s %s" % (taskId, ret))
     response.write(msgpack.packb(ret))
     response.close()
 
@@ -44,7 +51,7 @@ def aggregate_group(request, response):
     cfg, data = inc
     res = sum(map(msgpack.unpackb, data))
     Log.info("Receive result %s" % res)
-    response.write(res) 
+    response.write(res)
     response.close()
 
 

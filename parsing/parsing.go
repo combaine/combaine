@@ -47,58 +47,6 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 	}
 }
 
-// Wrapper around cfgmanager. TBD: move to common
-type cfgWrapper struct {
-	cfgManager *cocaine.Service
-	log        *cocaine.Logger
-}
-
-func (m *cfgWrapper) GetParsingConfig(name string) (cfg common.ParsingConfig, err error) {
-	res := <-m.cfgManager.Call("enqueue", "parsing", name)
-	if err = res.Err(); err != nil {
-		return
-	}
-	var rawCfg []byte
-	if err = res.Extract(&rawCfg); err != nil {
-		return
-	}
-	err = common.Encode(rawCfg, &cfg)
-	return
-}
-
-func (m *cfgWrapper) GetAggregateConfig(name string) (cfg common.AggConfig, err error) {
-	res := <-m.cfgManager.Call("enqueue", "aggregate", name)
-	if err = res.Err(); err != nil {
-		log.Err(err)
-		return
-	}
-	var rawCfg []byte
-	if err = res.Extract(&rawCfg); err != nil {
-		log.Err(err)
-		return
-	}
-
-	err = common.Encode(rawCfg, &cfg)
-	return
-}
-
-func (m *cfgWrapper) GetCommon() (combainerCfg common.CombainerConfig, err error) {
-	res := <-m.cfgManager.Call("enqueue", "common", "")
-	if err = res.Err(); err != nil {
-		return
-	}
-	var rawCfg []byte
-	if err = res.Extract(&rawCfg); err != nil {
-		return
-	}
-	err = common.Encode(rawCfg, &combainerCfg)
-	return
-}
-
-func (m *cfgWrapper) Close() {
-	m.cfgManager.Close()
-}
-
 // Main parsing function
 func Parsing(task common.ParsingTask) (err error) {
 	log, err := lazyLoggerInitialization()
@@ -260,46 +208,54 @@ func Parsing(task common.ParsingTask) (err error) {
 			log.Infof("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 			if err != nil {
 				return err
-			} else {
-				wg.Add(1)
-				go func(name string, k string, v interface{}, deadline time.Duration) {
-					defer wg.Done()
-					log, err := lazyLoggerInitialization()
-					storage, err := lazyStorageInitialization()
-					if err != nil {
-						return
-					}
-
-					app, err := cocaine.NewService(name)
-					if err != nil {
-						log.Infof("%s %s %s", task.Id, name, err)
-						return
-					}
-					defer app.Close()
-					t, _ := common.Pack([]interface{}{v, cfg.DG, token, task.PrevTime, task.CurrTime})
-
-					select {
-					case res := <-app.Call("enqueue", "aggregate_host", t):
-						if res.Err() != nil {
-							log.Errf("%s Task failed  %s", task.Id, res.Err())
-							return
-						}
-
-						var raw_res []byte
-						err = res.Extract(&raw_res)
-						if err != nil {
-							log.Errf("%s Unable to extract result. %s", task.Id, err.Error())
-							return
-						}
-						key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
-						//log.Info("Key ", key, " ", raw_res)
-						<-storage.Call("cache_write", "combaine", key, raw_res)
-						log.Infof("%s Write data with key %s", task.Id, key)
-					case <-time.After(deadline):
-						log.Errf("%s Failed task %s", task.Id, deadline)
-					}
-				}(aggType, k, v, time.Second*5)
 			}
+			wg.Add(1)
+			go func(name string, k string, v interface{}, deadline time.Duration) {
+				defer wg.Done()
+				log, err := lazyLoggerInitialization()
+				storage, err := lazyStorageInitialization()
+				if err != nil {
+					return
+				}
+
+				app, err := cocaine.NewService(name)
+				if err != nil {
+					log.Infof("%s %s %s", task.Id, name, err)
+					return
+				}
+				defer app.Close()
+
+				/*
+					Task structure
+				*/
+				t, _ := common.Pack(map[string]interface{}{
+					"config":   v,
+					"dgconfig": cfg.DG,
+					"token":    token,
+					"prevtime": task.PrevTime,
+					"currtime": task.CurrTime,
+					"id":       task.Id})
+
+				select {
+				case res := <-app.Call("enqueue", "aggregate_host", t):
+					if res.Err() != nil {
+						log.Errf("%s Task failed  %s", task.Id, res.Err())
+						return
+					}
+
+					var raw_res []byte
+					if err := res.Extract(&raw_res); err != nil {
+						log.Errf("%s Unable to extract result. %s", task.Id, err.Error())
+						return
+					}
+
+					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
+					<-storage.Call("cache_write", "combaine", key, raw_res)
+					log.Infof("%s Write data with key %s", task.Id, key)
+				case <-time.After(deadline):
+					log.Errf("%s Failed task %s", task.Id, deadline)
+				}
+			}(aggType, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
 		}
 	}
 	wg.Wait()

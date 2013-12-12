@@ -28,13 +28,14 @@ class Cache(object):
     def put(self, name):
         try:
             s = Service(name)
-        except Exception as err:
+        except Exception:
             return None
         else:
             self._cache[name] = s
             return s
 
 cache = Cache()
+
 
 def split_hosts_by_dc(http_hand_url, groupname):
     hosts = urllib.urlopen("%s%s?fields=root_datacenter_name,fqdn" % (http_hand_url, groupname)).read()
@@ -51,11 +52,13 @@ def split_hosts_by_dc(http_hand_url, groupname):
 # Get hosts by group
 # Gen keys
 # Read keys
-# 
+
+
 def aggreagate(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
-    log.info("Task %s" % task)
+    log.info("Task %s" % task["Id"])
+    ID = task["Id"]
     raw = yield cfgmanager.enqueue("aggregate", task['Config'])
     aggcfg = yaml.load(raw)
     log.info("Config %s" % aggcfg)
@@ -80,18 +83,24 @@ def aggreagate(request, response):
         for subgroup, value in hosts.iteritems():
             subgroup_data = list()
             for host in value:
-                key = "%s;%s;%s;%s;%s" % (host, task['PConfig'], task['Config'], name, task['CurrTime'])
-                log.error(key)
+                key = "%s;%s;%s;%s;%s" % (host, task['PConfig'],
+                                          task['Config'],
+                                          name,
+                                          task['CurrTime'])
                 try:
                     data = yield storage.read("combaine", key)
-                    log.error("Read key %s" % data)
+                    log.error("%s Read key %s" % (ID, data))
                     subgroup_data.append(data)
                 except Exception:
-                    log.error("Unable to read %s" % key)
+                    log.error("%s Unable to read %s" % (ID, key))
             mapping[subgroup] = subgroup_data
-            res = yield app.enqueue("aggregate_group", msgpack.packb((cfg, subgroup_data)))
-            log.error("name %s subgroup %s result %s, %d" % (name, subgroup, res, len(subgroup_data)))
-            result[name][subgroup]=res
+            res = yield app.enqueue("aggregate_group", msgpack.packb((cfg,
+                                                                      subgroup_data)))
+            log.error("%s name %s subgroup %s result %s" % (ID,
+                                                            name,
+                                                            subgroup,
+                                                            res))
+            result[name][subgroup] = res
 
         all_data = []
         for v in mapping.itervalues():
@@ -107,7 +116,8 @@ def aggreagate(request, response):
         except Exception as err:
             log.error(str(err))
         else:
-            futures.append(s.enqueue("send", msgpack.packb({"Config": item, "Data": result})))
+            futures.append(s.enqueue("send", msgpack.packb({"Config": item,
+                                                            "Data": result})))
 
     for fut in futures:
         try:
@@ -116,9 +126,8 @@ def aggreagate(request, response):
         except Exception as err:
             log.error(str(err))
 
-    log.error("DONE")
-    log.info("Result %s" % str(result))
-    response.write("ok")        
+    log.info("%s Result %s" % (ID, result))
+    response.write("done")
     response.close()
 
 
