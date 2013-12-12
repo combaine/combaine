@@ -45,7 +45,7 @@ def quants(qts, it):
     lim = qts.pop()
     summ = 0
     res = []
-    for i in it:
+    for i in sorted(it.iteritems()):
         summ += i[1]
         if summ > lim:
             if len(qts) > 0:
@@ -80,11 +80,19 @@ def aggregate_group(request, response):
     raw = yield request.read()
     inc = msgpack.unpackb(raw)
     cfg, data = inc
+    Log.info("Unpack raw data successfully")
     raw_data = map(msgpack.unpackb, data)
     ret = merge(raw_data)
-    ret = quants(cfg["values"], ret['data'])
-    response.write(raw_data)
-    response.close()
+    Log.info("Data has been merged %s" % ret)
+    try:
+        ret = quants(cfg["values"], ret['data'])
+    except Exception as err:
+        Log.error(str(err))
+        response.error(100, repr(err))
+    else:
+        Log.error(str(ret))
+        response.write(ret)
+        response.close()
 
 
 if __name__ == '__main__':

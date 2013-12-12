@@ -99,6 +99,7 @@ func (m *cfgWrapper) Close() {
 	m.cfgManager.Close()
 }
 
+// Main parsing function
 func Parsing(task common.ParsingTask) (err error) {
 	log, err := lazyLoggerInitialization()
 	log, err = lazyLoggerInitialization()
@@ -112,13 +113,13 @@ func Parsing(task common.ParsingTask) (err error) {
 	log.Info(task.Id, " Create configuration manager")
 	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	if err != nil {
-		log.Err(err.Error())
+		log.Errf("%s %s", task.Id, err.Error())
 		return
 	}
 	cfgWrap := cfgWrapper{cfgManager, log}
 	defer cfgWrap.Close()
 
-	log.Info(task.Id, " Fetch configuration file ", task.Config)
+	log.Debugf(task.Id, " Fetch configuration file ", task.Config)
 	cfg, err := cfgWrap.GetParsingConfig(task.Config)
 	if err != nil {
 		log.Err(err.Error())
@@ -140,7 +141,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		}
 		aggCfgs[name] = aggCfg
 	}
-	log.Info(aggCfgs)
+	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
 
 	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
 	cfg.DF = combainerCfg.CloudCfg.DF
@@ -155,7 +156,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 
-	log.Info(fmt.Sprintf("%s Use %s for fetching data", task.Id, fetcherType))
+	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
 	fetcher, err := cocaine.NewService(fetcherType)
 	if err != nil {
 		log.Err(err.Error())
@@ -219,16 +220,15 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 
-	log.Info(fmt.Sprintf("%s Use %s for handle data", task.Id, dgType))
+	log.Debugf("%s Use %s for handle data", task.Id, dgType)
 	datagrid, err := cocaine.NewService(dgType)
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
 	defer func() {
-		log.Err("Try close mysqldg connection")
 		datagrid.Close()
-		log.Err("Close mysqldg connection")
+		log.Errf("%s %s", task.Id, "Close mysqldg connection")
 	}()
 
 	taskToDatagrid, err := common.Pack([]interface{}{cfg.DG, z})
@@ -246,21 +246,20 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
-	log.Info(token)
+
 	defer func() {
 		taskToDatagrid, _ = common.Pack([]interface{}{cfg.DG, token})
 		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
-		log.Info("Drop table")
+		log.Infof("%s Drop table", task.Id)
 	}()
 
 	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range aggCfgs {
 		for k, v := range aggCfg.Data {
-			aggType, err2 := common.GetType(v)
-			log.Info(task.Id, fmt.Sprintf(" Send to %s %s type %s %v", aggLogName, k, aggType, v))
-			if err2 != nil {
-				err = err2
-				return
+			aggType, err := common.GetType(v)
+			log.Infof("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+			if err != nil {
+				return err
 			} else {
 				wg.Add(1)
 				go func(name string, k string, v interface{}, deadline time.Duration) {
@@ -273,7 +272,7 @@ func Parsing(task common.ParsingTask) (err error) {
 
 					app, err := cocaine.NewService(name)
 					if err != nil {
-						log.Info(task.Id, " ", name, err.Error())
+						log.Infof("%s %s %s", task.Id, name, err)
 						return
 					}
 					defer app.Close()
@@ -293,11 +292,11 @@ func Parsing(task common.ParsingTask) (err error) {
 							return
 						}
 						key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
-						log.Info("Key ", key, " ", raw_res)
-						_, _ = <-storage.Call("cache_write", "combaine", key, raw_res)
-						log.Info("Key write ", key)
+						//log.Info("Key ", key, " ", raw_res)
+						<-storage.Call("cache_write", "combaine", key, raw_res)
+						log.Infof("%s Write data with key %s", task.Id, key)
 					case <-time.After(deadline):
-						log.Err(fmt.Sprintf("Failed task %s %s", task.Id, deadline))
+						log.Errf("%s Failed task %s", task.Id, deadline)
 					}
 				}(aggType, k, v, time.Second*5)
 			}
@@ -305,6 +304,6 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 	wg.Wait()
 
-	log.Info(task.Id, " Stop")
+	log.Info(task.Id, " Done")
 	return nil
 }

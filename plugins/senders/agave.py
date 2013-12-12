@@ -6,17 +6,15 @@ import time
 import collections
 
 import yaml
-import msgpack 
+import msgpack
 
 from cocaine.worker import Worker
 from cocaine.logging import Logger
 from cocaine.services import Service
 
-agave_headers = {
-        "User-Agent": "Yandex/Agave",
-        "Connection": "TE",
-        "TE": "deflate,gzip;q=0.3"
-}
+agave_headers = {"User-Agent": "Yandex/Agave",
+                 "Connection": "TE",
+                 "TE": "deflate,gzip;q=0.3"}
 
 agave_hosts = []
 
@@ -43,12 +41,12 @@ class Agave(object):
         for agv_host in agave_hosts:
             conn = httplib.HTTPConnection(agv_host, timeout=1)
             headers = agave_headers
-            headers['Host'] = agv_host+':80'
+            headers['Host'] = agv_host + ':80'
             try:
                 conn.request("GET", url, None, headers)
                 _r = conn.getresponse()
                 self.logger.info("%s %s %s %s %s" % (agv_host, _r.status, _r.reason, _r.read().strip('\r\n'), url))
-            except Exception as err:
+            except Exception:
                 self.logger.error("Unable to connect to %s" % agv_host)
             else:
                 _r.close()
@@ -62,11 +60,14 @@ class Agave(object):
                 self.logger.warn("Values for %s are missing" % aggname)
                 continue
             for subgroup, result in values.iteritems():
-                if isinstance(result, types.ListType):
+                self.logger.info(str(type(result)))
+                if isinstance(result, (types.TupleType, types.ListType)):
                     self.logger.warn("Quantile hasn't supported yet")
                     val = None
                     continue
-                else:
+                elif isinstance(result, (types.FloatType,
+                                         types.IntType,
+                                         types.LongType)):
                     val = "%s:%s" % (aggname, result)
                     self.logger.info(val)
                 output[subgroup].append(val)
