@@ -49,6 +49,7 @@ def aggregate_group(request, response):
     raw = yield request.read()
     inc = msgpack.unpackb(raw)
     cfg, data = inc
+    Log.info("Receive raw result %s" % str(inc))
     res = sum(map(msgpack.unpackb, data))
     Log.info("Receive result %s" % res)
     response.write(res)

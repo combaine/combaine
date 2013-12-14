@@ -1,7 +1,9 @@
 package combainer
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -98,44 +100,53 @@ func (cl *Client) Dispatch() {
 
 	var p_tasks []common.ParsingTask
 	var agg_tasks []common.AggregationTask
-	if res, err := loadConfig(cl.lockname); err != nil {
+	res, err := loadConfig(cl.lockname)
+	if err != nil {
 		log.Println(err)
 		return
-	} else {
-		// Make list of hosts
-		var hosts []string
-		for _, item := range res.Groups {
-			if hosts_for_group, err := GetHosts(cl.Main.Http_hand, item); err != nil {
-				log.Println(item, err)
-			} else {
-				hosts = append(hosts, hosts_for_group...)
-			}
-			log.Println(hosts)
+	}
 
+	var metahost string
+	if len(res.Metahost) != 0 {
+		metahost = res.Metahost
+	} else {
+		metahost = res.Groups[0]
+	}
+	log.Printf("Metahost %s", metahost)
+	// Make list of hosts
+	var hosts []string
+	for _, item := range res.Groups {
+		if hosts_for_group, err := GetHosts(cl.Main.Http_hand, item); err != nil {
+			log.Println(item, err)
+		} else {
+			hosts = append(hosts, hosts_for_group...)
 		}
-		// Tasks for parsing
-		//host_name, config_name, group_name, previous_time, current_time
-		for _, host := range hosts {
-			p_tasks = append(p_tasks, common.ParsingTask{
-				Host:     host,
-				Config:   cl.lockname,
-				Group:    res.Groups[0],
-				PrevTime: -1,
-				CurrTime: -1,
-				Id:       "",
-			})
-		}
-		//groupname, config_name, agg_config_name, previous_time, current_time
-		for _, cfg := range res.AggConfigs {
-			agg_tasks = append(agg_tasks, common.AggregationTask{
-				Config:   cfg,
-				PConfig:  cl.lockname,
-				Group:    res.Groups[0],
-				PrevTime: -1,
-				CurrTime: -1,
-				Id:       "",
-			})
-		}
+		log.Println(hosts)
+	}
+	// Tasks for parsing
+	//host_name, config_name, group_name, previous_time, current_time
+	for _, host := range hosts {
+		p_tasks = append(p_tasks, common.ParsingTask{
+			Host:     host,
+			Config:   cl.lockname,
+			Group:    res.Groups[0],
+			PrevTime: -1,
+			CurrTime: -1,
+			Id:       "",
+			Metahost: metahost,
+		})
+	}
+	//groupname, config_name, agg_config_name, previous_time, current_time
+	for _, cfg := range res.AggConfigs {
+		agg_tasks = append(agg_tasks, common.AggregationTask{
+			Config:   cfg,
+			PConfig:  cl.lockname,
+			Group:    res.Groups[0],
+			PrevTime: -1,
+			CurrTime: -1,
+			Id:       "",
+			Metahost: metahost,
+		})
 	}
 
 	PARSING_TIME := time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
@@ -170,7 +181,15 @@ func (cl *Client) Dispatch() {
 				// Description of task
 				task.PrevTime = startTime.Unix()
 				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
-				task.Id = fmt.Sprintf("%v", task)
+				/*
+						task.Id = fmt.Sprintf("%v", md5.New(fmt.Sprintf("%v", task)))
+						h := md5.New()
+					    io.WriteString(h, "The fog is getting thicker!")
+					    fmt.Printf("%x", h.Sum(nil))
+				*/
+				h := md5.New()
+				io.WriteString(h, (fmt.Sprintf("%v", task)))
+				task.Id = fmt.Sprintf("%x", h.Sum(nil))
 
 				log.Println("Send task number ", i, task)
 				go cl.parsingTaskHandler(task, &wg, deadline)

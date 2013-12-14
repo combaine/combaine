@@ -17,6 +17,7 @@ const (
 type ParsingConfig struct {
 	Groups     []string "groups"
 	AggConfigs []string "agg_configs"
+	Metahost   string   "Metahost"
 }
 
 // Fetch hosts by groupname from HTTP

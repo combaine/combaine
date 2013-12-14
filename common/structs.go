@@ -18,6 +18,7 @@ type ParsingConfig struct {
 	DF         map[string]interface{} `yaml:"DataFetcher"`
 	DS         map[string]interface{} `yaml:"DistributedStorage"`
 	DG         map[string]interface{} `yaml:"LocalDatabase"`
+	Metahost   string                 `yaml:"Metahost"`
 }
 
 // Description of combainer config
@@ -63,6 +64,7 @@ type ParsingTask struct {
 	PrevTime int64
 	CurrTime int64
 	Id       string
+	Metahost string
 }
 
 func (t *ParsingTask) String() string {
@@ -77,4 +79,5 @@ type AggregationTask struct {
 	PrevTime int64
 	CurrTime int64
 	Id       string
+	Metahost string
 }

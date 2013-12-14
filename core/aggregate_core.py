@@ -44,7 +44,7 @@ def split_hosts_by_dc(http_hand_url, groupname):
     host_dict = collections.defaultdict(list)
     for item in hosts.splitlines():
         dc, host = item.split('\t')
-        host_dict["%s-%s" % (groupname, dc)].append(host)
+        host_dict[dc].append(host)
     return host_dict
 
 #{'Group': 'photo-proxy', 'CurrTime': -1, 'Config': 'http_ok_timings', 'Id': '', 'PrevTime': -1}
@@ -59,13 +59,15 @@ def aggreagate(request, response):
     task = msgpack.unpackb(raw)
     log.info("Task %s" % task["Id"])
     ID = task["Id"]
+    METAHOST = task["Metahost"]
     raw = yield cfgmanager.enqueue("aggregate", task['Config'])
     aggcfg = yaml.load(raw)
-    log.info("Config %s" % aggcfg)
+    log.info("%s Config %s" % (ID, aggcfg))
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
     hosts = split_hosts_by_dc(httphand, task['Group'])
-    log.info(str(hosts))
+    log.info("%s %s" % (ID, hosts))
+    hosts = dict(("%s-%s" % (METAHOST, subgroup), v) for subgroup, v in hosts.iteritems())
 
     result = {}
 
@@ -107,7 +109,7 @@ def aggreagate(request, response):
             all_data.extend(v)
         res = yield app.enqueue("aggregate_group", msgpack.packb((cfg, all_data)))
         log.error("name %s ALL %s %d" % (name, res, len(all_data)))
-        result[name][task['Group']] = res
+        result[name][METAHOST] = res
 
     futures = []
     for name, item in aggcfg.get('senders', {}).iteritems():
@@ -134,5 +136,3 @@ def aggreagate(request, response):
 if __name__ == "__main__":
     W = Worker()
     W.run({"handleTask": aggreagate})
-    
-
