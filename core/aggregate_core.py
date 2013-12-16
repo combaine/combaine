@@ -93,11 +93,16 @@ def aggreagate(request, response):
                     data = yield storage.read("combaine", key)
                     log.error("%s Read key %s" % (ID, data))
                     subgroup_data.append(data)
+                    if cfg.get("perHost"):
+                        res = yield app.enqueue("aggregate_group",
+                                                msgpack.packb((cfg, [data])))
+                        result[name][host] = res
                 except Exception:
                     log.error("%s Unable to read %s" % (ID, key))
+
             mapping[subgroup] = subgroup_data
-            res = yield app.enqueue("aggregate_group", msgpack.packb((cfg,
-                                                                      subgroup_data)))
+            res = yield app.enqueue("aggregate_group",
+                                    msgpack.packb((cfg, subgroup_data)))
             log.error("%s name %s subgroup %s result %s" % (ID,
                                                             name,
                                                             subgroup,
@@ -107,7 +112,8 @@ def aggreagate(request, response):
         all_data = []
         for v in mapping.itervalues():
             all_data.extend(v)
-        res = yield app.enqueue("aggregate_group", msgpack.packb((cfg, all_data)))
+        res = yield app.enqueue("aggregate_group",
+                                msgpack.packb((cfg, all_data)))
         log.error("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
