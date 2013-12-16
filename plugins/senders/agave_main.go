@@ -38,6 +38,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s", err.Error())
 		return
 	}
+	defer cfgManager.Close()
 
 	res := <-cfgManager.Call("enqueue", "common", "")
 	if err = res.Err(); err != nil {

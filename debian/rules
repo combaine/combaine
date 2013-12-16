@@ -49,6 +49,7 @@ build/combaine-core::
 	go build -o $(BUILD_DIR)/main_parsing-core $(CURDIR)/core/parsing_main.go
 	go build -o $(BUILD_DIR)/main_cfgmanager $(CURDIR)/core/cfgmanager_main.go
 	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/plugins/timetail/main/timetail_main.go
+	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/plugins/senders/agave_main.go
 
 install/combaine-core::
 	# core-parsing
@@ -83,7 +84,8 @@ install/combaine-core::
 	install -m755 deploy_scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
 	# agave
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
-	install -m755 plugins/senders/agave.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
+	install -m755 $(BUILD_DIR)/main_agave  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
+	#install -m755 plugins/senders/agave.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m664 manifests/manifest_agave.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 deploy_scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
 	# timetail
