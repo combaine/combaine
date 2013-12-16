@@ -10,6 +10,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}"
@@ -62,6 +64,7 @@ type AgaveSender struct {
 	graphName     string
 	graphTemplate string
 	hosts         []string
+	logger        *cocaine.Logger
 	//fields        []string
 }
 
@@ -106,7 +109,7 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 		as.graphName,
 	})
 	if err != nil {
-		fmt.Println(err)
+		as.logger.Errf("%s", err)
 	} else {
 		as.sendPoint(url.String())
 	}
@@ -119,16 +122,17 @@ func (as *AgaveSender) sendPoint(url string) {
 			time.Millisecond*RW_TIMEOUT)
 		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s%s", host, url), nil)
 		req.Header = DEFAULT_HEADERS
-		fmt.Println(req.URL)
+		//fmt.Println(req.URL)
+		as.logger.Errf("%s", req.URL)
 		_ = client
 		if resp, err := client.Do(req); err != nil {
-			fmt.Println(err)
+			as.logger.Errf("%s", err)
 		} else {
 			defer resp.Body.Close()
 			if body, err := ioutil.ReadAll(resp.Body); err != nil {
-				fmt.Println(err)
+				as.logger.Errf("%s", err)
 			} else {
-				fmt.Printf("%d %s", resp.StatusCode, body)
+				as.logger.Infof("%d %s", resp.StatusCode, body)
 			}
 		}
 	}
@@ -175,12 +179,17 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 			return nil, wrongCfgParametrError("graph_template")
 		}
 	}
+	logger, err := cocaine.NewLogger()
+	if err != nil {
+		return nil, err
+	}
 	//fields
 	as = &AgaveSender{
 		items:         items,
 		graphName:     graphname,
 		graphTemplate: graphtemplate,
 		hosts:         hosts,
+		logger:        logger,
 	}
 	return
 }

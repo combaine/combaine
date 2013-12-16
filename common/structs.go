@@ -44,9 +44,10 @@ type CombainerConfig struct {
 		LockServerCfg combainerLockserverCfg "Lockserver"
 	} "Combainer"
 	CloudCfg struct {
-		DF map[string]interface{} `yaml:"DataFetcher"`
-		DS map[string]interface{} `yaml:"DistributedStorage"`
-		DG map[string]interface{} `yaml:"LocalDatabase"`
+		DF    map[string]interface{} `yaml:"DataFetcher"`
+		DS    map[string]interface{} `yaml:"DistributedStorage"`
+		DG    map[string]interface{} `yaml:"LocalDatabase"`
+		Agave []string               `yaml:"agave_hosts"`
 	} `yaml:"cloud_config"`
 }
 
