@@ -86,9 +86,13 @@ install/combaine-core::
 	# agave
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 $(BUILD_DIR)/main_agave  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
-	#install -m755 plugins/senders/agave.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m664 manifests/manifest_agave.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 deploy_scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
+	# juggler
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m755 plugins/senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m664 manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m755 deploy_scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
 	# timetail
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
