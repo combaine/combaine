@@ -46,6 +46,44 @@ type Client struct {
 	DLS        LockServer
 	lockname   string
 	cloudHosts []string
+	clientStats
+}
+
+type clientStats struct {
+	sync.RWMutex
+	success int
+	failed  int
+}
+
+type StatInfo struct {
+	Success int
+	Failed  int
+	Total   int
+}
+
+func (cs *clientStats) AddSuccess() {
+	cs.Lock()
+	cs.success++
+	cs.Unlock()
+}
+
+func (cs *clientStats) AddFailed() {
+	cs.Lock()
+	cs.failed++
+	cs.Unlock()
+}
+
+func (cs *clientStats) GetStats() (info *StatInfo) {
+	cs.RLock()
+	var success = cs.success
+	var failed = cs.failed
+	cs.RUnlock()
+	info = &StatInfo{
+		Success: success,
+		Failed:  failed,
+		Total:   success + failed,
+	}
+	return
 }
 
 // Public API
@@ -97,6 +135,8 @@ func (cl *Client) Dispatch() {
 	} else {
 		return
 	}
+	_observer.RegisterClient(cl, cl.lockname)
+	defer _observer.UnregisterClient(cl.lockname)
 
 	var p_tasks []common.ParsingTask
 	var agg_tasks []common.AggregationTask
@@ -152,14 +192,10 @@ func (cl *Client) Dispatch() {
 	PARSING_TIME := time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
 	WHOLE_TIME := time.Duration(cl.Main.MinimumPeriod) * time.Second
 
-	// countOfParsingTasks := len(p_tasks)
-	// countOfAggTasks := len(agg_tasks)
-
 	// Dispatch
 	ticker := time.NewTimer(time.Millisecond * 1)
 	var parsingDone chan bool
 	var aggregateDone chan bool
-	//var tasks_done int = 0
 	var deadline time.Time
 	var startTime time.Time
 
@@ -172,7 +208,6 @@ func (cl *Client) Dispatch() {
 			log.Println(startTime)
 
 			var wg sync.WaitGroup
-			// tasks_done = 0
 			// Start next iteration after WHOLE_TIME
 			// despite of completed tasks
 			ticker.Reset(WHOLE_TIME)
@@ -181,12 +216,6 @@ func (cl *Client) Dispatch() {
 				// Description of task
 				task.PrevTime = startTime.Unix()
 				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
-				/*
-						task.Id = fmt.Sprintf("%v", md5.New(fmt.Sprintf("%v", task)))
-						h := md5.New()
-					    io.WriteString(h, "The fog is getting thicker!")
-					    fmt.Printf("%x", h.Sum(nil))
-				*/
 				h := md5.New()
 				io.WriteString(h, (fmt.Sprintf("%v", task)))
 				task.Id = fmt.Sprintf("%x", h.Sum(nil))
@@ -205,11 +234,13 @@ func (cl *Client) Dispatch() {
 			var wg sync.WaitGroup
 			parsingDone = nil
 			aggregateDone = make(chan bool)
-			//tasks_done = 0
 			deadline = startTime.Add(WHOLE_TIME)
 			for i, task := range agg_tasks {
 				task.PrevTime = startTime.Unix()
 				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+				h := md5.New()
+				io.WriteString(h, (fmt.Sprintf("%v", task)))
+				task.Id = fmt.Sprintf("%x", h.Sum(nil))
 				log.Println("Send task number ", i, task)
 				wg.Add(1)
 				go cl.aggregationTaskHandler(task, &wg, deadline)
@@ -248,6 +279,8 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	}
 
 	if app == nil {
+		log.Printf("Unable to send task %s. Application is unavailable", task.Id)
+		cl.clientStats.AddFailed()
 		return
 	}
 
@@ -255,8 +288,10 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	select {
 	case <-time.After(limit):
 		log.Printf("Task %s has been late\n", task.Id)
+		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		log.Printf("Receive result %v\n", res.Err())
+		cl.clientStats.AddSuccess()
 	}
 }
 
@@ -276,8 +311,9 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		time.Sleep(time.Millisecond * 300)
 	}
 
-	fmt.Println(*app)
 	if app == nil {
+		cl.clientStats.AddFailed()
+		log.Printf("Unable to send aggregate task %s. Application is unavailable", task.Id)
 		return
 	}
 
@@ -285,8 +321,10 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 	select {
 	case <-time.After(limit):
 		log.Println("Task %s has been late", task.Id)
+		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		log.Println("Aggregate done ", res)
+		cl.clientStats.AddSuccess()
 	}
 }
 

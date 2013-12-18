@@ -1,3 +1,9 @@
+combaine (0.6-6) lucid; urgency=low
+
+  * Add perHost
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 16 Dec 2013 16:32:03 +0400
+
 combaine (0.6-5) lucid; urgency=low
 
   * Fix bug:
