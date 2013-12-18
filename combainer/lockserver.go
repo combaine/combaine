@@ -5,6 +5,7 @@ import (
 	"launchpad.net/gozk/zookeeper"
 	"log"
 	"time"
+    "os"
 )
 
 const DUMMY_DATA = "0"
@@ -34,7 +35,8 @@ func NewLockServer(endpoints string) (*LockServer, error) {
 func (ls *LockServer) AcquireLock(node string) chan bool {
 	log.Println("Creating ", node)
 	// Add hostname and pid into DUMMY_DATA
-	path, err := ls.Zk.Create(node, DUMMY_DATA, zookeeper.EPHEMERAL, zookeeper.WorldACL(zookeeper.PERM_ALL))
+    DUMMY, _ := os.Hostname()
+	path, err := ls.Zk.Create(node, DUMMY, zookeeper.EPHEMERAL, zookeeper.WorldACL(zookeeper.PERM_ALL))
 	if err != nil {
 		log.Println(err)
 		return nil

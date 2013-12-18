@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APPNAME=juggler
-MANIFEST=manifest_aggregate-quant.json
+MANIFEST=manifest_juggler.json
 PACKAGE=juggler.tar.gz
 
 rm ./$PACKAGE || true

@@ -30,4 +30,8 @@ cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
 echo "Deploy agave"
 cd /usr/lib/yandex/combaine/core-apps/agave/
 ./deploy.sh
+
+echo "Deploy juggler"
+cd /usr/lib/yandex/combaine/core-apps/juggler/
+./deploy.sh
 #DEBHELPER#

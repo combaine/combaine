@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import re
+import yaml
 import collections
 import urllib
 
@@ -13,6 +14,7 @@ from tornado.ioloop import IOLoop
 from cocaine.futures import chain
 from cocaine.worker import Worker
 from cocaine.logging import Logger
+from cocaine.services import Service
 
 LEVELS = ("INFO", "WARN", "CRIT", "OK")
 
@@ -195,6 +197,10 @@ def send(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
     log.info("%s" % str(task))
+    raw_cfg = yield Service("cfgmanager").enqueue("common", "")
+    cfg = yaml.load(raw_cfg)
+    juggler_hosts = cfg['cloud_config']['juggler_hosts']
+    task['Config']['Juggler_hosts'] = juggler_hosts
     jc = Juggler(**task["Config"])
     try:
         yield jc.Do(task["Data"])

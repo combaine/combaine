@@ -1,3 +1,29 @@
+combaine (0.6-10) lucid; urgency=low
+
+  * fix of fix
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 17:27:01 +0400
+
+combaine (0.6-9) lucid; urgency=low
+
+  * Fix Metahost/metahost
+  * Add hostname into lock
+  * Juggler_hosts
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:54:56 +0400
+
+combaine (0.6-8) lucid; urgency=low
+
+  * fix deploy script for juggler 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:15:46 +0400
+
+combaine (0.6-7) lucid; urgency=low
+
+  * juggler
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:06:28 +0400
+
 combaine (0.6-6) lucid; urgency=low
 
   * Add perHost
