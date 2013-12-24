@@ -1,3 +1,9 @@
+combaine (0.6-11) lucid; urgency=low
+
+  * FIX
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 19 Dec 2013 17:58:35 +0400
+
 combaine (0.6-10) lucid; urgency=low
 
   * fix of fix

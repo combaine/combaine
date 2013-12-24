@@ -8,6 +8,7 @@ import msgpack
 
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httpclient import HTTPError
+from tornado.httputil import HTTPHeaders
 from tornado import template
 from tornado.ioloop import IOLoop
 
@@ -23,9 +24,15 @@ STATUSES = {0: "OK",
             1: "WARN",
             2: "CRIT"}
 
+DEFAULT_HEADERS = HTTPHeaders({"User-Agent": "Yandex/CombaineClient"})
+
 REVERSE_STATUSES = dict((v, k) for k, v in STATUSES.iteritems())
+print REVERSE_STATUSES
 
 HTTP_CLIENT = AsyncHTTPClient()
+
+CHECK_CHECK = "http://{juggler}/api/checks/checks?host_name={host}&\
+service_name={service}&do=1"
 
 ADD_CHECK = "http://{juggler}/api/checks/set_check?host_name={host}&\
 service_name={service}&description={description}&aggregator={aggregator}&do=1"
@@ -88,8 +95,7 @@ class Juggler(object):
             else:
                 log.info("Send ok manually")
                 yield self.send_point("%s-%s" % (self.Host, subgroup),
-                                      REVERSE_STATUSES["OK"])
-                #HTTP_CLIENT.fetch("http://www.google.com/", self.on_resp)
+                                      STATUSES[0])
 
     def on_resp(self, resp):
         log.info("RESP %s" % resp.code)
@@ -114,20 +120,21 @@ class Juggler(object):
     #self, level, data, name, status
     @chain.source
     def send_point(self, name, status):
+        print "SEND POINT ", name, status
         params = {"host": name,
                   "service": urllib.quote(self.checkname),
                   "description": urllib.quote(self.description),
                   "level": STATUSES[status]}
-        yield self.add_check_if_need("CHILD")
+        child = name
+        yield self.add_check_if_need(child)
         # Emit event
-        params["level"] = status
         try:
             futures = list()
             for jhost in self.juggler_hosts:
                 params["juggler"] = jhost
                 url = EMIT_EVENT.format(**params)
                 self.log.info("Send event %s" % url)
-                futures.append(HTTP_CLIENT.fetch(url))
+                futures.append(HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS))
 
             for future in futures:
                 try:
@@ -136,7 +143,7 @@ class Juggler(object):
                 except HTTPError as err:
                     self.log.error(repr(err))
         except Exception as err:
-            print err
+            log.error(repr(err))
 
     @chain.source
     def add_check_if_need(self, host):
@@ -148,47 +155,35 @@ class Juggler(object):
                   "aggregator": self.Aggregator}
 
         # Add checks
-        futures = list()
         for jhost in self.juggler_hosts:
-            params["juggler"] = jhost
-            url = ADD_CHECK.format(**params)
-            log.info("Add check %s" % url)
-            futures.append(HTTP_CLIENT.fetch(url))
-
-        for future in futures:
             try:
-                res = yield future
-                print res
+                self.log.info("Work with %s" % jhost)
+                params["juggler"] = jhost
+                #Check existnace of service
+                url = CHECK_CHECK.format(**params)
+                log.info("Check check %s" % url)
+                response = yield HTTP_CLIENT.fetch(url,
+                                                   headers=DEFAULT_HEADERS)
+
+                if response.body == "{}":
+                    url = ADD_CHECK.format(**params)
+                    log.info("Add check %s" % url)
+                    yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+
+                    url = ADD_CHILD.format(**params)
+                    self.log.info("Add child %s" % url)
+                    yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+
+                    url = ADD_METHOD.format(**params)
+                    self.log.info("add method %s" % url)
+                    yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
             except HTTPError as err:
-                print err
-
-        # Add childs
-        futures = list()
-        for jhost in self.juggler_hosts:
-            params["juggler"] = jhost
-            url = ADD_CHILD.format(**params)
-            self.log.info("Add child %s" % url)
-            futures.append(HTTP_CLIENT.fetch(url))
-
-        for future in futures:
-            try:
-                res = yield future
-            except HTTPError as err:
-                log.error(repr(err))
-
-        # Add methods
-        futures = list()
-        for jhost in self.juggler_hosts:
-            params["juggler"] = jhost
-            url = ADD_METHOD.format(**params)
-            self.log.info("add method %s" % url)
-            futures.append(HTTP_CLIENT.fetch(url))
-
-        for future in futures:
-            try:
-                res = yield future
-            except HTTPError as err:
-                log.error(repr(err))
+                log.error(str(err))
+                continue
+            except Exception as err:
+                self.log.error(str(err))
+            else:
+                break
 
         yield True
 
