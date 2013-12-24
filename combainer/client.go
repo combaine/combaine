@@ -193,71 +193,50 @@ func (cl *Client) Dispatch() {
 	WHOLE_TIME := time.Duration(cl.Main.MinimumPeriod) * time.Second
 
 	// Dispatch
-	ticker := time.NewTimer(time.Millisecond * 1)
-	var parsingDone chan bool
-	var aggregateDone chan bool
 	var deadline time.Time
 	var startTime time.Time
+	var wg sync.WaitGroup
 
 	for {
-		select {
 		// Start periodically
-		case startTime = <-ticker.C:
-			deadline = startTime.Add(PARSING_TIME)
-			aggregateDone = nil
-			log.Println(startTime)
+		startTime = time.Now()
+		deadline = startTime.Add(PARSING_TIME)
+		log.Println("Start new iteration at ", startTime)
 
-			var wg sync.WaitGroup
-			// Start next iteration after WHOLE_TIME
-			// despite of completed tasks
-			ticker.Reset(WHOLE_TIME)
-			parsingDone = make(chan bool)
-			for i, task := range p_tasks {
-				// Description of task
-				task.PrevTime = startTime.Unix()
-				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
-				h := md5.New()
-				io.WriteString(h, (fmt.Sprintf("%v", task)))
-				task.Id = fmt.Sprintf("%x", h.Sum(nil))
+		for i, task := range p_tasks {
+			// Description of task
+			task.PrevTime = startTime.Unix()
+			task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+			h := md5.New()
+			io.WriteString(h, (fmt.Sprintf("%v", task)))
+			task.Id = fmt.Sprintf("%x", h.Sum(nil))
 
-				log.Println("Send task number ", i, task)
-				go cl.parsingTaskHandler(task, &wg, deadline)
-				wg.Add(1)
-			}
-			go func() {
-				wg.Wait()
-				log.Println("Parsing ended")
-				parsingDone <- true
-			}()
-		// Collect parsing result
-		case <-parsingDone:
-			var wg sync.WaitGroup
-			parsingDone = nil
-			aggregateDone = make(chan bool)
-			deadline = startTime.Add(WHOLE_TIME)
-			for i, task := range agg_tasks {
-				task.PrevTime = startTime.Unix()
-				task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
-				h := md5.New()
-				io.WriteString(h, (fmt.Sprintf("%v", task)))
-				task.Id = fmt.Sprintf("%x", h.Sum(nil))
-				log.Println("Send task number ", i, task)
-				wg.Add(1)
-				go cl.aggregationTaskHandler(task, &wg, deadline)
-			}
-			go func() {
-				wg.Wait()
-				log.Println("Aggregate ended")
-				aggregateDone <- true
-			}()
-		// Collect agg results
-		case <-aggregateDone:
-			aggregateDone = nil
+			log.Println("Send task number ", i, task)
+			go cl.parsingTaskHandler(task, &wg, deadline)
+			wg.Add(1)
+		}
+		wg.Wait()
+		log.Println("Parsing finishs ", time.Now())
+
+		deadline = startTime.Add(WHOLE_TIME)
+		for i, task := range agg_tasks {
+			task.PrevTime = startTime.Unix()
+			task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+			h := md5.New()
+			io.WriteString(h, (fmt.Sprintf("%v", task)))
+			task.Id = fmt.Sprintf("%x", h.Sum(nil))
+			log.Println("Send task number ", i, task)
+			wg.Add(1)
+			go cl.aggregationTaskHandler(task, &wg, deadline)
+		}
+		wg.Wait()
+		log.Println("Aggregation finishs ", time.Now())
+		select {
 		case <-lockpoller: // Lock
 			log.Println("do exit")
 			return
-		case <-time.After(time.Second * 1):
-			log.Println("Heartbeat")
+		case <-time.After(deadline.Sub(time.Now())):
+			log.Println("Go to the next iteration")
 		}
 	}
 }

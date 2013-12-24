@@ -26,7 +26,6 @@ pre-build::
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get launchpad.net/gozk/zookeeper
-	go get github.com/hoisie/web
 	
 makebuilddir/combainer::
 	mkdir -p $(PACKAGE_PATH)

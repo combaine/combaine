@@ -1,12 +1,11 @@
 package combainer
 
 import (
-	"bytes"
+	"fmt"
+	"net/http"
 	"runtime"
 	"sync"
 	"text/template"
-
-	"github.com/hoisie/web"
 )
 
 type info struct {
@@ -19,8 +18,7 @@ const _DASHBOARD = `
  "Clients": {{range $index, $element := .Clients}}
  {{$index}},
  {{$element}}
-{{end}} 
-}`
+{{end}}}`
 
 const ERROR = `{"error": "unknown error"}`
 
@@ -59,32 +57,18 @@ func (o *Observer) GetClient(config string) *Client {
 	return o.clients[config]
 }
 
-func Dashboard(ctx *web.Context) string {
-	ctx.SetHeader("X-Powered-By", "web.go", true)
-	ctx.ContentType("application/json")
-	var output bytes.Buffer
+func Dashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	stats := make(map[string]*StatInfo)
 	for config, client := range _observer.GetClients() {
 		stats[config] = client.GetStats()
 	}
-	if err := dashboard.Execute(&output, info{runtime.NumGoroutine(), stats}); err != nil {
-		return ERROR
-	} else {
-		return output.String()
-	}
-}
-
-func getClinet(config string) string {
-	if cl := _observer.GetClient(config); cl != nil {
-		return config
-	} else {
-		return "ERROR"
+	if err := dashboard.Execute(w, info{runtime.NumGoroutine(), stats}); err != nil {
+		w.Write([]byte(fmt.Sprintf("{ \"Error\": %s }", err.Error())))
 	}
 }
 
 func StartObserver(endpoint string) {
-
-	web.Get("/REST/", Dashboard)
-	web.Get("/REST/(.+)", getClinet)
-	web.Run(endpoint)
+	http.HandleFunc("/", Dashboard)
+	http.ListenAndServe(endpoint, nil)
 }
