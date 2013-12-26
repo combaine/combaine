@@ -1,3 +1,15 @@
+combaine (0.6-13) lucid; urgency=low
+
+  * some fixes and logging
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 26 Dec 2013 17:01:16 +0400
+
+combaine (0.6-12) lucid; urgency=low
+
+  * Fix dispatcher goroutine leak
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 24 Dec 2013 15:23:28 +0400
+
 combaine (0.6-11) lucid; urgency=low
 
   * FIX

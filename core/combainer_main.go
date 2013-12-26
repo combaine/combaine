@@ -22,10 +22,10 @@ func init() {
 func Work() {
 	cl, err := combainer.NewClient(combainer.COMBAINER_PATH)
 	if err != nil {
-		log.Printf("Can't create client: %s", err)
+		//log.Printf("Can't create client: %s", err)
 		return
 	}
-	log.Println("Create client", cl)
+	//log.Println("Create client", cl)
 	cl.Dispatch()
 }
 
@@ -43,7 +43,7 @@ func main() {
 
 	go combainer.StartObserver(endpoint)
 	for {
-		log.Println("Try to start client")
+		//log.Println("Try to start client")
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {

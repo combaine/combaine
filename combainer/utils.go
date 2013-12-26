@@ -24,13 +24,13 @@ type ParsingConfig struct {
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	url := fmt.Sprintf("%s%s", handle, groupname)
 	if strings.HasPrefix(url, "http:") { // Over HTTP
-		log.Println("Fetch hosts: ", url)
+		//log.Println("Fetch hosts: ", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
 		}
 		defer resp.Body.Close()
-		log.Println("Fetch hosts, status code", resp.StatusCode)
+		//log.Println("Fetch hosts, status code", resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err

@@ -113,7 +113,6 @@ func NewClient(config string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println(cloudHosts)
 	return &Client{
 		Main:       m.Combainer.Main,
 		LSCfg:      m.Combainer.LockServerCfg,
@@ -211,7 +210,7 @@ func (cl *Client) Dispatch() {
 			io.WriteString(h, (fmt.Sprintf("%v", task)))
 			task.Id = fmt.Sprintf("%x", h.Sum(nil))
 
-			log.Println("Send task number ", i, task)
+			log.Println("Send task number to parsing ", i, task)
 			go cl.parsingTaskHandler(task, &wg, deadline)
 			wg.Add(1)
 		}
@@ -225,7 +224,7 @@ func (cl *Client) Dispatch() {
 			h := md5.New()
 			io.WriteString(h, (fmt.Sprintf("%v", task)))
 			task.Id = fmt.Sprintf("%x", h.Sum(nil))
-			log.Println("Send task number ", i, task)
+			log.Println("Send task number to aggregate ", i, task)
 			wg.Add(1)
 			go cl.aggregationTaskHandler(task, &wg, deadline)
 		}
@@ -252,6 +251,7 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 		app, err = cocaine.NewService(common.PARSING, host)
 		if err == nil {
 			defer app.Close()
+			log.Printf("%s Host: %s", task.Id, host)
 			break
 		}
 		time.Sleep(200 * time.Microsecond)
@@ -269,7 +269,11 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 		log.Printf("Task %s has been late\n", task.Id)
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
-		log.Printf("Receive result %v\n", res.Err())
+		if res.Err() != nil {
+			log.Printf("%s Parsing failed %v", task.Id, res.Err())
+		} else {
+			log.Printf("%s Parsing successed", task.Id)
+		}
 		cl.clientStats.AddSuccess()
 	}
 }
@@ -285,6 +289,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		app, err = cocaine.NewService(common.AGGREGATE, host)
 		if err == nil {
 			defer app.Close()
+			log.Printf("%s Host: %s", task.Id, host)
 			break
 		}
 		time.Sleep(time.Millisecond * 300)
@@ -299,10 +304,14 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 	raw, _ := common.Pack(task)
 	select {
 	case <-time.After(limit):
-		log.Println("Task %s has been late", task.Id)
+		log.Printf("Task %s has been late", task.Id)
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
-		log.Println("Aggregate done ", res)
+		if res.Err() != nil {
+			log.Printf("%s Aggreagation failed %v", task.Id, res.Err())
+		} else {
+			log.Printf("%s Aggregation successed", task.Id)
+		}
 		cl.clientStats.AddSuccess()
 	}
 }

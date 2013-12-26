@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -18,8 +19,8 @@ const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Value
 
 var URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
 
-const CONNECTION_TIMEOUT = 200
-const RW_TIMEOUT = 300
+const CONNECTION_TIMEOUT = 2000
+const RW_TIMEOUT = 3000
 
 var DEFAULT_HEADERS = http.Header{
 	"User-Agent": {"Yandex/CombaineClient"},
@@ -120,19 +121,19 @@ func (as *AgaveSender) sendPoint(url string) {
 		client := NewClientWithTimeout(
 			time.Millisecond*CONNECTION_TIMEOUT,
 			time.Millisecond*RW_TIMEOUT)
-		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s%s", host, url), nil)
+		URL := fmt.Sprintf("http://%s%s", host, url)
+		req, _ := http.NewRequest("GET", URL, nil)
 		req.Header = DEFAULT_HEADERS
-		//fmt.Println(req.URL)
 		as.logger.Errf("%s", req.URL)
 		_ = client
 		if resp, err := client.Do(req); err != nil {
-			as.logger.Errf("%s", err)
+			as.logger.Errf("Unable to create request %s %s", err, URL)
 		} else {
 			defer resp.Body.Close()
 			if body, err := ioutil.ReadAll(resp.Body); err != nil {
-				as.logger.Errf("%s", err)
+				as.logger.Errf("%s %s", URL, err)
 			} else {
-				as.logger.Infof("%d %s", resp.StatusCode, body)
+				as.logger.Infof("%s %d %s", URL, resp.StatusCode, body)
 			}
 		}
 	}
@@ -183,6 +184,7 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 	if err != nil {
 		return nil, err
 	}
+	logger.Errf("Goroutine num %d", runtime.NumGoroutine())
 	//fields
 	as = &AgaveSender{
 		items:         items,
