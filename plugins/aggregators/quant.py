@@ -59,7 +59,15 @@ def quants(qts, it):
 
 def aggregate_host(request, response):
     raw = yield request.read()
-    cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
+    #cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
+    TASK = msgpack.unpackb(raw)
+    Log.info("Handle task %s" % TASK['id'])
+    cfg = TASK['config']  # config of aggregator
+    dgcfg = TASK['dgconfig']
+    token = TASK['token']
+    #prtime = TASK['prevtime']
+    #currtime = TASK['currtime']
+    #taskId = TASK['id']
     Log.info(str(cfg))
     dg = Service(dgcfg['type'])
     q = TABLEREGEX.sub(token, cfg['query'])
@@ -69,9 +77,9 @@ def aggregate_host(request, response):
                            msgpack.packb((dgcfg,
                                           token,
                                           q)))
-    Log.info(str(res))
+    #Log.info("Data from DG " + str(res))
     ret = quantile_packer(itertools.chain(*res))
-    Log.info(str(ret))
+    Log.info("Return " + str(ret))
     response.write(msgpack.packb(ret))
     response.close()
 
@@ -90,7 +98,7 @@ def aggregate_group(request, response):
         Log.error(str(err))
         response.error(100, repr(err))
     else:
-        Log.error(str(ret))
+        Log.error("Result of group aggreagtion " + str(ret))
         response.write(ret)
         response.close()
 

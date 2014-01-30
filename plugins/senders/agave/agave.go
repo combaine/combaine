@@ -66,7 +66,7 @@ type AgaveSender struct {
 	graphTemplate string
 	hosts         []string
 	logger        *cocaine.Logger
-	//fields        []string
+	fields        []string
 }
 
 func (as *AgaveSender) Send(data DataType) (err error) {
@@ -77,7 +77,15 @@ func (as *AgaveSender) Send(data DataType) (err error) {
 			rv := reflect.ValueOf(value)
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
-				continue
+				if len(as.fields) == 0 || len(as.fields) != rv.Len() {
+					as.logger.Errf("Unable to send a slice. Fields len %d, value len %d", len(as.fields), rv.Len())
+					continue
+				}
+				forJoin := []string{}
+				for i, field := range as.fields {
+					forJoin = append(forJoin, fmt.Sprintf("%s:%v", field, rv.Index(i).Interface()))
+				}
+				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 			default:
 				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%v", aggname, value))
 			}
@@ -180,7 +188,14 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 			return nil, wrongCfgParametrError("graph_template")
 		}
 	}
-	logger, err := cocaine.NewLogger()
+
+	fields := []string{}
+	if cfgFields, ok := config["graph_fields"]; ok {
+		if fields, ok = cfgFields.([]string); !ok {
+			return nil, wrongCfgParametrError("graph_fields")
+		}
+	}
+	logger, err := cocaine.NewLogger("localhost:10053")
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +207,7 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 		graphTemplate: graphtemplate,
 		hosts:         hosts,
 		logger:        logger,
+		fields:        fields,
 	}
 	return
 }
