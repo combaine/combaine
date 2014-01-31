@@ -190,9 +190,9 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 	}
 
 	fields := []string{}
-	if cfgFields, ok := config["graph_fields"]; ok {
+	if cfgFields, ok := config["Fields"]; ok {
 		if fields, ok = cfgFields.([]string); !ok {
-			return nil, wrongCfgParametrError("graph_fields")
+			return nil, wrongCfgParametrError("Fields")
 		}
 	}
 	logger, err := cocaine.NewLogger("localhost:10053")

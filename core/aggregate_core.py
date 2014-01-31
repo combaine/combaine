@@ -91,7 +91,6 @@ def aggreagate(request, response):
                                           task['CurrTime'])
                 try:
                     data = yield storage.read("combaine", key)
-                    log.error("%s Read key %s" % (ID, data))
                     subgroup_data.append(data)
                     if cfg.get("perHost"):
                         res = yield app.enqueue("aggregate_group",

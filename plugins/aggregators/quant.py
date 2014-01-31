@@ -93,7 +93,8 @@ def aggregate_group(request, response):
     ret = merge(raw_data)
     Log.info("Data has been merged %s" % ret)
     try:
-        ret = quants(cfg["values"], ret['data'])
+        ret = quants(cfg.get("values", [75, 90, 93, 94, 95, 96, 97, 98, 99]),
+                     ret['data'])
     except Exception as err:
         Log.error(str(err))
         response.error(100, repr(err))

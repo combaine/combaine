@@ -9,6 +9,8 @@ import (
 	"github.com/noxiouz/Combaine/plugins/senders/agave"
 )
 
+var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
+
 type Task struct {
 	Data   agave.DataType
 	Config map[string]interface{}
@@ -56,6 +58,20 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	task.Config["hosts"] = combainerCfg.CloudCfg.Agave
 	task.Config["graph_name"] = string(task.Config["graph_name"].([]uint8))
 	task.Config["graph_template"] = string(task.Config["graph_template"].([]uint8))
+
+	// GOVNOKOD
+	fields := []string{}
+	if cfgFields, ok := task.Config["Fields"]; ok {
+		for _, field := range cfgFields.([]interface{}) {
+			fields = append(fields, string(field.([]uint8)))
+		}
+	}
+	// Default: empty list of strings
+	if len(fields) == 0 {
+		fields = DEFAULT_FIELDS
+	}
+	task.Config["Fields"] = fields
+	logger.Infof("Fields %v", fields)
 	agaveCfg := task.Config
 	as, err := agave.NewAgaveSender(agaveCfg)
 	if err != nil {
