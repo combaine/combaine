@@ -1,0 +1,103 @@
+combaine (0.6-16) unstable; urgency=low
+
+  * default quants 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 30 Jan 2014 16:56:21 +0400
+
+combaine (0.6-15) unstable; urgency=low
+
+  * quant is fixed =)
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 30 Jan 2014 14:52:42 +0400
+
+combaine (0.6-14) unstable; urgency=low
+
+  * introduce quants
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 30 Jan 2014 11:38:14 +0400
+
+combaine (0.6-13) unstable; urgency=low
+
+  * some fixes and logging
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 26 Dec 2013 17:01:16 +0400
+
+combaine (0.6-12) unstable; urgency=low
+
+  * Fix dispatcher goroutine leak
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 24 Dec 2013 15:23:28 +0400
+
+combaine (0.6-11) unstable; urgency=low
+
+  * FIX
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 19 Dec 2013 17:58:35 +0400
+
+combaine (0.6-10) unstable; urgency=low
+
+  * fix of fix
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 17:27:01 +0400
+
+combaine (0.6-9) unstable; urgency=low
+
+  * Fix Metahost/metahost
+  * Add hostname into lock
+  * Juggler_hosts
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:54:56 +0400
+
+combaine (0.6-8) unstable; urgency=low
+
+  * fix deploy script for juggler 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:15:46 +0400
+
+combaine (0.6-7) unstable; urgency=low
+
+  * juggler
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 18 Dec 2013 16:06:28 +0400
+
+combaine (0.6-6) unstable; urgency=low
+
+  * Add perHost
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 16 Dec 2013 16:32:03 +0400
+
+combaine (0.6-5) unstable; urgency=low
+
+  * Fix bug:
+    * Parsing: handle tasks from all aggregation configs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 03 Dec 2013 09:51:18 +0400
+
+combaine (0.6-4) unstable; urgency=low
+
+  * Fix some bugs.
+    * Mysql: add password and user options
+    * Summa: fix rps
+    * Combainer: Improve client.go
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 27 Nov 2013 13:40:00 +0400
+
+combaine (0.6-3) unstable; urgency=low
+
+  * Add agave. Some bug fixes in client 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 26 Nov 2013 17:07:05 +0400
+
+combaine (0.6-2) unstable; urgency=low
+
+  * Fix some bugs:
+    * combainer: Trim empty host
+    * mysqldg: add user/password
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 25 Nov 2013 13:42:07 +0400
+
+combaine (0.6-1) unstable; urgency=low
+
+  * Initial release. Add dispatcher.
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 25 Oct 2013 12:53:59 +0400

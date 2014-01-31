@@ -1,0 +1,5 @@
+{
+    "concurency": 2,
+    "pool-limit": 10,
+    "queue-limit": 100
+}
