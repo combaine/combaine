@@ -41,19 +41,23 @@ def quants(qts, it):
     if len(qts) == 0:
         return None
     qts.sort(reverse=True)
+    res = []
     size = len(qts)
+    # first step initialization
     lim = qts.pop()
     summ = 0
-    res = []
     for i in sorted(it.iteritems()):
-        summ += i[1]
-        if summ > lim:
-            if len(qts) > 0:
+        if summ >= lim:
+            res.append(i[0])
+            while qts:
                 lim = qts.pop()
-            if len(res) < size:
-                res.append(i[0])
-                if (len(res) == size):
-                    return res
+                if summ >= lim:
+                    res.append(i[0])
+                else:
+                    break
+            if len(res) == size:
+                return res
+        summ += i[1]
     return res
 
 
@@ -92,8 +96,11 @@ def aggregate_group(request, response):
     raw_data = map(msgpack.unpackb, data)
     ret = merge(raw_data)
     Log.info("Data has been merged %s" % ret)
+    qts = map(int,
+              map(lambda x: float(ret["count"]) * x / 100,
+                  cfg.get("values", [75, 90, 93, 94, 95, 96, 97, 98, 99])))
     try:
-        ret = quants(cfg.get("values", [75, 90, 93, 94, 95, 96, 97, 98, 99]),
+        ret = quants(qts,
                      ret['data'])
     except Exception as err:
         Log.error(str(err))

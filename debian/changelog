@@ -1,3 +1,9 @@
+combaine (0.6-17) unstable; urgency=low
+
+  * fix quants 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Sat, 01 Feb 2014 06:12:51 +0400
+
 combaine (0.6-16) unstable; urgency=low
 
   * default quants 

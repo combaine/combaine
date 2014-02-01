@@ -75,7 +75,7 @@ class Juggler(object):
                                                            templ)
                                        for templ in jtemplates])
 
-    @chain.source
+    #@chain.source
     def Do(self, data):
         packed = collections.defaultdict(dict)
         for aggname, subgroups in data.iteritems():
@@ -94,8 +94,12 @@ class Juggler(object):
                 log.info("OK")
             else:
                 log.info("Send ok manually")
-                yield self.send_point("%s-%s" % (self.Host, subgroup),
-                                      STATUSES[0])
+                #yield self.send_point("%s-%s" % (self.Host, subgroup),
+                #                      REVERSE_STATUSES["OK"])
+                IOLoop.current().add_callback(self.send_point,
+                                              "%s-%s" % (self.Host, subgroup),
+                                              REVERSE_STATUSES["OK"])
+        return True
 
     def on_resp(self, resp):
         log.info("RESP %s" % resp.code)
@@ -144,6 +148,7 @@ class Juggler(object):
                     self.log.error(repr(err))
         except Exception as err:
             log.error(repr(err))
+        yield True
 
     @chain.source
     def add_check_if_need(self, host):
@@ -198,11 +203,17 @@ def send(request, response):
     task['Config']['Juggler_hosts'] = juggler_hosts
     jc = Juggler(**task["Config"])
     try:
-        yield jc.Do(task["Data"])
+        jc.Do(task["Data"])
     except Exception as err:
         log.error(err)
-    response.write("ok")
-    response.close()
+    log.info("Done")
+    try:
+        response.write("ok")
+        response.close()
+    except Exception as err:
+        log.error(str(err))
+    finally:
+        log.info("Done")
 
 if __name__ == "__main__":
     W = Worker()
