@@ -9,6 +9,7 @@ Homepage: https://github.com/noxiouz/Combaine
 Package: combaine-presetting
 Architecture: amd64
 Depends: cocaine-tools,
+ ${misc:Depends},
  cocaine-runtime (>= 0.11),
  python (>= 2.6)
 
@@ -43,3 +44,4 @@ Depends: ${shlibs:Depends},
  combaine-presetting,
  cocaine-framework-python (>= 0.11)
 Description: Plugin which allows to use MySQL queries.
+ Cloud app for puting/getting data from parser to Mysql

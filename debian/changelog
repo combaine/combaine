@@ -1,3 +1,9 @@
+combaine (0.6-20) lucid; urgency=low
+
+  * juggler-fcgi
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 04 Feb 2014 02:18:53 +0400
+
 combaine (0.6-19) unstable; urgency=low
 
   * ugly fix of aggregate-core 
