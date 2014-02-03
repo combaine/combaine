@@ -44,7 +44,7 @@ class MySqlDG(object):
             fname = '/dev/shm/%s-%i' % ('COMBAINE', random.randint(0, 65535))
             with open(fname, 'w') as table_file:
                 for line in data:
-                    table_file.write('GOPA'.join([str(x) for x in line.values()]) + '\n')
+                    table_file.write('GOPA'.join([str(x) for _, x in line]) + '\n')
                 table_file.close()
 
                 if not line:
@@ -88,7 +88,7 @@ class MySqlDG(object):
         try:
             self.place = '( %s )' % ','.join([" %s %s" % (field_name,
                                                           ftypes[type(field_type)])
-                                             for field_name, field_type in example.items()])
+                                             for field_name, field_type in example])
         except Exception as err:
             self.logger.error('Error in preparePlace() %s' % err)
             self.place = None

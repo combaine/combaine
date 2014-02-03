@@ -1,3 +1,9 @@
+combaine (0.6-18) lucid; urgency=low
+
+  * blabal
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 03 Feb 2014 14:52:32 +0400
+
 combaine (0.6-17) unstable; urgency=low
 
   * fix quants 

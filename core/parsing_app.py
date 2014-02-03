@@ -57,7 +57,7 @@ def parse(request, response):
         response.error(-2, "Missing function %s" % name)
         raise StopIteration
     try:
-        response.write([i for i in func(data.splitlines()) if i is not None])
+        response.write([i.items() for i in func(data.splitlines()) if i is not None])
     except Exception as err:
         response.error(-3, "Exception in parsing %s" % repr(err))
     else:
