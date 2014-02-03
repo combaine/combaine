@@ -71,7 +71,7 @@ install/combaine-core:: agave timetail cfgmanager parsing
 	install -m755 deploy_scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 plugins/senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m755 juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m664 manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 deploy_scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
 	# timetail
