@@ -38,47 +38,47 @@ install/combaine-core:: agave timetail cfgmanager parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m664 manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m755 deploy_scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
+	install -m755 deploy/scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
 	# core-aggregate
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m755 aggregate_core.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m664 manifests/manifest_aggregate-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m755 deploy_scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
+	install -m755 deploy/scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
 	# cfgmanager
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
 	install -m755 $(BUILD_DIR)/main_cfgmanager  $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
 	install -m664 manifests/manifest_cfgmanager.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m755 deploy_scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
+	install -m755 deploy/scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m664 manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m755 deploy_scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
+	install -m755 deploy/scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
 	# average
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
 	install -m755 plugins/aggregators/average.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
 	install -m664 manifests/manifest_aggregate-average.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
-	install -m755 deploy_scripts/deploy_aggregate-average.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average/deploy.sh
+	install -m755 deploy/scripts/deploy_aggregate-average.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average/deploy.sh
 	# quant
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
 	install -m755 plugins/aggregators/quant.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
 	install -m664 manifests/manifest_aggregate-quant.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
-	install -m755 deploy_scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
+	install -m755 deploy/scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
 	# agave
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 $(BUILD_DIR)/main_agave  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m664 manifests/manifest_agave.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
-	install -m755 deploy_scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
+	install -m755 deploy/scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m664 manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 deploy_scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
+	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
 	# timetail
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	install -m664 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m755 deploy_scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
+	install -m755 deploy/scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
 
 # combaine-tuner
 install/combaine-presetting::
