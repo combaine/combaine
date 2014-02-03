@@ -209,11 +209,11 @@ def send(request, response):
     log.info("Done")
     try:
         response.write("ok")
-        response.close()
     except Exception as err:
         log.error(str(err))
     finally:
         log.info("Done")
+        response.close()
 
 if __name__ == "__main__":
     W = Worker()

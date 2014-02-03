@@ -116,23 +116,25 @@ def aggreagate(request, response):
         log.error("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
-    futures = []
     for name, item in aggcfg.get('senders', {}).iteritems():
         try:
-            s = Service(item.get("type", "MISSING"))
+            sender_type = item.get("type", "MISSING")
+            log.info("Send to %s" % sender_type)
+            s = Service(sender_type)
         except Exception as err:
             log.error(str(err))
         else:
-            futures.append(s.enqueue("send", msgpack.packb({"Config": item,
-                                                            "Data": result})))
+            res = yield s.enqueue("send", msgpack.packb({"Config": item,
+                                                         "Data": result}))
+            log.info("res for %s is %s" % (sender_type, res))
 
-    for fut in futures:
-        try:
-            res = yield fut
-            log.info("res %s" % res)
-        except Exception as err:
-            log.error(str(err))
-
+    # for fut in futures:
+    #     try:
+    #         res = yield fut
+    #         log.info("res %s" % res)
+    #     except Exception as err:
+    #         log.error(str(err))
+    # yield True
     log.info("%s Result %s" % (ID, result))
     response.write("done")
     response.close()

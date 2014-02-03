@@ -1,6 +1,12 @@
-combaine (0.6-18) lucid; urgency=low
+combaine (0.6-19) unstable; urgency=low
 
-  * blabal
+  * ugly fix of aggregate-core 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 03 Feb 2014 16:05:24 +0400
+
+combaine (0.6-18) unstable; urgency=low
+
+  * change dict to tuple of pairs in parser
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 03 Feb 2014 14:52:32 +0400
 
