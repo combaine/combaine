@@ -64,7 +64,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Errf("%s %s", task.Id, err.Error())
 		return
 	}
-	cfgWrap := cfgWrapper{cfgManager, log}
+	cfgWrap := common.NewCfgWrapper(cfgManager, log)
 	defer cfgWrap.Close()
 
 	log.Debugf(task.Id, " Fetch configuration file ", task.Config)

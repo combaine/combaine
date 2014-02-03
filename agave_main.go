@@ -5,8 +5,8 @@ import (
 	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/noxiouz/Combaine/agave"
 	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/plugins/senders/agave"
 )
 
 var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}

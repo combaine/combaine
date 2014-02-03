@@ -6,7 +6,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/plugins/timetail"
+	"github.com/noxiouz/Combaine/timetail"
 )
 
 var (
