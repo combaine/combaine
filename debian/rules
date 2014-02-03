@@ -18,40 +18,22 @@ BUILD_DIR=$(CURDIR)/build
 COMBAINE_LIB_PATH=/usr/lib/yandex/combaine
 CORE_APPS_PATH=$(COMBAINE_LIB_PATH)/core-apps
 
+include $(CURDIR)/Makefile
+
 export GOPATH=$(CURDIR)
 
 # Combainer
-pre-build::
-	install -d $(BUILD_DIR)
-	go get launchpad.net/goyaml
-	go get github.com/cocaine/cocaine-framework-go/cocaine
-	go get launchpad.net/gozk/zookeeper
+pre-build:: prepare
 	
-makebuilddir/combainer::
-	mkdir -p $(PACKAGE_PATH)
-	ln -sf $(CURDIR)/common $(PACKAGE_PATH)/common
-	ln -sf $(CURDIR)/combainer $(PACKAGE_PATH)/combainer
-	ln -sf $(CURDIR)/configmanager $(PACKAGE_PATH)/configmanager
 	
-build/combainer::
-	go build -o $(BUILD_DIR)/main_combainer $(CURDIR)/core/combainer_main.go
 
-install/combainer::
+install/combainer:: combaine
 	install -d $(DEB_DESTDIR)/usr/bin
 	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
 
 # Combaine-core
-makebuilddir/combaine-core::
-	ln -sf $(CURDIR)/parsing $(PACKAGE_PATH)/parsing
 
-build/combaine-core::
-	ln -sf $(CURDIR)/plugins $(PACKAGE_PATH)/plugins
-	go build -o $(BUILD_DIR)/main_parsing-core $(CURDIR)/core/parsing_main.go
-	go build -o $(BUILD_DIR)/main_cfgmanager $(CURDIR)/core/cfgmanager_main.go
-	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/plugins/timetail/main/timetail_main.go
-	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/plugins/senders/agave_main.go
-
-install/combaine-core::
+install/combaine-core:: agave timetail cfgmanager parsing
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
@@ -59,7 +41,7 @@ install/combaine-core::
 	install -m755 deploy_scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
 	# core-aggregate
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m755 core/aggregate_core.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
+	install -m755 aggregate_core.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m664 manifests/manifest_aggregate-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m755 deploy_scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
 	# cfgmanager
@@ -69,7 +51,7 @@ install/combaine-core::
 	install -m755 deploy_scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m755 core/parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
+	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m664 manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 deploy_scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
 	# average

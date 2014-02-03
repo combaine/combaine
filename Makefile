@@ -38,6 +38,6 @@ timetail: prepare
 agave: prepare
 	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/agave_main.go
 
-clean:
+clean::
 	rm -rf $(PACKAGE_PATH)/Combaine
 	rm -rf $(BUILD_DIR)
