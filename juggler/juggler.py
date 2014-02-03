@@ -43,7 +43,7 @@ service_name={service}&child={child}:{service}&do=1"
 ADD_METHOD = "http://{juggler}/api/checks/add_methods?host_name={host}&\
 service_name={service}&methods_list={methods}&do=1"
 
-EMIT_EVENT = "http://{juggler}/api/events/add_event_proxy?host_name={host}&\
+EMIT_EVENT = "http://{juggler}/api/events/juggler-fcgi.py?host_name={host}&\
 service_name={service}&description={description}&\
 instance_name&status={level}&do=1"
 
