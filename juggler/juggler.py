@@ -67,8 +67,8 @@ class Juggler(object):
 
     def _convert_templates(self, jtemplates):
         """ Convert my own templates to Tornado templates.
-            Add underline prefix to allow using of
-            variables starts with digit (50x)
+            Add an underline prefix to allow using of
+            variables starts with a digit (50x)
         """
         return map(template.Template, ["{{ %s }}" % re.sub(self.pattern,
                                                            "_\g<1>",
