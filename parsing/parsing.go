@@ -7,6 +7,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/servicecacher"
 )
 
 var (
@@ -14,6 +15,7 @@ var (
 	log          *cocaine.Logger
 	logMutex     sync.Mutex
 	storageMutex sync.Mutex
+	cacher       servicecacher.Cacher = servicecacher.NewCacher()
 )
 
 func lazyLoggerInitialization() (*cocaine.Logger, error) {
@@ -59,13 +61,14 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	//Wrap it
 	log.Info(task.Id, " Create configuration manager")
-	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
+	// cfgManager, err := cocaine.NewService(common.CFGMANAGER)
+	cfgManager, err := cacher.Get(common.CFGMANAGER)
 	if err != nil {
 		log.Errf("%s %s", task.Id, err.Error())
 		return
 	}
 	cfgWrap := common.NewCfgWrapper(cfgManager, log)
-	defer cfgWrap.Close()
+	//defer cfgWrap.Close()
 
 	log.Debugf(task.Id, " Fetch configuration file ", task.Config)
 	cfg, err := cfgWrap.GetParsingConfig(task.Config)
@@ -105,12 +108,12 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
-	fetcher, err := cocaine.NewService(fetcherType)
+	fetcher, err := cacher.Get(fetcherType)
 	if err != nil {
 		log.Err(err.Error())
 		return
 	}
-	defer fetcher.Close()
+	//defer fetcher.Close()
 
 	fetcherTask := common.FetcherTask{
 		Target:    task.Host,
@@ -139,12 +142,12 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	// ParsingApp stage
 	log.Info(task.Id, " Send data to parsing")
-	parserApp, err := cocaine.NewService(common.PARSINGAPP)
+	parserApp, err := cacher.Get(common.PARSINGAPP)
 	if err != nil {
 		log.Err(err.Error())
 		return
 	}
-	defer parserApp.Close()
+	// defer parserApp.Close()
 	taskToParser, err := common.Pack([]interface{}{cfg.Parser, t})
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
@@ -169,15 +172,15 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	log.Debugf("%s Use %s for handle data", task.Id, dgType)
-	datagrid, err := cocaine.NewService(dgType)
+	datagrid, err := cacher.Get(dgType)
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
-	defer func() {
-		datagrid.Close()
-		log.Errf("%s %s", task.Id, "Close mysqldg connection")
-	}()
+	// defer func() {
+	// 	datagrid.Close()
+	// 	log.Errf("%s %s", task.Id, "Close mysqldg connection")
+	// }()
 
 	taskToDatagrid, err := common.Pack([]interface{}{cfg.DG, z})
 	if err != nil {
@@ -218,12 +221,12 @@ func Parsing(task common.ParsingTask) (err error) {
 					return
 				}
 
-				app, err := cocaine.NewService(name)
+				app, err := cacher.Get(name) //cocaine.NewService(name)
 				if err != nil {
 					log.Infof("%s %s %s", task.Id, name, err)
 					return
 				}
-				defer app.Close()
+				//defer app.Close()
 
 				/*
 					Task structure
