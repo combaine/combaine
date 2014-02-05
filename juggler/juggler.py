@@ -87,7 +87,7 @@ class Juggler(object):
             if self.check(value, subgroup, "CRIT"):
                 log.info("CRIT")
             elif self.check(value, subgroup, "WARN"):
-                log.info("WARn")
+                log.info("WARN")
             elif self.check(value, subgroup, "INFO"):
                 log.info("INFO")
             elif self.check(value, subgroup, "OK"):
@@ -142,8 +142,7 @@ class Juggler(object):
 
             for future in futures:
                 try:
-                    res = yield future
-                    self.log.info(str(res))
+                    yield future
                 except HTTPError as err:
                     self.log.error(repr(err))
         except Exception as err:
@@ -166,7 +165,7 @@ class Juggler(object):
                 params["juggler"] = jhost
                 #Check existnace of service
                 url = CHECK_CHECK.format(**params)
-                log.info("Check check %s" % url)
+                log.info("Check %s" % url)
                 response = yield HTTP_CLIENT.fetch(url,
                                                    headers=DEFAULT_HEADERS)
 

@@ -28,7 +28,9 @@ class MySqlDG(object):
             self.dbname = config.get('local_db_name', 'COMBAINE')
             self.user = config.get('user', 'root')
             self.password = config.get('password', "")
-            self.db = MySQLdb.connect(unix_socket=unix_socket, user=self.user, passwd=self.password)
+            self.db = MySQLdb.connect(unix_socket=unix_socket,
+                                      user=self.user,
+                                      passwd=self.password)
             self.cursor = self.db.cursor()
             self.cursor.execute('CREATE DATABASE IF NOT EXISTS %s' % self.dbname)
             self.db.commit()
@@ -61,7 +63,7 @@ class MySqlDG(object):
 
             self.cursor.execute('DROP TABLE IF EXISTS %s' % tablename)
             query = "CREATE TABLE IF NOT EXISTS %(tablename)s %(struct)s ENGINE = MEMORY DATA DIRECTORY='/dev/shm/'" % {'tablename': tablename,
-                                                                                                                                  'struct': self.place}
+                                                                                                                        'struct': self.place}
             self.cursor.execute(query)
             self.db.commit()
 
@@ -114,8 +116,8 @@ def put(request, response):
     raw = yield request.read()
     config, data = msgpack.unpackb(raw)
     tablename = "CMB" + str(uuid.uuid4()).replace("-", "")[:20]
-    log.info(str(config))
-    log.info("Put data into %s" % tablename)
+    log.debug(str(config))
+    log.debug("Put data into %s" % tablename)
     try:
         m = MySqlDG(**config)
         m.putData(data, tablename)
@@ -132,7 +134,7 @@ def drop(request, response):
     try:
         m = MySqlDG(**config)
         drop_query = "DROP TABLE IF EXISTS %s" % tablename
-        log.info(drop_query)
+        log.debug(drop_query)
         m.perfomCustomQuery(drop_query)
     except Exception as err:
         response.error(-100, str(err))
@@ -146,7 +148,7 @@ def query(request, response):
     config, tablename, querystr = msgpack.unpackb(raw)
     try:
         m = MySqlDG(**config)
-        log.info("QUERY STRING: %s " % querystr)
+        log.debug("QUERY STRING: %s " % querystr)
         res = m.perfomCustomQuery(querystr)
     except Exception as err:
         response.error(-99, str(err))

@@ -57,12 +57,12 @@ def split_hosts_by_dc(http_hand_url, groupname):
 def aggreagate(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
-    log.info("Task %s" % task["Id"])
+    log.info("Start task %s" % task["Id"])
     ID = task["Id"]
     METAHOST = task["Metahost"]
     raw = yield cfgmanager.enqueue("aggregate", task['Config'])
     aggcfg = yaml.load(raw)
-    log.info("%s Config %s" % (ID, aggcfg))
+    log.debug("%s Config %s" % (ID, aggcfg))
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
     hosts = split_hosts_by_dc(httphand, task['Group'])
@@ -96,16 +96,17 @@ def aggreagate(request, response):
                         res = yield app.enqueue("aggregate_group",
                                                 msgpack.packb((cfg, [data])))
                         result[name][host] = res
-                except Exception:
-                    log.error("%s Unable to read %s" % (ID, key))
+                except Exception as err:
+                    log.error("%s Unable to read from elliptics cache %s %s" %
+                              (ID, key, repr(err)))
 
             mapping[subgroup] = subgroup_data
             res = yield app.enqueue("aggregate_group",
                                     msgpack.packb((cfg, subgroup_data)))
-            log.error("%s name %s subgroup %s result %s" % (ID,
-                                                            name,
-                                                            subgroup,
-                                                            res))
+            log.info("%s name %s subgroup %s result %s" % (ID,
+                                                           name,
+                                                           subgroup,
+                                                           res))
             result[name][subgroup] = res
 
         all_data = []
@@ -113,7 +114,7 @@ def aggreagate(request, response):
             all_data.extend(v)
         res = yield app.enqueue("aggregate_group",
                                 msgpack.packb((cfg, all_data)))
-        log.error("name %s ALL %s %d" % (name, res, len(all_data)))
+        log.info("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
     for name, item in aggcfg.get('senders', {}).iteritems():
@@ -128,15 +129,8 @@ def aggreagate(request, response):
                                                          "Data": result}))
             log.info("res for %s is %s" % (sender_type, res))
 
-    # for fut in futures:
-    #     try:
-    #         res = yield fut
-    #         log.info("res %s" % res)
-    #     except Exception as err:
-    #         log.error(str(err))
-    # yield True
     log.info("%s Result %s" % (ID, result))
-    response.write("done")
+    response.write("Done %s" % task["Id"])
     response.close()
 
 

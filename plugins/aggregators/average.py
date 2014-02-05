@@ -17,7 +17,7 @@ def aggregate_host(request, response):
     raw = yield request.read()
     #cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
     TASK = msgpack.unpackb(raw)
-    Log.info("Handle task %s" % TASK)
+    Log.info("%s Handle task" % TASK['id'])
     cfg = TASK['config']  # config of aggregator
     dgcfg = TASK['dgconfig']
     token = TASK['token']
@@ -27,7 +27,7 @@ def aggregate_host(request, response):
     dg = Service(dgcfg['type'])
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
-    Log.info("%s QUERY: %s" % (taskId, q))
+    Log.debug("%s QUERY: %s" % (taskId, q))
     res = yield dg.enqueue("query",
                            msgpack.packb((dgcfg,
                                           token,
@@ -49,9 +49,9 @@ def aggregate_group(request, response):
     raw = yield request.read()
     inc = msgpack.unpackb(raw)
     cfg, data = inc
-    Log.info("Receive raw result %s" % str(inc))
+    Log.info("Raw data is received %s" % str(inc))
     res = sum(map(msgpack.unpackb, data))
-    Log.info("Receive result %s" % res)
+    Log.info("Solved %s" % res)
     response.write(res)
     response.close()
 

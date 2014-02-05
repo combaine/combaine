@@ -60,7 +60,7 @@ func Parsing(task common.ParsingTask) (err error) {
 	log.Info(task.Id, " Start parsing.")
 
 	//Wrap it
-	log.Info(task.Id, " Create configuration manager")
+	log.Debug(task.Id, " Create configuration manager")
 	// cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	cfgManager, err := cacher.Get(common.CFGMANAGER)
 	if err != nil {
@@ -201,14 +201,14 @@ func Parsing(task common.ParsingTask) (err error) {
 	defer func() {
 		taskToDatagrid, _ = common.Pack([]interface{}{cfg.DG, token})
 		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
-		log.Infof("%s Drop table", task.Id)
+		log.Debugf("%s Drop table", task.Id)
 	}()
 
 	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range aggCfgs {
 		for k, v := range aggCfg.Data {
 			aggType, err := common.GetType(v)
-			log.Infof("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 			if err != nil {
 				return err
 			}
@@ -223,7 +223,7 @@ func Parsing(task common.ParsingTask) (err error) {
 
 				app, err := cacher.Get(name) //cocaine.NewService(name)
 				if err != nil {
-					log.Infof("%s %s %s", task.Id, name, err)
+					log.Errf("%s %s %s", task.Id, name, err)
 					return
 				}
 				//defer app.Close()
@@ -254,7 +254,7 @@ func Parsing(task common.ParsingTask) (err error) {
 
 					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
 					<-storage.Call("cache_write", "combaine", key, raw_res)
-					log.Infof("%s Write data with key %s", task.Id, key)
+					log.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					log.Errf("%s Failed task %s", task.Id, deadline)
 				}

@@ -78,7 +78,7 @@ func (as *AgaveSender) Send(data DataType) (err error) {
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
 				if len(as.fields) == 0 || len(as.fields) != rv.Len() {
-					as.logger.Errf("Unable to send a slice. Fields len %d, value len %d", len(as.fields), rv.Len())
+					as.logger.Errf("Unable to send a slice. Fields len %d, len of value %d", len(as.fields), rv.Len())
 					continue
 				}
 				forJoin := []string{}
@@ -132,14 +132,14 @@ func (as *AgaveSender) sendPoint(url string) {
 		URL := fmt.Sprintf("http://%s%s", host, url)
 		req, _ := http.NewRequest("GET", URL, nil)
 		req.Header = DEFAULT_HEADERS
-		as.logger.Errf("%s", req.URL)
+		as.logger.Debugf("%s", req.URL)
 		_ = client
 		if resp, err := client.Do(req); err != nil {
-			as.logger.Errf("Unable to create request %s %s", err, URL)
+			as.logger.Errf("Unable to create request %s", err)
 		} else {
 			defer resp.Body.Close()
 			if body, err := ioutil.ReadAll(resp.Body); err != nil {
-				as.logger.Errf("%s %s", URL, err)
+				as.logger.Errf("%s %d %s", URL, resp.StatusCode, err)
 			} else {
 				as.logger.Infof("%s %d %s", URL, resp.StatusCode, body)
 			}
@@ -199,7 +199,7 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 	if err != nil {
 		return nil, err
 	}
-	logger.Errf("Goroutine num %d", runtime.NumGoroutine())
+	logger.Debugf("Goroutine num %d", runtime.NumGoroutine())
 	//fields
 	as = &AgaveSender{
 		items:         items,

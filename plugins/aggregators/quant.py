@@ -65,25 +65,25 @@ def aggregate_host(request, response):
     raw = yield request.read()
     #cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
     TASK = msgpack.unpackb(raw)
-    Log.info("Handle task %s" % TASK['id'])
+    Log.info("%s Handle task" % TASK['id'])
     cfg = TASK['config']  # config of aggregator
     dgcfg = TASK['dgconfig']
     token = TASK['token']
     #prtime = TASK['prevtime']
     #currtime = TASK['currtime']
     #taskId = TASK['id']
-    Log.info(str(cfg))
+    Log.debug(str(cfg))
     dg = Service(dgcfg['type'])
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
-    Log.info("QUERY: %s" % q)
+    Log.info("%s QUERY: %s" % (TASK['id'], q))
     res = yield dg.enqueue("query",
                            msgpack.packb((dgcfg,
                                           token,
                                           q)))
     #Log.info("Data from DG " + str(res))
     ret = quantile_packer(itertools.chain(*res))
-    Log.info("Return " + str(ret))
+    Log.info("%s Return " % TASK['id'] + str(ret))
     response.write(msgpack.packb(ret))
     response.close()
 
@@ -92,10 +92,10 @@ def aggregate_group(request, response):
     raw = yield request.read()
     inc = msgpack.unpackb(raw)
     cfg, data = inc
-    Log.info("Unpack raw data successfully")
+    Log.debug("Unpack raw data successfully")
     raw_data = map(msgpack.unpackb, data)
     ret = merge(raw_data)
-    Log.info("Data has been merged %s" % ret)
+    Log.debug("Data has been merged %s" % ret)
     qts = map(int,
               map(lambda x: float(ret["count"]) * x / 100,
                   cfg.get("values", [75, 90, 93, 94, 95, 96, 97, 98, 99])))
@@ -106,7 +106,7 @@ def aggregate_group(request, response):
         Log.error(str(err))
         response.error(100, repr(err))
     else:
-        Log.error("Result of group aggreagtion " + str(ret))
+        Log.info("Result of group aggreagtion " + str(ret))
         response.write(ret)
         response.close()
 

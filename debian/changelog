@@ -1,4 +1,10 @@
-combaine (0.6-20) lucid; urgency=low
+combaine (0.6-21) unstable; urgency=low
+
+  * drop some useless logs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 15:29:08 +0400
+
+combaine (0.6-20) unstable; urgency=low
 
   * juggler-fcgi
 

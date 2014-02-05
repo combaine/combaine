@@ -27,7 +27,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	logger.Infof("%v", task)
+	logger.Debugf("Task: %v", task)
 	var Items []string
 	for _, item := range task.Config["items"].([]interface{}) {
 		Items = append(Items, string(item.([]uint8)))
@@ -71,7 +71,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		fields = DEFAULT_FIELDS
 	}
 	task.Config["Fields"] = fields
-	logger.Infof("Fields %v", fields)
+	logger.Debugf("Fields %v", fields)
 	agaveCfg := task.Config
 	as, err := agave.NewAgaveSender(agaveCfg)
 	if err != nil {

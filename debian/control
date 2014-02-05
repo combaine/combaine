@@ -30,7 +30,8 @@ Depends: ${misc:Depends},
  python-yaml,
  cocaine-framework-python (>= 0.11),
  cocaine-runtime (>= 0.10.6.6),
- combaine-presetting
+ combaine-presetting,
+ python-tokenparser (>= 0.2)
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
 
