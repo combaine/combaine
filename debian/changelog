@@ -1,3 +1,33 @@
+combaine (0.6-26) unstable; urgency=low
+
+  * fix str formatter in agave 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 07 Feb 2014 02:04:40 +0400
+
+combaine (0.6-25) lucid; urgency=low
+
+  * fix of fix.. So make a recursion 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 16:02:59 +0400
+
+combaine (0.6-24) unstable; urgency=low
+
+  * fallback
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 15:59:01 +0400
+
+combaine (0.6-23) unstable; urgency=low
+
+  * fix of fix
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 15:52:42 +0400
+
+combaine (0.6-22) lucid; urgency=low
+
+  * fix juggler handler 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 15:47:30 +0400
+
 combaine (0.6-21) unstable; urgency=low
 
   * drop some useless logs

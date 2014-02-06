@@ -36,6 +36,18 @@ func wrongCfgParametrError(param string) error {
 	return fmt.Errorf("Wrong type of parametr: %s", param)
 }
 
+func interfaceToString(v interface{}) (s string) {
+	switch v := v.(type) {
+	case int:
+		s = fmt.Sprintf("%d", v)
+	case float32, float64:
+		s = fmt.Sprintf("%f", v)
+	default:
+		s = fmt.Sprintf("%v", v)
+	}
+	return
+}
+
 func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
 	return func(netw, addr string) (net.Conn, error) {
 		conn, err := net.DialTimeout(netw, addr, cTimeout)
@@ -83,11 +95,11 @@ func (as *AgaveSender) Send(data DataType) (err error) {
 				}
 				forJoin := []string{}
 				for i, field := range as.fields {
-					forJoin = append(forJoin, fmt.Sprintf("%s:%v", field, rv.Index(i).Interface()))
+					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, interfaceToString(rv.Index(i).Interface())))
 				}
 				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 			default:
-				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%v", aggname, value))
+				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, interfaceToString(value)))
 			}
 		}
 	}

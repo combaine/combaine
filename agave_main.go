@@ -33,7 +33,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		Items = append(Items, string(item.([]uint8)))
 	}
 
-	logger.Errf("%v", task.Data)
+	logger.Debugf("%v", task.Data)
 
 	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	if err != nil {
