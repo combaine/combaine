@@ -49,10 +49,6 @@ def split_hosts_by_dc(http_hand_url, groupname):
 
 #{'Group': 'photo-proxy', 'CurrTime': -1, 'Config': 'http_ok_timings', 'Id': '', 'PrevTime': -1}
 
-# Get hosts by group
-# Gen keys
-# Read keys
-
 
 def aggreagate(request, response):
     raw = yield request.read()
