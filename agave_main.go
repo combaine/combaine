@@ -78,6 +78,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("Unexpected error %s", err)
 		response.ErrorMsg(-100, err.Error())
 	}
+	defer as.Close()
 	as.Send(task.Data)
 	response.Write("OK")
 	response.Close()

@@ -159,8 +159,14 @@ func (as *AgaveSender) sendPoint(url string) {
 	}
 }
 
+func (as *AgaveSender) Close() (err error) {
+	as.logger.Close()
+	return
+}
+
 type IAgaveSender interface {
 	Send(DataType) error
+	Close() error
 }
 
 func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) {
