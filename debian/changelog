@@ -1,3 +1,10 @@
+combaine (0.6-28) lucid; urgency=low
+
+  * some bugfixes
+  * step option for agave
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 11 Feb 2014 01:21:29 +0400
+
 combaine (0.6-27) lucid; urgency=low
 
   * try to fix mysqldg socket leak 
