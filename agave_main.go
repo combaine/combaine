@@ -11,6 +11,8 @@ import (
 
 var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
 
+var DEFAULT_STEP = 300
+
 type Task struct {
 	Data   agave.DataType
 	Config map[string]interface{}
@@ -72,13 +74,29 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	}
 	task.Config["Fields"] = fields
 	logger.Debugf("Fields %v", fields)
+
+	//step := DEFAULT_STEP
+	if cfgStep, ok := task.Config["step"]; ok {
+		switch cfgStep.(type) {
+		case uint64:
+			task.Config["step"] = int64(cfgStep.(uint64))
+		case int64:
+			task.Config["step"] = cfgStep.(int64)
+		}
+	} else {
+		task.Config["step"] = int64(DEFAULT_STEP)
+	}
+	logger.Debugf("Step %v", task.Config["step"])
+
 	agaveCfg := task.Config
 	as, err := agave.NewAgaveSender(agaveCfg)
 	if err != nil {
 		logger.Errf("Unexpected error %s", err)
 		response.ErrorMsg(-100, err.Error())
+		response.Close()
+		return
 	}
-	defer as.Close()
+	//defer as.Close()
 	as.Send(task.Data)
 	response.Write("OK")
 	response.Close()

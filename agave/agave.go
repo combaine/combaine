@@ -9,13 +9,34 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
-const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}"
+var (
+	log      *cocaine.Logger
+	logMutex sync.Mutex
+)
+
+func lazyLoggerInitialization() (*cocaine.Logger, error) {
+	var err error
+	if log != nil {
+		return log, nil
+	} else {
+		logMutex.Lock()
+		defer logMutex.Unlock()
+		if log != nil {
+			return log, nil
+		}
+		log, err = cocaine.NewLogger()
+		return log, err
+	}
+}
+
+const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
 
 var URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
 
@@ -79,6 +100,7 @@ type AgaveSender struct {
 	hosts         []string
 	logger        *cocaine.Logger
 	fields        []string
+	step          int64
 }
 
 func (as *AgaveSender) Send(data DataType) (err error) {
@@ -121,6 +143,7 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 		Template  string
 		Title     string
 		Graphname string
+		Step      int64
 	}{
 		subgroup,
 		values,
@@ -128,6 +151,7 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 		as.graphTemplate,
 		as.graphName,
 		as.graphName,
+		as.step,
 	})
 	if err != nil {
 		as.logger.Errf("%s", err)
@@ -213,11 +237,22 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 			return nil, wrongCfgParametrError("Fields")
 		}
 	}
-	logger, err := cocaine.NewLogger("localhost:10053")
+
+	var step int64
+	if cfgStep, ok := config["step"]; !ok {
+		return nil, missingCfgParametrError("step")
+	} else {
+		if step, ok = cfgStep.(int64); !ok {
+			return nil, wrongCfgParametrError("step")
+		}
+	}
+
+	logger, err := lazyLoggerInitialization()
 	if err != nil {
 		return nil, err
 	}
 	logger.Debugf("Goroutine num %d", runtime.NumGoroutine())
+	logger.Debugf("Step %v %v", step, config)
 	//fields
 	as = &AgaveSender{
 		items:         items,
@@ -226,6 +261,7 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 		hosts:         hosts,
 		logger:        logger,
 		fields:        fields,
+		step:          step,
 	}
 	return
 }
