@@ -12,6 +12,7 @@ Log = Logger()
 TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
 
+
 class MysqlDG(object):
     srv = None
 

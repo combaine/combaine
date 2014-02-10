@@ -15,6 +15,18 @@ TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
 
 
+class MysqlDG(object):
+    srv = None
+
+    @classmethod
+    def get_service(cls, name):
+        if cls.srv is not None:
+            return cls.srv
+        else:
+            cls.srv = Service(name)
+            return cls.srv
+
+
 def quantile_packer(iterator):
     qpack = collections.defaultdict(int)
     count = 0
@@ -73,7 +85,7 @@ def aggregate_host(request, response):
     #currtime = TASK['currtime']
     #taskId = TASK['id']
     Log.debug(str(cfg))
-    dg = Service(dgcfg['type'])
+    dg = MysqlDG.get_service(dgcfg['type'])
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
     Log.info("%s QUERY: %s" % (TASK['id'], q))
