@@ -1,11 +1,17 @@
-combaine (0.6-28) lucid; urgency=low
+combaine (0.6-29) unstable; urgency=low
+
+  * add MINIMUM_PERIOD per parsing config 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 11 Feb 2014 15:00:03 +0400
+
+combaine (0.6-28) unstable; urgency=low
 
   * some bugfixes
   * step option for agave
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 11 Feb 2014 01:21:29 +0400
 
-combaine (0.6-27) lucid; urgency=low
+combaine (0.6-27) unstable; urgency=low
 
   * try to fix mysqldg socket leak 
 
@@ -17,7 +23,7 @@ combaine (0.6-26) unstable; urgency=low
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 07 Feb 2014 02:04:40 +0400
 
-combaine (0.6-25) lucid; urgency=low
+combaine (0.6-25) unstable; urgency=low
 
   * fix of fix.. So make a recursion 
 
@@ -35,7 +41,7 @@ combaine (0.6-23) unstable; urgency=low
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 05 Feb 2014 15:52:42 +0400
 
-combaine (0.6-22) lucid; urgency=low
+combaine (0.6-22) unstable; urgency=low
 
   * fix juggler handler 
 
