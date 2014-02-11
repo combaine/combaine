@@ -134,15 +134,20 @@ func (cl *Client) Dispatch() {
 	} else {
 		return
 	}
+
 	_observer.RegisterClient(cl, cl.lockname)
 	defer _observer.UnregisterClient(cl.lockname)
 
 	var p_tasks []common.ParsingTask
 	var agg_tasks []common.AggregationTask
+
 	res, err := loadConfig(cl.lockname)
 	if err != nil {
 		log.Println(err)
 		return
+	}
+	if res.MinimumPeriod > 0 {
+		cl.Main.MinimumPeriod = res.MinimumPeriod
 	}
 
 	var metahost string
