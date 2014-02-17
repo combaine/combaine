@@ -32,8 +32,8 @@ parsing: prepare
 cfgmanager: prepare
 	go build -o $(BUILD_DIR)/main_cfgmanager $(CURDIR)/cfgmanager_main.go
 
-timetail: prepare
-	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/timetail_main.go
+# timetail: prepare
+# 	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/timetail_main.go
 
 agave: prepare
 	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/agave_main.go

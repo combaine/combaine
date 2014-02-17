@@ -75,10 +75,10 @@ install/combaine-core:: agave timetail cfgmanager parsing
 	install -m664 manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
 	# timetail
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m664 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
-	install -m755 deploy/scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
+	# install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	# install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	# install -m664 manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
+	# install -m755 deploy/scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
 
 # combaine-tuner
 install/combaine-presetting::

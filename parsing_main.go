@@ -8,11 +8,13 @@ import (
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/parsing"
+	_ "github.com/noxiouz/Combaine/timetail"
 )
 
 var logger *cocaine.Logger
 
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
+	defer response.Close()
 	raw := <-request.Read()
 	var task common.ParsingTask
 	err := common.Unpack(raw, &task)
@@ -22,11 +24,10 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	}
 	err = parsing.Parsing(task)
 	if err != nil {
-		response.Write(err.Error())
+		response.ErrorMsg(-100, err.Error())
 	} else {
 		response.Write("OK")
 	}
-	response.Close()
 }
 
 func main() {

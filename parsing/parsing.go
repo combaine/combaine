@@ -52,7 +52,6 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 // Main parsing function
 func Parsing(task common.ParsingTask) (err error) {
 	log, err := lazyLoggerInitialization()
-	log, err = lazyLoggerInitialization()
 	if err != nil {
 		return
 	}
@@ -61,14 +60,12 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	//Wrap it
 	log.Debug(task.Id, " Create configuration manager")
-	// cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	cfgManager, err := cacher.Get(common.CFGMANAGER)
 	if err != nil {
 		log.Errf("%s %s", task.Id, err.Error())
 		return
 	}
 	cfgWrap := common.NewCfgWrapper(cfgManager, log)
-	//defer cfgWrap.Close()
 
 	log.Debugf(task.Id, " Fetch configuration file ", task.Config)
 	cfg, err := cfgWrap.GetParsingConfig(task.Config)
@@ -108,12 +105,12 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
-	fetcher, err := cacher.Get(fetcherType)
+
+	fetcher, err := NewFetcher(fetcherType, cfg.DF)
 	if err != nil {
-		log.Err(err.Error())
+		log.Err(err)
 		return
 	}
-	//defer fetcher.Close()
 
 	fetcherTask := common.FetcherTask{
 		Target:    task.Host,
@@ -121,24 +118,12 @@ func Parsing(task common.ParsingTask) (err error) {
 		EndTime:   task.CurrTime,
 	}
 
-	ft := struct {
-		Config map[string]interface{} "Config"
-		Task   common.FetcherTask     "Task"
-	}{cfg.DF, fetcherTask}
-
-	js, _ := common.Pack(ft)
-
-	res := <-fetcher.Call("enqueue", "get", js)
-	if err = res.Err(); err != nil {
-		log.Err(task.Id, " ", err.Error())
+	t, err := fetcher.Fetch(&fetcherTask)
+	if err != nil {
+		log.Err(err)
 		return
 	}
-
-	var t []byte
-	if err = res.Extract(&t); err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
+	log.Debugf("%s Fetch %d bytes", task.Id, len(t))
 
 	// ParsingApp stage
 	log.Info(task.Id, " Send data to parsing")
@@ -153,7 +138,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
-	res = <-parserApp.Call("enqueue", "parse", taskToParser)
+	res := <-parserApp.Call("enqueue", "parse", taskToParser)
 	if err = res.Err(); err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
@@ -177,10 +162,6 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
-	// defer func() {
-	// 	datagrid.Close()
-	// 	log.Errf("%s %s", task.Id, "Close mysqldg connection")
-	// }()
 
 	taskToDatagrid, err := common.Pack([]interface{}{cfg.DG, z})
 	if err != nil {
