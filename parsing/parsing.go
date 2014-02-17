@@ -148,7 +148,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 	// defer parserApp.Close()
-	taskToParser, err := common.Pack([]interface{}{cfg.Parser, t})
+	taskToParser, err := common.Pack([]interface{}{task.Id, cfg.Parser, t})
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return

@@ -5,6 +5,7 @@ import imp
 import msgpack
 
 from cocaine.worker import Worker
+from cocaine.futures.chain import concurrent
 from cocaine.logging import Logger
 
 Log = Logger()
@@ -48,19 +49,28 @@ def plugin_import():
     return all_parser_functions
 
 
+@concurrent
+def do_parse(parser, data):
+    return [i.items() for i in parser(data.splitlines()) if i is not None]
+
+
 def parse(request, response):
     inc = yield request.read()
-    name, data = msgpack.unpackb(inc)
+    tid, name, data = msgpack.unpackb(inc)
+    Log.info("%s Start" % tid)
     available = plugin_import()
-    func = available.get(name)
-    if func is None:
-        response.error(-2, "Missing function %s" % name)
-        raise StopIteration
     try:
-        response.write([i.items() for i in func(data.splitlines()) if i is not None])
+        func = available[name]
+        result = yield do_parse(func, data)
+        response.write(result)
+        Log.info("%s Done" % tid)
+    except KeyError:
+        response.error(-100, "There's no function named %s" % name)
+        Log.error("%s Parser %s is absent" % (tid, name))
     except Exception as err:
         response.error(-3, "Exception in parsing %s" % repr(err))
-    else:
+        Log.error("%s Error" % tid)
+    finally:
         response.close()
 
 
