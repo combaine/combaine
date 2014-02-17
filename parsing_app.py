@@ -65,5 +65,5 @@ def parse(request, response):
 
 
 if __name__ == "__main__":
-    W = Worker()
+    W = Worker(disown_timeout=300)
     W.run({"parse": parse})
