@@ -49,7 +49,7 @@ def plugin_import():
                 if fp:
                     fp.close()
     Log.debug("%s are available functions for parsing"
-              % str(all_parser_functions.keys()))
+              % ' '.join(all_parser_functions.keys()))
     return all_parser_functions
 
 
