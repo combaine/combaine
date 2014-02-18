@@ -93,8 +93,6 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
 	cfg.DF = combainerCfg.CloudCfg.DF
-	common.MapUpdate(&(combainerCfg.CloudCfg.DS), &(cfg.DS))
-	cfg.DS = combainerCfg.CloudCfg.DS
 	common.MapUpdate(&(combainerCfg.CloudCfg.DG), &(cfg.DG))
 	cfg.DG = combainerCfg.CloudCfg.DG
 
@@ -111,6 +109,8 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(err)
 		return
 	}
+
+	// Per host
 
 	fetcherTask := common.FetcherTask{
 		Target:    task.Host,
@@ -207,7 +207,6 @@ func Parsing(task common.ParsingTask) (err error) {
 					log.Errf("%s %s %s", task.Id, name, err)
 					return
 				}
-				//defer app.Close()
 
 				/*
 					Task structure

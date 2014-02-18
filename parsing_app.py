@@ -62,6 +62,9 @@ def parse(request, response):
     try:
         func = available[name]
         result = yield do_parse(func, data)
+        Log.info("%s %d items have been parsed by %s" % (tid,
+                                                         len(result),
+                                                         name))
         response.write(result)
         Log.info("%s Done" % tid)
     except KeyError:

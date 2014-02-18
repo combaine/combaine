@@ -16,7 +16,6 @@ type ParsingConfig struct {
 	AggConfigs []string               `yaml:"agg_configs"`
 	Parser     string                 `yaml:"parser"`
 	DF         map[string]interface{} `yaml:"DataFetcher"`
-	DS         map[string]interface{} `yaml:"DistributedStorage"`
 	DG         map[string]interface{} `yaml:"LocalDatabase"`
 	Metahost   string                 `yaml:"Metahost"`
 }
@@ -45,7 +44,6 @@ type CombainerConfig struct {
 	} "Combainer"
 	CloudCfg struct {
 		DF    map[string]interface{} `yaml:"DataFetcher"`
-		DS    map[string]interface{} `yaml:"DistributedStorage"`
 		DG    map[string]interface{} `yaml:"LocalDatabase"`
 		Agave []string               `yaml:"agave_hosts"`
 	} `yaml:"cloud_config"`
