@@ -125,31 +125,48 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 	log.Debugf("%s Fetch %d bytes", task.Id, len(t))
 
-	// ParsingApp stage
+	/*
+		ParsingApp stage
+	*/
+
 	log.Info(task.Id, " Send data to parsing")
-	parserApp, err := cacher.Get(common.PARSINGAPP)
+	parser, err := GetParser()
+
 	if err != nil {
-		log.Err(err.Error())
-		return
-	}
-	// defer parserApp.Close()
-	taskToParser, err := common.Pack([]interface{}{task.Id, cfg.Parser, t})
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
-	res := <-parserApp.Call("enqueue", "parse", taskToParser)
-	if err = res.Err(); err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
-	var z interface{}
-	if err = res.Extract(&z); err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
 
-	// Datagrid stage
+	z, err := parser.Parse(task.Id, cfg.Parser, t)
+	if err != nil {
+		log.Err(task.Id, " ", err.Error())
+		return err
+	}
+	// parserApp, err := cacher.Get(common.PARSINGAPP)
+	// if err != nil {
+	// 	log.Err(err.Error())
+	// 	return
+	// }
+	// taskToParser, err := common.Pack([]interface{}{task.Id, cfg.Parser, t})
+	// if err != nil {
+	// 	log.Err(task.Id, " ", err.Error())
+	// 	return
+	// }
+	// res := <-parserApp.Call("enqueue", "parse", taskToParser)
+	// if err = res.Err(); err != nil {
+	// 	log.Err(task.Id, " ", err.Error())
+	// 	return
+	// }
+	// var z interface{}
+	// if err = res.Extract(&z); err != nil {
+	// 	log.Err(task.Id, " ", err.Error())
+	// 	return
+	// }
+
+	/*
+		Datagrid stage
+	*/
+
 	dgType, err := common.GetType(cfg.DG)
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
@@ -168,7 +185,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(task.Id, " ", err.Error())
 		return
 	}
-	res = <-datagrid.Call("enqueue", "put", taskToDatagrid)
+	res := <-datagrid.Call("enqueue", "put", taskToDatagrid)
 	if err = res.Err(); err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
@@ -185,6 +202,9 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Debugf("%s Drop table", task.Id)
 	}()
 
+	/*
+
+	*/
 	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range aggCfgs {
 		for k, v := range aggCfg.Data {

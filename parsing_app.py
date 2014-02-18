@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 import imp
 
 import msgpack
@@ -12,6 +13,7 @@ Log = Logger()
 
 
 PATH = '/usr/lib/yandex/combaine/parsers'
+sys.path.insert(0, PATH)
 
 
 def _isPlugin(candidate):
@@ -39,13 +41,15 @@ def plugin_import():
                     candidate = getattr(_temp, item)
                     if callable(candidate):
                         all_parser_functions[item] = candidate
-            except ImportError:
-                pass
+            except ImportError as err:
+                Log.error("ImportError. Module: %s %s" % (module, repr(err)))
             except Exception:
-                pass
+                Log.error("Exception. Module: %s %s" % (module, repr(err)))
             finally:
                 if fp:
                     fp.close()
+    Log.debug("%s are available functions for parsing"
+              % str(all_parser_functions.keys()))
     return all_parser_functions
 
 
