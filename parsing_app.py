@@ -51,7 +51,7 @@ def plugin_import():
 
 @concurrent
 def do_parse(parser, data):
-    return [i.items() for i in parser(data.splitlines()) if i is not None]
+    return [i.items() for i in parser(data) if i is not None]
 
 
 def parse(request, response):
