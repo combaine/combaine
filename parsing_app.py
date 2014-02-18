@@ -15,10 +15,12 @@ Log = Logger()
 PATH = '/usr/lib/yandex/combaine/parsers'
 sys.path.insert(0, PATH)
 
+EXTS = [ext for (ext, _, _) in imp.get_suffixes()]
+
 
 def _isPlugin(candidate):
     name, extension = os.path.splitext(candidate)
-    if name != "__init__" and extension in (".py", ".pyc", ".pyo"):
+    if name != "__init__" and extension in EXTS:
         return True
     else:
         return False
