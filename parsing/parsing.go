@@ -89,8 +89,8 @@ func Parsing(task common.ParsingTask) (err error) {
 		}
 		aggCfgs[name] = aggCfg
 	}
-	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
 
+	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
 	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
 	cfg.DF = combainerCfg.CloudCfg.DF
 	common.MapUpdate(&(combainerCfg.CloudCfg.DG), &(cfg.DG))
@@ -131,7 +131,6 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	log.Info(task.Id, " Send data to parsing")
 	parser, err := GetParser()
-
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
@@ -142,26 +141,6 @@ func Parsing(task common.ParsingTask) (err error) {
 		log.Err(task.Id, " ", err.Error())
 		return err
 	}
-	// parserApp, err := cacher.Get(common.PARSINGAPP)
-	// if err != nil {
-	// 	log.Err(err.Error())
-	// 	return
-	// }
-	// taskToParser, err := common.Pack([]interface{}{task.Id, cfg.Parser, t})
-	// if err != nil {
-	// 	log.Err(task.Id, " ", err.Error())
-	// 	return
-	// }
-	// res := <-parserApp.Call("enqueue", "parse", taskToParser)
-	// if err = res.Err(); err != nil {
-	// 	log.Err(task.Id, " ", err.Error())
-	// 	return
-	// }
-	// var z interface{}
-	// if err = res.Extract(&z); err != nil {
-	// 	log.Err(task.Id, " ", err.Error())
-	// 	return
-	// }
 
 	/*
 		Datagrid stage
