@@ -90,9 +90,7 @@ def aggregate_host(request, response):
     q = TIMEREGEX.sub("1=1", q)
     Log.info("%s QUERY: %s" % (TASK['id'], q))
     res = yield dg.enqueue("query",
-                           msgpack.packb((dgcfg,
-                                          token,
-                                          q)))
+                           msgpack.packb((token, q)))
     #Log.info("Data from DG " + str(res))
     ret = quantile_packer(itertools.chain(*res))
     Log.info("%s Return " % TASK['id'] + str(ret))

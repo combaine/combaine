@@ -8,6 +8,8 @@ import (
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/parsing"
+
+	_ "github.com/noxiouz/Combaine/httpfetcher"
 	_ "github.com/noxiouz/Combaine/timetail"
 )
 

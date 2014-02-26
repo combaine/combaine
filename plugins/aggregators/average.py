@@ -41,9 +41,7 @@ def aggregate_host(request, response):
     q = TIMEREGEX.sub("1=1", q)
     Log.debug("%s QUERY: %s" % (taskId, q))
     res = yield dg.enqueue("query",
-                           msgpack.packb((dgcfg,
-                                          token,
-                                          q)))
+                           msgpack.packb((token, q)))
 
     try:
         ret = float(res[0][0])   # SELECT COUNT(*)

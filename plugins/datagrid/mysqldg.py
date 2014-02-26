@@ -3,6 +3,7 @@ import os
 import random
 import types
 import uuid
+import yaml
 
 import msgpack
 import MySQLdb
@@ -11,9 +12,15 @@ from warnings import filterwarnings
 from cocaine.worker import Worker
 from cocaine.logging import Logger
 
-#Suppressing warnings
+
+# Drop warnings
 filterwarnings('ignore', category=MySQLdb.Warning)
 log = Logger()
+
+CONFIG_PATH = "/etc/combaine/mysql.yaml"
+
+with open(CONFIG_PATH, 'r') as f:
+    mysql_config = yaml.load(f)
 
 
 class MySqlDG(object):
@@ -105,22 +112,19 @@ class MySqlDG(object):
         self.db.commit()
         return _ret
 
-    def __del__(self):
-        if self.db:
-            self.cursor.close()
-            self.db.commit()
-            self.db.close()
+
+mysqldg = MySqlDG(**mysql_config)
+
+print mysqldg
 
 
 def put(request, response):
     raw = yield request.read()
-    config, data = msgpack.unpackb(raw)
+    data = msgpack.unpackb(raw)
     tablename = "CMB" + str(uuid.uuid4()).replace("-", "")[:20]
-    log.debug(str(config))
     log.debug("Put data into %s" % tablename)
     try:
-        m = MySqlDG(**config)
-        m.putData(data, tablename)
+        mysqldg.putData(data, tablename)
     except Exception as err:
         response.error(-100, str(err))
     else:
@@ -130,12 +134,11 @@ def put(request, response):
 
 def drop(request, response):
     raw = yield request.read()
-    config, tablename = msgpack.unpackb(raw)
+    tablename = msgpack.unpackb(raw)
     try:
-        m = MySqlDG(**config)
         drop_query = "DROP TABLE IF EXISTS %s" % tablename
         log.debug(drop_query)
-        m.perfomCustomQuery(drop_query)
+        mysqldg.perfomCustomQuery(drop_query)
     except Exception as err:
         response.error(-100, str(err))
     else:
@@ -145,11 +148,10 @@ def drop(request, response):
 
 def query(request, response):
     raw = yield request.read()
-    config, tablename, querystr = msgpack.unpackb(raw)
+    tablename, querystr = msgpack.unpackb(raw)
     try:
-        m = MySqlDG(**config)
         log.debug("QUERY STRING: %s " % querystr)
-        res = m.perfomCustomQuery(querystr)
+        res = mysqldg.perfomCustomQuery(querystr)
     except Exception as err:
         response.error(-99, str(err))
     else:

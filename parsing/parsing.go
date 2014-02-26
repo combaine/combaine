@@ -159,7 +159,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 
-	taskToDatagrid, err := common.Pack([]interface{}{cfg.DG, z})
+	taskToDatagrid, err := common.Pack(z)
 	if err != nil {
 		log.Err(task.Id, " ", err.Error())
 		return
@@ -176,7 +176,7 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	defer func() {
-		taskToDatagrid, _ = common.Pack([]interface{}{cfg.DG, token})
+		taskToDatagrid, _ = common.Pack([]interface{}{token})
 		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
 		log.Debugf("%s Drop table", task.Id)
 	}()

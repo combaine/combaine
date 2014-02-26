@@ -45,7 +45,7 @@ def plugin_import():
                         all_parser_functions[item] = candidate
             except ImportError as err:
                 Log.error("ImportError. Module: %s %s" % (module, repr(err)))
-            except Exception:
+            except Exception as err:
                 Log.error("Exception. Module: %s %s" % (module, repr(err)))
             finally:
                 if fp:
