@@ -10,6 +10,7 @@ import (
 	"github.com/noxiouz/Combaine/parsing"
 
 	_ "github.com/noxiouz/Combaine/httpfetcher"
+	_ "github.com/noxiouz/Combaine/rawsocket"
 	_ "github.com/noxiouz/Combaine/timetail"
 )
 
