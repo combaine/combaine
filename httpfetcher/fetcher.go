@@ -14,6 +14,12 @@ func init() {
 }
 
 func get(url string) ([]byte, error) {
+	log, err := parsing.LazyLoggerInitialization()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Requested URL: %s", url)
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

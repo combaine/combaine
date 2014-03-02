@@ -93,8 +93,9 @@ def aggreagate(request, response):
                                                 msgpack.packb((cfg, [data])))
                         result[name][host] = res
                 except Exception as err:
-                    log.error("%s Unable to read from elliptics cache %s %s" %
-                              (ID, key, repr(err)))
+                    if err.code != 2:
+                        log.error("%s Unable to read from elliptics cache %s %s" %
+                                  (ID, key, repr(err)))
 
             mapping[subgroup] = subgroup_data
             res = yield app.enqueue("aggregate_group",

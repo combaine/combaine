@@ -90,10 +90,10 @@ class MySqlDG(object):
             return True
 
     def _preparePlace(self, example):
-        ftypes = {types.IntType: "INT",
+        ftypes = {types.IntType: "BIGINT",
                   types.UnicodeType: "VARCHAR(200)",
                   types.StringType: "VARCHAR(200)",
-                  types.FloatType: "FLOAT"}
+                  types.FloatType: "DOUBLE"}
         try:
             self.place = '( %s )' % ','.join([" %s %s" % (field_name,
                                                           ftypes[type(field_type)])

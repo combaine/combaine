@@ -15,6 +15,12 @@ func init() {
 
 //{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
 func get(url string) ([]byte, error) {
+	log, err := parsing.LazyLoggerInitialization()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Requested URL: %s", url)
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

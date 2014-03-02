@@ -18,7 +18,7 @@ var (
 	cacher       servicecacher.Cacher = servicecacher.NewCacher()
 )
 
-func lazyLoggerInitialization() (*cocaine.Logger, error) {
+func LazyLoggerInitialization() (*cocaine.Logger, error) {
 	var err error
 	if log != nil {
 		return log, nil
@@ -51,7 +51,7 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 
 // Main parsing function
 func Parsing(task common.ParsingTask) (err error) {
-	log, err := lazyLoggerInitialization()
+	log, err := LazyLoggerInitialization()
 	if err != nil {
 		return
 	}
@@ -195,7 +195,7 @@ func Parsing(task common.ParsingTask) (err error) {
 			wg.Add(1)
 			go func(name string, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
-				log, err := lazyLoggerInitialization()
+				log, err := LazyLoggerInitialization()
 				storage, err := lazyStorageInitialization()
 				if err != nil {
 					return
