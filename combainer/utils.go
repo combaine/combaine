@@ -17,7 +17,7 @@ const (
 type ParsingConfig struct {
 	Groups           []string "groups"
 	AggConfigs       []string "agg_configs"
-	Metahost         string   "metahost"
+	Metahost         string   "Metahost"
 	combainerMainCfg "Combainer"
 }
 
@@ -84,5 +84,6 @@ func loadConfig(name string) (*ParsingConfig, error) {
 		log.Println(err)
 		return nil, err
 	}
+
 	return &res, nil
 }

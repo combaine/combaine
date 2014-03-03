@@ -21,6 +21,7 @@ prepare:
 
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
+	go get github.com/howeyc/fsnotify
 
 combaine: prepare
 	go get launchpad.net/gozk/zookeeper

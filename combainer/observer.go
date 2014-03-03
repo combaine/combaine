@@ -8,6 +8,18 @@ import (
 	"text/template"
 )
 
+type clientStats struct {
+	sync.RWMutex
+	success int
+	failed  int
+}
+
+type StatInfo struct {
+	Success int
+	Failed  int
+	Total   int
+}
+
 type info struct {
 	GoRoutines int
 	Clients    map[string]*StatInfo

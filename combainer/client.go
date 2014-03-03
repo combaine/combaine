@@ -15,15 +15,13 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/cfgwatcher"
 )
 
 type combainerMainCfg struct {
-	Http_hand       string "HTTP_HAND"
-	MaxPeriod       uint   "MAXIMUM_PERIOD"
-	MaxAttemps      uint   "MAX_ATTEMPS"
-	MaxRespWaitTime uint   "MAX_RESP_WAIT_TIME"
-	MinimumPeriod   uint   "MINIMUM_PERIOD"
-	CloudHosts      string "cloud"
+	Http_hand     string "HTTP_HAND"
+	MinimumPeriod uint   "MINIMUM_PERIOD"
+	CloudHosts    string "cloud"
 }
 
 type combainerLockserverCfg struct {
@@ -40,6 +38,13 @@ type combainerConfig struct {
 	} "Combainer"
 }
 
+type sessionParams struct {
+	ParsingTime time.Duration
+	WholeTime   time.Duration
+	PTasks      []common.ParsingTask
+	AggTasks    []common.AggregationTask
+}
+
 type Client struct {
 	Main       combainerMainCfg
 	LSCfg      combainerLockserverCfg
@@ -47,18 +52,9 @@ type Client struct {
 	lockname   string
 	cloudHosts []string
 	clientStats
-}
 
-type clientStats struct {
-	sync.RWMutex
-	success int
-	failed  int
-}
-
-type StatInfo struct {
-	Success int
-	Failed  int
-	Total   int
+	// various periods and list of tasks
+	sp *sessionParams
 }
 
 func (cs *clientStats) AddSuccess() {
@@ -119,6 +115,7 @@ func NewClient(config string) (*Client, error) {
 		DLS:        *dls,
 		lockname:   "",
 		cloudHosts: cloudHosts,
+		sp:         nil,
 	}, nil
 }
 
@@ -126,26 +123,22 @@ func (cl *Client) Close() {
 	cl.DLS.Close()
 }
 
-func (cl *Client) Dispatch() {
-	defer cl.Close()
-	lockpoller := cl.acquireLock()
-	if lockpoller != nil {
-		log.Println("Acquire Lock", cl.lockname)
-	} else {
-		return
-	}
-
-	_observer.RegisterClient(cl, cl.lockname)
-	defer _observer.UnregisterClient(cl.lockname)
-
+func (cl *Client) UpdateSessionParams(config string) (err error) {
+	log.Println("Updating session parametrs")
+	// tasks
 	var p_tasks []common.ParsingTask
 	var agg_tasks []common.AggregationTask
+
+	// timeouts
+	var parsingTime time.Duration
+	var wholeTime time.Duration
 
 	res, err := loadConfig(cl.lockname)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
 	if res.MinimumPeriod > 0 {
 		cl.Main.MinimumPeriod = res.MinimumPeriod
 	}
@@ -167,6 +160,7 @@ func (cl *Client) Dispatch() {
 		}
 		log.Println(hosts)
 	}
+
 	// Tasks for parsing
 	//host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
@@ -180,6 +174,7 @@ func (cl *Client) Dispatch() {
 			Metahost: metahost,
 		})
 	}
+
 	//groupname, config_name, agg_config_name, previous_time, current_time
 	for _, cfg := range res.AggConfigs {
 		agg_tasks = append(agg_tasks, common.AggregationTask{
@@ -193,8 +188,57 @@ func (cl *Client) Dispatch() {
 		})
 	}
 
-	PARSING_TIME := time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
-	WHOLE_TIME := time.Duration(cl.Main.MinimumPeriod) * time.Second
+	parsingTime = time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
+	wholeTime = time.Duration(cl.Main.MinimumPeriod) * time.Second
+
+	sp := sessionParams{
+		ParsingTime: parsingTime,
+		WholeTime:   wholeTime,
+		PTasks:      p_tasks,
+		AggTasks:    agg_tasks,
+	}
+
+	log.Printf("Session parametrs have been updated successfully. %v", sp)
+	cl.sp = &sp
+	return nil
+}
+
+func (cl *Client) Dispatch() {
+	defer cl.Close()
+	lockpoller := cl.acquireLock()
+	if lockpoller != nil {
+		log.Println("Acquire Lock", cl.lockname)
+	} else {
+		return
+	}
+
+	watcher, err := cfgwatcher.NewSimpleCfgwatcher()
+	if err != nil {
+		log.Printf("Watcher error: %s", err)
+		return
+	}
+	defer watcher.Close()
+
+	watchChan, err := watcher.Watch(fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname))
+	if err != nil {
+		log.Printf("WatchChan error: %s", err)
+		return
+
+	}
+
+	_observer.RegisterClient(cl, cl.lockname)
+	defer _observer.UnregisterClient(cl.lockname)
+
+	//Update session parametrs from config
+	if err := cl.UpdateSessionParams(cl.lockname); err != nil {
+		log.Printf("Error %s", err)
+		return
+	}
+
+	if cl.sp == nil {
+		log.Printf("Unable to update parametrs of session")
+		return
+	}
 
 	// Dispatch
 	var deadline time.Time
@@ -204,13 +248,13 @@ func (cl *Client) Dispatch() {
 	for {
 		// Start periodically
 		startTime = time.Now()
-		deadline = startTime.Add(PARSING_TIME)
+		deadline = startTime.Add(cl.sp.ParsingTime)
 		log.Println("Start new iteration at ", startTime)
 
-		for i, task := range p_tasks {
+		for i, task := range cl.sp.PTasks {
 			// Description of task
 			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
 			h := md5.New()
 			io.WriteString(h, (fmt.Sprintf("%v", task)))
 			task.Id = fmt.Sprintf("%x", h.Sum(nil))
@@ -220,12 +264,12 @@ func (cl *Client) Dispatch() {
 			wg.Add(1)
 		}
 		wg.Wait()
-		log.Println("Parsing finishs ", time.Now())
+		log.Println("Parsing finished ", time.Now())
 
-		deadline = startTime.Add(WHOLE_TIME)
-		for i, task := range agg_tasks {
+		deadline = startTime.Add(cl.sp.WholeTime)
+		for i, task := range cl.sp.AggTasks {
 			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(WHOLE_TIME).Unix()
+			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
 			h := md5.New()
 			io.WriteString(h, (fmt.Sprintf("%v", task)))
 			task.Id = fmt.Sprintf("%x", h.Sum(nil))
@@ -234,13 +278,22 @@ func (cl *Client) Dispatch() {
 			go cl.aggregationTaskHandler(task, &wg, deadline)
 		}
 		wg.Wait()
-		log.Println("Aggregation finishs ", time.Now())
+		log.Println("Aggregation finished ", time.Now())
 		select {
 		case <-lockpoller: // Lock
 			log.Println("do exit")
 			return
 		case <-time.After(deadline.Sub(time.Now())):
 			log.Println("Go to the next iteration")
+			select {
+			case err := <-watchChan:
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				cl.UpdateSessionParams(cl.lockname)
+			default:
+			}
 		}
 	}
 }
