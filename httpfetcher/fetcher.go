@@ -14,11 +14,6 @@ func init() {
 }
 
 func get(url string) ([]byte, error) {
-	log, err := parsing.LazyLoggerInitialization()
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Requested URL: %s", url)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -58,5 +53,11 @@ func (t *HttpFetcher) Fetch(task *common.FetcherTask) (res []byte, err error) {
 		task.Target,
 		t.port,
 		t.uri)
+
+	log, err := parsing.LazyLoggerInitialization()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("%s Requested URL: %s", task.Id, url)
 	return get(url)
 }

@@ -17,7 +17,7 @@ type ParsingConfig struct {
 	Parser     string                 `yaml:"parser"`
 	DF         map[string]interface{} `yaml:"DataFetcher"`
 	DG         map[string]interface{} `yaml:"LocalDatabase"`
-	Metahost   string                 `yaml:"Metahost"`
+	Metahost   string                 `yaml:"metahost"`
 }
 
 // Description of combainer config
@@ -50,6 +50,7 @@ type CombainerConfig struct {
 }
 
 type FetcherTask struct {
+	Id        string "Id"
 	Target    string "Target"
 	StartTime int64  "StartTime"
 	EndTime   int64  "EndTime"

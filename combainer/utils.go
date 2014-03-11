@@ -17,7 +17,7 @@ const (
 type ParsingConfig struct {
 	Groups           []string "groups"
 	AggConfigs       []string "agg_configs"
-	Metahost         string   "Metahost"
+	Metahost         string   "metahost"
 	combainerMainCfg "Combainer"
 }
 

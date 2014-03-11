@@ -1,3 +1,9 @@
+combaine (0.6.1-7) unstable; urgency=low
+
+  * fix metahost. Add id into fetcher log 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 04 Mar 2014 13:42:10 +0400
+
 combaine (0.6.1-6) unstable; urgency=low
 
   * parsing config autoreload

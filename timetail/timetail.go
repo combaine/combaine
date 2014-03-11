@@ -15,11 +15,6 @@ func init() {
 
 //{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
 func get(url string) ([]byte, error) {
-	log, err := parsing.LazyLoggerInitialization()
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Requested URL: %s", url)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -41,6 +36,13 @@ func (t *Timetail) Fetch(task *common.FetcherTask) (res []byte, err error) {
 		t.cfg["timetail_url"],
 		t.cfg["logname"],
 		task.EndTime-task.StartTime)
+
+	log, err := parsing.LazyLoggerInitialization()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("%s Requested URL: %s", task.Id, url)
+
 	return get(url)
 }
 

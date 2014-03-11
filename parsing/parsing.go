@@ -113,6 +113,7 @@ func Parsing(task common.ParsingTask) (err error) {
 	// Per host
 
 	fetcherTask := common.FetcherTask{
+		Id:        task.Id,
 		Target:    task.Host,
 		StartTime: task.PrevTime,
 		EndTime:   task.CurrTime,
