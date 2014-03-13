@@ -188,7 +188,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		})
 	}
 
-	parsingTime = time.Duration(float64(cl.Main.MinimumPeriod)*0.6) * time.Second
+	parsingTime = time.Duration(float64(cl.Main.MinimumPeriod)*0.8) * time.Second
 	wholeTime = time.Duration(cl.Main.MinimumPeriod) * time.Second
 
 	sp := sessionParams{
