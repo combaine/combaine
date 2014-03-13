@@ -25,7 +25,7 @@ type ParsingConfig struct {
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	url := fmt.Sprintf("%s%s", handle, groupname)
 	if strings.HasPrefix(url, "http:") { // Over HTTP
-		//log.Println("Fetch hosts: ", url)
+		// log.Println("Fetch hosts: ", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
@@ -37,7 +37,18 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 			return nil, err
 		} else {
 			s := strings.TrimSuffix(string(body), "\n")
-			return strings.Split(s, "\n"), nil
+			for _, dcAndHost := range strings.Split(s, "\n") {
+				if temp := strings.Split(dcAndHost, " "); len(temp) == 2 {
+					//temp['dc', 'host']
+					hosts = append(hosts, temp[1])
+				} else {
+					log.Printf("Wrong input string %s", temp)
+				}
+			}
+			if len(hosts) == 0 {
+				return hosts, fmt.Errorf("No hosts")
+			}
+			return hosts, nil
 		}
 	} else { // File
 		data, err := ioutil.ReadFile(url)

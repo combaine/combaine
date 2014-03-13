@@ -38,16 +38,16 @@ cache = Cache()
 
 
 def split_hosts_by_dc(http_hand_url, groupname):
-    hosts = urllib.urlopen("%s%s?fields=root_datacenter_name,fqdn" % (http_hand_url, groupname)).read()
+    url = "%s%s" % (http_hand_url, groupname)
+    log.info(url)
+    hosts = urllib.urlopen(url).read()
     if hosts == 'No groups found':
         return {}
     host_dict = collections.defaultdict(list)
     for item in hosts.splitlines():
-        dc, host = item.split('\t')
+        dc, host = item.split(' ')
         host_dict[dc].append(host)
     return host_dict
-
-#{'Group': 'photo-proxy', 'CurrTime': -1, 'Config': 'http_ok_timings', 'Id': '', 'PrevTime': -1}
 
 
 def aggreagate(request, response):
