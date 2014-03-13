@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	// "text/template"
+	"strings"
 	"time"
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/logger"
 )
+
+func formatSubgroup(input string) string {
+	return strings.Replace(
+		strings.Replace(input, ".", "_", -1),
+		"-", "_", -1)
+}
 
 const onePointTemplateText = "{{.cluster}}.combaine.{{.metahost}}.{{.item}} {{.value}} {{.timestamp}}"
 
@@ -75,7 +81,7 @@ func (g *graphiteClient) Send(data common.DataType) (err error) {
 					toSend := fmt.Sprintf(
 						onePointFormat,
 						g.cluster,
-						subgroup,
+						formatSubgroup(subgroup),
 						fmt.Sprintf("%s.%s", aggname, g.fields[i]),
 						common.InterfaceToString(itemInterface),
 						time.Now().Unix())
@@ -91,7 +97,7 @@ func (g *graphiteClient) Send(data common.DataType) (err error) {
 				toSend := fmt.Sprintf(
 					onePointFormat,
 					g.cluster,
-					subgroup,
+					formatSubgroup(subgroup),
 					aggname,
 					common.InterfaceToString(value),
 					time.Now().Unix())
