@@ -13,7 +13,7 @@ import (
 
 const onePointTemplateText = "{{.cluster}}.combaine.{{.metahost}}.{{.item}} {{.value}} {{.timestamp}}"
 
-const onePointFormat = "%s.combaine.%s.%s %s %d"
+const onePointFormat = "%s.combaine.%s.%s %s %d\n"
 
 // var onePointTemplate *template.Template = template.Must(template.New("URL").Parse(onePointTemplateText))
 
