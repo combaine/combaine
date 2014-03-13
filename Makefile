@@ -11,7 +11,7 @@ BUILD_DIR=$(CURDIR)/build
 export GOPATH=$(CURDIR)
 
 
-all: combaine agave timetail cfgmanager parsing
+all: combaine agave timetail cfgmanager parsing graphite
 
 prepare:
 	mkdir -p $(PACKAGE_PATH) || true
@@ -38,6 +38,9 @@ cfgmanager: prepare
 
 agave: prepare
 	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/agave_main.go
+
+graphite: prepare
+	go build -o $(BUILD_DIR)/main_graphite $(CURDIR)/graphite_main.go
 
 clean::
 	rm -rf $(PACKAGE_PATH)/Combaine

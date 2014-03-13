@@ -1,19 +1,35 @@
 #!/bin/bash
 
-BASE=/usr/lib/yandex/combaine/plugins/mysqldg
-APPNAME=mysqldg
+set -e
 
-#====================================
-MANIFEST=manifest_${APPNAME}.json
-PACKAGE=${APPNAME}.tar.gz
+case $1 in
+    configure)
+		BASE=/usr/lib/yandex/combaine/plugins/mysqldg
+		APPNAME=mysqldg
+
+		#====================================
+		MANIFEST=manifest_${APPNAME}.json
+		PACKAGE=${APPNAME}.tar.gz
 
 
-cd $BASE
-rm ./$PACKAGE || true
-tar -czf ./$PACKAGE ./*
+		cd $BASE
+		rm ./$PACKAGE || true
+		tar -czf ./$PACKAGE ./*
 
-echo "Deploy ${APPNAME}"
-cocaine-tool app upload --name $APPNAME --package=$PACKAGE --manifest=$MANIFEST
-cocaine-tool runlist add-app --name combaine  --app $APPNAME --profile=default
+		echo "Deploy ${APPNAME}"
+		cocaine-tool app upload --name $APPNAME --package=$PACKAGE --manifest=$MANIFEST
+		cocaine-tool runlist add-app --name combaine  --app $APPNAME --profile=default
+
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with an unknown argument \`$1'" >&2
+        ;;
+esac
 
 #DEBHELPER#
+        
+exit 0

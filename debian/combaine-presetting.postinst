@@ -1,5 +1,20 @@
 #!/bin/bash
 
-/usr/lib/yandex/combaine/presetting/presetting.py
+set -e
+
+case $1 in
+    configure)
+		/usr/lib/yandex/combaine/presetting/presetting.py
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with an unknown argument \`$1'" >&2
+        ;;
+esac
 
 #DEBHELPER#
+        
+exit 0

@@ -33,7 +33,7 @@ install/combainer:: combaine
 
 # Combaine-core
 
-install/combaine-core:: agave timetail cfgmanager parsing
+install/combaine-core:: agave timetail cfgmanager parsing graphite
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
@@ -69,6 +69,11 @@ install/combaine-core:: agave timetail cfgmanager parsing
 	install -m755 $(BUILD_DIR)/main_agave  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m664 manifests/manifest_agave.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 deploy/scripts/deploy_agave.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave/deploy.sh
+	# graphite
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite
+	install -m755 $(BUILD_DIR)/main_graphite  $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite
+	install -m664 manifests/manifest_graphite.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite
+	install -m755 deploy/scripts/deploy_graphite.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler

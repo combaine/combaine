@@ -1,37 +1,53 @@
 #!/bin/bash
 
-echo "Deploy parsing-core"
-cd /usr/lib/yandex/combaine/core-apps/parsing-core/
-./deploy.sh
+set -e
 
-echo "Deploy cfgmanager"
-cd /usr/lib/yandex/combaine/core-apps/cfgmanager/
-./deploy.sh
+case $1 in
+    configure)
+		echo "Deploy parsing-core"
+		cd /usr/lib/yandex/combaine/core-apps/parsing-core/
+		./deploy.sh
 
-echo "Deploy parsing-app"
-cd /usr/lib/yandex/combaine/core-apps/parsing-app/
-./deploy.sh
+		echo "Deploy cfgmanager"
+		cd /usr/lib/yandex/combaine/core-apps/cfgmanager/
+		./deploy.sh
 
-# echo "Deploy timetail"
-# cd /usr/lib/yandex/combaine/core-apps/timetail/
-# ./deploy.sh
+		echo "Deploy parsing-app"
+		cd /usr/lib/yandex/combaine/core-apps/parsing-app/
+		./deploy.sh
 
-echo "Deploy average"
-cd /usr/lib/yandex/combaine/core-apps/aggregate-average/
-./deploy.sh
+		echo "Deploy average"
+		cd /usr/lib/yandex/combaine/core-apps/aggregate-average/
+		./deploy.sh
 
-cd /usr/lib/yandex/combaine/core-apps/aggregate-quant/
-./deploy.sh
+		cd /usr/lib/yandex/combaine/core-apps/aggregate-quant/
+		./deploy.sh
 
-echo "Deploy aggregate"
-cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
-./deploy.sh
+		echo "Deploy aggregate"
+		cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
+		./deploy.sh
 
-echo "Deploy agave"
-cd /usr/lib/yandex/combaine/core-apps/agave/
-./deploy.sh
+		echo "Deploy agave"
+		cd /usr/lib/yandex/combaine/core-apps/agave/
+		./deploy.sh
 
-echo "Deploy juggler"
-cd /usr/lib/yandex/combaine/core-apps/juggler/
-./deploy.sh
+		echo "Deploy juggler"
+		cd /usr/lib/yandex/combaine/core-apps/juggler/
+		./deploy.sh
+
+		echo "Deploy graphite"
+		cd /usr/lib/yandex/combaine/core-apps/graphite/
+		./deploy.sh
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with an unknown argument \`$1'" >&2
+        ;;
+esac
+
 #DEBHELPER#
+        
+exit 0
