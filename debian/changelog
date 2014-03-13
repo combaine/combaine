@@ -1,3 +1,9 @@
+combaine (0.6.2.3) unstable; urgency=low
+
+  * Change time distribution. Replace - . to _ in graphite.
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 13 Mar 2014 16:45:15 +0400
+
 combaine (0.6.2.2) unstable; urgency=low
 
   * fix graphite fmt string 
