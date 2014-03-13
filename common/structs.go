@@ -81,3 +81,7 @@ type AggregationTask struct {
 	Id       string
 	Metahost string
 }
+
+// For senders
+type DataItem map[string]interface{}
+type DataType map[string]DataItem

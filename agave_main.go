@@ -14,7 +14,7 @@ var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", 
 var DEFAULT_STEP = 300
 
 type Task struct {
-	Data   agave.DataType
+	Data   common.DataType
 	Config map[string]interface{}
 }
 

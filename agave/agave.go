@@ -13,6 +13,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/noxiouz/Combaine/common"
+
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
@@ -57,18 +59,6 @@ func wrongCfgParametrError(param string) error {
 	return fmt.Errorf("Wrong type of parametr: %s", param)
 }
 
-func interfaceToString(v interface{}) (s string) {
-	switch v := v.(type) {
-	case int:
-		s = fmt.Sprintf("%d", v)
-	case float32, float64:
-		s = fmt.Sprintf("%f", v)
-	default:
-		s = fmt.Sprintf("%v", v)
-	}
-	return
-}
-
 func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
 	return func(netw, addr string) (net.Conn, error) {
 		conn, err := net.DialTimeout(netw, addr, cTimeout)
@@ -89,8 +79,8 @@ func NewClientWithTimeout(connectTimeout time.Duration, rwTimeout time.Duration)
 	}
 }
 
-type DataItem map[string]interface{}
-type DataType map[string]DataItem
+// type DataItem map[string]interface{}
+// type DataType map[string]DataItem
 
 type AgaveSender struct {
 	// Handled items in data. Only this will be handled.
@@ -103,7 +93,7 @@ type AgaveSender struct {
 	step          int64
 }
 
-func (as *AgaveSender) Send(data DataType) (err error) {
+func (as *AgaveSender) Send(data common.DataType) (err error) {
 	// Repack data by subgroups
 	var repacked map[string][]string = make(map[string][]string)
 	for _, aggname := range as.items {
@@ -117,11 +107,11 @@ func (as *AgaveSender) Send(data DataType) (err error) {
 				}
 				forJoin := []string{}
 				for i, field := range as.fields {
-					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, interfaceToString(rv.Index(i).Interface())))
+					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
 				}
 				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 			default:
-				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, interfaceToString(value)))
+				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, common.InterfaceToString(value)))
 			}
 		}
 	}
@@ -189,7 +179,7 @@ func (as *AgaveSender) Close() (err error) {
 }
 
 type IAgaveSender interface {
-	Send(DataType) error
+	Send(common.DataType) error
 	Close() error
 }
 

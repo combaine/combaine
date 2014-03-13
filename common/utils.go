@@ -2,6 +2,8 @@ package common
 
 import (
 	"errors"
+	"fmt"
+
 	"github.com/ugorji/go/codec"
 	"launchpad.net/goyaml"
 )
@@ -43,4 +45,16 @@ func MapUpdate(source *map[string]interface{}, update *map[string]interface{}) {
 	for k, v := range *update {
 		(*source)[k] = v
 	}
+}
+
+func InterfaceToString(v interface{}) (s string) {
+	switch v := v.(type) {
+	case int:
+		s = fmt.Sprintf("%d", v)
+	case float32, float64:
+		s = fmt.Sprintf("%f", v)
+	default:
+		s = fmt.Sprintf("%v", v)
+	}
+	return
 }
