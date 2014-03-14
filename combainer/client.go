@@ -251,13 +251,15 @@ func (cl *Client) Dispatch() {
 		deadline = startTime.Add(cl.sp.ParsingTime)
 		log.Println("Start new iteration at ", startTime)
 
+		h := md5.New()
+		io.WriteString(h, (fmt.Sprintf("%s%d%d", cl.lockname, startTime, deadline)))
+		uniqueID := fmt.Sprintf("%x", h.Sum(nil))
+
 		for i, task := range cl.sp.PTasks {
 			// Description of task
 			task.PrevTime = startTime.Unix()
 			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
-			h := md5.New()
-			io.WriteString(h, (fmt.Sprintf("%v", task)))
-			task.Id = fmt.Sprintf("%x", h.Sum(nil))
+			task.Id = uniqueID
 
 			log.Println("Send task number to parsing ", i, task)
 			go cl.parsingTaskHandler(task, &wg, deadline)
@@ -270,9 +272,7 @@ func (cl *Client) Dispatch() {
 		for i, task := range cl.sp.AggTasks {
 			task.PrevTime = startTime.Unix()
 			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
-			h := md5.New()
-			io.WriteString(h, (fmt.Sprintf("%v", task)))
-			task.Id = fmt.Sprintf("%x", h.Sum(nil))
+			task.Id = uniqueID
 			log.Println("Send task number to aggregate ", i, task)
 			wg.Add(1)
 			go cl.aggregationTaskHandler(task, &wg, deadline)
