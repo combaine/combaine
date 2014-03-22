@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"launchpad.net/goyaml"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -25,13 +24,13 @@ type ParsingConfig struct {
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	url := fmt.Sprintf("%s%s", handle, groupname)
 	if strings.HasPrefix(url, "http:") { // Over HTTP
-		// log.Println("Fetch hosts: ", url)
+		// LogInfo("Fetch hosts: ", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
 		}
 		defer resp.Body.Close()
-		//log.Println("Fetch hosts, status code", resp.StatusCode)
+		//LogInfo("Fetch hosts, status code", resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
@@ -42,7 +41,7 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 					//temp['dc', 'host']
 					hosts = append(hosts, temp[1])
 				} else {
-					log.Printf("Wrong input string %s", temp)
+					LogInfo("Wrong input string %s", temp)
 				}
 			}
 			if len(hosts) == 0 {
@@ -50,15 +49,9 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 			}
 			return hosts, nil
 		}
-	} else { // File
-		data, err := ioutil.ReadFile(url)
-		if err != nil {
-			log.Println(err)
-			return nil, err
-		} else {
-			s := strings.TrimSuffix(string(data), "\n")
-			return strings.Split(s, "\n"), nil
-		}
+	} else {
+		err = fmt.Errorf("Wrong hostfetcher endpoint")
+		return
 	}
 }
 
@@ -81,10 +74,9 @@ func getParsings() []string {
 // Parse config
 func loadConfig(name string) (*ParsingConfig, error) {
 	path := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, name)
-	log.Println("Read ", path)
+	LogInfo("Read %s", path)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 
@@ -92,7 +84,6 @@ func loadConfig(name string) (*ParsingConfig, error) {
 	var res ParsingConfig
 	err = goyaml.Unmarshal(data, &res)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 

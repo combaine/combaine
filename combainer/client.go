@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"strings"
 	"sync"
@@ -124,7 +123,7 @@ func (cl *Client) Close() {
 }
 
 func (cl *Client) UpdateSessionParams(config string) (err error) {
-	log.Println("Updating session parametrs")
+	LogInfo("Updating session parametrs")
 	// tasks
 	var p_tasks []common.ParsingTask
 	var agg_tasks []common.AggregationTask
@@ -135,7 +134,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	res, err := loadConfig(cl.lockname)
 	if err != nil {
-		log.Println(err)
+		LogInfo("Unable to load config %s", err)
 		return
 	}
 
@@ -149,16 +148,16 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	} else {
 		metahost = res.Groups[0]
 	}
-	log.Printf("Metahost %s", metahost)
+	LogInfo("Metahost %s", metahost)
 	// Make list of hosts
 	var hosts []string
 	for _, item := range res.Groups {
 		if hosts_for_group, err := GetHosts(cl.Main.Http_hand, item); err != nil {
-			log.Println(item, err)
+			LogInfo("Item %s, err %s", item, err)
 		} else {
 			hosts = append(hosts, hosts_for_group...)
 		}
-		log.Println(hosts)
+		LogInfo("Hosts: %s", hosts)
 	}
 
 	// Tasks for parsing
@@ -198,7 +197,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		AggTasks:    agg_tasks,
 	}
 
-	log.Printf("Session parametrs have been updated successfully. %v", sp)
+	LogInfo("Session parametrs have been updated successfully. %v", sp)
 	cl.sp = &sp
 	return nil
 }
@@ -207,21 +206,21 @@ func (cl *Client) Dispatch() {
 	defer cl.Close()
 	lockpoller := cl.acquireLock()
 	if lockpoller != nil {
-		log.Println("Acquire Lock", cl.lockname)
+		LogInfo("Acquire Lock %s", cl.lockname)
 	} else {
 		return
 	}
 
 	watcher, err := cfgwatcher.NewSimpleCfgwatcher()
 	if err != nil {
-		log.Printf("Watcher error: %s", err)
+		LogInfo("Watcher error: %s", err)
 		return
 	}
 	defer watcher.Close()
 
 	watchChan, err := watcher.Watch(fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname))
 	if err != nil {
-		log.Printf("WatchChan error: %s", err)
+		LogInfo("WatchChan error: %s", err)
 		return
 
 	}
@@ -231,12 +230,12 @@ func (cl *Client) Dispatch() {
 
 	//Update session parametrs from config
 	if err := cl.UpdateSessionParams(cl.lockname); err != nil {
-		log.Printf("Error %s", err)
+		LogInfo("Error %s", err)
 		return
 	}
 
 	if cl.sp == nil {
-		log.Printf("Unable to update parametrs of session")
+		LogInfo("Unable to update parametrs of session")
 		return
 	}
 
@@ -249,7 +248,7 @@ func (cl *Client) Dispatch() {
 		// Start periodically
 		startTime = time.Now()
 		deadline = startTime.Add(cl.sp.ParsingTime)
-		log.Println("Start new iteration at ", startTime)
+		LogInfo("Start new iteration at %v", startTime)
 
 		h := md5.New()
 		io.WriteString(h, (fmt.Sprintf("%s%d%d", cl.lockname, startTime, deadline)))
@@ -261,34 +260,34 @@ func (cl *Client) Dispatch() {
 			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
 			task.Id = uniqueID
 
-			log.Println("Send task number to parsing ", i, task)
+			LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
 			go cl.parsingTaskHandler(task, &wg, deadline)
 			wg.Add(1)
 		}
 		wg.Wait()
-		log.Println("Parsing finished ", time.Now())
+		LogInfo("%s Parsing finished", uniqueID)
 
 		deadline = startTime.Add(cl.sp.WholeTime)
 		for i, task := range cl.sp.AggTasks {
 			task.PrevTime = startTime.Unix()
 			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
 			task.Id = uniqueID
-			log.Println("Send task number to aggregate ", i, task)
+			LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
 			wg.Add(1)
 			go cl.aggregationTaskHandler(task, &wg, deadline)
 		}
 		wg.Wait()
-		log.Println("Aggregation finished ", time.Now())
+		LogInfo("%s Aggregation finished", uniqueID)
 		select {
 		case <-lockpoller: // Lock
-			log.Println("do exit")
+			LogInfo("%s do exit", uniqueID)
 			return
 		case <-time.After(deadline.Sub(time.Now())):
-			log.Println("Go to the next iteration")
+			LogInfo("%s Go to the next iteration", uniqueID)
 			select {
 			case err := <-watchChan:
 				if err != nil {
-					log.Println(err)
+					LogInfo("Watch channel error %s", err)
 					return
 				}
 				cl.UpdateSessionParams(cl.lockname)
@@ -309,14 +308,14 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 		app, err = cocaine.NewService(common.PARSING, host)
 		if err == nil {
 			defer app.Close()
-			log.Printf("%s Host: %s", task.Id, host)
+			LogDebug("%s Host: %s", task.Id, host)
 			break
 		}
 		time.Sleep(200 * time.Microsecond)
 	}
 
 	if app == nil {
-		log.Printf("Unable to send task %s. Application is unavailable", task.Id)
+		LogErr("Unable to send task %s. Application is unavailable", task.Id)
 		cl.clientStats.AddFailed()
 		return
 	}
@@ -324,13 +323,13 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	raw, _ := common.Pack(task)
 	select {
 	case <-time.After(limit):
-		log.Printf("Task %s has been late\n", task.Id)
+		LogErr("Task %s has been late\n", task.Id)
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
-			log.Printf("%s Parsing failed %v", task.Id, res.Err())
+			LogErr("%s Parsing task for host %s failed %v", task.Id, task.Host, res.Err())
 		} else {
-			log.Printf("%s Parsing successed", task.Id)
+			LogWarning("%s Parsing task for host %s completed successfully", task.Id, task.Host)
 		}
 		cl.clientStats.AddSuccess()
 	}
@@ -347,7 +346,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		app, err = cocaine.NewService(common.AGGREGATE, host)
 		if err == nil {
 			defer app.Close()
-			log.Printf("%s Host: %s", task.Id, host)
+			LogDebug("%s Host: %s", task.Id, host)
 			break
 		}
 		time.Sleep(time.Millisecond * 300)
@@ -355,20 +354,20 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 
 	if app == nil {
 		cl.clientStats.AddFailed()
-		log.Printf("Unable to send aggregate task %s. Application is unavailable", task.Id)
+		LogErr("Unable to send aggregate task %s. Application is unavailable", task.Id)
 		return
 	}
 
 	raw, _ := common.Pack(task)
 	select {
 	case <-time.After(limit):
-		log.Printf("Task %s has been late", task.Id)
+		LogErr("Task %s has been late", task.Id)
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
-			log.Printf("%s Aggreagation failed %v", task.Id, res.Err())
+			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.Group, res.Err())
 		} else {
-			log.Printf("%s Aggregation successed", task.Id)
+			LogWarning("%s Aggregation task for group %s completed successfully", task.Id, task.Group)
 		}
 		cl.clientStats.AddSuccess()
 	}

@@ -3,9 +3,8 @@ package combainer
 import (
 	"errors"
 	"launchpad.net/gozk/zookeeper"
-	"log"
+	"os"
 	"time"
-    "os"
 )
 
 const DUMMY_DATA = "0"
@@ -19,13 +18,13 @@ type LockServer struct {
 func NewLockServer(endpoints string) (*LockServer, error) {
 	zk, session, err := zookeeper.Dial(endpoints, 5e9)
 	if err != nil {
-		log.Println("Can't connect: %v", err)
+		LogInfo("Zookeeper connection error %v", err)
 		return nil, err
 	}
 
 	select {
 	case event := <-session:
-		log.Println(event)
+		LogInfo("On Zookeeper connection event %s", event)
 	case <-time.After(time.Second * 5):
 		return nil, errors.New("Connection timeout")
 	}
@@ -33,16 +32,16 @@ func NewLockServer(endpoints string) (*LockServer, error) {
 }
 
 func (ls *LockServer) AcquireLock(node string) chan bool {
-	log.Println("Creating ", node)
+	LogInfo("Create lock %s", node)
 	// Add hostname and pid into DUMMY_DATA
-    DUMMY, _ := os.Hostname()
+	DUMMY, _ := os.Hostname()
 	path, err := ls.Zk.Create(node, DUMMY, zookeeper.EPHEMERAL, zookeeper.WorldACL(zookeeper.PERM_ALL))
 	if err != nil {
-		log.Println(err)
+		LogInfo("Unable to create lock %s", err)
 		return nil
 	} else {
 		notify := make(chan bool)
-		log.Println("Create", path)
+		LogInfo("Create %s", path)
 		go ls.poller(path, notify)
 		return notify
 	}
@@ -66,13 +65,13 @@ func (ls *LockServer) poller(path string, notify chan bool) {
 	for {
 		select {
 		case event := <-ls.session:
-			log.Println(event)
+			LogInfo("Receive poller event %s", event)
 		case <-ls.stop:
-			log.Println("Stop the poller")
+			LogInfo("Stop the poller")
 			return
 		case event := <-watcher:
 			if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
-				log.Println("Stop poller. Error.")
+				LogInfo("Stop poller")
 				notify <- false
 				return
 			} else {
