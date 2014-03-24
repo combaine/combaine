@@ -329,7 +329,7 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 		if res.Err() != nil {
 			LogErr("%s Parsing task for host %s failed %v", task.Id, task.Host, res.Err())
 		} else {
-			LogWarning("%s Parsing task for host %s completed successfully", task.Id, task.Host)
+			LogInfo("%s Parsing task for host %s completed successfully", task.Id, task.Host)
 		}
 		cl.clientStats.AddSuccess()
 	}
@@ -367,7 +367,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		if res.Err() != nil {
 			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.Group, res.Err())
 		} else {
-			LogWarning("%s Aggregation task for group %s completed successfully", task.Id, task.Group)
+			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.Group)
 		}
 		cl.clientStats.AddSuccess()
 	}
