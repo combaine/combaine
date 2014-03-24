@@ -9,7 +9,6 @@ import msgpack
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httpclient import HTTPError
 from tornado.httputil import HTTPHeaders
-from tornado import template
 from tornado.ioloop import IOLoop
 
 from cocaine.futures import chain
@@ -27,7 +26,6 @@ STATUSES = {0: "OK",
 DEFAULT_HEADERS = HTTPHeaders({"User-Agent": "Yandex/CombaineClient"})
 
 REVERSE_STATUSES = dict((v, k) for k, v in STATUSES.iteritems())
-print REVERSE_STATUSES
 
 HTTP_CLIENT = AsyncHTTPClient()
 
@@ -51,14 +49,33 @@ instance_name&status={level}&do=1"
 log = Logger()
 
 
+class WrappedLogger(object):
+    def __init__(self, extra, logger):
+        self.extra = extra
+        self.log = logger
+
+    def debug(self, data):
+        self.log.debug("%s %s" % (self.extra, data))
+
+    def info(self, data):
+        self.log.info("%s %s" % (self.extra, data))
+
+    def warn(self, data):
+        self.log.warn("%s %s" % (self.extra, data))
+
+    def error(self, data):
+        self.log.error("%s %s" % (self.extra, data))
+
+
 class Juggler(object):
 
     pattern = re.compile(r"\${\s*([^}\s]*)\s*}")
 
     def __init__(self, **cfg):
-        self.log = log
+        ID = cfg.get("id", "dummyID")
+        self.log = WrappedLogger(ID, log)
         for level in LEVELS:
-            setattr(self, level, self._convert_templates(cfg.get(level, [])))
+            setattr(self, level, cfg.get(level, []))
         self.checkname = cfg["checkname"]
         self.Aggregator = cfg['Aggregator']
         self.Host = cfg['Host']
@@ -66,70 +83,85 @@ class Juggler(object):
         self.description = cfg.get("description", "no description")
         self.juggler_hosts = cfg['Juggler_hosts']
 
-    def _convert_templates(self, jtemplates):
-        """ Convert my own templates to Tornado templates.
-            Add an underline prefix to allow using of
-            variables starts with a digit (50x)
-        """
-        return map(template.Template, ["{{ %s }}" % re.sub(self.pattern,
-                                                           "_\g<1>",
-                                                           templ)
-                                       for templ in jtemplates])
-
-    #@chain.source
     def Do(self, data):
         packed = collections.defaultdict(dict)
         for aggname, subgroups in data.iteritems():
             for subgroup, value in subgroups.iteritems():
-                packed[subgroup]["_" + aggname] = value
+                packed[subgroup][aggname] = value
 
         for subgroup, value in packed.iteritems():
-            log.info("%s" % subgroup)
+            self.log.debug("Habdling subgroup %s" % subgroup)
             if self.check(value, subgroup, "CRIT"):
-                log.info("CRIT")
+                self.log.debug("CRIT")
             elif self.check(value, subgroup, "WARN"):
-                log.info("WARN")
+                self.log.debug("WARN")
             elif self.check(value, subgroup, "INFO"):
-                log.info("INFO")
+                self.log.debug("INFO")
             elif self.check(value, subgroup, "OK"):
-                log.info("OK")
+                self.log.debug("OK")
             else:
-                log.info("Send ok manually")
-                #yield self.send_point("%s-%s" % (self.Host, subgroup),
-                #                      REVERSE_STATUSES["OK"])
+                self.log.debug("Send ok manually")
                 IOLoop.current().add_callback(self.send_point,
                                               "%s-%s" % (self.Host, subgroup),
                                               REVERSE_STATUSES["OK"])
         return True
 
     def on_resp(self, resp):
-        log.info("RESP %s" % resp.code)
+        self.log.info("RESP %s" % resp.code)
 
-    def check(self, value, subgroup, level):
+    def check(self, data, subgroup, level):
         checks = getattr(self, level, [])
         if len(checks) == 0:
             return False
+
+        # Checks are coupled with OR logic.
+        # Point will be sent
+        # if even one of expressions is evaluated as True
         for check in checks:
             try:
-                print check, value
-                if (check.generate(**value) == "False"):
-                    return False
+                # prepare evaluation string
+                # move to a separate function
+                code = check
+                for key, value in data.iteritems():
+                    code, _ = re.subn(r"\${%s}" % key, str(value), code)
+
+                self.log.debug("After substitution in %s %s" % (check,
+                                                                code))
+                # evaluate code
+                # TBD: make it safer!!!
+                res = eval(code)
+
+                self.log.debug("Evaluated result: %s %s" % (check, res))
+
+                # if res looks like True
+                # send point and return True
+                if res:
+                    IOLoop.current().add_callback(self.send_point,
+                                                  "%s-%s" % (self.Host,
+                                                             subgroup),
+                                                  REVERSE_STATUSES[level],
+                                                  code)
+                    return True
+            except SyntaxError as err:
+                self.log.error("SyntaxError in expression %s" % code)
             except Exception as err:
                 self.log.error(repr(err))
-                return False
-        IOLoop.current().add_callback(self.send_point,
-                                      "%s-%s" % (self.Host, subgroup),
-                                      REVERSE_STATUSES[level])
-        return True
+        return False
 
     #self, level, data, name, status
     @chain.source
-    def send_point(self, name, status):
-        print "SEND POINT ", name, status
+    def send_point(self, name, status, trigger_description=None):
+        if trigger_description:
+            description = "%s trigger: %s" % (self.description,
+                                              trigger_description)
+        else:
+            description = self.description
+
         params = {"host": name,
                   "service": urllib.quote(self.checkname),
-                  "description": urllib.quote(self.description),
+                  "description": urllib.quote(description),
                   "level": STATUSES[status]}
+
         child = name
         yield self.add_check_if_need(child)
         # Emit event
@@ -147,7 +179,7 @@ class Juggler(object):
                 except HTTPError as err:
                     self.log.error(repr(err))
         except Exception as err:
-            log.error(repr(err))
+            self.log.error(repr(err))
         yield True
 
     @chain.source
@@ -166,13 +198,13 @@ class Juggler(object):
                 params["juggler"] = jhost
                 #Check existnace of service
                 url = CHECK_CHECK.format(**params)
-                log.info("Check %s" % url)
+                self.log.info("Check %s" % url)
                 response = yield HTTP_CLIENT.fetch(url,
                                                    headers=DEFAULT_HEADERS)
 
                 if response.body == "{}":
                     url = ADD_CHECK.format(**params)
-                    log.info("Add check %s" % url)
+                    self.log.info("Add check %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
 
                     url = ADD_CHILD.format(**params)
@@ -183,7 +215,7 @@ class Juggler(object):
                     self.log.info("add method %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
             except HTTPError as err:
-                log.error(str(err))
+                self.log.error(str(err))
                 continue
             except Exception as err:
                 self.log.error(str(err))
@@ -197,22 +229,25 @@ def send(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
     log.info("%s" % str(task))
+    ID = task.get("Id", "MissingID")
+
     raw_cfg = yield Service("cfgmanager").enqueue("common", "")
     cfg = yaml.load(raw_cfg)
     juggler_hosts = cfg['cloud_config']['juggler_hosts']
+
     task['Config']['Juggler_hosts'] = juggler_hosts
-    jc = Juggler(**task["Config"])
+
+    juggler_config = task['Config']
+    juggler_config['id'] = ID
+    jc = Juggler(**juggler_config)
+
     try:
         jc.Do(task["Data"])
     except Exception as err:
-        log.error(err)
-    log.info("Done")
-    try:
-        response.write("ok")
-    except Exception as err:
-        log.error(str(err))
+        log.error("%s %s" % (ID, str(err)))
     finally:
-        log.info("Done")
+        response.write("ok")
+        log.info("%s Done" % ID)
         response.close()
 
 if __name__ == "__main__":
