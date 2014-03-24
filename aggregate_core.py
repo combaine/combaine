@@ -123,7 +123,8 @@ def aggreagate(request, response):
             log.error(str(err))
         else:
             res = yield s.enqueue("send", msgpack.packb({"Config": item,
-                                                         "Data": result}))
+                                                         "Data": result,
+                                                         "Id": ID}))
             log.info("res for %s is %s" % (sender_type, res))
 
     log.info("%s Result %s" % (ID, result))
