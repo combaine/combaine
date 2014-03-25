@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/howeyc/fsnotify"
 	"launchpad.net/goyaml"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/cfgwatcher"
 )
 
 type combainerMainCfg struct {
@@ -204,6 +204,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 func (cl *Client) Dispatch() {
 	defer cl.Close()
+
 	lockpoller := cl.acquireLock()
 	if lockpoller != nil {
 		LogInfo("Acquire Lock %s", cl.lockname)
@@ -211,18 +212,20 @@ func (cl *Client) Dispatch() {
 		return
 	}
 
-	watcher, err := cfgwatcher.NewSimpleCfgwatcher()
+	// Create inotify filewatcher
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		LogInfo("Watcher error: %s", err)
+		LogErr("Unable to create filewatcher %s", err)
 		return
 	}
 	defer watcher.Close()
 
-	watchChan, err := watcher.Watch(fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname))
+	// Start watching configuration file
+	configFile := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname)
+	err = watcher.Watch(configFile)
 	if err != nil {
-		LogInfo("WatchChan error: %s", err)
+		LogErr("Unable to watch file %s %s", configFile, err)
 		return
-
 	}
 
 	_observer.RegisterClient(cl, cl.lockname)
@@ -248,12 +251,14 @@ func (cl *Client) Dispatch() {
 		// Start periodically
 		startTime = time.Now()
 		deadline = startTime.Add(cl.sp.ParsingTime)
-		LogInfo("Start new iteration at %v", startTime)
 
+		// Generate session unique ID
 		h := md5.New()
 		io.WriteString(h, (fmt.Sprintf("%s%d%d", cl.lockname, startTime, deadline)))
 		uniqueID := fmt.Sprintf("%x", h.Sum(nil))
+		LogInfo("%s Start new iteration.", uniqueID)
 
+		// Parsing phase
 		for i, task := range cl.sp.PTasks {
 			// Description of task
 			task.PrevTime = startTime.Unix()
@@ -267,6 +272,7 @@ func (cl *Client) Dispatch() {
 		wg.Wait()
 		LogInfo("%s Parsing finished", uniqueID)
 
+		// Aggregation phase
 		deadline = startTime.Add(cl.sp.WholeTime)
 		for i, task := range cl.sp.AggTasks {
 			task.PrevTime = startTime.Unix()
@@ -278,22 +284,50 @@ func (cl *Client) Dispatch() {
 		}
 		wg.Wait()
 		LogInfo("%s Aggregation finished", uniqueID)
+
 		select {
+		// Does lock exist?
 		case <-lockpoller: // Lock
-			LogInfo("%s do exit", uniqueID)
+			LogInfo("%s Drop lock %s", uniqueID, cl.lockname)
 			return
+
+		// Wait for next iteration
 		case <-time.After(deadline.Sub(time.Now())):
-			LogInfo("%s Go to the next iteration", uniqueID)
-			select {
-			case err := <-watchChan:
-				if err != nil {
-					LogInfo("Watch channel error %s", err)
+
+		// Handle possible configuration updates
+		case ev := <-watcher.Event:
+			// It looks like a bug, but opening file in vim emits rename event
+			if ev.IsModify() || ev.IsRename() {
+
+				// Does file exist with the same name still?
+				if ev.Name != configFile {
+					LogErr("%s File has been renamed to %s. Drop lock %s", uniqueID, ev.Name, cl.lockname)
 					return
 				}
-				cl.UpdateSessionParams(cl.lockname)
-			default:
+
+				LogInfo("%s %s has been changed. Updating configuration", uniqueID, cl.lockname)
+				if err = cl.UpdateSessionParams(cl.lockname); err != nil {
+					LogErr("%s Unable to update configuration %s. Drop lock %s", uniqueID, err, cl.lockname)
+					return
+				}
+				LogInfo("%s Configuration %s has been updated successfully", uniqueID, cl.lockname)
+
+				<-time.After(deadline.Sub(time.Now()))
+
+			} else if ev.IsDelete() {
+				LogInfo("%s %s has been removed. Drop lock", uniqueID, cl.lockname)
+				return
+			} else if ev.IsCreate() {
+				LogErr("%s Assertation error. Config %s has been created", uniqueID, cl.lockname)
+				return
 			}
+
+		// Handle configuration watcher error
+		case err = <-watcher.Error:
+			LogErr("%s Watcher error %s. Drop lock %s", uniqueID, err, cl.lockname)
+			return
 		}
+		LogInfo("%s Go to the next iteration", uniqueID)
 	}
 }
 

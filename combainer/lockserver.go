@@ -32,7 +32,7 @@ func NewLockServer(endpoints string) (*LockServer, error) {
 }
 
 func (ls *LockServer) AcquireLock(node string) chan bool {
-	LogInfo("Create lock %s", node)
+	LogInfo("Try creating lock %s", node)
 	// Add hostname and pid into DUMMY_DATA
 	DUMMY, _ := os.Hostname()
 	path, err := ls.Zk.Create(node, DUMMY, zookeeper.EPHEMERAL, zookeeper.WorldACL(zookeeper.PERM_ALL))
