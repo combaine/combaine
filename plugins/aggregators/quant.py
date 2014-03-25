@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import re
-import itertools
 import collections
+import cPickle
+import itertools
+import re
 
 import msgpack
 
@@ -89,8 +90,10 @@ def aggregate_host(request, response):
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
     Log.info("%s QUERY: %s" % (TASK['id'], q))
-    res = yield dg.enqueue("query",
-                           msgpack.packb((token, q)))
+    pickled_res = yield dg.enqueue("query",
+                                   msgpack.packb((token, q)))
+    res = cPickle.loads(pickled_res)
+    Log.debug(str(res))
     #Log.info("Data from DG " + str(res))
     ret = quantile_packer(itertools.chain(*res))
     Log.info("%s Return " % TASK['id'] + str(ret))

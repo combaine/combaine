@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import cPickle
 import re
 
 import msgpack
@@ -40,9 +41,10 @@ def aggregate_host(request, response):
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
     Log.debug("%s QUERY: %s" % (taskId, q))
-    res = yield dg.enqueue("query",
-                           msgpack.packb((token, q)))
-
+    pickled_res = yield dg.enqueue("query",
+                                   msgpack.packb((token, q)))
+    res = cPickle.loads(pickled_res)
+    Log.debug(str(res))
     try:
         ret = float(res[0][0])   # SELECT COUNT(*)
         Log.info("%s Result from DG %s" % (taskId, ret))

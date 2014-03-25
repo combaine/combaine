@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import cPickle
 import os
 import random
 import types
@@ -151,7 +152,7 @@ def query(request, response):
     tablename, querystr = msgpack.unpackb(raw)
     try:
         log.debug("QUERY STRING: %s " % querystr)
-        res = mysqldg.perfomCustomQuery(querystr)
+        res = cPickle.dumps(mysqldg.perfomCustomQuery(querystr))
     except Exception as err:
         response.error(-99, str(err))
     else:
