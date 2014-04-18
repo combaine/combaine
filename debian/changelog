@@ -1,3 +1,9 @@
+combaine (0.6.4.3) unstable; urgency=low
+
+  * update default profile
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 07 Apr 2014 17:32:16 +0400
+
 combaine (0.6.4.2) unstable; urgency=low
 
   * Fix bug with removed parsing config.
