@@ -266,8 +266,8 @@ func (cl *Client) Dispatch() {
 			task.Id = uniqueID
 
 			LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
-			go cl.parsingTaskHandler(task, &wg, deadline)
 			wg.Add(1)
+			go cl.parsingTaskHandler(task, &wg, deadline)
 		}
 		wg.Wait()
 		LogInfo("%s Parsing finished", uniqueID)
@@ -331,6 +331,26 @@ func (cl *Client) Dispatch() {
 	}
 }
 
+//----------------
+type ResolveInfo struct {
+	App *cocaine.Service
+	Err error
+}
+
+func Resolve(appname, endpoint string) <-chan ResolveInfo {
+	res := make(chan ResolveInfo, 1)
+	go func() {
+		app, err := cocaine.NewService(appname, endpoint)
+		res <- ResolveInfo{
+			App: app,
+			Err: err,
+		}
+	}()
+	return res
+}
+
+//------------------
+
 func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
@@ -339,11 +359,20 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	var err error
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
-		app, err = cocaine.NewService(common.PARSING, host)
+		// app, err = cocaine.NewService(common.PARSING, host)
+		select {
+		case r := <-Resolve(common.PARSING, host):
+			err = r.Err
+			app = r.App
+		case <-time.After(5 * time.Second):
+			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.PARSING)
+		}
 		if err == nil {
 			defer app.Close()
 			LogDebug("%s Host: %s", task.Id, host)
 			break
+		} else {
+			LogWarning("%s unable to connect to application %s %s %s", task.Id, common.PARSING, host, err)
 		}
 		time.Sleep(200 * time.Microsecond)
 	}
@@ -377,13 +406,21 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 	var err error
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
-		app, err = cocaine.NewService(common.AGGREGATE, host)
+		select {
+		case r := <-Resolve(common.AGGREGATE, host):
+			err = r.Err
+			app = r.App
+		case <-time.After(5 * time.Second):
+			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.AGGREGATE)
+		}
 		if err == nil {
 			defer app.Close()
 			LogDebug("%s Host: %s", task.Id, host)
 			break
+		} else {
+			LogWarning("%s unable to connect to application %s %s %s", task.Id, common.AGGREGATE, host, err)
 		}
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 100)
 	}
 
 	if app == nil {
