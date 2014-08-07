@@ -52,6 +52,6 @@ func main() {
 			}()
 			Work()
 		}()
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 150)
 	}
 }
