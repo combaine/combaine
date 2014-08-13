@@ -1,10 +1,16 @@
-combaine (0.6.4.668) precise; urgency=low
+combaine (0.6.4.669) unstable; urgency=low
+
+  * Reduce timeout for an application resolve to 1 sec  
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 13 Aug 2014 18:22:37 +0400
+
+combaine (0.6.4.668) unstable; urgency=low
 
   * Add timeout for http_fetcher and timetail
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 13 Aug 2014 16:15:36 +0400
 
-combaine (0.6.4.667) precise; urgency=low
+combaine (0.6.4.667) unstable; urgency=low
 
   * Increase a timeout for vyacheslav
 

@@ -364,7 +364,7 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 		case r := <-Resolve(common.PARSING, host):
 			err = r.Err
 			app = r.App
-		case <-time.After(5 * time.Second):
+		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.PARSING)
 		}
 		if err == nil {
@@ -410,7 +410,7 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		case r := <-Resolve(common.AGGREGATE, host):
 			err = r.Err
 			app = r.App
-		case <-time.After(5 * time.Second):
+		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.AGGREGATE)
 		}
 		if err == nil {
