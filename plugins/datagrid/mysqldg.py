@@ -62,7 +62,7 @@ class MySqlDG(object):
                     os.remove(table_file.name)
                     return False
 
-                self.logger.debug('Data written to a temporary file %s, size: %d bytes'
+                self.logger.debug('Data has been written to a temporary file %s, size: %d bytes'
                                   % (table_file.name, os.lstat(table_file.name).st_size))
 
             if not self._preparePlace(line):
@@ -70,12 +70,12 @@ class MySqlDG(object):
                 return False
 
             self.cursor.execute('DROP TABLE IF EXISTS %s' % tablename)
-            query = "CREATE TABLE IF NOT EXISTS %(tablename)s %(struct)s ENGINE = MEMORY DATA DIRECTORY='/dev/shm/'" % {'tablename': tablename,
+            query = "CREATE TABLE IF NOT EXISTS `%(tablename)s` %(struct)s ENGINE = MEMORY DATA DIRECTORY='/dev/shm/'" % {'tablename': tablename,
                                                                                                                         'struct': self.place}
             self.cursor.execute(query)
             self.db.commit()
 
-            query = "LOAD DATA INFILE '%(filename)s' INTO TABLE %(tablename)s FIELDS TERMINATED BY 'GOPA'" % {'filename': table_file.name,
+            query = "LOAD DATA INFILE `%(filename)s` INTO TABLE `%(tablename)s` FIELDS TERMINATED BY 'GOPA'" % {'filename': table_file.name,
                                                                                                               'tablename': tablename}
             self.cursor.execute(query)
             self.db.commit()
@@ -96,8 +96,8 @@ class MySqlDG(object):
                   types.StringType: "VARCHAR(200)",
                   types.FloatType: "DOUBLE"}
         try:
-            self.place = '( %s )' % ','.join([" %s %s" % (field_name,
-                                                          ftypes[type(field_type)])
+            self.place = '( %s )' % ','.join([" `%s` %s" % (field_name,
+                                                            ftypes[type(field_type)])
                                              for field_name, field_type in example])
         except Exception as err:
             self.logger.error('Error in preparePlace() %s' % err)
