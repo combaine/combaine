@@ -1,3 +1,9 @@
+combaine (0.6.4.672) precise; urgency=low
+
+  * Version bump
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 15 Aug 2014 12:52:26 +0400
+
 combaine (0.6.4.670) unstable; urgency=low
 
   * Add an ability to define aggregator_kwargs.
