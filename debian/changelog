@@ -1,3 +1,10 @@
+combaine (0.6.4.670) unstable; urgency=low
+
+  * Add an ability to define aggregator_kwargs.
+  * All the options are case insensitive now.
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 15 Aug 2014 09:38:00 +0400
+
 combaine (0.6.4.669) unstable; urgency=low
 
   * Reduce timeout for an application resolve to 1 sec  
