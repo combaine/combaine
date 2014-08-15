@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import re
 import yaml
 import collections
@@ -33,7 +34,9 @@ CHECK_CHECK = "http://{juggler}/api/checks/checks?host_name={host}&\
 service_name={service}&do=1"
 
 ADD_CHECK = "http://{juggler}/api/checks/set_check?host_name={host}&\
-service_name={service}&description={description}&aggregator={aggregator}&do=1"
+service_name={service}&description={description}&\
+aggregator_kwargs={aggregator_kwargs}&\
+aggregator={aggregator}&do=1"
 
 ADD_CHILD = "http://{juggler}/api/checks/add_child?host_name={host}&\
 service_name={service}&child={child}:{service}&do=1"
@@ -47,6 +50,10 @@ instance_name&status={level}&do=1"
 
 
 log = Logger()
+
+
+def upper_dict(dict_object):
+    return dict((k.upper(), v) for (k, v) in dict_object.iteritems())
 
 
 class WrappedLogger(object):
@@ -72,16 +79,20 @@ class Juggler(object):
     pattern = re.compile(r"\${\s*([^}\s]*)\s*}")
 
     def __init__(self, **cfg):
-        ID = cfg.get("id", "dummyID")
+        # uppercase all keys
+        cfg = upper_dict(cfg)
+        ID = cfg.get("ID", "dummyID")
         self.log = WrappedLogger(ID, log)
         for level in LEVELS:
             setattr(self, level, cfg.get(level, []))
-        self.checkname = cfg["checkname"]
-        self.Aggregator = cfg['Aggregator']
-        self.Host = cfg['Host']
-        self.Method = cfg['Method']
-        self.description = cfg.get("description", "no description")
-        self.juggler_hosts = cfg['Juggler_hosts']
+
+        self.checkname = cfg['CHECKNAME']
+        self.Aggregator = cfg['AGGREGATOR']
+        self.Host = cfg['HOST']
+        self.Method = cfg['METHOD']
+        self.description = cfg.get('DESCRIPTION', "no description")
+        self.juggler_hosts = cfg['JUGGLER_HOSTS']
+        self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS', {}))
 
     def Do(self, data):
         packed = collections.defaultdict(dict)
@@ -189,7 +200,8 @@ class Juggler(object):
                   "description": urllib.quote(self.description),
                   "methods": self.Method,
                   "child": host,
-                  "aggregator": self.Aggregator}
+                  "aggregator": self.Aggregator,
+                  "aggregator_kwargs": self.aggregator_kwargs}
 
         # Add checks
         for jhost in self.juggler_hosts:
