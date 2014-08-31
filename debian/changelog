@@ -1,3 +1,9 @@
+combaine (0.6.4.673) precise; urgency=low
+
+  * logrotation by SIGHUP
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Sun, 31 Aug 2014 20:38:20 +0400
+
 combaine (0.6.4.672) precise; urgency=low
 
   * Version bump
