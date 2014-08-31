@@ -11,12 +11,18 @@ import (
 	"github.com/noxiouz/Combaine/combainer"
 )
 
-var endpoint string
-var profiler string
+var (
+	endpoint  string
+	profiler  string
+	logoutput string
+	loglevel  string
+)
 
 func init() {
 	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
 	flag.StringVar(&profiler, "profiler", "", "profiler host:port <0.0.0.0:10000>")
+	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
+	flag.StringVar(&loglevel, "loglevel", "INFO", "loglevel (DEBUG|INFO|WARN|ERROR)")
 }
 
 func Work() {
@@ -31,6 +37,7 @@ func Work() {
 
 func main() {
 	flag.Parse()
+	combainer.InitializeLogger(loglevel, logoutput)
 	if profiler != "" {
 		log.Println("Profiler enabled")
 		go func() {
