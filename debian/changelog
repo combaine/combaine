@@ -1,3 +1,9 @@
+combaine (0.6.4.674) precise; urgency=low
+
+  * fix seek 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:04:53 +0400
+
 combaine (0.6.4.673) precise; urgency=low
 
   * logrotation by SIGHUP
