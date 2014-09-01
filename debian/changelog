@@ -1,3 +1,9 @@
+combaine (0.6.4.675) precise; urgency=low
+
+  * fix period 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:15:19 +0400
+
 combaine (0.6.4.674) precise; urgency=low
 
   * fix seek 
