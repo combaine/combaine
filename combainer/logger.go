@@ -45,10 +45,18 @@ func rotateFile() error {
 	}
 
 	var err error
-	file, err = os.OpenFile(output_path, os.O_RDWR|os.O_CREATE, 0666)
+	raw_file, err := os.OpenFile(output_path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
+
+	if output_path != "/dev/stderr" && output_path != "/dev/stdout" {
+		if _, err := raw_file.Seek(0, os.SEEK_END); err != nil {
+			return err
+		}
+	}
+
+	file = raw_file
 
 	logrus.SetOutput(file)
 	return nil
