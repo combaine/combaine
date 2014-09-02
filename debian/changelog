@@ -1,3 +1,9 @@
+combaine (0.6.4.676) precise; urgency=low
+
+  * Fix that MysqlDG
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 02 Sep 2014 14:07:02 +0400
+
 combaine (0.6.4.675) precise; urgency=low
 
   * fix period 
