@@ -75,7 +75,7 @@ class MySqlDG(object):
             self.cursor.execute(query)
             self.db.commit()
 
-            query = "LOAD DATA INFILE `%(filename)s` INTO TABLE `%(tablename)s` FIELDS TERMINATED BY 'GOPA'" % {'filename': table_file.name,
+            query = "LOAD DATA INFILE '%(filename)s' INTO TABLE `%(tablename)s` FIELDS TERMINATED BY 'GOPA'" % {'filename': table_file.name,
                                                                                                               'tablename': tablename}
             self.cursor.execute(query)
             self.db.commit()
