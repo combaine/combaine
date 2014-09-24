@@ -134,7 +134,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	res, err := loadConfig(cl.lockname)
 	if err != nil {
-		LogInfo("Unable to load config %s", err)
+		LogErr("Unable to load config %s", err)
 		return
 	}
 
@@ -231,23 +231,23 @@ func (cl *Client) Dispatch() {
 	_observer.RegisterClient(cl, cl.lockname)
 	defer _observer.UnregisterClient(cl.lockname)
 
-	//Update session parametrs from config
-	if err := cl.UpdateSessionParams(cl.lockname); err != nil {
-		LogInfo("Error %s", err)
-		return
-	}
-
-	if cl.sp == nil {
-		LogInfo("Unable to update parametrs of session")
-		return
-	}
-
 	// Dispatch
 	var deadline time.Time
 	var startTime time.Time
 	var wg sync.WaitGroup
 
 	for {
+		//Update session parametrs from config
+		if err := cl.UpdateSessionParams(cl.lockname); err != nil {
+			LogInfo("Error %s", err)
+			return
+		}
+
+		if cl.sp == nil {
+			LogInfo("Unable to update parametrs of session")
+			return
+		}
+
 		// Start periodically
 		startTime = time.Now()
 		deadline = startTime.Add(cl.sp.ParsingTime)

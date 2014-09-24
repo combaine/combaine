@@ -1,28 +1,34 @@
-combaine (0.6.4.676) precise; urgency=low
+combaine (0.6.4.677) unstable; urgency=low
+
+  * Regenerate tasks on each iteration to reread hosts
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 24 Sep 2014 16:33:26 +0400
+
+combaine (0.6.4.676) unstable; urgency=low
 
   * Fix that MysqlDG
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 02 Sep 2014 14:07:02 +0400
 
-combaine (0.6.4.675) precise; urgency=low
+combaine (0.6.4.675) unstable; urgency=low
 
   * fix period 
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:15:19 +0400
 
-combaine (0.6.4.674) precise; urgency=low
+combaine (0.6.4.674) unstable; urgency=low
 
   * fix seek 
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:04:53 +0400
 
-combaine (0.6.4.673) precise; urgency=low
+combaine (0.6.4.673) unstable; urgency=low
 
   * logrotation by SIGHUP
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Sun, 31 Aug 2014 20:38:20 +0400
 
-combaine (0.6.4.672) precise; urgency=low
+combaine (0.6.4.672) unstable; urgency=low
 
   * Version bump
 
