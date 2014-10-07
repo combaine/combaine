@@ -9,13 +9,13 @@ func TestLS(t *testing.T) {
 }
 
 func TestGetParsingConf(t *testing.T) {
-	cl := NewClient(COMBAINER_PATH)
-	res := cl.readParsingConfig("/etc/combaine/parsing/photo_proxy.json")
-	t.Log(res.Groups)
-	t.Log(res.Agg_configs)
+	// cl, _ := NewClient(COMBAINER_PATH)
+	// res := cl.readParsingConfig("/etc/combaine/parsing/photo_proxy.json")
+	// t.Log(res.Groups)
+	// t.Log(res.Agg_configs)
 }
 
 func TestClient(t *testing.T) {
-	cl := NewClient(COMBAINER_PATH)
+	cl, _ := NewClient(COMBAINER_PATH)
 	t.Log(cl)
 }
