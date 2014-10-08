@@ -15,7 +15,6 @@ from tornado.ioloop import IOLoop
 from cocaine.futures import chain
 from cocaine.worker import Worker
 from cocaine.logging import Logger
-from cocaine.services import Service
 
 LEVELS = ("INFO", "WARN", "CRIT", "OK")
 
@@ -44,10 +43,8 @@ service_name={service}&child={child}:{service}&do=1"
 ADD_METHOD = "http://{juggler}/api/checks/add_methods?host_name={host}&\
 service_name={service}&methods_list={methods}&do=1"
 
-EMIT_EVENT = "http://{juggler}/api/events/add_event_proxy?host_name={host}&\
-service_name={service}&description={description}&\
-instance_name&status={level}&do=1"
-
+EMIT_EVENT = "http://{juggler_frontend}/juggler-fcgi.py?status={level}&\
+description={description}&service={service}&instance=&host={host}&version=1"
 
 log = Logger()
 
@@ -92,6 +89,7 @@ class Juggler(object):
         self.Method = cfg['METHOD']
         self.description = cfg.get('DESCRIPTION', "no description")
         self.juggler_hosts = cfg['JUGGLER_HOSTS']
+        self.juggler_frontend = cfg['JUGGLER_FRONTEND']
         self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS', {}))
 
     def Do(self, data):
@@ -178,8 +176,8 @@ class Juggler(object):
         # Emit event
         try:
             futures = list()
-            for jhost in self.juggler_hosts:
-                params["juggler"] = jhost
+            for jhost in self.juggler_frontend:
+                params["juggler_frontend"] = jhost
                 url = EMIT_EVENT.format(**params)
                 self.log.info("Send event %s" % url)
                 futures.append(HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS))
@@ -237,18 +235,28 @@ class Juggler(object):
         yield True
 
 
+class JConfig(object):
+    config = None
+    CONFIG_PATH = "/etc/combaine/juggler.yaml"
+
+    @classmethod
+    def get_config(cls):
+        return cls.config or cls.load_cfg()
+
+    @classmethod
+    def load_cfg(cls):
+        with open(cls.CONFIG_PATH, 'r') as f:
+            cls.config = yaml.load(f)
+        return cls.config
+
+
 def send(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
     log.info("%s" % str(task))
     ID = task.get("Id", "MissingID")
 
-    raw_cfg = yield Service("cfgmanager").enqueue("common", "")
-    cfg = yaml.load(raw_cfg)
-    juggler_hosts = cfg['cloud_config']['juggler_hosts']
-
-    task['Config']['Juggler_hosts'] = juggler_hosts
-
+    task['Config']['Juggler_hosts'] = JConfig.get_config()
     juggler_config = task['Config']
     juggler_config['id'] = ID
     jc = Juggler(**juggler_config)
