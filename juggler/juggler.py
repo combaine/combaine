@@ -24,6 +24,7 @@ STATUSES = {0: "OK",
             2: "CRIT"}
 
 DEFAULT_HEADERS = HTTPHeaders({"User-Agent": "Yandex/CombaineClient"})
+DEFAULT_AGGREGATOR_KWARGS = {"ignore_nodata": 1}
 
 REVERSE_STATUSES = dict((v, k) for k, v in STATUSES.iteritems())
 
@@ -90,7 +91,8 @@ class Juggler(object):
         self.description = cfg.get('DESCRIPTION', "no description")
         self.juggler_hosts = cfg['JUGGLER_HOSTS']
         self.juggler_frontend = cfg['JUGGLER_FRONTEND']
-        self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS', {}))
+        self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS',
+                                                    DEFAULT_AGGREGATOR_KWARGS))
 
     def Do(self, data):
         packed = collections.defaultdict(dict)
