@@ -1,3 +1,9 @@
+combaine (0.6.4.679) unstable; urgency=low
+
+  * Fix flags
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 09 Oct 2014 15:26:08 +0400
+
 combaine (0.6.4.678) unstable; urgency=low
 
   * [Jugler] Add ignore_nodata to default aggregator kwargs
