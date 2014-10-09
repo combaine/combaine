@@ -44,6 +44,13 @@ type sessionParams struct {
 	AggTasks    []common.AggregationTask
 }
 
+type clientStats struct {
+	sync.RWMutex
+	success int
+	failed  int
+	last    int64
+}
+
 type Client struct {
 	Main       combainerMainCfg
 	LSCfg      combainerLockserverCfg
@@ -59,12 +66,14 @@ type Client struct {
 func (cs *clientStats) AddSuccess() {
 	cs.Lock()
 	cs.success++
+	cs.last = time.Now().Unix()
 	cs.Unlock()
 }
 
 func (cs *clientStats) AddFailed() {
 	cs.Lock()
 	cs.failed++
+	cs.last = time.Now().Unix()
 	cs.Unlock()
 }
 
@@ -74,9 +83,10 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	var failed = cs.failed
 	cs.RUnlock()
 	info = &StatInfo{
-		Success: success,
-		Failed:  failed,
-		Total:   success + failed,
+		Success:     success,
+		Failed:      failed,
+		Total:       success + failed,
+		Heartbeated: cs.last,
 	}
 	return
 }

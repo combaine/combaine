@@ -1,23 +1,18 @@
 package combainer
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
 	"sync"
-	"text/template"
 )
 
-type clientStats struct {
-	sync.RWMutex
-	success int
-	failed  int
-}
-
 type StatInfo struct {
-	Success int
-	Failed  int
-	Total   int
+	Success     int
+	Failed      int
+	Total       int
+	Heartbeated int64
 }
 
 type info struct {
@@ -25,18 +20,7 @@ type info struct {
 	Clients    map[string]*StatInfo
 }
 
-const _DASHBOARD = `
-{"GoRoutines": {{.GoRoutines}}, 
- "Clients": {{range $index, $element := .Clients}}
- {{$index}},
- {{$element}}
-{{end}}}`
-
-const ERROR = `{"error": "unknown error"}`
-
 var _observer = Observer{clients: make(map[string]*Client)}
-
-var dashboard *template.Template = template.Must(template.New("dashboard").Parse(_DASHBOARD))
 
 type Observer struct {
 	sync.RWMutex
@@ -75,8 +59,14 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	for config, client := range _observer.GetClients() {
 		stats[config] = client.GetStats()
 	}
-	if err := dashboard.Execute(w, info{runtime.NumGoroutine(), stats}); err != nil {
-		w.Write([]byte(fmt.Sprintf("{ \"Error\": %s }", err.Error())))
+
+	err := json.NewEncoder(w).Encode(info{
+		GoRoutines: runtime.NumGoroutine(),
+		Clients:    stats,
+	})
+
+	if err != nil {
+		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
 	}
 }
 
