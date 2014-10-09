@@ -3,9 +3,11 @@ package combainer
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"runtime"
 	"sync"
+	"syscall"
 )
 
 type StatInfo struct {
@@ -14,9 +16,14 @@ type StatInfo struct {
 	Total       int
 	Heartbeated int64
 }
+type OpenFiles struct {
+	Open  uint64
+	Limit syscall.Rlimit
+}
 
 type info struct {
 	GoRoutines int
+	Files      OpenFiles
 	Clients    map[string]*StatInfo
 }
 
@@ -54,19 +61,33 @@ func (o *Observer) GetClient(config string) *Client {
 }
 
 func Dashboard(w http.ResponseWriter, r *http.Request) {
+	get_number_openfiles := func() uint64 {
+		files, _ := ioutil.ReadDir("/proc/self/fd")
+		return uint64(len(files))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	stats := make(map[string]*StatInfo)
 	for config, client := range _observer.GetClients() {
 		stats[config] = client.GetStats()
 	}
 
-	err := json.NewEncoder(w).Encode(info{
-		GoRoutines: runtime.NumGoroutine(),
-		Clients:    stats,
-	})
-
-	if err != nil {
+	var limit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
 		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(info{
+		GoRoutines: runtime.NumGoroutine(),
+		Files: OpenFiles{
+			get_number_openfiles(),
+			limit,
+		},
+		Clients: stats,
+	}); err != nil {
+		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
+		return
 	}
 }
 
