@@ -1,3 +1,9 @@
+combaine (0.6.4.682) unstable; urgency=low
+
+  * cache in aggregate_core
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 09 Oct 2014 17:06:35 +0400
+
 combaine (0.6.4.681) unstable; urgency=low
 
   * fix hosts in juggler 
