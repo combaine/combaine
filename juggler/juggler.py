@@ -45,7 +45,7 @@ ADD_METHOD = "http://{juggler}/api/checks/add_methods?host_name={host}&\
 service_name={service}&methods_list={methods}&do=1"
 
 EMIT_EVENT = "http://{juggler_frontend}/juggler-fcgi.py?status={level}&\
-description={description}&service={service}&instance=&host={host}&version=1"
+description={description}&service={service}&instance=&host={host}"
 
 log = Logger()
 
@@ -257,9 +257,9 @@ def send(request, response):
     task = msgpack.unpackb(raw)
     log.info("%s" % str(task))
     ID = task.get("Id", "MissingID")
-
-    task['Config']['Juggler_hosts'] = JConfig.get_config()
+    hosts = JConfig.get_config()
     juggler_config = task['Config']
+    juggler_config.update(hosts)
     juggler_config['id'] = ID
     jc = Juggler(**juggler_config)
 

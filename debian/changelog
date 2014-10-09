@@ -1,3 +1,9 @@
+combaine (0.6.4.681) unstable; urgency=low
+
+  * fix hosts in juggler 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 09 Oct 2014 16:26:45 +0400
+
 combaine (0.6.4.679) unstable; urgency=low
 
   * Fix flags
