@@ -1,12 +1,15 @@
 #!/usr/bin/env python
-import urllib
 import collections
 
 import msgpack
+import socket
 import yaml
+from tornado.httpclient import AsyncHTTPClient
+from tornado.httpclient import HTTPError
 
 from cocaine.worker import Worker
 from cocaine.services import Service
+from cocaine.asio.engine import asynchronous
 
 from cocaine.logging import Logger
 
@@ -36,18 +39,36 @@ class Cache(object):
 
 cache = Cache()
 
+storage_cache = Service("storage")
+ST_CACHE_NAMESPACE = "aggregate_st_cache_namespace"
 
+
+HTTP_CLIENT = AsyncHTTPClient()
+
+
+@asynchronous
 def split_hosts_by_dc(http_hand_url, groupname):
     url = "%s%s" % (http_hand_url, groupname)
     log.info(url)
-    hosts = urllib.urlopen(url).read()
-    if hosts == 'No groups found':
-        return {}
+    try:
+        response = yield HTTP_CLIENT.fetch(url,
+                                           connect_timeout=1.0,
+                                           request_timeout=1.0)
+        hosts = response.body
+        if hosts == 'No groups found':
+            raise Exception(hosts)
+    except (HTTPError, socket.error) as err:
+        log.info("Unable to fetch groups %s. Cache is used" % str(err))
+        print "Cache is used"
+        hosts = yield storage_cache.read(ST_CACHE_NAMESPACE, groupname)
+    else:
+        yield storage_cache.write(ST_CACHE_NAMESPACE, groupname, hosts)
+
     host_dict = collections.defaultdict(list)
     for item in hosts.splitlines():
         dc, host = item.split(' ')
         host_dict[dc].append(host)
-    return host_dict
+    yield host_dict
 
 
 def aggreagate(request, response):
@@ -61,7 +82,7 @@ def aggreagate(request, response):
     log.debug("%s Config %s" % (ID, aggcfg))
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
-    hosts = split_hosts_by_dc(httphand, task['Group'])
+    hosts = yield split_hosts_by_dc(httphand, task['Group'])
     log.info("%s %s" % (ID, hosts))
     hosts = dict(("%s-%s" % (METAHOST, subgroup), v) for subgroup, v in hosts.iteritems())
 
