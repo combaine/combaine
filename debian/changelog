@@ -1,3 +1,11 @@
+combaine (0.6.4.678) unstable; urgency=low
+
+  * [Jugler] Add ignore_nodata to default aggregator kwargs
+  * [Juggler] Use juggler_frontend. Config is read from
+  * [GetHosts] Cache hosts into distributed storage
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 09 Oct 2014 13:04:58 +0400
+
 combaine (0.6.4.677) unstable; urgency=low
 
   * Regenerate tasks on each iteration to reread hosts

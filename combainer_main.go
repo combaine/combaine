@@ -37,6 +37,7 @@ func Work() {
 
 func main() {
 	flag.Parse()
+	combainer.InitializeCacher()
 	combainer.InitializeLogger(loglevel, logoutput)
 	if profiler != "" {
 		log.Println("Profiler enabled")

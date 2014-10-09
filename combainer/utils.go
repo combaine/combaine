@@ -39,7 +39,7 @@ var (
 	cache Cache
 )
 
-func init() {
+func InitializeCacher() {
 	var err error
 	cache, err = NewCacher()
 	if err != nil {
