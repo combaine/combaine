@@ -1,3 +1,9 @@
+combaine (0.6.5.0) unstable; urgency=low
+
+  * [Hosts] change hosts fetcher format
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 10 Oct 2014 13:48:19 +0400
+
 combaine (0.6.4.683) unstable; urgency=low
 
   * Improve http monitor for combainer

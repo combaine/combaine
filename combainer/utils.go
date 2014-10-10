@@ -81,7 +81,7 @@ func (c *cloudStorageCache) Get(key string) ([]byte, error) {
 
 // Fetch hosts by groupname from HTTP
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
-	url := fmt.Sprintf("%s%s", handle, groupname)
+	url := fmt.Sprintf(handle, groupname)
 	resp, err := http.Get(url)
 	var body []byte
 	if err != nil {
@@ -109,7 +109,7 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	// Body parsing
 	s := strings.TrimSuffix(string(body), "\n")
 	for _, dcAndHost := range strings.Split(s, "\n") {
-		if temp := strings.Split(dcAndHost, " "); len(temp) == 2 {
+		if temp := strings.Split(dcAndHost, "\t"); len(temp) == 2 {
 			hosts = append(hosts, temp[1])
 		} else {
 			LogInfo("Wrong input string %s", temp)

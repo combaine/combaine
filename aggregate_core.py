@@ -48,7 +48,7 @@ HTTP_CLIENT = AsyncHTTPClient()
 
 @asynchronous
 def split_hosts_by_dc(http_hand_url, groupname):
-    url = "%s%s" % (http_hand_url, groupname)
+    url = http_hand_url % groupname
     log.info(url)
     try:
         response = yield HTTP_CLIENT.fetch(url,
@@ -66,7 +66,7 @@ def split_hosts_by_dc(http_hand_url, groupname):
 
     host_dict = collections.defaultdict(list)
     for item in hosts.splitlines():
-        dc, host = item.split(' ')
+        dc, host = item.split('\t')
         host_dict[dc].append(host)
     yield host_dict
 
