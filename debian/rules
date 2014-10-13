@@ -24,8 +24,8 @@ export GOPATH=$(CURDIR)
 
 # Combainer
 pre-build:: deps
-	
-	
+
+
 
 install/combainer:: combainer_
 	install -d $(DEB_DESTDIR)/usr/bin
@@ -76,9 +76,9 @@ install/combaine-core:: agave_ cfgmanager_ parsing_ graphite_
 	install -m755 deploy/scripts/deploy_graphite.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m664 manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh	
+	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh
 	# timetail
 	# install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	# install -m755 $(BUILD_DIR)/main_timetail  $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
