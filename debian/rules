@@ -23,17 +23,17 @@ include $(CURDIR)/Makefile
 export GOPATH=$(CURDIR)
 
 # Combainer
-pre-build:: prepare
+pre-build:: deps
 	
 	
 
-install/combainer:: combaine
+install/combainer:: combainer_
 	install -d $(DEB_DESTDIR)/usr/bin
 	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
 
 # Combaine-core
 
-install/combaine-core:: agave timetail cfgmanager parsing graphite
+install/combaine-core:: agave_ cfgmanager_ parsing_ graphite_
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core

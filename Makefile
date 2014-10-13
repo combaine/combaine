@@ -11,39 +11,33 @@ BUILD_DIR=$(CURDIR)/build
 export GOPATH=$(CURDIR)
 
 
-all: combaine agave timetail cfgmanager parsing graphite
+all: combainer_ agave_ cfgmanager_ parsing_ graphite_
 
-prepare:
-	mkdir -p $(PACKAGE_PATH) || true
-	mkdir -p $(BUILD_DIR) || true
-
-	ln -s $(CURDIR) $(PACKAGE_PATH)/Combaine
-
+deps:
+	go get launchpad.net/gozk/zookeeper
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get github.com/howeyc/fsnotify
-	go get github.com/mitchellh/mapstructure
 	go get github.com/Sirupsen/logrus
+	go get github.com/mitchellh/mapstructure
+	mkdir -vp $(PACKAGE_PATH)
+	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
+		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
 
-combaine: prepare
-	go get launchpad.net/gozk/zookeeper
+combainer_:
 	go build -o $(BUILD_DIR)/main_combainer $(CURDIR)/combainer_main.go
 
-parsing: prepare
+parsing_:
 	go build -o $(BUILD_DIR)/main_parsing-core $(CURDIR)/parsing_main.go
 
-cfgmanager: prepare
+cfgmanager_:
 	go build -o $(BUILD_DIR)/main_cfgmanager $(CURDIR)/cfgmanager_main.go
 
-# timetail: prepare
-# 	go build -o $(BUILD_DIR)/main_timetail $(CURDIR)/timetail_main.go
-
-agave: prepare
+agave_:
 	go build -o $(BUILD_DIR)/main_agave $(CURDIR)/agave_main.go
 
-graphite: prepare
+graphite_:
 	go build -o $(BUILD_DIR)/main_graphite $(CURDIR)/graphite_main.go
 
 clean::
-	rm -rf $(PACKAGE_PATH)/Combaine
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) || true

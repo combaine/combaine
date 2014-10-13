@@ -3,7 +3,7 @@ Section: misc
 Priority: extra
 Maintainer: Anton Tyurin <noxiouz@yandex.ru>
 Build-Depends: debhelper (>= 7), cdbs, libzookeeper-dev
-Standards-Version: 3.9.1
+Standards-Version: 3.9.3
 Homepage: https://github.com/noxiouz/Combaine
 
 Package: combaine-presetting
