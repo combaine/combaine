@@ -351,9 +351,15 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 	res := make(chan ResolveInfo, 1)
 	go func() {
 		app, err := cocaine.NewService(appname, endpoint)
-		res <- ResolveInfo{
+		select {
+		case res <- ResolveInfo{
 			App: app,
 			Err: err,
+		}:
+		default:
+			if err == nil {
+				app.Close()
+			}
 		}
 	}()
 	return res

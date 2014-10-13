@@ -1,3 +1,9 @@
+combaine (0.6.5.1) unstable; urgency=low
+
+  * [Bugfix] Fix possible fd-leak
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 13 Oct 2014 18:30:35 +0400
+
 combaine (0.6.5.0) unstable; urgency=low
 
   * [Hosts] change hosts fetcher format
