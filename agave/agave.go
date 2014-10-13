@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/httpclient"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
@@ -57,26 +57,6 @@ func missingCfgParametrError(param string) error {
 
 func wrongCfgParametrError(param string) error {
 	return fmt.Errorf("Wrong type of parametr: %s", param)
-}
-
-func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
-	return func(netw, addr string) (net.Conn, error) {
-		conn, err := net.DialTimeout(netw, addr, cTimeout)
-		if err != nil {
-			return nil, err
-		}
-		conn.SetDeadline(time.Now().Add(rwTimeout))
-		return conn, nil
-	}
-}
-
-// HTTP Client, which has connection and r/w timeouts
-func NewClientWithTimeout(connectTimeout time.Duration, rwTimeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			Dial: timeoutDialer(connectTimeout, rwTimeout),
-		},
-	}
 }
 
 // type DataItem map[string]interface{}
@@ -152,7 +132,7 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 
 func (as *AgaveSender) sendPoint(url string) {
 	for _, host := range as.hosts {
-		client := NewClientWithTimeout(
+		client := httpclient.NewClientWithTimeout(
 			time.Millisecond*CONNECTION_TIMEOUT,
 			time.Millisecond*RW_TIMEOUT)
 		URL := fmt.Sprintf("http://%s%s", host, url)

@@ -3,11 +3,10 @@ package timetail
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
-	"net/http"
 	"time"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/httpclient"
 	"github.com/noxiouz/Combaine/parsing"
 )
 
@@ -18,29 +17,9 @@ func init() {
 const CONNECTION_TIMEOUT = 1000
 const RW_TIMEOUT = 3000
 
-func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
-	return func(netw, addr string) (net.Conn, error) {
-		conn, err := net.DialTimeout(netw, addr, cTimeout)
-		if err != nil {
-			return nil, err
-		}
-		conn.SetDeadline(time.Now().Add(rwTimeout))
-		return conn, nil
-	}
-}
-
-// HTTP Client, which has connection and r/w timeouts
-func NewClientWithTimeout(connectTimeout time.Duration, rwTimeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			Dial: timeoutDialer(connectTimeout, rwTimeout),
-		},
-	}
-}
-
 //{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
 func get(url string) ([]byte, error) {
-	client := NewClientWithTimeout(
+	client := httpclient.NewClientWithTimeout(
 		time.Millisecond*CONNECTION_TIMEOUT,
 		time.Millisecond*RW_TIMEOUT)
 	resp, err := client.Get(url)
