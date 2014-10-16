@@ -7,14 +7,14 @@ import (
 )
 
 type Parser interface {
-	Parse(tid string, parsername string, data []byte) (interface{}, error)
+	Parse(tid string, parsername string, data []byte) ([]byte, error)
 }
 
 type parser struct {
 	app *cocaine.Service
 }
 
-func (p *parser) Parse(tid string, parsername string, data []byte) (z interface{}, err error) {
+func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, err error) {
 	taskToParser, err := common.Pack([]interface{}{tid, parsername, data})
 	if err != nil {
 		return
