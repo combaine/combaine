@@ -152,7 +152,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		payload = blob
 	} else {
 		// Remove this logging later
-		log.Info(task.Id, "parsing has been skipped")
+		log.Info(task.Id, " parsing has been skipped")
 	}
 
 	/*
@@ -195,7 +195,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		}()
 		payload = token
 	} else {
-		log.Info(task.Id, "Skip dg stage. Raw data")
+		log.Info(task.Id, " Skip dg stage. Raw data")
 	}
 
 	/*
