@@ -71,8 +71,8 @@ def parse(request, response):
         Log.info("%s %d items have been parsed by %s" % (tid,
                                                          len(result),
                                                          name))
-        response.write(result)
-        Log.debug("%s %s" % (tid, str(result)))
+        response.write(msgpack.packb(result))
+        # Log.debug("%s %s" % (tid, str(result)))
         Log.info("%s Done" % tid)
     except KeyError:
         response.error(-100, "There's no function named %s" % name)

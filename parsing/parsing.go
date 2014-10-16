@@ -18,6 +18,12 @@ var (
 	cacher       servicecacher.Cacher = servicecacher.NewCacher()
 )
 
+const (
+	// Special parser name that allows to avoid
+	// parser call
+	ParserSkipValue = "NullParser"
+)
+
 func LazyLoggerInitialization() (*cocaine.Logger, error) {
 	var err error
 	if log != nil {
@@ -119,68 +125,78 @@ func Parsing(task common.ParsingTask) (err error) {
 		EndTime:   task.CurrTime,
 	}
 
-	t, err := fetcher.Fetch(&fetcherTask)
+	blob, err := fetcher.Fetch(&fetcherTask)
 	if err != nil {
 		log.Err(err)
 		return
 	}
-	log.Debugf("%s Fetch %d bytes", task.Id, len(t))
+	log.Debugf("%s Fetch %d bytes", task.Id, len(blob))
 
+	var payload interface{} = blob
 	/*
 		ParsingApp stage
 	*/
+	if cfg.Parser != ParserSkipValue && cfg.Parser != "" {
+		log.Info(task.Id, " Send data to parsing")
+		parser, err := GetParser()
+		if err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
 
-	log.Info(task.Id, " Send data to parsing")
-	parser, err := GetParser()
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
-
-	z, err := parser.Parse(task.Id, cfg.Parser, t)
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return err
+		blob, err = parser.Parse(task.Id, cfg.Parser, blob)
+		if err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
+		payload = blob
+	} else {
+		// Remove this logging later
+		log.Info(task.Id, "parsing has been skipped")
 	}
 
 	/*
 		Datagrid stage
 	*/
+	if !cfg.Raw {
+		dgType, err := common.GetType(cfg.DG)
+		if err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
 
-	dgType, err := common.GetType(cfg.DG)
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
+		log.Debugf("%s Use %s for handle data", task.Id, dgType)
+		datagrid, err := cacher.Get(dgType)
+		if err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
 
-	log.Debugf("%s Use %s for handle data", task.Id, dgType)
-	datagrid, err := cacher.Get(dgType)
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
+		// taskToDatagrid, err := common.Pack(z)
+		// if err != nil {
+		// 	log.Err(task.Id, " ", err.Error())
+		// 	return
+		// }
+		res := <-datagrid.Call("enqueue", "put", blob)
+		if err = res.Err(); err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
+		var token string
+		if err = res.Extract(&token); err != nil {
+			log.Err(task.Id, " ", err.Error())
+			return err
+		}
 
-	taskToDatagrid, err := common.Pack(z)
-	if err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
+		defer func() {
+			taskToDatagrid, _ := common.Pack([]interface{}{token})
+			<-datagrid.Call("enqueue", "drop", taskToDatagrid)
+			log.Debugf("%s Drop table", task.Id)
+		}()
+		payload = token
+	} else {
+		log.Info(task.Id, "Skip dg stage. Raw data")
 	}
-	res := <-datagrid.Call("enqueue", "put", taskToDatagrid)
-	if err = res.Err(); err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
-	var token string
-	if err = res.Extract(&token); err != nil {
-		log.Err(task.Id, " ", err.Error())
-		return
-	}
-
-	defer func() {
-		taskToDatagrid, _ = common.Pack([]interface{}{token})
-		<-datagrid.Call("enqueue", "drop", taskToDatagrid)
-		log.Debugf("%s Drop table", task.Id)
-	}()
 
 	/*
 
@@ -214,7 +230,7 @@ func Parsing(task common.ParsingTask) (err error) {
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
 					"dgconfig": cfg.DG,
-					"token":    token,
+					"token":    payload,
 					"prevtime": task.PrevTime,
 					"currtime": task.CurrTime,
 					"id":       task.Id})

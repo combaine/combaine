@@ -18,6 +18,7 @@ type ParsingConfig struct {
 	DF         map[string]interface{} `yaml:"DataFetcher"`
 	DG         map[string]interface{} `yaml:"LocalDatabase"`
 	Metahost   string                 `yaml:"metahost"`
+	Raw        bool                   `yaml:"raw"`
 }
 
 // Description of combainer config
