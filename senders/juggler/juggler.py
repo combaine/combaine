@@ -30,7 +30,10 @@ REVERSE_STATUSES = dict((v, k) for k, v in STATUSES.iteritems())
 
 HTTP_CLIENT = AsyncHTTPClient()
 
-CHECK_CHECK = "http://{juggler}/api/checks/checks?host_name={host}&\
+CHECK_CHECK = "http://{juggler}/api/checks/has_check?host_name={host}&\
+service_name={service}&do=1"
+
+LIST_CHILD = "http://{juggler}/api/checks/children_tree?host_name={host}&\
 service_name={service}&do=1"
 
 ADD_CHECK = "http://{juggler}/api/checks/set_check?host_name={host}&\
@@ -214,7 +217,8 @@ class Juggler(object):
                 response = yield HTTP_CLIENT.fetch(url,
                                                    headers=DEFAULT_HEADERS)
 
-                if response.body == "{}":
+                # check doesn't exist
+                if response.body == "false":
                     url = ADD_CHECK.format(**params)
                     self.log.info("Add check %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
@@ -224,8 +228,40 @@ class Juggler(object):
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
 
                     url = ADD_METHOD.format(**params)
-                    self.log.info("add method %s" % url)
+                    self.log.info("Add method %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+                elif response.body == "true":
+                    # check exists, but existance of child must be checked
+                    url = LIST_CHILD.format(**params)
+                    try:
+                        resp = yield HTTP_CLIENT.fetch(url,
+                                                       headers=DEFAULT_HEADERS)
+                        childs_status = json.loads(resp.body)
+                        key = "%(child)s:%(service)s".format(**params)
+
+                        self.log.info("checking existance of %s child" % key)
+                        if key not in childs_status:
+                            # there's no given child for the current check
+                            url = ADD_CHILD.format(**params)
+                            self.log.info("Add child"
+                                          " %s as it does'n exist" % url)
+                            yield HTTP_CLIENT.fetch(url,
+                                                    headers=DEFAULT_HEADERS)
+                    except HTTPError as err:
+                        self.log.error("unable to fetch the information"
+                                       " about childs %s" % str(err))
+                        continue
+                    except ValueError as err:
+                        self.log.error("unable to decode the information"
+                                       " about childs %s" % str(err))
+                        continue
+                    except Exception as err:
+                        self.log.error("unknown error related with the"
+                                       " info about childs %s" % str(err))
+                        continue
+                else:
+                    self.log.error("unexpected reply from `has_check`: %s",
+                                   response.body)
             except HTTPError as err:
                 self.log.error(str(err))
                 continue
