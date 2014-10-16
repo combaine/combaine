@@ -237,7 +237,7 @@ class Juggler(object):
                         resp = yield HTTP_CLIENT.fetch(url,
                                                        headers=DEFAULT_HEADERS)
                         childs_status = json.loads(resp.body)
-                        key = "%(child)s:%(service)s".format(**params)
+                        key = "{child}:{service}".format(**params)
 
                         self.log.info("checking existance of %s child" % key)
                         if key not in childs_status:
