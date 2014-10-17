@@ -6,6 +6,8 @@ import (
 
 	"github.com/ugorji/go/codec"
 	"launchpad.net/goyaml"
+
+	"github.com/noxiouz/Combaine/common/configs"
 )
 
 var (
@@ -42,6 +44,12 @@ func GetType(cfg map[string]interface{}) (string, error) {
 }
 
 func MapUpdate(source *map[string]interface{}, update *map[string]interface{}) {
+	for k, v := range *update {
+		(*source)[k] = v
+	}
+}
+
+func PluginConfigsUpdate(source *configs.PluginConfig, update *configs.PluginConfig) {
 	for k, v := range *update {
 		(*source)[k] = v
 	}

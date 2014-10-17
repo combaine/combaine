@@ -5,7 +5,9 @@ import (
 	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/senders/agave"
 )
 
@@ -52,12 +54,12 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if err = res.Extract(&rawCfg); err != nil {
 		return
 	}
-	var combainerCfg common.CombainerConfig
+	var combainerCfg configs.CombainerConfig
 	err = common.Encode(rawCfg, &combainerCfg)
 
 	// Rewrite this shit to struct
 	task.Config["items"] = Items
-	task.Config["hosts"] = combainerCfg.CloudCfg.Agave
+	task.Config["hosts"] = combainerCfg.CloudSection.AgaveHosts
 	task.Config["graph_name"] = string(task.Config["graph_name"].([]uint8))
 	task.Config["graph_template"] = string(task.Config["graph_template"].([]uint8))
 

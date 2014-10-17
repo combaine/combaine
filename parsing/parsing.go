@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/servicecacher"
 )
 
@@ -86,7 +88,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		return
 	}
 
-	aggCfgs := make(map[string]common.AggConfig)
+	aggCfgs := make(map[string]configs.AggregationConfig)
 	for _, name := range cfg.AggConfigs {
 		aggCfg, err := cfgWrap.GetAggregateConfig(name)
 		if err != nil {
@@ -97,12 +99,12 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
-	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
-	cfg.DF = combainerCfg.CloudCfg.DF
-	common.MapUpdate(&(combainerCfg.CloudCfg.DG), &(cfg.DG))
-	cfg.DG = combainerCfg.CloudCfg.DG
+	common.PluginConfigsUpdate(&(combainerCfg.CloudSection.DataFetcher), &(cfg.DataFetcher))
+	cfg.DataFetcher = combainerCfg.CloudSection.DataFetcher
+	common.PluginConfigsUpdate(&(combainerCfg.CloudSection.DataBase), &(cfg.DataBase))
+	cfg.DataBase = combainerCfg.CloudSection.DataBase
 
-	fetcherType, err := common.GetType(cfg.DF)
+	fetcherType, err := common.GetType(cfg.DataFetcher)
 	if err != nil {
 		log.Err(err)
 		return
@@ -110,7 +112,7 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
 
-	fetcher, err := NewFetcher(fetcherType, cfg.DF)
+	fetcher, err := NewFetcher(fetcherType, cfg.DataFetcher)
 	if err != nil {
 		log.Err(err)
 		return
@@ -159,7 +161,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		Datagrid stage
 	*/
 	if !cfg.Raw {
-		dgType, err := common.GetType(cfg.DG)
+		dgType, err := common.GetType(cfg.DataBase)
 		if err != nil {
 			log.Err(task.Id, " ", err.Error())
 			return err
@@ -195,7 +197,7 @@ func Parsing(task common.ParsingTask) (err error) {
 		}()
 		payload = token
 	} else {
-		log.Info(task.Id, " Skip dg stage. Raw data")
+		log.Info(task.Id, " Skip DataBase stage. Raw data")
 	}
 
 	/*
@@ -229,7 +231,7 @@ func Parsing(task common.ParsingTask) (err error) {
 				*/
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
-					"dgconfig": cfg.DG,
+					"dgconfig": cfg.DataBase,
 					"token":    payload,
 					"prevtime": task.PrevTime,
 					"currtime": task.CurrTime,
