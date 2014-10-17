@@ -24,8 +24,6 @@ type LockServerSection struct {
 type CloudSection struct {
 	// Default DataFetcher
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
-	//Deprecated
-	DataBase PluginConfig `yaml:"LocalDatabase"`
 	// Hosts for AgavePlugin
 	AgaveHosts []string `yaml:"agave_hosts"`
 }

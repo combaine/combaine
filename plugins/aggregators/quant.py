@@ -14,6 +14,7 @@ Log = Logger()
 
 TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
+DATABASEAPP = "mysqldg"
 
 
 class MysqlDG(object):
@@ -76,17 +77,12 @@ def quants(qts, it):
 
 def aggregate_host(request, response):
     raw = yield request.read()
-    #cfg, dgcfg, token, prtime, currtime = msgpack.unpackb(raw)
     TASK = msgpack.unpackb(raw)
     Log.info("%s Handle task" % TASK['id'])
     cfg = TASK['config']  # config of aggregator
-    dgcfg = TASK['dgconfig']
     token = TASK['token']
-    #prtime = TASK['prevtime']
-    #currtime = TASK['currtime']
-    #taskId = TASK['id']
     Log.debug(str(cfg))
-    dg = MysqlDG.get_service(dgcfg['type'])
+    dg = MysqlDG.get_service(DATABASEAPP)
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
     Log.info("%s QUERY: %s" % (TASK['id'], q))

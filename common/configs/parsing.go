@@ -12,9 +12,6 @@ type ParsingConfig struct {
 	Parser string `yaml:"parser"`
 	// Overrides the same section in combainer.yaml
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
-	// Overrides the same section in combainer.yaml
-	// Deprecated
-	DataBase PluginConfig `yaml:"LocalDatabase"`
 	// Overrides name of host group
 	Metahost string `yaml:"metahost"`
 	// Set True to skip putting data into DataBase

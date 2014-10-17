@@ -101,8 +101,6 @@ func Parsing(task common.ParsingTask) (err error) {
 	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
 	common.PluginConfigsUpdate(&(combainerCfg.CloudSection.DataFetcher), &(cfg.DataFetcher))
 	cfg.DataFetcher = combainerCfg.CloudSection.DataFetcher
-	common.PluginConfigsUpdate(&(combainerCfg.CloudSection.DataBase), &(cfg.DataBase))
-	cfg.DataBase = combainerCfg.CloudSection.DataBase
 
 	fetcherType, err := common.GetType(cfg.DataFetcher)
 	if err != nil {
@@ -158,27 +156,16 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	/*
-		Datagrid stage
+		Database stage
 	*/
 	if !cfg.Raw {
-		dgType, err := common.GetType(cfg.DataBase)
+		log.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
+		datagrid, err := cacher.Get(common.DATABASEAPP)
 		if err != nil {
 			log.Err(task.Id, " ", err.Error())
 			return err
 		}
 
-		log.Debugf("%s Use %s for handle data", task.Id, dgType)
-		datagrid, err := cacher.Get(dgType)
-		if err != nil {
-			log.Err(task.Id, " ", err.Error())
-			return err
-		}
-
-		// taskToDatagrid, err := common.Pack(z)
-		// if err != nil {
-		// 	log.Err(task.Id, " ", err.Error())
-		// 	return
-		// }
 		res := <-datagrid.Call("enqueue", "put", blob)
 		if err = res.Err(); err != nil {
 			log.Err(task.Id, " ", err.Error())
@@ -206,7 +193,7 @@ func Parsing(task common.ParsingTask) (err error) {
 	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range aggCfgs {
 		for k, v := range aggCfg.Data {
-			aggType, err := common.GetType(v)
+			aggType, err := v.Type()
 			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 			if err != nil {
 				return err
@@ -231,7 +218,6 @@ func Parsing(task common.ParsingTask) (err error) {
 				*/
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
-					"dgconfig": cfg.DataBase,
 					"token":    payload,
 					"prevtime": task.PrevTime,
 					"currtime": task.CurrTime,
