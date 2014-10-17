@@ -194,10 +194,11 @@ func Parsing(task common.ParsingTask) (err error) {
 	for aggLogName, aggCfg := range aggCfgs {
 		for k, v := range aggCfg.Data {
 			aggType, err := v.Type()
-			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 			if err != nil {
 				return err
 			}
+			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+
 			wg.Add(1)
 			go func(name string, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
