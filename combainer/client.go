@@ -1,9 +1,7 @@
 package combainer
 
 import (
-	"crypto/md5"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"strings"
@@ -239,9 +237,11 @@ func (cl *Client) Dispatch() {
 	defer _observer.UnregisterClient(cl.lockname)
 
 	// Dispatch
-	var deadline time.Time
-	var startTime time.Time
-	var wg sync.WaitGroup
+	var (
+		deadline  time.Time
+		startTime time.Time
+		wg        sync.WaitGroup
+	)
 
 	for {
 		//Update session parametrs from config
@@ -260,9 +260,7 @@ func (cl *Client) Dispatch() {
 		deadline = startTime.Add(cl.sp.ParsingTime)
 
 		// Generate session unique ID
-		h := md5.New()
-		io.WriteString(h, (fmt.Sprintf("%s%d%d", cl.lockname, startTime, deadline)))
-		uniqueID := fmt.Sprintf("%x", h.Sum(nil))
+		uniqueID := GenerateSessionId(cl.lockname, &startTime, &deadline)
 		LogInfo("%s Start new iteration.", uniqueID)
 
 		// Parsing phase

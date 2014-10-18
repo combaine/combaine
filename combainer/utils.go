@@ -1,13 +1,16 @@
 package combainer
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"launchpad.net/goyaml"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"launchpad.net/goyaml"
 )
 
 const (
@@ -77,6 +80,12 @@ func (c *cloudStorageCache) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	return z, nil
+}
+
+func GenerateSessionId(lockname string, start, deadline *time.Time) string {
+	h := md5.New()
+	io.WriteString(h, (fmt.Sprintf("%s%d%d", lockname, *start, *deadline)))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // Fetch hosts by groupname from HTTP
