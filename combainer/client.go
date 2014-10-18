@@ -15,26 +15,6 @@ import (
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
-// type combainerMainCfg struct {
-// 	Http_hand     string "HTTP_HAND"
-// 	MinimumPeriod uint   "MINIMUM_PERIOD"
-// 	CloudHosts    string "cloud"
-// }
-
-// type combainerLockserverCfg struct {
-// 	Id      string   "app_id"
-// 	Hosts   []string "host"
-// 	Name    string   "name"
-// 	timeout uint     "timeout"
-// }
-
-// type combainerConfig struct {
-// 	Combainer struct {
-// 		Main          combainerMainCfg       "Main"
-// 		LockServerCfg combainerLockserverCfg "Lockserver"
-// 	} "Combainer"
-// }
-
 type sessionParams struct {
 	ParsingTime time.Duration
 	WholeTime   time.Duration
