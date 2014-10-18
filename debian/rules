@@ -64,6 +64,11 @@ install/combaine-core:: agave_ cfgmanager_ parsing_ graphite_
 	install -m755 plugins/aggregators/quant.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
 	install -m664 deploy/manifests/manifest_aggregate-quant.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
 	install -m755 deploy/scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
+	# custom
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
+	install -m755 plugins/aggregators/custom.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
+	install -m664 deploy/manifests/manifest_aggregate-custom.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
+	install -m755 deploy/scripts/deploy_aggregate-custom.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom/deploy.sh
 	# agave
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
 	install -m755 $(BUILD_DIR)/main_agave  $(DEB_DESTDIR)$(CORE_APPS_PATH)/agave
