@@ -9,6 +9,7 @@ import (
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/logger"
+	"github.com/noxiouz/Combaine/common/tasks"
 )
 
 func formatSubgroup(input string) string {
@@ -24,7 +25,7 @@ const onePointFormat = "%s.combaine.%s.%s %s %d\n"
 // var onePointTemplate *template.Template = template.Must(template.New("URL").Parse(onePointTemplateText))
 
 type GraphiteSender interface {
-	Send(common.DataType) error
+	Send(tasks.DataType) error
 }
 
 const connectionTimeout = 900       //msec
@@ -50,7 +51,7 @@ common.DataType:
 }
 */
 
-func (g *graphiteClient) Send(data common.DataType) (err error) {
+func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 	if len(data) == 0 {
 		return fmt.Errorf("Empty data. Nothing to send.")
 	}

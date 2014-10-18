@@ -6,6 +6,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/senders/graphite"
 )
 
@@ -14,7 +15,7 @@ var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", 
 var logger *cocaine.Logger
 
 type Task struct {
-	Data   common.DataType
+	Data   tasks.DataType
 	Config graphite.GraphiteCfg
 }
 

@@ -1,4 +1,4 @@
-package common
+package tasks
 
 // For senders
 type DataItem map[string]interface{}

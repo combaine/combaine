@@ -14,6 +14,7 @@ import (
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/tasks"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
@@ -73,7 +74,7 @@ type AgaveSender struct {
 	step          int64
 }
 
-func (as *AgaveSender) Send(data common.DataType) (err error) {
+func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 	// Repack data by subgroups
 	var repacked map[string][]string = make(map[string][]string)
 	for _, aggname := range as.items {
@@ -159,7 +160,7 @@ func (as *AgaveSender) Close() (err error) {
 }
 
 type IAgaveSender interface {
-	Send(common.DataType) error
+	Send(tasks.DataType) error
 	Close() error
 }
 
