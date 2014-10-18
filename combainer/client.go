@@ -133,13 +133,15 @@ func (cl *Client) Close() {
 
 func (cl *Client) UpdateSessionParams(config string) (err error) {
 	LogInfo("Updating session parametrs")
-	// tasks
-	var p_tasks []tasks.ParsingTask
-	var agg_tasks []tasks.AggregationTask
+	var (
+		// tasks
+		p_tasks   []tasks.ParsingTask
+		agg_tasks []tasks.AggregationTask
 
-	// timeouts
-	var parsingTime time.Duration
-	var wholeTime time.Duration
+		// timeouts
+		parsingTime time.Duration
+		wholeTime   time.Duration
+	)
 
 	res, err := loadConfig(cl.lockname)
 	if err != nil {
@@ -170,7 +172,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	}
 
 	// Tasks for parsing
-	//host_name, config_name, group_name, previous_time, current_time
+	// host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
 		p_tasks = append(p_tasks, tasks.ParsingTask{
 			CommonTask: tasks.EmptyCommonTask,
@@ -336,7 +338,6 @@ func (cl *Client) Dispatch() {
 	}
 }
 
-//----------------
 type ResolveInfo struct {
 	App *cocaine.Service
 	Err error
@@ -359,8 +360,6 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 	}()
 	return res
 }
-
-//------------------
 
 func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
