@@ -21,9 +21,14 @@ var (
 
 type ParsingTask struct {
 	CommonTask
-	Host               string
-	ParsingConfigName  string
-	ParsingConfig      configs.ParsingConfig
+	// Hostname of target
+	Host string
+	// Name of handled parsing config
+	ParsingConfigName string
+	// Content of the current parsing config
+	ParsingConfig configs.ParsingConfig
+	// Content of aggreagtion configs
+	// related to the current parsing config
 	AggregationConfigs map[string]configs.AggregationConfig
 }
 
@@ -33,8 +38,12 @@ func (t *ParsingTask) String() string {
 
 type AggregationTask struct {
 	CommonTask
-	Config            string
+	// Name of the current aggregation config
+	Config string
+	// Name of handled parsing config
 	ParsingConfigName string
-	ParsingConfig     configs.ParsingConfig
+	// Content of the current parsing config
+	ParsingConfig configs.ParsingConfig
+	// Current aggregation config
 	AggregationConfig configs.AggregationConfig
 }

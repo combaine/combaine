@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	CONFIGS_PARSING_PATH = "/etc/combaine/parsing/"
-	COMBAINER_PATH       = "/etc/combaine/combaine.yaml"
+	CONFIGS_PARSING_PATH     = "/etc/combaine/parsing/"
+	CONFIGS_AGGREGATION_PATH = "/etc/combaine/aggregate"
+	COMBAINER_PATH           = "/etc/combaine/combaine.yaml"
 )
 
 const (
@@ -150,11 +151,27 @@ func getParsings() []string {
 }
 
 // Parse config
-func loadParsingConfig(name string) (configs.ParsingConfig, error) {
+func loadParsingConfig(name string) (res configs.ParsingConfig, err error) {
 	path := path.Join(CONFIGS_PARSING_PATH, name)
 	LogInfo("Read %s", path)
 
-	var res configs.ParsingConfig
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return res, err
+	}
+
+	err = goyaml.Unmarshal(data, &res)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func loadAggregationConfig(name string) (res configs.AggregationConfig, error error) {
+	path := path.Join(CONFIGS_AGGREGATION_PATH, name)
+	LogInfo("Read %s", path)
+
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return res, err

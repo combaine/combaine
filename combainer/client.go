@@ -135,24 +135,36 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		LogInfo("Hosts: %s", hosts)
 	}
 
+	aggregationConfigs := make(map[string]configs.AggregationConfig)
+	for _, name := range parsingConfig.AggConfigs {
+		content, err := loadAggregationConfig(name)
+		if err != nil {
+			// It seems better to throw error here instead of
+			// going data processing on without config
+			LogErr("Unable to read aggregation config %s, %s", name, err)
+			return err
+		}
+		aggregationConfigs[name] = content
+	}
+
 	// Tasks for parsing
-	// host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
 		p_tasks = append(p_tasks, tasks.ParsingTask{
-			CommonTask:        tasks.EmptyCommonTask,
-			Host:              host,
-			ParsingConfigName: cl.lockname,
-			ParsingConfig:     parsingConfig,
+			CommonTask:         tasks.EmptyCommonTask,
+			Host:               host,
+			ParsingConfigName:  cl.lockname,
+			ParsingConfig:      parsingConfig,
+			AggregationConfigs: aggregationConfigs,
 		})
 	}
 
-	//groupname, config_name, agg_config_name, previous_time, current_time
-	for _, cfg := range parsingConfig.AggConfigs {
+	for _, name := range parsingConfig.AggConfigs {
 		agg_tasks = append(agg_tasks, tasks.AggregationTask{
 			CommonTask:        tasks.EmptyCommonTask,
-			Config:            cfg,
+			Config:            name,
 			ParsingConfigName: cl.lockname,
 			ParsingConfig:     parsingConfig,
+			AggregationConfig: aggregationConfigs[name],
 		})
 	}
 
