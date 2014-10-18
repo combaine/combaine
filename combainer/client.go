@@ -137,6 +137,11 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
 	}
 
+	// common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
+	// cfg.DF = combainerCfg.CloudCfg.DF
+	common.PluginConfigsUpdate(&cl.Config.CloudSection.DataFetcher, &parsingConfig.DataFetcher)
+	parsingConfig.DataFetcher = cl.Config.CloudSection.DataFetcher
+
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 	// Make list of hosts
