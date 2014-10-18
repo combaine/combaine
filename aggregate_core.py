@@ -77,14 +77,24 @@ def aggreagate(request, response):
     log.info("Start task %s" % task["Id"])
     ID = task["Id"]
     METAHOST = task["Metahost"]
+
+    # read aggregation config passed to us
     raw = yield cfgmanager.enqueue("aggregate", task['Config'])
     aggcfg = yaml.load(raw)
     log.debug("%s Config %s" % (ID, aggcfg))
+
+    # read combaine.yaml to get and decode it to get HTTP_HAND
+    # to get hosts for given group. Seems it's better to pass them
+    # with the task
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
     hosts = yield split_hosts_by_dc(httphand, task['Group'])
     log.info("%s %s" % (ID, hosts))
-    hosts = dict(("%s-%s" % (METAHOST, subgroup), v) for subgroup, v in hosts.iteritems())
+    # repack hosts by subgroups by dc
+    # For example:
+    # {"GROUP-DC": "hostname"} from {"DC": "hostname"}
+    hosts = dict(("%s-%s" % (METAHOST, subgroup), v)
+                 for subgroup, v in hosts.iteritems())
 
     result = {}
 
@@ -102,6 +112,7 @@ def aggreagate(request, response):
         for subgroup, value in hosts.iteritems():
             subgroup_data = list()
             for host in value:
+                # Key specification
                 key = "%s;%s;%s;%s;%s" % (host, task['PConfig'],
                                           task['Config'],
                                           name,
@@ -115,7 +126,7 @@ def aggreagate(request, response):
                         result[name][host] = res
                 except Exception as err:
                     if err.code != 2:
-                        log.error("%s Unable to read from elliptics cache %s %s" %
+                        log.error("%s unable to read from cache %s %s" %
                                   (ID, key, repr(err)))
 
             mapping[subgroup] = subgroup_data
@@ -135,9 +146,14 @@ def aggreagate(request, response):
         log.info("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
+    # Send data to various senders
     for name, item in aggcfg.get('senders', {}).iteritems():
         try:
-            sender_type = item.get("type", "MISSING")
+            sender_type = item.get("type")
+            if sender_type is None:
+                log.error("%s unable to detect sender type: %s" % (ID, name))
+                continue
+
             log.info("Send to %s" % sender_type)
             s = Service(sender_type)
         except Exception as err:
