@@ -2,4 +2,4 @@
 
 go test github.com/noxiouz/Combaine/common/httpclient
 
-go test -v github.com/noxiouz/Combaine/combainer
+go test -v github.com/noxiouz/Combaine/combainer/

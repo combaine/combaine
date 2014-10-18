@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -154,8 +155,8 @@ func getParsings() []string {
 }
 
 // Parse config
-func loadConfig(name string) (*ParsingConfig, error) {
-	path := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, name)
+func loadParsingConfig(name string) (*ParsingConfig, error) {
+	path := path.Join(CONFIGS_PARSING_PATH, name)
 	LogInfo("Read %s", path)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {

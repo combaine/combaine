@@ -141,7 +141,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		wholeTime   time.Duration
 	)
 
-	res, err := loadConfig(cl.lockname)
+	res, err := loadParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
