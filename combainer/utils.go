@@ -82,10 +82,17 @@ func (c *cloudStorageCache) Get(key string) ([]byte, error) {
 	return z, nil
 }
 
+//Various utility functions
 func GenerateSessionId(lockname string, start, deadline *time.Time) string {
 	h := md5.New()
 	io.WriteString(h, (fmt.Sprintf("%s%d%d", lockname, *start, *deadline)))
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func GenerateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
+	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second
+	wholeTime := time.Duration(sessionDuration) * time.Second
+	return parsingTime, wholeTime
 }
 
 // Fetch hosts by groupname from HTTP

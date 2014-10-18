@@ -90,8 +90,6 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	return
 }
 
-// Public API
-
 func NewClient(config string) (*Client, error) {
 	// Read combaine.yaml
 	data, err := ioutil.ReadFile(config)
@@ -194,8 +192,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		})
 	}
 
-	parsingTime = time.Duration(float64(cl.Main.MinimumPeriod)*0.8) * time.Second
-	wholeTime = time.Duration(cl.Main.MinimumPeriod) * time.Second
+	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Main.MinimumPeriod)
 
 	sp := sessionParams{
 		ParsingTime: parsingTime,
