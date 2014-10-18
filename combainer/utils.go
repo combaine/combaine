@@ -12,19 +12,14 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"launchpad.net/goyaml"
+
+	"github.com/noxiouz/Combaine/common/configs"
 )
 
 const (
 	CONFIGS_PARSING_PATH = "/etc/combaine/parsing/"
 	COMBAINER_PATH       = "/etc/combaine/combaine.yaml"
 )
-
-type ParsingConfig struct {
-	Groups           []string "groups"
-	AggConfigs       []string "agg_configs"
-	Metahost         string   "metahost"
-	combainerMainCfg "Combainer"
-}
 
 const (
 	CACHE_NAMESPACE = "combaine_hosts_cache"
@@ -155,20 +150,20 @@ func getParsings() []string {
 }
 
 // Parse config
-func loadParsingConfig(name string) (*ParsingConfig, error) {
+func loadParsingConfig(name string) (configs.ParsingConfig, error) {
 	path := path.Join(CONFIGS_PARSING_PATH, name)
 	LogInfo("Read %s", path)
+
+	var res configs.ParsingConfig
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	// Parse combaine.yaml
-	var res ParsingConfig
 	err = goyaml.Unmarshal(data, &res)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	return &res, nil
+	return res, nil
 }

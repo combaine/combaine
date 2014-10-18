@@ -8,7 +8,6 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/servicecacher"
 	"github.com/noxiouz/Combaine/common/tasks"
 )
@@ -19,12 +18,6 @@ var (
 	logMutex     sync.Mutex
 	storageMutex sync.Mutex
 	cacher       servicecacher.Cacher = servicecacher.NewCacher()
-)
-
-const (
-	// Special parser name that allows to avoid
-	// parser call
-	ParserSkipValue = "NullParser"
 )
 
 func LazyLoggerInitialization() (*cocaine.Logger, error) {
@@ -64,61 +57,22 @@ func Parsing(task tasks.ParsingTask) (err error) {
 	if err != nil {
 		return
 	}
+	log.Info(task.Id, " Start parsing")
 
-	log.Info(task.Id, " Start parsing.")
-
-	//Wrap it
-	log.Debug(task.Id, " Create configuration manager")
-	cfgManager, err := cacher.Get(common.CFGMANAGER)
-	if err != nil {
-		log.Errf("%s %s", task.Id, err.Error())
-		return
-	}
-	cfgWrap := common.NewCfgWrapper(cfgManager, log)
-
-	log.Debugf(task.Id, " Fetch configuration file ", task.Config)
-	cfg, err := cfgWrap.GetParsingConfig(task.Config)
-	if err != nil {
-		log.Err(err.Error())
-		return
-	}
-
-	combainerCfg, err := cfgWrap.GetCommon()
-	if err != nil {
-		log.Err(err.Error())
-		return
-	}
-
-	aggCfgs := make(map[string]configs.AggregationConfig)
-	for _, name := range cfg.AggConfigs {
-		aggCfg, err := cfgWrap.GetAggregateConfig(name)
-		if err != nil {
-			log.Err(err.Error())
-			return err
-		}
-		aggCfgs[name] = aggCfg
-	}
-
-	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
-	common.PluginConfigsUpdate(&(combainerCfg.CloudSection.DataFetcher), &(cfg.DataFetcher))
-	cfg.DataFetcher = combainerCfg.CloudSection.DataFetcher
-
-	fetcherType, err := common.GetType(cfg.DataFetcher)
+	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
 	if err != nil {
 		log.Err(err)
 		return
 	}
-
 	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
 
-	fetcher, err := NewFetcher(fetcherType, cfg.DataFetcher)
+	fetcher, err := NewFetcher(fetcherType, task.ParsingConfig.DataFetcher)
 	if err != nil {
 		log.Err(err)
 		return
 	}
 
 	// Per host
-
 	fetcherTask := tasks.FetcherTask{
 		Target:     task.Host,
 		CommonTask: task.CommonTask,
@@ -135,7 +89,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 	/*
 		ParsingApp stage
 	*/
-	if cfg.Parser != ParserSkipValue && cfg.Parser != "" {
+	if !task.ParsingConfig.NeedToSkipParsingStage() {
 		log.Info(task.Id, " Send data to parsing")
 		parser, err := GetParser()
 		if err != nil {
@@ -143,7 +97,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 			return err
 		}
 
-		blob, err = parser.Parse(task.Id, cfg.Parser, blob)
+		blob, err = parser.Parse(task.Id, task.ParsingConfig.Parser, blob)
 		if err != nil {
 			log.Err(task.Id, " ", err.Error())
 			return err
@@ -157,7 +111,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 	/*
 		Database stage
 	*/
-	if !cfg.Raw {
+	if !task.ParsingConfig.Raw {
 		log.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
 		datagrid, err := cacher.Get(common.DATABASEAPP)
 		if err != nil {
@@ -190,7 +144,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 
 	*/
 	var wg sync.WaitGroup
-	for aggLogName, aggCfg := range aggCfgs {
+	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {
 			aggType, err := v.Type()
 			if err != nil {
@@ -207,7 +161,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 					return
 				}
 
-				app, err := cacher.Get(name) //cocaine.NewService(name)
+				app, err := cacher.Get(name)
 				if err != nil {
 					log.Errf("%s %s %s", task.Id, name, err)
 					return
@@ -236,7 +190,9 @@ func Parsing(task tasks.ParsingTask) (err error) {
 						return
 					}
 
-					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
+					key := fmt.Sprintf("%s;%s;%s;%s;%v",
+						task.Host, task.ParsingConfigName,
+						aggLogName, k, task.CurrTime)
 					<-storage.Call("cache_write", "combaine", key, raw_res)
 					log.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):

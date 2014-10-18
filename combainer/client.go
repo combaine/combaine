@@ -2,7 +2,6 @@ package combainer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"strings"
 	"sync"
@@ -10,31 +9,31 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/howeyc/fsnotify"
-	"launchpad.net/goyaml"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
-type combainerMainCfg struct {
-	Http_hand     string "HTTP_HAND"
-	MinimumPeriod uint   "MINIMUM_PERIOD"
-	CloudHosts    string "cloud"
-}
+// type combainerMainCfg struct {
+// 	Http_hand     string "HTTP_HAND"
+// 	MinimumPeriod uint   "MINIMUM_PERIOD"
+// 	CloudHosts    string "cloud"
+// }
 
-type combainerLockserverCfg struct {
-	Id      string   "app_id"
-	Hosts   []string "host"
-	Name    string   "name"
-	timeout uint     "timeout"
-}
+// type combainerLockserverCfg struct {
+// 	Id      string   "app_id"
+// 	Hosts   []string "host"
+// 	Name    string   "name"
+// 	timeout uint     "timeout"
+// }
 
-type combainerConfig struct {
-	Combainer struct {
-		Main          combainerMainCfg       "Main"
-		LockServerCfg combainerLockserverCfg "Lockserver"
-	} "Combainer"
-}
+// type combainerConfig struct {
+// 	Combainer struct {
+// 		Main          combainerMainCfg       "Main"
+// 		LockServerCfg combainerLockserverCfg "Lockserver"
+// 	} "Combainer"
+// }
 
 type sessionParams struct {
 	ParsingTime time.Duration
@@ -51,8 +50,7 @@ type clientStats struct {
 }
 
 type Client struct {
-	Main       combainerMainCfg
-	LSCfg      combainerLockserverCfg
+	Config     configs.CombainerConfig
 	DLS        LockServer
 	lockname   string
 	cloudHosts []string
@@ -90,34 +88,22 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	return
 }
 
-func NewClient(config string) (*Client, error) {
-	// Read combaine.yaml
-	data, err := ioutil.ReadFile(config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse combaine.yaml
-	var m combainerConfig
-	err = goyaml.Unmarshal(data, &m)
-	if err != nil {
-		return nil, err
-	}
-
+func NewClient(config configs.CombainerConfig) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
-	hosts := m.Combainer.LockServerCfg.Hosts
-	dls, err := NewLockServer(strings.Join(hosts, ","))
+	// TBD: It's better to pass config as is of create lockserver outside of client
+	dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
 	if err != nil {
 		return nil, err
 	}
 
-	cloudHosts, err := GetHosts(m.Combainer.Main.Http_hand, m.Combainer.Main.CloudHosts)
+	// Get list of Combaine hosts
+	cloudHosts, err := GetHosts(config.MainSection.Http_hand, config.MainSection.CloudGroup)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Client{
-		Main:       m.Combainer.Main,
-		LSCfg:      m.Combainer.LockServerCfg,
+		Config:     config,
 		DLS:        *dls,
 		lockname:   "",
 		cloudHosts: cloudHosts,
@@ -141,27 +127,22 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		wholeTime   time.Duration
 	)
 
-	res, err := loadParsingConfig(cl.lockname)
+	parsingConfig, err := loadParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
 	}
 
-	if res.MinimumPeriod > 0 {
-		cl.Main.MinimumPeriod = res.MinimumPeriod
+	if parsingConfig.IterationDuration > 0 {
+		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
 	}
 
-	var metahost string
-	if len(res.Metahost) != 0 {
-		metahost = res.Metahost
-	} else {
-		metahost = res.Groups[0]
-	}
-	LogInfo("Metahost %s", metahost)
+	LogInfo("Updating config: group %s, metahost %s",
+		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 	// Make list of hosts
 	var hosts []string
-	for _, item := range res.Groups {
-		if hosts_for_group, err := GetHosts(cl.Main.Http_hand, item); err != nil {
+	for _, item := range parsingConfig.Groups {
+		if hosts_for_group, err := GetHosts(cl.Config.MainSection.Http_hand, item); err != nil {
 			LogInfo("Item %s, err %s", item, err)
 		} else {
 			hosts = append(hosts, hosts_for_group...)
@@ -173,26 +154,24 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	// host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
 		p_tasks = append(p_tasks, tasks.ParsingTask{
-			CommonTask: tasks.EmptyCommonTask,
-			Host:       host,
-			Config:     cl.lockname,
-			Group:      res.Groups[0],
-			Metahost:   metahost,
+			CommonTask:        tasks.EmptyCommonTask,
+			Host:              host,
+			ParsingConfigName: cl.lockname,
+			ParsingConfig:     parsingConfig,
 		})
 	}
 
 	//groupname, config_name, agg_config_name, previous_time, current_time
-	for _, cfg := range res.AggConfigs {
+	for _, cfg := range parsingConfig.AggConfigs {
 		agg_tasks = append(agg_tasks, tasks.AggregationTask{
-			CommonTask: tasks.EmptyCommonTask,
-			Config:     cfg,
-			PConfig:    cl.lockname,
-			Group:      res.Groups[0],
-			Metahost:   metahost,
+			CommonTask:        tasks.EmptyCommonTask,
+			Config:            cfg,
+			ParsingConfigName: cl.lockname,
+			ParsingConfig:     parsingConfig,
 		})
 	}
 
-	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Main.MinimumPeriod)
+	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Config.MainSection.IterationDuration)
 
 	sp := sessionParams{
 		ParsingTime: parsingTime,
@@ -443,9 +422,9 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
-			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.Group, res.Err())
+			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.ParsingConfig.GetGroup(), res.Err())
 		} else {
-			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.Group)
+			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.ParsingConfig.GetGroup())
 		}
 		cl.clientStats.AddSuccess()
 	}
@@ -459,7 +438,7 @@ func (cl *Client) getRandomHost() string {
 // Private API
 func (cl *Client) acquireLock() chan bool {
 	for _, i := range getParsings() {
-		lockname := fmt.Sprintf("/%s/%s", cl.LSCfg.Id, i)
+		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
 		poller := cl.DLS.AcquireLock(lockname)
 		if poller != nil {
 			cl.lockname = i

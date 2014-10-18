@@ -2,6 +2,8 @@ package tasks
 
 import (
 	"fmt"
+
+	"github.com/noxiouz/Combaine/common/configs"
 )
 
 type CommonTask struct {
@@ -19,10 +21,10 @@ var (
 
 type ParsingTask struct {
 	CommonTask
-	Host     string
-	Config   string
-	Group    string
-	Metahost string
+	Host               string
+	ParsingConfigName  string
+	ParsingConfig      configs.ParsingConfig
+	AggregationConfigs map[string]configs.AggregationConfig
 }
 
 func (t *ParsingTask) String() string {
@@ -31,8 +33,8 @@ func (t *ParsingTask) String() string {
 
 type AggregationTask struct {
 	CommonTask
-	Config   string
-	PConfig  string
-	Group    string
-	Metahost string
+	Config            string
+	ParsingConfigName string
+	ParsingConfig     configs.ParsingConfig
+	AggregationConfig configs.AggregationConfig
 }

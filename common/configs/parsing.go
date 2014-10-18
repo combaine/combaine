@@ -1,5 +1,11 @@
 package configs
 
+const (
+	// Special parser name that allows to avoid
+	// parser call
+	ParserSkipValue = "NullParser"
+)
+
 type ParsingConfig struct {
 	// List of host groups
 	// MUST consist of 1 value now.
@@ -15,5 +21,21 @@ type ParsingConfig struct {
 	// Overrides name of host group
 	Metahost string `yaml:"metahost"`
 	// Set True to skip putting data into DataBase
-	Raw bool `yaml:"raw"`
+	Raw         bool `yaml:"raw"`
+	MainSection `yaml:"Combainer"`
+}
+
+func (p *ParsingConfig) GetGroup() string {
+	return p.Groups[0]
+}
+
+func (p *ParsingConfig) GetMetahost() string {
+	if p.Metahost != "" {
+		return p.Metahost
+	}
+	return p.GetGroup()
+}
+
+func (p *ParsingConfig) NeedToSkipParsingStage() bool {
+	return p.Parser == ParserSkipValue || p.Parser == ""
 }

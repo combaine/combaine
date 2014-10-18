@@ -71,6 +71,12 @@ def split_hosts_by_dc(http_hand_url, groupname):
     yield host_dict
 
 
+# type AggregationTask struct {
+#     CommonTask
+#     Config            string
+#     ParsingConfig     configs.ParsingConfig
+#     AggregationConfig configs.AggregationConfig
+# }
 def aggreagate(request, response):
     raw = yield request.read()
     task = msgpack.unpackb(raw)
