@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
 )
 
@@ -56,7 +56,7 @@ func NewHttpFetcher(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
 	return
 }
 
-func (t *HttpFetcher) Fetch(task *common.FetcherTask) (res []byte, err error) {
+func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 	url := fmt.Sprintf("http://%s:%d%s",
 		task.Target,
 		t.port,

@@ -10,6 +10,7 @@ import (
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/servicecacher"
+	"github.com/noxiouz/Combaine/common/tasks"
 )
 
 var (
@@ -58,7 +59,7 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 }
 
 // Main parsing function
-func Parsing(task common.ParsingTask) (err error) {
+func Parsing(task tasks.ParsingTask) (err error) {
 	log, err := LazyLoggerInitialization()
 	if err != nil {
 		return
@@ -118,11 +119,9 @@ func Parsing(task common.ParsingTask) (err error) {
 
 	// Per host
 
-	fetcherTask := common.FetcherTask{
-		Id:        task.Id,
-		Target:    task.Host,
-		StartTime: task.PrevTime,
-		EndTime:   task.CurrTime,
+	fetcherTask := tasks.FetcherTask{
+		Target:     task.Host,
+		CommonTask: task.CommonTask,
 	}
 
 	blob, err := fetcher.Fetch(&fetcherTask)

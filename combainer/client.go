@@ -15,6 +15,7 @@ import (
 	"launchpad.net/goyaml"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/tasks"
 )
 
 type combainerMainCfg struct {
@@ -40,8 +41,8 @@ type combainerConfig struct {
 type sessionParams struct {
 	ParsingTime time.Duration
 	WholeTime   time.Duration
-	PTasks      []common.ParsingTask
-	AggTasks    []common.AggregationTask
+	PTasks      []tasks.ParsingTask
+	AggTasks    []tasks.AggregationTask
 }
 
 type clientStats struct {
@@ -135,8 +136,8 @@ func (cl *Client) Close() {
 func (cl *Client) UpdateSessionParams(config string) (err error) {
 	LogInfo("Updating session parametrs")
 	// tasks
-	var p_tasks []common.ParsingTask
-	var agg_tasks []common.AggregationTask
+	var p_tasks []tasks.ParsingTask
+	var agg_tasks []tasks.AggregationTask
 
 	// timeouts
 	var parsingTime time.Duration
@@ -173,27 +174,23 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	// Tasks for parsing
 	//host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
-		p_tasks = append(p_tasks, common.ParsingTask{
-			Host:     host,
-			Config:   cl.lockname,
-			Group:    res.Groups[0],
-			PrevTime: -1,
-			CurrTime: -1,
-			Id:       "",
-			Metahost: metahost,
+		p_tasks = append(p_tasks, tasks.ParsingTask{
+			CommonTask: tasks.EmptyCommonTask,
+			Host:       host,
+			Config:     cl.lockname,
+			Group:      res.Groups[0],
+			Metahost:   metahost,
 		})
 	}
 
 	//groupname, config_name, agg_config_name, previous_time, current_time
 	for _, cfg := range res.AggConfigs {
-		agg_tasks = append(agg_tasks, common.AggregationTask{
-			Config:   cfg,
-			PConfig:  cl.lockname,
-			Group:    res.Groups[0],
-			PrevTime: -1,
-			CurrTime: -1,
-			Id:       "",
-			Metahost: metahost,
+		agg_tasks = append(agg_tasks, tasks.AggregationTask{
+			CommonTask: tasks.EmptyCommonTask,
+			Config:     cfg,
+			PConfig:    cl.lockname,
+			Group:      res.Groups[0],
+			Metahost:   metahost,
 		})
 	}
 
@@ -367,7 +364,7 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 
 //------------------
 
-func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
@@ -414,7 +411,7 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	}
 }
 
-func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
