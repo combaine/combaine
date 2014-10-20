@@ -12,37 +12,6 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-// type ParsingTask struct {
-// 	CommonTask
-// 	// Hostname of target
-// 	Host string
-// 	// Name of handled parsing config
-// 	ParsingConfigName string
-// 	// Content of the current parsing config
-// 	ParsingConfig configs.ParsingConfig
-// 	// Content of aggreagtion configs
-// 	// related to the current parsing config
-// 	AggregationConfigs map[string]configs.AggregationConfig
-// }
-
-// type ParsingConfig struct {
-// 	// List of host groups
-// 	// MUST consist of 1 value now.
-// 	Groups []string `yaml:"groups"`
-// 	// List of names of Aggregation configs
-// 	AggConfigs []string `yaml:"agg_configs"`
-// 	// Name of parsing function, which is used to parse data
-// 	// Set it `NullParser` or leave empty
-// 	// to skip the parsing of data.
-// 	Parser string `yaml:"parser"`
-// 	// Overrides the same section in combainer.yaml
-// 	DataFetcher PluginConfig `yaml:"DataFetcher"`
-// 	// Overrides name of host group
-// 	Metahost string `yaml:"metahost"`
-// 	// Set True to skip putting data into DataBase
-// 	Raw         bool `yaml:"raw"`
-// 	MainSection `yaml:"Combainer"`
-// }
 var (
 	mh codec.MsgpackHandle
 	b  []byte
@@ -53,11 +22,18 @@ func main() {
 	const (
 		FIXTURE_PATH = "tests/fixtures"
 
-		HOST              = "TESTHOST"
-		PARSINGCONFIGNAME = "PARSINGCONFIGNAME"
-		PARSER            = "PARSER"
-		METAHOST          = "METAHOST"
+		HOST                  = "TESTHOST"
+		PARSINGCONFIGNAME     = "PARSINGCONFIGNAME"
+		AGGREGATIONCONFIGNAME = "AGGREGATIONCONFIGNAME"
+		PARSER                = "PARSER"
+		METAHOST              = "METAHOST"
 	)
+
+	cm_task := tasks.CommonTask{
+		Id:       "UNIQID",
+		PrevTime: 101,
+		CurrTime: 120,
+	}
 
 	pwd, _ := os.Getwd()
 	fixture_path := path.Join(pwd, FIXTURE_PATH)
@@ -74,28 +50,65 @@ func main() {
 		Metahost:   METAHOST,
 	}
 
+	aggregation_config := configs.AggregationConfig{
+		Senders: map[string]configs.PluginConfig{
+			"A": {
+				"type": "juggler",
+				"Args": 1,
+			},
+		},
+		Data: map[string]configs.PluginConfig{
+			"20x": {
+				"type":  "summa",
+				"Query": "SELECT COUNT FROM *",
+			},
+		},
+	}
+
 	parsing_task := tasks.ParsingTask{
+		CommonTask:        cm_task,
 		Host:              HOST,
 		ParsingConfigName: PARSINGCONFIGNAME,
 		ParsingConfig:     parsing_config,
 	}
 
-	pc_js, err := json.Marshal(parsing_task)
-	if err != nil {
-		log.Fatal(err)
+	aggregation_task := tasks.AggregationTask{
+		CommonTask:        cm_task,
+		Config:            AGGREGATIONCONFIGNAME,
+		ParsingConfigName: PARSINGCONFIGNAME,
+		ParsingConfig:     parsing_config,
+		AggregationConfig: aggregation_config,
 	}
 
-	var pc_msg []byte
-	if err := codec.NewEncoderBytes(&pc_msg, h).Encode(parsing_task); err != nil {
-		log.Fatal(err)
-	}
+	gen := func(input interface{}) (js, msg []byte) {
+		if err := codec.NewEncoderBytes(&msg, h).Encode(input); err != nil {
+			log.Fatal(err)
+		}
 
-	log.Println("Generating parsing_config json fixture...")
-	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_json_parsing_task"), pc_js, 0777); err != nil {
+		js, err := json.Marshal(input)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	pc_js, pc_msg := gen(parsing_task)
+	agg_js, agg_msg := gen(aggregation_task)
+
+	log.Println("Generating parsing_json fixture...")
+	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_json_parsing_task"), pc_js, 0666); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Generating parsing_config msgpack fixture...")
-	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_msgpack_parsing_task"), pc_msg, 0777); err != nil {
+	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_msgpack_parsing_task"), pc_msg, 0666); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Generating aggregation_task json fixture...")
+	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_json_aggregation_task"), agg_js, 0666); err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Generating aggregation_task msgpack fixture...")
+	if err := ioutil.WriteFile(path.Join(fixture_path, "fixture_msgpack_aggregation_task"), agg_msg, 0666); err != nil {
 		log.Fatal(err)
 	}
 }
