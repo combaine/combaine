@@ -17,7 +17,7 @@ type ParsingConfig struct {
 	// to skip the parsing of data.
 	Parser string `yaml:"parser"`
 	// Overrides the same section in combainer.yaml
-	DataFetcher PluginConfig `yaml:"DataFetcher"`
+	DataFetcher PluginConfig `yaml:"DataFetcher,omitempty"`
 	// Overrides name of host group
 	Metahost string `yaml:"metahost"`
 	// Set True to skip putting data into DataBase

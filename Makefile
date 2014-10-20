@@ -42,5 +42,8 @@ agave_: deps
 graphite_: deps
 	go build -o $(BUILD_DIR)/main_graphite $(MAIN_FILES_DIR)/graphite_main.go
 
+fixture: deps
+	go run tests/fixtures/gen_fixtures.go
+
 clean::
 	rm -rf $(BUILD_DIR) || true

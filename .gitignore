@@ -26,6 +26,8 @@ pip-log.txt
 .tox
 nosetests.xml
 
+tests/fixtures/fixture_*
+
 # Translations
 *.mo
 
