@@ -1,3 +1,4 @@
+.PHONY: clean
 
 # pwd
 CURDIR:=$(shell pwd)
@@ -13,7 +14,7 @@ BUILD_DIR=$(CURDIR)/build
 export GOPATH=$(CURDIR)
 
 
-all: combainer_ agave_ cfgmanager_ parsing_ graphite_
+all: deps combainer_ agave_ cfgmanager_ parsing_ graphite_
 
 deps:
 	go get launchpad.net/gozk/zookeeper
@@ -26,19 +27,19 @@ deps:
 	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
 
-combainer_:
+combainer_: deps
 	go build -o $(BUILD_DIR)/main_combainer $(MAIN_FILES_DIR)/combainer_main.go
 
-parsing_:
+parsing_: deps
 	go build -o $(BUILD_DIR)/main_parsing-core $(MAIN_FILES_DIR)/parsing_main.go
 
-cfgmanager_:
+cfgmanager_: deps
 	go build -o $(BUILD_DIR)/main_cfgmanager $(MAIN_FILES_DIR)/cfgmanager_main.go
 
-agave_:
+agave_: deps
 	go build -o $(BUILD_DIR)/main_agave $(MAIN_FILES_DIR)/agave_main.go
 
-graphite_:
+graphite_: deps
 	go build -o $(BUILD_DIR)/main_graphite $(MAIN_FILES_DIR)/graphite_main.go
 
 clean::
