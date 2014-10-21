@@ -105,3 +105,8 @@ class ParsingTask(object):
             return {}
         else:
             return map_constructor(agg_cfgs, AggregationConfig)
+
+
+class ParserTask(object):
+    def __init__(self, packed_task):
+        self.tid, self.parser_name, self.data = msgpack.unpackb(packed_task)

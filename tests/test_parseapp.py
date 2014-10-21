@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2012+ Tyurin Anton noxiouz@yandex.ru
@@ -19,10 +18,16 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from cocaine.worker import Worker
+import msgpack
 
-from combaine.cloud.parsingapp import parse
+from combaine.cloud.parsingapp import apply_parse
+from combaine.cloud.parsingapp import get_logger_adapter
+from combaine.utils.pluginload import Plugins
+from combaine.common import ParserTask
 
-if __name__ == "__main__":
-    W = Worker(disown_timeout=300)
-    W.run({"parse": parse})
+
+def test_apply_parse():
+    pl = Plugins("tests/fixtures/dummy", callable)
+    task = ParserTask(msgpack.packb(["myuniqtid", "good", "somedata"]))
+    result = apply_parse(task, pl, get_logger_adapter(task.tid)).get()
+    assert result == [[('A', 1), ('B', 2)]]

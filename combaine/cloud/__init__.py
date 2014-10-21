@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2012+ Tyurin Anton noxiouz@yandex.ru
@@ -18,11 +17,3 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-
-from cocaine.worker import Worker
-
-from combaine.cloud.parsingapp import parse
-
-if __name__ == "__main__":
-    W = Worker(disown_timeout=300)
-    W.run({"parse": parse})
