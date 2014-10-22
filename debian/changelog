@@ -1,3 +1,9 @@
+combaine (0.6.5.4) unstable; urgency=low
+
+  * [Juggler] Fix send_point. Get rid of that damn futures magic 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 22 Oct 2014 15:13:35 +0400
+
 combaine (0.6.5.3) unstable; urgency=low
 
   * [Juggler] Fix that fucking python format

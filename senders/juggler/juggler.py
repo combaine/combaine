@@ -178,23 +178,26 @@ class Juggler(object):
 
         child = name
         yield self.add_check_if_need(child)
-        # Emit event
-        try:
-            futures = list()
-            for jhost in self.juggler_frontend:
+
+        success = False
+        for jhost in self.juggler_frontend:
+            try:
                 params["juggler_frontend"] = jhost
                 url = EMIT_EVENT.format(**params)
                 self.log.info("Send event %s" % url)
-                futures.append(HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS))
+                yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+            except HTTPError as err:
+                self.log.error(str(err))
+                continue
+            else:
+                success = True
+                break
 
-            for future in futures:
-                try:
-                    yield future
-                except HTTPError as err:
-                    self.log.error(repr(err))
-        except Exception as err:
-            self.log.error(repr(err))
-        yield True
+        if success:
+            self.log.info("Event has been sent successfully")
+        else:
+            self.log.info("Event hasn't been sent")
+        yield success
 
     @chain.source
     def add_check_if_need(self, host):
