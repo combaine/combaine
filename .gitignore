@@ -44,3 +44,4 @@ tests/fixtures/fixture_*
 build/*
 pkg/*
 src/*
+reports/
