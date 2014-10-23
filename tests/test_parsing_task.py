@@ -28,6 +28,3 @@ def test_aggregation_task():
     assert aggt.parsing_config.metahost == etalon["ParsingConfig"]["Metahost"]
 
     etalon_items = etalon["AggregationConfig"]["Data"].items()
-    for k, v in aggt.aggregation_config.data.items():
-        assert v.Type == v.config["type"]
-        assert (k, v.config) in etalon_items

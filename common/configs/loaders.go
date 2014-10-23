@@ -26,7 +26,7 @@ func newConfig(path string, inplace interface{}) error {
 		return err
 	}
 
-	err = goyaml.Unmarshal(data, &inplace)
+	err = goyaml.Unmarshal(data, inplace)
 	if err != nil {
 		return err
 	}

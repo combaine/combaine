@@ -17,15 +17,15 @@ COMBAINE_LIB_PATH=/usr/lib/yandex/combaine
 CORE_APPS_PATH=$(COMBAINE_LIB_PATH)/core-apps
 DEB_DESTDIR=$(CURDIR)/debian/tmp/
 
-include $(CURDIR)/Makefile
 
 export GOPATH=$(CURDIR)
 
 %:
 	dh $@ --with python2
 
-
 override_dh_install:
+	make -f file_for_make
+
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)usr/bin/combainer
 
@@ -91,6 +91,7 @@ override_dh_install:
 	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 	install -m664 deploy/manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
 
+	dh_auto_install
 	dh_install
 
 # cleanbuilddir/combaine-plugin-mysql::
