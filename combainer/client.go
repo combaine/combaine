@@ -30,6 +30,7 @@ type clientStats struct {
 }
 
 type Client struct {
+	Repository configs.Repository
 	Config     configs.CombainerConfig
 	DLS        LockServer
 	lockname   string
@@ -68,7 +69,7 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	return
 }
 
-func NewClient(config configs.CombainerConfig) (*Client, error) {
+func NewClient(config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
 	// TBD: It's better to pass config as is of create lockserver outside of client
 	dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
@@ -83,6 +84,7 @@ func NewClient(config configs.CombainerConfig) (*Client, error) {
 	}
 
 	return &Client{
+		Repository: repo,
 		Config:     config,
 		DLS:        *dls,
 		lockname:   "",
@@ -107,7 +109,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		wholeTime   time.Duration
 	)
 
-	parsingConfig, err := configs.NewParsingConfig(cl.lockname)
+	parsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
@@ -137,7 +139,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	aggregationConfigs := make(map[string]configs.AggregationConfig)
 	for _, name := range parsingConfig.AggConfigs {
-		content, err := configs.NewAggregationConfig(name)
+		content, err := cl.Repository.GetAggregationConfig(name)
 		if err != nil {
 			// It seems better to throw error here instead of
 			// going data processing on without config
@@ -342,7 +344,6 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	var err error
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
-		// app, err = cocaine.NewService(common.PARSING, host)
 		select {
 		case r := <-Resolve(common.PARSING, host):
 			err = r.Err
@@ -434,7 +435,7 @@ func (cl *Client) getRandomHost() string {
 
 // Private API
 func (cl *Client) acquireLock() chan bool {
-	for _, i := range getParsings() {
+	for _, i := range cl.Repository.ListParsingConfigs() {
 		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
 		poller := cl.DLS.AcquireLock(lockname)
 		if poller != nil {

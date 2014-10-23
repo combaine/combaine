@@ -129,19 +129,3 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	}
 	return hosts, nil
 }
-
-// // Return listing of configuration files
-// func getConfigs(path string) []string {
-// 	var s []string
-// 	files, _ := ioutil.ReadDir(path)
-// 	for _, f := range files {
-// 		if strings.HasSuffix(f.Name(), ".json") || strings.HasSuffix(f.Name(), ".yaml") {
-// 			s = append(s, f.Name())
-// 		}
-// 	}
-// 	return s
-// }
-
-// func getParsings() []string {
-// 	return getConfigs(CONFIGS_PARSING_PATH)
-// }
