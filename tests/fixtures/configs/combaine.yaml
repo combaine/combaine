@@ -1,0 +1,18 @@
+Combainer:
+  Lockserver:
+    app_id: Combaine
+    host: ['ZK1:2181', 'ZK2:2181']
+    name: combainer_lock
+    timeout: 5
+    type: Zookeeper
+  Main:
+    HTTP_HAND: "http://localhost:8080/?group=%s"
+    MAXIMUM_PERIOD: 40
+    MAX_ATTEMPS: 2
+    MAX_RESP_WAIT_TIME: 50
+    MINIMUM_PERIOD: 20
+    cloud: combaine-cloud
+cloud_config:
+  DataFetcher: {logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
+    type: timetail}
+  agave_hosts: ["agave01g.media.yandex.net", "agave01e.media.yandex.net"]

@@ -1,0 +1,33 @@
+senders:
+  A:
+    type: agave
+    items: [20x, 30x, 50/20x]
+    graph_name: http_ok
+    graph_template: http_ok
+  D:
+    type: graphite
+    cluster: noxiouzcombaine
+  B:
+    type: agave
+    items: [50and20x]
+    graph_name: http_50x
+    graph_template: http_50x
+  C:
+    type: juggler
+    Host: "Combaine-test"
+    Aggregator: "logic_or"
+    Method: "SMS"
+    INFO: ["${50and20x}>0", "${20x}>-100000"]
+    WARN: ["${50and20x}>1", "${50and20x}<0"]
+    CRIT: ["${50and20x}>10", "{50and20x}<0"]
+    description: "Some very important check"
+    checkname: "checkname"
+data:
+  20x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 200 AND http_status < 300
+      AND TIME= %%,
+      perHost: 1,
+      type: summa}
+  30x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 300 AND http_status < 400,
+    type: summa}
+  50x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 500 AND TIME = %%,
+    type: summa}

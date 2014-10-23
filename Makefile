@@ -11,7 +11,7 @@ PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz
 # build dir
 BUILD_DIR=$(CURDIR)/build
 
-export GOPATH=$(CURDIR)
+#export GOPATH=$(CURDIR)
 
 
 all: deps combainer_ agave_ cfgmanager_ parsing_ graphite_
@@ -47,3 +47,8 @@ fixture: deps
 
 clean::
 	rm -rf $(BUILD_DIR) || true
+
+test:
+	go get github.com/stretchr/testify/assert
+	go get github.com/smartystreets/goconvey
+	./run_test.sh

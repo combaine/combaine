@@ -6,14 +6,10 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"launchpad.net/goyaml"
-
-	"github.com/noxiouz/Combaine/common/configs"
 )
 
 const (
@@ -134,53 +130,18 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	return hosts, nil
 }
 
-// Return listing of configuration files
-func getConfigs(path string) []string {
-	var s []string
-	files, _ := ioutil.ReadDir(path)
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".json") || strings.HasSuffix(f.Name(), ".yaml") {
-			s = append(s, f.Name())
-		}
-	}
-	return s
-}
+// // Return listing of configuration files
+// func getConfigs(path string) []string {
+// 	var s []string
+// 	files, _ := ioutil.ReadDir(path)
+// 	for _, f := range files {
+// 		if strings.HasSuffix(f.Name(), ".json") || strings.HasSuffix(f.Name(), ".yaml") {
+// 			s = append(s, f.Name())
+// 		}
+// 	}
+// 	return s
+// }
 
-func getParsings() []string {
-	return getConfigs(CONFIGS_PARSING_PATH)
-}
-
-// Parse config
-func loadParsingConfig(name string) (res configs.ParsingConfig, err error) {
-	path := path.Join(CONFIGS_PARSING_PATH, name)
-	LogInfo("Read %s", path)
-
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return res, err
-	}
-
-	err = goyaml.Unmarshal(data, &res)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
-}
-
-func loadAggregationConfig(name string) (res configs.AggregationConfig, error error) {
-	path := path.Join(CONFIGS_AGGREGATION_PATH, name)
-	LogInfo("Read %s", path)
-
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return res, err
-	}
-
-	err = goyaml.Unmarshal(data, &res)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
-}
+// func getParsings() []string {
+// 	return getConfigs(CONFIGS_PARSING_PATH)
+// }

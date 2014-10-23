@@ -107,7 +107,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		wholeTime   time.Duration
 	)
 
-	parsingConfig, err := loadParsingConfig(cl.lockname)
+	parsingConfig, err := configs.NewParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
@@ -137,7 +137,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	aggregationConfigs := make(map[string]configs.AggregationConfig)
 	for _, name := range parsingConfig.AggConfigs {
-		content, err := loadAggregationConfig(name)
+		content, err := configs.NewAggregationConfig(name)
 		if err != nil {
 			// It seems better to throw error here instead of
 			// going data processing on without config

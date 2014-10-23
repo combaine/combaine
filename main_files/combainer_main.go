@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"log"
 	"time"
 
@@ -40,15 +39,10 @@ func init() {
 
 func Work() {
 	log.Println("Creating new client")
-	data, err := ioutil.ReadFile(CombainerConfigPath)
-	if err != nil {
-		log.Panicf("Unable to read combaine.yaml: %s", err)
-	}
-
-	var config configs.CombainerConfig
-	if err = goyaml.Unmarshal(data, &config); err != nil {
-		log.Panicf("Unable to decode combaine.yaml: %s", err)
-	}
+	// config, err := configs.NewCombaineConfig(COMBAINER_PATH)
+	// if err = goyaml.Unmarshal(data, &config); err != nil {
+	// 	log.Panicf("Unable to decode combaine.yaml: %s", err)
+	// }
 
 	cl, err := combainer.NewClient(config)
 	if err != nil {
