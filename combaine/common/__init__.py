@@ -60,11 +60,11 @@ class AggregationConfig(object):
 
     @property
     def senders(self):
-        return map_constructor(self.cfg.get("Senders"), SenderItem)
+        return self.cfg.get("Senders", {})
 
     @property
     def data(self):
-        return map_constructor(self.cfg.get("Data"), DataItem)
+        return self.cfg.get("Data", {})
 
 
 class AggregationTask(object):
@@ -76,6 +76,14 @@ class AggregationTask(object):
         return self.task["Id"]
 
     @property
+    def CurrTime(self):
+        return self.task["CurrTime"]
+
+    @property
+    def PrevTime(self):
+        return self.task["PrevTime"]
+
+    @property
     def parsing_config(self):
         pr = ParsingConfig(self.task["ParsingConfig"])
         return pr
@@ -84,6 +92,14 @@ class AggregationTask(object):
     def aggregation_config(self):
         agg = AggregationConfig(self.task["AggregationConfig"])
         return agg
+
+    @property
+    def parsing_config_name(self):
+        return self.task['ParsingConfigName']
+
+    @property
+    def aggregation_config_name(self):
+        return self.task['Config']
 
 
 class ParsingTask(object):
