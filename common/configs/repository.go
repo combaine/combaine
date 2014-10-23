@@ -46,13 +46,17 @@ type filesystemRepository struct {
 	combainer        *CombainerConfig
 }
 
+func (f *filesystemRepository) genNameFromFilePath(filepath string) string {
+	_, name := path.Split(filepath)
+	return strings.TrimSuffix(name, path.Ext(name))
+}
+
 func (f *filesystemRepository) initialize() error {
 	// load parsing configs
 	files, _ := ioutil.ReadDir(f.parsingpath)
 	for _, file := range files {
 		if isConfig(file.Name()) {
-			_, name := path.Split(file.Name())
-			f.loadParsingConfig(name)
+			f.loadParsingConfig(file.Name())
 		}
 	}
 
@@ -60,8 +64,7 @@ func (f *filesystemRepository) initialize() error {
 	files, _ = ioutil.ReadDir(f.aggregationpath)
 	for _, file := range files {
 		if isConfig(file.Name()) {
-			_, name := path.Split(file.Name())
-			f.loadAggregationConfig(name)
+			f.loadAggregationConfig(file.Name())
 		}
 	}
 
@@ -105,16 +108,17 @@ func (f *filesystemRepository) GetCombainerConfig() (cfg CombainerConfig, err er
 
 func (f *filesystemRepository) ListParsingConfigs() (list []string) {
 	f.Lock()
-	f.Unlock()
+	defer f.Unlock()
 	for k, _ := range f.parsingconfigs {
 		list = append(list, k)
 	}
+
 	return list
 }
 
 func (f *filesystemRepository) ListAggregationConfigs() (list []string) {
 	f.Lock()
-	f.Unlock()
+	defer f.Unlock()
 	for k, _ := range f.aggregateconfigs {
 		list = append(list, k)
 	}
@@ -129,7 +133,7 @@ func (f *filesystemRepository) loadParsingConfig(name string) error {
 		return err
 	}
 
-	f.parsingconfigs[name] = config
+	f.parsingconfigs[f.genNameFromFilePath(name)] = config
 	return nil
 }
 
@@ -141,7 +145,7 @@ func (f *filesystemRepository) loadAggregationConfig(name string) error {
 		return err
 	}
 
-	f.aggregateconfigs[name] = config
+	f.aggregateconfigs[f.genNameFromFilePath(name)] = config
 	return nil
 }
 

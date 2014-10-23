@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/howeyc/fsnotify"
+	// "github.com/howeyc/fsnotify"
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
@@ -194,22 +194,6 @@ func (cl *Client) Dispatch() {
 		return
 	}
 
-	// Create inotify filewatcher
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		LogErr("Unable to create filewatcher %s", err)
-		return
-	}
-	defer watcher.Close()
-
-	// Start watching configuration file
-	configFile := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname)
-	err = watcher.Watch(configFile)
-	if err != nil {
-		LogErr("Unable to watch file %s %s", configFile, err)
-		return
-	}
-
 	_observer.RegisterClient(cl, cl.lockname)
 	defer _observer.UnregisterClient(cl.lockname)
 
@@ -275,39 +259,6 @@ func (cl *Client) Dispatch() {
 
 		// Wait for next iteration
 		case <-time.After(deadline.Sub(time.Now())):
-
-		// Handle possible configuration updates
-		case ev := <-watcher.Event:
-			// It looks like a bug, but opening file in vim emits rename event
-			if ev.IsModify() || ev.IsRename() {
-
-				// Does file exist with the same name still?
-				if ev.Name != configFile {
-					LogErr("%s File has been renamed to %s. Drop lock %s", uniqueID, ev.Name, cl.lockname)
-					return
-				}
-
-				LogInfo("%s %s has been changed. Updating configuration", uniqueID, cl.lockname)
-				if err = cl.UpdateSessionParams(cl.lockname); err != nil {
-					LogErr("%s Unable to update configuration %s. Drop lock %s", uniqueID, err, cl.lockname)
-					return
-				}
-				LogInfo("%s Configuration %s has been updated successfully", uniqueID, cl.lockname)
-
-				<-time.After(deadline.Sub(time.Now()))
-
-			} else if ev.IsDelete() {
-				LogInfo("%s %s has been removed. Drop lock", uniqueID, cl.lockname)
-				return
-			} else if ev.IsCreate() {
-				LogErr("%s Assertation error. Config %s has been created", uniqueID, cl.lockname)
-				return
-			}
-
-		// Handle configuration watcher error
-		case err = <-watcher.Error:
-			LogErr("%s Watcher error %s. Drop lock %s", uniqueID, err, cl.lockname)
-			return
 		}
 		LogInfo("%s Go to the next iteration", uniqueID)
 	}
