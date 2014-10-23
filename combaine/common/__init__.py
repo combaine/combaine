@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2012+ Tyurin Anton noxiouz@yandex.ru
+# Copyright (c) 2014+ Tyurin Anton noxiouz@yandex.ru
 #
 # This file is part of Combaine.
 #

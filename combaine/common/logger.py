@@ -17,3 +17,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
+
+import logging
+
+from cocaine.logging.hanlders import CocaineHandler
+
+l = logging.getLogger("combaine")
+ch = CocaineHandler()
+formatter = logging.Formatter("%(tid)s %(message)s")
+ch.setFormatter(formatter)
+ch.setLevel(logging.DEBUG)
+l.addHandler(ch)
+
+
+def get_logger_adapter(tid):
+    return logging.LoggerAdapter(l, {"tid": tid})

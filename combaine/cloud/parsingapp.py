@@ -18,31 +18,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import logging
+
 import os
 
 import msgpack
 
-from cocaine.logging.hanlders import CocaineHandler
 from cocaine.futures import chain
 
+from combaine.common.logger import get_logger_adapter
 from combaine.utils.pluginload import UnavailablePluginError
 from combaine.utils.pluginload import Plugins
 from combaine.common import ParserTask
 
-l = logging.getLogger("combaine")
-ch = CocaineHandler()
-formatter = logging.Formatter("%(tid)s %(message)s")
-ch.setFormatter(formatter)
-ch.setLevel(logging.DEBUG)
-l.addHandler(ch)
 
 PATH = '/usr/lib/yandex/combaine/parsers'
 PLUGINS = Plugins(os.environ.get('PARSERS_PATH') or PATH, callable)
-
-
-def get_logger_adapter(tid):
-    return logging.LoggerAdapter(l, {"tid": tid})
 
 
 @chain.concurrent
