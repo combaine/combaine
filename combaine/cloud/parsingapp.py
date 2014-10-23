@@ -31,8 +31,8 @@ from combaine.utils.pluginload import Plugins
 from combaine.common import ParserTask
 
 
-PATH = '/usr/lib/yandex/combaine/parsers'
-PLUGINS = Plugins(os.environ.get('PARSERS_PATH') or PATH, callable)
+PATH = os.environ.get('PARSERS_PATH') or '/usr/lib/yandex/combaine/parsers'
+PLUGINS = Plugins(PATH, get_logger_adapter("CORE"), callable)
 
 
 @chain.concurrent

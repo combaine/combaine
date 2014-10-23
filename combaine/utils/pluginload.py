@@ -19,6 +19,7 @@
 #
 
 import imp
+import sys
 import os
 
 
@@ -29,10 +30,15 @@ class UnavailablePluginError(Exception):
 class Plugins(object):
     _EXTS = [ext[0] for ext in imp.get_suffixes()]
 
-    def __init__(self, path, extra_filter=None):
+    def __init__(self, path, logger, extra_filter=None):
+        # to allow relative imports from parsers
+        # such as splitlines decorator
+        if path not in sys.path:
+            sys.path.insert(0, path)
         self.path = path  # search path for pluigns
         self.available = None
         self.extra_filter = extra_filter
+        self.logger = logger
 
     def get_plugin(self, name):
         if self.available is None:
@@ -57,7 +63,8 @@ class Plugins(object):
         for module in modules:
             try:
                 fp, path, descr = imp.find_module(module, [self.path])
-            except ImportError:
+            except ImportError as err:
+                self.logger.error("ImportError %s", err)
                 continue
 
             try:
@@ -67,8 +74,8 @@ class Plugins(object):
                     candidate = getattr(_temp, item)
                     if not self.extra_filter or self.extra_filter(candidate):
                         all_plugins[item] = candidate
-            except (ImportError, Exception):
-                pass
+            except (ImportError, Exception) as err:
+                self.logger.error("unable to load module %s", err)
             finally:
                 if fp:
                     fp.close()

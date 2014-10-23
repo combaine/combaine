@@ -90,11 +90,11 @@ def aggreagate(request, response):
     task = AggregationTask(raw)
     logger = get_logger_adapter(task.Id)
     logger.info("Task has started")
-    ID = task["Id"]
-    METAHOST = task["Metahost"]
+    METAHOST = task.parsing_config.metahost
+    GROUP = task.parsing_config.cfg['Groups'][0]
 
     # read aggregation config passed to us
-    aggcfg = task.aggregation_config()
+    aggcfg = task.aggregation_config
     logger.debug("aggregation config %s", aggcfg)
 
     # read combaine.yaml to get and decode it to get HTTP_HAND
@@ -102,7 +102,7 @@ def aggreagate(request, response):
     # with the task
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
-    hosts = yield split_hosts_by_dc(httphand, task['Group'])
+    hosts = yield split_hosts_by_dc(httphand, GROUP)
     logger.info("%s", hosts)
     # repack hosts by subgroups by dc
     # For example:
@@ -158,25 +158,28 @@ def aggreagate(request, response):
         result[name][METAHOST] = res
 
     # Send data to various senders
-    for name, item in aggcfg.get('senders', {}).iteritems():
-        try:
-            sender_type = item.get("type")
-            if sender_type is None:
-                logger.error("unable to detect sender type: %s", name)
-                continue
+    try:
+        for name, item in aggcfg.senders.iteritems():
+            try:
+                sender_type = item.get("type")
+                if sender_type is None:
+                    logger.error("unable to detect sender type: %s", name)
+                    continue
 
-            logger.info("Send to %s", sender_type)
-            s = Service(sender_type)
-        except Exception as err:
-            logger.error(err)
-        else:
-            res = yield s.enqueue("send", msgpack.packb({"Config": item,
-                                                         "Data": result,
-                                                         "Id": ID}))
-            logger.info("res for %s is %s", sender_type, res)
+                logger.info("Send to %s", sender_type)
+                s = Service(sender_type)
+            except Exception as err:
+                logger.error(err)
+            else:
+                res = yield s.enqueue("send", msgpack.packb({"Config": item,
+                                                             "Data": result,
+                                                             "Id": task.Id}))
+                logger.info("res for %s is %s", sender_type, res)
+    except Exception as err:
+        logger.exception("%s %s %s", err, aggcfg, aggcfg.senders)
 
     logger.info("Result %s", result)
-    response.write("Done %s", task.Id)
+    response.write("Done %s" % task.Id)
     response.close()
 
 

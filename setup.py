@@ -49,6 +49,7 @@ setuptools.setup(
     license=open('./LICENSE').read(),
     namespace_packages=['combaine'],
     packages=['combaine',
+              'combaine.cloud',
               'combaine.common',
               'combaine.utils'],
     install_requires=open('./requirements.txt').read(),
