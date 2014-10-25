@@ -27,7 +27,7 @@ from combaine.common import ParserTask
 
 
 def test_apply_parse():
-    pl = Plugins("tests/fixtures/dummy", callable)
+    pl = Plugins("tests/fixtures/dummy", extra_filter=callable)
     task = ParserTask(msgpack.packb(["myuniqtid", "good", "somedata"]))
     result = apply_parse(task, pl, get_logger_adapter(task.tid)).get()
     assert result == [[('A', 1), ('B', 2)]]

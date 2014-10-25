@@ -22,6 +22,7 @@ import imp
 import sys
 import os
 
+from combaine.common.logger import get_logger_adapter
 
 class UnavailablePluginError(Exception):
     pass
@@ -30,7 +31,7 @@ class UnavailablePluginError(Exception):
 class Plugins(object):
     _EXTS = [ext[0] for ext in imp.get_suffixes()]
 
-    def __init__(self, path, logger, extra_filter=None):
+    def __init__(self, path, logger=None, extra_filter=None):
         # to allow relative imports from parsers
         # such as splitlines decorator
         if path not in sys.path:
@@ -38,7 +39,7 @@ class Plugins(object):
         self.path = path  # search path for pluigns
         self.available = None
         self.extra_filter = extra_filter
-        self.logger = logger
+        self.logger = logger or get_logger_adapter("CORE")
 
     def get_plugin(self, name):
         if self.available is None:

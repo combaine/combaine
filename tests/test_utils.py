@@ -26,7 +26,7 @@ from nose import tools
 
 
 def test_plugin():
-    pl = pluginload.Plugins("tests/fixtures/dummy", callable)
+    pl = pluginload.Plugins("tests/fixtures/dummy", extra_filter=callable)
     assert pl._is_plugin("f.py")
     assert not pl._is_plugin("f.g")
     pl.get_plugin("a")
@@ -34,7 +34,7 @@ def test_plugin():
 
 @tools.raises(pluginload.UnavailablePluginError)
 def test_plugin_filter_is_set():
-    pl = pluginload.Plugins("tests/fixtures/dummy", lambda x: False)
+    pl = pluginload.Plugins("tests/fixtures/dummy", extra_filter=lambda x: False)
     pl.get_plugin("a")
 
 
