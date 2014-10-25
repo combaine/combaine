@@ -10,30 +10,25 @@
 #export DH_VERBOSE=1
 #export DEB_VERBOSE_ALL=1
 
-include /usr/share/cdbs/1/rules/debhelper.mk
-
 PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz/Combaine
 BUILD_DIR=$(CURDIR)/build
 
 COMBAINE_LIB_PATH=/usr/lib/yandex/combaine
 CORE_APPS_PATH=$(COMBAINE_LIB_PATH)/core-apps
+DEB_DESTDIR=$(CURDIR)/debian/tmp/
 
-include $(CURDIR)/Makefile
 
 export GOPATH=$(CURDIR)
 
-# Combainer
-pre-build:: deps
+%:
+	dh $@ --with python2
 
+override_dh_install:
+	make -f file_for_make
 
+	install -d $(DEB_DESTDIR)usr/bin
+	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)usr/bin/combainer
 
-install/combainer:: combainer_
-	install -d $(DEB_DESTDIR)/usr/bin
-	install -m755 $(BUILD_DIR)/main_combainer  $(DEB_DESTDIR)/usr/bin/combainer
-
-# Combaine-core
-
-install/combaine-core:: agave_ cfgmanager_ parsing_ graphite_
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 $(BUILD_DIR)/main_parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
@@ -90,21 +85,22 @@ install/combaine-core:: agave_ cfgmanager_ parsing_ graphite_
 	# install -m664 deploy/manifests/manifest_timetail.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail
 	# install -m755 deploy/scripts/deploy_timetail.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/timetail/deploy.sh
 
-# combaine-tuner
-install/combaine-presetting::
+	# combaine-tuner
 	install -d $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m664 deploy/presetting/profile.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m664 deploy/presetting/runlist.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m755 deploy/presetting/presetting.py $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 
-# mysql plugin
-install/combaine-plugin-mysql::
+	# mysql plugin
 	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 	install -m664 deploy/manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
 
-cleanbuilddir/combaine-plugin-mysql::
-	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
+	dh_auto_install
+	dh_install
+
+# cleanbuilddir/combaine-plugin-mysql::
+# 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 
 clean::
 	#rm -rf src/ || true

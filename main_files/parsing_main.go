@@ -7,6 +7,7 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
 
 	_ "github.com/noxiouz/Combaine/fetchers/httpfetcher"
@@ -19,7 +20,7 @@ var logger *cocaine.Logger
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 	raw := <-request.Read()
-	var task common.ParsingTask
+	var task tasks.ParsingTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())

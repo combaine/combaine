@@ -5,7 +5,10 @@ import (
 	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/senders/agave"
 )
 
@@ -14,7 +17,7 @@ var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", 
 var DEFAULT_STEP = 300
 
 type Task struct {
-	Data   common.DataType
+	Data   tasks.DataType
 	Config map[string]interface{}
 }
 
@@ -52,12 +55,12 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if err = res.Extract(&rawCfg); err != nil {
 		return
 	}
-	var combainerCfg common.CombainerConfig
+	var combainerCfg configs.CombainerConfig
 	err = common.Encode(rawCfg, &combainerCfg)
 
 	// Rewrite this shit to struct
 	task.Config["items"] = Items
-	task.Config["hosts"] = combainerCfg.CloudCfg.Agave
+	task.Config["hosts"] = combainerCfg.CloudSection.AgaveHosts
 	task.Config["graph_name"] = string(task.Config["graph_name"].([]uint8))
 	task.Config["graph_template"] = string(task.Config["graph_template"].([]uint8))
 

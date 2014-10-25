@@ -11,6 +11,9 @@ from cocaine.worker import Worker
 from cocaine.services import Service
 from cocaine.asio.engine import asynchronous
 
+from combaine.common.logger import get_logger_adapter
+from combaine.common import AggregationTask
+
 from cocaine.logging import Logger
 
 log = Logger()
@@ -71,27 +74,48 @@ def split_hosts_by_dc(http_hand_url, groupname):
     yield host_dict
 
 
+# type AggregationTask struct {
+#     CommonTask
+#     // Name of the current aggregation config
+#     Config string
+#     // Name of handled parsing config
+#     ParsingConfigName string
+#     // Content of the current parsing config
+#     ParsingConfig configs.ParsingConfig
+#     // Current aggregation config
+#     AggregationConfig configs.AggregationConfig
+# }
 def aggreagate(request, response):
     raw = yield request.read()
-    task = msgpack.unpackb(raw)
-    log.info("Start task %s" % task["Id"])
-    ID = task["Id"]
-    METAHOST = task["Metahost"]
-    raw = yield cfgmanager.enqueue("aggregate", task['Config'])
-    aggcfg = yaml.load(raw)
-    log.debug("%s Config %s" % (ID, aggcfg))
+    task = AggregationTask(raw)
+    logger = get_logger_adapter(task.Id)
+    logger.info("Task has started")
+    METAHOST = task.parsing_config.metahost
+    GROUP = task.parsing_config.cfg['Groups'][0]
+
+    # read aggregation config passed to us
+    aggcfg = task.aggregation_config
+    logger.debug("aggregation config %s", aggcfg)
+
+    # read combaine.yaml to get and decode it to get HTTP_HAND
+    # to get hosts for given group. Seems it's better to pass them
+    # with the task
     commoncfg = yield cfgmanager.enqueue("common", "")
     httphand = yaml.load(commoncfg)['Combainer']['Main']['HTTP_HAND']
-    hosts = yield split_hosts_by_dc(httphand, task['Group'])
-    log.info("%s %s" % (ID, hosts))
-    hosts = dict(("%s-%s" % (METAHOST, subgroup), v) for subgroup, v in hosts.iteritems())
+    hosts = yield split_hosts_by_dc(httphand, GROUP)
+    logger.info("%s", hosts)
+    # repack hosts by subgroups by dc
+    # For example:
+    # {"GROUP-DC": "hostname"} from {"DC": "hostname"}
+    hosts = dict(("%s-%s" % (METAHOST, subgroup), v)
+                 for subgroup, v in hosts.iteritems())
 
     result = {}
 
-    for name, cfg in aggcfg.get('data', {}).iteritems():
+    for name, cfg in aggcfg.data.iteritems():
         mapping = {}
 
-        log.info("Send to %s %s" % (name, cfg['type']))
+        logger.info("Send to %s %s" % (name, cfg['type']))
         app = cache.get(cfg['type'])
         if app is None:
             log.info("Skip %s" % cfg['type'])
@@ -102,10 +126,11 @@ def aggreagate(request, response):
         for subgroup, value in hosts.iteritems():
             subgroup_data = list()
             for host in value:
-                key = "%s;%s;%s;%s;%s" % (host, task['PConfig'],
-                                          task['Config'],
+                # Key specification
+                key = "%s;%s;%s;%s;%s" % (host, task.parsing_config_name,
+                                          task.aggregation_config_name,
                                           name,
-                                          task['CurrTime'])
+                                          task.CurrTime)
                 try:
                     data = yield storage.read("combaine", key)
                     subgroup_data.append(data)
@@ -115,16 +140,13 @@ def aggreagate(request, response):
                         result[name][host] = res
                 except Exception as err:
                     if err.code != 2:
-                        log.error("%s Unable to read from elliptics cache %s %s" %
-                                  (ID, key, repr(err)))
+                        logger.error("unable to read from cache %s %s",
+                                     key, err)
 
             mapping[subgroup] = subgroup_data
             res = yield app.enqueue("aggregate_group",
                                     msgpack.packb((cfg, subgroup_data)))
-            log.info("%s name %s subgroup %s result %s" % (ID,
-                                                           name,
-                                                           subgroup,
-                                                           res))
+            logger.info("name %s subgroup %s result %s", name, subgroup, res)
             result[name][subgroup] = res
 
         all_data = []
@@ -132,24 +154,32 @@ def aggreagate(request, response):
             all_data.extend(v)
         res = yield app.enqueue("aggregate_group",
                                 msgpack.packb((cfg, all_data)))
-        log.info("name %s ALL %s %d" % (name, res, len(all_data)))
+        logger.info("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
-    for name, item in aggcfg.get('senders', {}).iteritems():
-        try:
-            sender_type = item.get("type", "MISSING")
-            log.info("Send to %s" % sender_type)
-            s = Service(sender_type)
-        except Exception as err:
-            log.error(str(err))
-        else:
-            res = yield s.enqueue("send", msgpack.packb({"Config": item,
-                                                         "Data": result,
-                                                         "Id": ID}))
-            log.info("res for %s is %s" % (sender_type, res))
+    # Send data to various senders
+    try:
+        for name, item in aggcfg.senders.iteritems():
+            try:
+                sender_type = item.get("type")
+                if sender_type is None:
+                    logger.error("unable to detect sender type: %s", name)
+                    continue
 
-    log.info("%s Result %s" % (ID, result))
-    response.write("Done %s" % task["Id"])
+                logger.info("Send to %s", sender_type)
+                s = Service(sender_type)
+            except Exception as err:
+                logger.error(err)
+            else:
+                res = yield s.enqueue("send", msgpack.packb({"Config": item,
+                                                             "Data": result,
+                                                             "Id": task.Id}))
+                logger.info("res for %s is %s", sender_type, res)
+    except Exception as err:
+        logger.exception("%s %s %s", err, aggcfg, aggcfg.senders)
+
+    logger.info("Result %s", result)
+    response.write("Done %s" % task.Id)
     response.close()
 
 

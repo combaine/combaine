@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
 )
 
@@ -35,13 +35,13 @@ type Timetail struct {
 	cfg map[string]interface{}
 }
 
-func (t *Timetail) Fetch(task *common.FetcherTask) (res []byte, err error) {
+func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d",
 		task.Target,
 		t.cfg["timetail_port"],
 		t.cfg["timetail_url"],
 		t.cfg["logname"],
-		task.EndTime-task.StartTime)
+		task.CurrTime-task.PrevTime)
 
 	log, err := parsing.LazyLoggerInitialization()
 	if err != nil {

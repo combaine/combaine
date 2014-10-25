@@ -1,47 +1,25 @@
 package combainer
 
 import (
-	"crypto/md5"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/howeyc/fsnotify"
-	"launchpad.net/goyaml"
+	// "github.com/howeyc/fsnotify"
 
 	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/noxiouz/Combaine/common/tasks"
 )
-
-type combainerMainCfg struct {
-	Http_hand     string "HTTP_HAND"
-	MinimumPeriod uint   "MINIMUM_PERIOD"
-	CloudHosts    string "cloud"
-}
-
-type combainerLockserverCfg struct {
-	Id      string   "app_id"
-	Hosts   []string "host"
-	Name    string   "name"
-	timeout uint     "timeout"
-}
-
-type combainerConfig struct {
-	Combainer struct {
-		Main          combainerMainCfg       "Main"
-		LockServerCfg combainerLockserverCfg "Lockserver"
-	} "Combainer"
-}
 
 type sessionParams struct {
 	ParsingTime time.Duration
 	WholeTime   time.Duration
-	PTasks      []common.ParsingTask
-	AggTasks    []common.AggregationTask
+	PTasks      []tasks.ParsingTask
+	AggTasks    []tasks.AggregationTask
 }
 
 type clientStats struct {
@@ -52,8 +30,8 @@ type clientStats struct {
 }
 
 type Client struct {
-	Main       combainerMainCfg
-	LSCfg      combainerLockserverCfg
+	Repository configs.Repository
+	Config     configs.CombainerConfig
 	DLS        LockServer
 	lockname   string
 	cloudHosts []string
@@ -91,36 +69,23 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	return
 }
 
-// Public API
-
-func NewClient(config string) (*Client, error) {
-	// Read combaine.yaml
-	data, err := ioutil.ReadFile(config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse combaine.yaml
-	var m combainerConfig
-	err = goyaml.Unmarshal(data, &m)
-	if err != nil {
-		return nil, err
-	}
-
+func NewClient(config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
-	hosts := m.Combainer.LockServerCfg.Hosts
-	dls, err := NewLockServer(strings.Join(hosts, ","))
+	// TBD: It's better to pass config as is of create lockserver outside of client
+	dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
 	if err != nil {
 		return nil, err
 	}
 
-	cloudHosts, err := GetHosts(m.Combainer.Main.Http_hand, m.Combainer.Main.CloudHosts)
+	// Get list of Combaine hosts
+	cloudHosts, err := GetHosts(config.MainSection.Http_hand, config.MainSection.CloudGroup)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Client{
-		Main:       m.Combainer.Main,
-		LSCfg:      m.Combainer.LockServerCfg,
+		Repository: repo,
+		Config:     config,
 		DLS:        *dls,
 		lockname:   "",
 		cloudHosts: cloudHosts,
@@ -134,35 +99,37 @@ func (cl *Client) Close() {
 
 func (cl *Client) UpdateSessionParams(config string) (err error) {
 	LogInfo("Updating session parametrs")
-	// tasks
-	var p_tasks []common.ParsingTask
-	var agg_tasks []common.AggregationTask
+	var (
+		// tasks
+		p_tasks   []tasks.ParsingTask
+		agg_tasks []tasks.AggregationTask
 
-	// timeouts
-	var parsingTime time.Duration
-	var wholeTime time.Duration
+		// timeouts
+		parsingTime time.Duration
+		wholeTime   time.Duration
+	)
 
-	res, err := loadConfig(cl.lockname)
+	parsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
 	}
 
-	if res.MinimumPeriod > 0 {
-		cl.Main.MinimumPeriod = res.MinimumPeriod
+	if parsingConfig.IterationDuration > 0 {
+		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
 	}
 
-	var metahost string
-	if len(res.Metahost) != 0 {
-		metahost = res.Metahost
-	} else {
-		metahost = res.Groups[0]
-	}
-	LogInfo("Metahost %s", metahost)
+	// common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
+	// cfg.DF = combainerCfg.CloudCfg.DF
+	common.PluginConfigsUpdate(&cl.Config.CloudSection.DataFetcher, &parsingConfig.DataFetcher)
+	parsingConfig.DataFetcher = cl.Config.CloudSection.DataFetcher
+
+	LogInfo("Updating config: group %s, metahost %s",
+		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 	// Make list of hosts
 	var hosts []string
-	for _, item := range res.Groups {
-		if hosts_for_group, err := GetHosts(cl.Main.Http_hand, item); err != nil {
+	for _, item := range parsingConfig.Groups {
+		if hosts_for_group, err := GetHosts(cl.Config.MainSection.Http_hand, item); err != nil {
 			LogInfo("Item %s, err %s", item, err)
 		} else {
 			hosts = append(hosts, hosts_for_group...)
@@ -170,35 +137,40 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		LogInfo("Hosts: %s", hosts)
 	}
 
+	aggregationConfigs := make(map[string]configs.AggregationConfig)
+	for _, name := range parsingConfig.AggConfigs {
+		content, err := cl.Repository.GetAggregationConfig(name)
+		if err != nil {
+			// It seems better to throw error here instead of
+			// going data processing on without config
+			LogErr("Unable to read aggregation config %s, %s", name, err)
+			return err
+		}
+		aggregationConfigs[name] = content
+	}
+
 	// Tasks for parsing
-	//host_name, config_name, group_name, previous_time, current_time
 	for _, host := range hosts {
-		p_tasks = append(p_tasks, common.ParsingTask{
-			Host:     host,
-			Config:   cl.lockname,
-			Group:    res.Groups[0],
-			PrevTime: -1,
-			CurrTime: -1,
-			Id:       "",
-			Metahost: metahost,
+		p_tasks = append(p_tasks, tasks.ParsingTask{
+			CommonTask:         tasks.EmptyCommonTask,
+			Host:               host,
+			ParsingConfigName:  cl.lockname,
+			ParsingConfig:      parsingConfig,
+			AggregationConfigs: aggregationConfigs,
 		})
 	}
 
-	//groupname, config_name, agg_config_name, previous_time, current_time
-	for _, cfg := range res.AggConfigs {
-		agg_tasks = append(agg_tasks, common.AggregationTask{
-			Config:   cfg,
-			PConfig:  cl.lockname,
-			Group:    res.Groups[0],
-			PrevTime: -1,
-			CurrTime: -1,
-			Id:       "",
-			Metahost: metahost,
+	for _, name := range parsingConfig.AggConfigs {
+		agg_tasks = append(agg_tasks, tasks.AggregationTask{
+			CommonTask:        tasks.EmptyCommonTask,
+			Config:            name,
+			ParsingConfigName: cl.lockname,
+			ParsingConfig:     parsingConfig,
+			AggregationConfig: aggregationConfigs[name],
 		})
 	}
 
-	parsingTime = time.Duration(float64(cl.Main.MinimumPeriod)*0.8) * time.Second
-	wholeTime = time.Duration(cl.Main.MinimumPeriod) * time.Second
+	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Config.MainSection.IterationDuration)
 
 	sp := sessionParams{
 		ParsingTime: parsingTime,
@@ -222,29 +194,15 @@ func (cl *Client) Dispatch() {
 		return
 	}
 
-	// Create inotify filewatcher
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		LogErr("Unable to create filewatcher %s", err)
-		return
-	}
-	defer watcher.Close()
-
-	// Start watching configuration file
-	configFile := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, cl.lockname)
-	err = watcher.Watch(configFile)
-	if err != nil {
-		LogErr("Unable to watch file %s %s", configFile, err)
-		return
-	}
-
 	_observer.RegisterClient(cl, cl.lockname)
 	defer _observer.UnregisterClient(cl.lockname)
 
 	// Dispatch
-	var deadline time.Time
-	var startTime time.Time
-	var wg sync.WaitGroup
+	var (
+		deadline  time.Time
+		startTime time.Time
+		wg        sync.WaitGroup
+	)
 
 	for {
 		//Update session parametrs from config
@@ -263,9 +221,7 @@ func (cl *Client) Dispatch() {
 		deadline = startTime.Add(cl.sp.ParsingTime)
 
 		// Generate session unique ID
-		h := md5.New()
-		io.WriteString(h, (fmt.Sprintf("%s%d%d", cl.lockname, startTime, deadline)))
-		uniqueID := fmt.Sprintf("%x", h.Sum(nil))
+		uniqueID := GenerateSessionId(cl.lockname, &startTime, &deadline)
 		LogInfo("%s Start new iteration.", uniqueID)
 
 		// Parsing phase
@@ -303,45 +259,11 @@ func (cl *Client) Dispatch() {
 
 		// Wait for next iteration
 		case <-time.After(deadline.Sub(time.Now())):
-
-		// Handle possible configuration updates
-		case ev := <-watcher.Event:
-			// It looks like a bug, but opening file in vim emits rename event
-			if ev.IsModify() || ev.IsRename() {
-
-				// Does file exist with the same name still?
-				if ev.Name != configFile {
-					LogErr("%s File has been renamed to %s. Drop lock %s", uniqueID, ev.Name, cl.lockname)
-					return
-				}
-
-				LogInfo("%s %s has been changed. Updating configuration", uniqueID, cl.lockname)
-				if err = cl.UpdateSessionParams(cl.lockname); err != nil {
-					LogErr("%s Unable to update configuration %s. Drop lock %s", uniqueID, err, cl.lockname)
-					return
-				}
-				LogInfo("%s Configuration %s has been updated successfully", uniqueID, cl.lockname)
-
-				<-time.After(deadline.Sub(time.Now()))
-
-			} else if ev.IsDelete() {
-				LogInfo("%s %s has been removed. Drop lock", uniqueID, cl.lockname)
-				return
-			} else if ev.IsCreate() {
-				LogErr("%s Assertation error. Config %s has been created", uniqueID, cl.lockname)
-				return
-			}
-
-		// Handle configuration watcher error
-		case err = <-watcher.Error:
-			LogErr("%s Watcher error %s. Drop lock %s", uniqueID, err, cl.lockname)
-			return
 		}
 		LogInfo("%s Go to the next iteration", uniqueID)
 	}
 }
 
-//----------------
 type ResolveInfo struct {
 	App *cocaine.Service
 	Err error
@@ -365,9 +287,7 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 	return res
 }
 
-//------------------
-
-func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
@@ -375,7 +295,6 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	var err error
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
-		// app, err = cocaine.NewService(common.PARSING, host)
 		select {
 		case r := <-Resolve(common.PARSING, host):
 			err = r.Err
@@ -414,7 +333,7 @@ func (cl *Client) parsingTaskHandler(task common.ParsingTask, wg *sync.WaitGroup
 	}
 }
 
-func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
@@ -452,9 +371,9 @@ func (cl *Client) aggregationTaskHandler(task common.AggregationTask, wg *sync.W
 		cl.clientStats.AddFailed()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
-			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.Group, res.Err())
+			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.ParsingConfig.GetGroup(), res.Err())
 		} else {
-			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.Group)
+			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.ParsingConfig.GetGroup())
 		}
 		cl.clientStats.AddSuccess()
 	}
@@ -467,8 +386,8 @@ func (cl *Client) getRandomHost() string {
 
 // Private API
 func (cl *Client) acquireLock() chan bool {
-	for _, i := range getParsings() {
-		lockname := fmt.Sprintf("/%s/%s", cl.LSCfg.Id, i)
+	for _, i := range cl.Repository.ListParsingConfigs() {
+		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
 		poller := cl.DLS.AcquireLock(lockname)
 		if poller != nil {
 			cl.lockname = i

@@ -18,7 +18,7 @@ type LockServer struct {
 func NewLockServer(endpoints string) (*LockServer, error) {
 	zk, session, err := zookeeper.Dial(endpoints, 5e9)
 	if err != nil {
-		LogInfo("Zookeeper connection error %v", err)
+		LogInfo("Zookeeper connection error %v !%s!", err, endpoints)
 		return nil, err
 	}
 

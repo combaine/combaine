@@ -1,26 +1,22 @@
 package combainer
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"launchpad.net/goyaml"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 const (
-	CONFIGS_PARSING_PATH = "/etc/combaine/parsing/"
-	COMBAINER_PATH       = "/etc/combaine/combaine.yaml"
+	CONFIGS_PARSING_PATH     = "/etc/combaine/parsing/"
+	CONFIGS_AGGREGATION_PATH = "/etc/combaine/aggregate"
+	COMBAINER_PATH           = "/etc/combaine/combaine.yaml"
 )
-
-type ParsingConfig struct {
-	Groups           []string "groups"
-	AggConfigs       []string "agg_configs"
-	Metahost         string   "metahost"
-	combainerMainCfg "Combainer"
-}
 
 const (
 	CACHE_NAMESPACE = "combaine_hosts_cache"
@@ -79,6 +75,19 @@ func (c *cloudStorageCache) Get(key string) ([]byte, error) {
 	return z, nil
 }
 
+//Various utility functions
+func GenerateSessionId(lockname string, start, deadline *time.Time) string {
+	h := md5.New()
+	io.WriteString(h, (fmt.Sprintf("%s%d%d", lockname, *start, *deadline)))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func GenerateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
+	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second
+	wholeTime := time.Duration(sessionDuration) * time.Second
+	return parsingTime, wholeTime
+}
+
 // Fetch hosts by groupname from HTTP
 func GetHosts(handle string, groupname string) (hosts []string, err error) {
 	url := fmt.Sprintf(handle, groupname)
@@ -119,39 +128,4 @@ func GetHosts(handle string, groupname string) (hosts []string, err error) {
 		return hosts, fmt.Errorf("No hosts")
 	}
 	return hosts, nil
-}
-
-// Return listing of configuration files
-func getConfigs(path string) []string {
-	var s []string
-	files, _ := ioutil.ReadDir(path)
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".json") || strings.HasSuffix(f.Name(), ".yaml") {
-			s = append(s, f.Name())
-		}
-	}
-	return s
-}
-
-func getParsings() []string {
-	return getConfigs(CONFIGS_PARSING_PATH)
-}
-
-// Parse config
-func loadConfig(name string) (*ParsingConfig, error) {
-	path := fmt.Sprintf("%s%s", CONFIGS_PARSING_PATH, name)
-	LogInfo("Read %s", path)
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse combaine.yaml
-	var res ParsingConfig
-	err = goyaml.Unmarshal(data, &res)
-	if err != nil {
-		return nil, err
-	}
-
-	return &res, nil
 }

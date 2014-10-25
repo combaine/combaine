@@ -1,88 +1,27 @@
 #!/usr/bin/env python
-import os
-import sys
-import imp
-
-import msgpack
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2012+ Tyurin Anton noxiouz@yandex.ru
+#
+# This file is part of Combaine.
+#
+# Combaine is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# Combaine is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
 
 from cocaine.worker import Worker
-from cocaine.futures.chain import concurrent
-from cocaine.logging import Logger
 
-Log = Logger()
-
-
-PATH = '/usr/lib/yandex/combaine/parsers'
-sys.path.insert(0, PATH)
-
-EXTS = [ext for (ext, _, _) in imp.get_suffixes()]
-
-
-def _isPlugin(candidate):
-    name, extension = os.path.splitext(candidate)
-    if name != "__init__" and extension in EXTS:
-        return True
-    else:
-        return False
-
-
-def plugin_import():
-    modules = set(map(lambda x: x.split('.')[0], filter(_isPlugin,
-                                                        os.listdir(PATH))))
-    all_parser_functions = {}
-    for module in modules:
-        try:
-            fp, path, descr = imp.find_module(module, [PATH])
-        except ImportError:
-            continue
-        else:
-            try:
-                _temp = imp.load_module("temp", fp, path, descr)
-                for item in filter(lambda x: not x.startswith("__"),
-                                   dir(_temp)):
-                    candidate = getattr(_temp, item)
-                    if callable(candidate):
-                        all_parser_functions[item] = candidate
-            except ImportError as err:
-                Log.error("ImportError. Module: %s %s" % (module, repr(err)))
-            except Exception as err:
-                Log.error("Exception. Module: %s %s" % (module, repr(err)))
-            finally:
-                if fp:
-                    fp.close()
-    Log.debug("%s are available functions for parsing"
-              % ' '.join(all_parser_functions.keys()))
-    return all_parser_functions
-
-
-@concurrent
-def do_parse(parser, data):
-    return [i.items() for i in parser(data) if i is not None]
-
-
-def parse(request, response):
-    inc = yield request.read()
-    tid, name, data = msgpack.unpackb(inc)
-    Log.info("%s Start" % tid)
-    available = plugin_import()
-    try:
-        func = available[name]
-        result = yield do_parse(func, data)
-        Log.info("%s %d items have been parsed by %s" % (tid,
-                                                         len(result),
-                                                         name))
-        response.write(msgpack.packb(result))
-        # Log.debug("%s %s" % (tid, str(result)))
-        Log.info("%s Done" % tid)
-    except KeyError:
-        response.error(-100, "There's no function named %s" % name)
-        Log.error("%s Parser %s is absent" % (tid, name))
-    except Exception as err:
-        response.error(-3, "Exception in parsing %s" % repr(err))
-        Log.error("%s Error" % tid)
-    finally:
-        response.close()
-
+from combaine.cloud.parsingapp import parse
 
 if __name__ == "__main__":
     W = Worker(disown_timeout=300)

@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/servicecacher"
+	"github.com/noxiouz/Combaine/common/tasks"
 )
 
 var (
@@ -16,12 +18,6 @@ var (
 	logMutex     sync.Mutex
 	storageMutex sync.Mutex
 	cacher       servicecacher.Cacher = servicecacher.NewCacher()
-)
-
-const (
-	// Special parser name that allows to avoid
-	// parser call
-	ParserSkipValue = "NullParser"
 )
 
 func LazyLoggerInitialization() (*cocaine.Logger, error) {
@@ -56,73 +52,30 @@ func lazyStorageInitialization() (*cocaine.Service, error) {
 }
 
 // Main parsing function
-func Parsing(task common.ParsingTask) (err error) {
+func Parsing(task tasks.ParsingTask) (err error) {
 	log, err := LazyLoggerInitialization()
 	if err != nil {
 		return
 	}
+	log.Info(task.Id, " Start parsing")
 
-	log.Info(task.Id, " Start parsing.")
-
-	//Wrap it
-	log.Debug(task.Id, " Create configuration manager")
-	cfgManager, err := cacher.Get(common.CFGMANAGER)
-	if err != nil {
-		log.Errf("%s %s", task.Id, err.Error())
-		return
-	}
-	cfgWrap := common.NewCfgWrapper(cfgManager, log)
-
-	log.Debugf(task.Id, " Fetch configuration file ", task.Config)
-	cfg, err := cfgWrap.GetParsingConfig(task.Config)
-	if err != nil {
-		log.Err(err.Error())
-		return
-	}
-
-	combainerCfg, err := cfgWrap.GetCommon()
-	if err != nil {
-		log.Err(err.Error())
-		return
-	}
-
-	aggCfgs := make(map[string]common.AggConfig)
-	for _, name := range cfg.AggConfigs {
-		aggCfg, err := cfgWrap.GetAggregateConfig(name)
-		if err != nil {
-			log.Err(err.Error())
-			return err
-		}
-		aggCfgs[name] = aggCfg
-	}
-
-	log.Debugf("%s Aggregate configs %s", task.Id, aggCfgs)
-	common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
-	cfg.DF = combainerCfg.CloudCfg.DF
-	common.MapUpdate(&(combainerCfg.CloudCfg.DG), &(cfg.DG))
-	cfg.DG = combainerCfg.CloudCfg.DG
-
-	fetcherType, err := common.GetType(cfg.DF)
+	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
 	if err != nil {
 		log.Err(err)
 		return
 	}
-
 	log.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
 
-	fetcher, err := NewFetcher(fetcherType, cfg.DF)
+	fetcher, err := NewFetcher(fetcherType, task.ParsingConfig.DataFetcher)
 	if err != nil {
 		log.Err(err)
 		return
 	}
 
 	// Per host
-
-	fetcherTask := common.FetcherTask{
-		Id:        task.Id,
-		Target:    task.Host,
-		StartTime: task.PrevTime,
-		EndTime:   task.CurrTime,
+	fetcherTask := tasks.FetcherTask{
+		Target:     task.Host,
+		CommonTask: task.CommonTask,
 	}
 
 	blob, err := fetcher.Fetch(&fetcherTask)
@@ -136,7 +89,7 @@ func Parsing(task common.ParsingTask) (err error) {
 	/*
 		ParsingApp stage
 	*/
-	if cfg.Parser != ParserSkipValue && cfg.Parser != "" {
+	if !task.ParsingConfig.NeedToSkipParsingStage() {
 		log.Info(task.Id, " Send data to parsing")
 		parser, err := GetParser()
 		if err != nil {
@@ -144,7 +97,7 @@ func Parsing(task common.ParsingTask) (err error) {
 			return err
 		}
 
-		blob, err = parser.Parse(task.Id, cfg.Parser, blob)
+		blob, err = parser.Parse(task.Id, task.ParsingConfig.Parser, blob)
 		if err != nil {
 			log.Err(task.Id, " ", err.Error())
 			return err
@@ -156,27 +109,16 @@ func Parsing(task common.ParsingTask) (err error) {
 	}
 
 	/*
-		Datagrid stage
+		Database stage
 	*/
-	if !cfg.Raw {
-		dgType, err := common.GetType(cfg.DG)
+	if !task.ParsingConfig.Raw {
+		log.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
+		datagrid, err := cacher.Get(common.DATABASEAPP)
 		if err != nil {
 			log.Err(task.Id, " ", err.Error())
 			return err
 		}
 
-		log.Debugf("%s Use %s for handle data", task.Id, dgType)
-		datagrid, err := cacher.Get(dgType)
-		if err != nil {
-			log.Err(task.Id, " ", err.Error())
-			return err
-		}
-
-		// taskToDatagrid, err := common.Pack(z)
-		// if err != nil {
-		// 	log.Err(task.Id, " ", err.Error())
-		// 	return
-		// }
 		res := <-datagrid.Call("enqueue", "put", blob)
 		if err = res.Err(); err != nil {
 			log.Err(task.Id, " ", err.Error())
@@ -195,20 +137,21 @@ func Parsing(task common.ParsingTask) (err error) {
 		}()
 		payload = token
 	} else {
-		log.Info(task.Id, " Skip dg stage. Raw data")
+		log.Info(task.Id, " Skip DataBase stage. Raw data")
 	}
 
 	/*
 
 	*/
 	var wg sync.WaitGroup
-	for aggLogName, aggCfg := range aggCfgs {
+	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {
-			aggType, err := common.GetType(v)
-			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+			aggType, err := v.Type()
 			if err != nil {
 				return err
 			}
+			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+
 			wg.Add(1)
 			go func(name string, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
@@ -218,7 +161,7 @@ func Parsing(task common.ParsingTask) (err error) {
 					return
 				}
 
-				app, err := cacher.Get(name) //cocaine.NewService(name)
+				app, err := cacher.Get(name)
 				if err != nil {
 					log.Errf("%s %s %s", task.Id, name, err)
 					return
@@ -229,7 +172,6 @@ func Parsing(task common.ParsingTask) (err error) {
 				*/
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
-					"dgconfig": cfg.DG,
 					"token":    payload,
 					"prevtime": task.PrevTime,
 					"currtime": task.CurrTime,
@@ -248,7 +190,9 @@ func Parsing(task common.ParsingTask) (err error) {
 						return
 					}
 
-					key := fmt.Sprintf("%s;%s;%s;%s;%v", task.Host, task.Config, aggLogName, k, task.CurrTime)
+					key := fmt.Sprintf("%s;%s;%s;%s;%v",
+						task.Host, task.ParsingConfigName,
+						aggLogName, k, task.CurrTime)
 					<-storage.Call("cache_write", "combaine", key, raw_res)
 					log.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
