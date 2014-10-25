@@ -4,7 +4,7 @@
 #go test -v github.com/noxiouz/Combaine/combainer/
 
 function interface {
-    make fixture && python setup.py nosetests
+    make -f file_for_make fixture && python setup.py nosetests
 }
 
 
