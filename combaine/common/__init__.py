@@ -60,11 +60,11 @@ class AggregationConfig(object):
 
     @property
     def senders(self):
-        return self.cfg.get("Senders", {})
+        return self.cfg.get("Senders") or {}
 
     @property
     def data(self):
-        return self.cfg.get("Data", {})
+        return self.cfg.get("Data") or {}
 
 
 class AggregationTask(object):
