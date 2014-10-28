@@ -1,3 +1,9 @@
+combaine (0.6.5.5) unstable; urgency=low
+
+  * Fix custom aggregator. Pass time frame into aggregate_host
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 28 Oct 2014 19:51:22 +0400
+
 combaine (0.6.5.4) unstable; urgency=low
 
   * [Juggler] Fix send_point. Get rid of that damn futures magic 

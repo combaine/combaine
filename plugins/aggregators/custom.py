@@ -68,7 +68,7 @@ def aggregate_host(request, response):
     # Replace this name
     payload = TASK['token']
     try:
-        result = _aggregate_host(klass_name, payload, cfg)
+        result = _aggregate_host(klass_name, payload, cfg, task)
         response.write(msgpack.packb(result))
         Log.info("%s Done" % tid)
     except KeyError:
@@ -88,7 +88,7 @@ def aggregate_group(request, response):
     payload = map(msgpack.unpackb, data)
     klass_name = cfg['class']
     try:
-        result = _aggregate_group(klass_name, payload, cfg)
+        result = _aggregate_group(klass_name, payload, cfg, task)
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         Log.error("class %s is absent" % klass_name)
@@ -101,14 +101,15 @@ def aggregate_group(request, response):
         response.close()
 
 
-def _aggregate_host(klass_name, payload, config):
+def _aggregate_host(klass_name, payload, config, task):
     available = plugin_import()
     klass = available[klass_name]
     handler = klass(config)
-    return handler.aggregate_host(payload)
+    prevtime, currtime = task["prevtime"], task["currtime"]
+    return handler.aggregate_host(payload, prevtime, currtime)
 
 
-def _aggregate_group(klass_name, payload, config):
+def _aggregate_group(klass_name, payload, config, task):
     available = plugin_import()
     klass = available[klass_name]
     handler = klass(config)
