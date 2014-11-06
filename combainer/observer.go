@@ -11,10 +11,13 @@ import (
 )
 
 type StatInfo struct {
-	Success     int
-	Failed      int
-	Total       int
-	Heartbeated int64
+	ParsingSuccess   int
+	ParsingFailed    int
+	ParsingTotal     int
+	AggregateSuccess int
+	AggregateFailed  int
+	AggregateTotal   int
+	Heartbeated      int64
 }
 type OpenFiles struct {
 	Open  uint64

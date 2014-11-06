@@ -24,9 +24,11 @@ type sessionParams struct {
 
 type clientStats struct {
 	sync.RWMutex
-	success int
-	failed  int
-	last    int64
+	successParsing   int
+	failedParsing    int
+	successAggregate int
+	failedAggregate  int
+	last             int64
 }
 
 type Client struct {
@@ -41,30 +43,47 @@ type Client struct {
 	sp *sessionParams
 }
 
-func (cs *clientStats) AddSuccess() {
+func (cs *clientStats) AddSuccessParsing() {
 	cs.Lock()
-	cs.success++
+	cs.successParsing++
 	cs.last = time.Now().Unix()
 	cs.Unlock()
 }
 
-func (cs *clientStats) AddFailed() {
+func (cs *clientStats) AddFailedParsing() {
 	cs.Lock()
-	cs.failed++
+	cs.failedParsing++
+	cs.last = time.Now().Unix()
+	cs.Unlock()
+}
+
+func (cs *clientStats) AddSuccessAggregate() {
+	cs.Lock()
+	cs.successAggregate++
+	cs.last = time.Now().Unix()
+	cs.Unlock()
+}
+
+func (cs *clientStats) AddFailedAggregate() {
+	cs.Lock()
+	cs.failedAggregate++
 	cs.last = time.Now().Unix()
 	cs.Unlock()
 }
 
 func (cs *clientStats) GetStats() (info *StatInfo) {
 	cs.RLock()
-	var success = cs.success
-	var failed = cs.failed
-	cs.RUnlock()
+	// var success = cs.success
+	// var failed = cs.failed
+	defer cs.RUnlock()
 	info = &StatInfo{
-		Success:     success,
-		Failed:      failed,
-		Total:       success + failed,
-		Heartbeated: cs.last,
+		ParsingSuccess:   cs.successParsing,
+		ParsingFailed:    cs.failedParsing,
+		ParsingTotal:     cs.successParsing + cs.failedParsing,
+		AggregateSuccess: cs.successAggregate,
+		AggregateFailed:  cs.failedAggregate,
+		AggregateTotal:   cs.successAggregate + cs.failedAggregate,
+		Heartbeated:      cs.last,
 	}
 	return
 }
@@ -314,7 +333,7 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 
 	if app == nil {
 		LogErr("Unable to send task %s. Application is unavailable", task.Id)
-		cl.clientStats.AddFailed()
+		cl.clientStats.AddFailedParsing()
 		return
 	}
 
@@ -322,14 +341,14 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	select {
 	case <-time.After(limit):
 		LogErr("Task %s has been late\n", task.Id)
-		cl.clientStats.AddFailed()
+		cl.clientStats.AddFailedParsing()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
 			LogErr("%s Parsing task for host %s failed %v", task.Id, task.Host, res.Err())
 		} else {
 			LogInfo("%s Parsing task for host %s completed successfully", task.Id, task.Host)
 		}
-		cl.clientStats.AddSuccess()
+		cl.clientStats.AddSuccessParsing()
 	}
 }
 
@@ -359,7 +378,7 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	}
 
 	if app == nil {
-		cl.clientStats.AddFailed()
+		cl.clientStats.AddFailedAggregate()
 		LogErr("Unable to send aggregate task %s. Application is unavailable", task.Id)
 		return
 	}
@@ -368,14 +387,14 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	select {
 	case <-time.After(limit):
 		LogErr("Task %s has been late", task.Id)
-		cl.clientStats.AddFailed()
+		cl.clientStats.AddFailedAggregate()
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
 			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.ParsingConfig.GetGroup(), res.Err())
 		} else {
 			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.ParsingConfig.GetGroup())
 		}
-		cl.clientStats.AddSuccess()
+		cl.clientStats.AddSuccessAggregate()
 	}
 }
 
