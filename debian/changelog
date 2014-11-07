@@ -1,3 +1,21 @@
+combaine (0.6.5.8) unstable; urgency=low
+
+  * [JUGGLER] Change format of passing methods_list
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 07 Nov 2014 12:16:18 +0400
+
+combaine (0.6.5.7) unstable; urgency=low
+
+  * Change monitor stat.
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 06 Nov 2014 16:52:06 +0400
+
+combaine (0.6.5.6) unstable; urgency=low
+
+  * Fix custom aggragatore
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 28 Oct 2014 19:55:42 +0400
+
 combaine (0.6.5.5) unstable; urgency=low
 
   * Fix custom aggregator. Pass time frame into aggregate_host

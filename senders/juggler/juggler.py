@@ -90,7 +90,10 @@ class Juggler(object):
         self.checkname = cfg['CHECKNAME']
         self.Aggregator = cfg['AGGREGATOR']
         self.Host = cfg['HOST']
-        self.Method = cfg['METHOD']
+        # ugly hack for changes juggler API:
+        # &methods_list=GOLEM,SMS to &methods_list=GOLEM&methods_list=SMS
+        placeholder = "&methods_list="
+        self.Method = placeholder.join(cfg['METHOD'].split(","))
         self.description = cfg.get('DESCRIPTION', "no description")
         self.juggler_hosts = cfg['JUGGLER_HOSTS']
         self.juggler_frontend = cfg['JUGGLER_FRONTEND']
