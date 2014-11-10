@@ -182,7 +182,7 @@ class Juggler(object):
         child = name
         yield self.add_check_if_need(child)
 
-        success = False
+        success = 0
         for jhost in self.juggler_frontend:
             try:
                 params["juggler_frontend"] = jhost
@@ -193,13 +193,11 @@ class Juggler(object):
                 self.log.error(str(err))
                 continue
             else:
-                success = True
-                break
+                self.log.info("Event to %s: OK" % jhost)
+                success += 1
 
-        if success:
-            self.log.info("Event has been sent successfully")
-        else:
-            self.log.info("Event hasn't been sent")
+        self.log.info("Event has been sent to %d/%d"
+                      % (success, len(self.juggler_frontend)))
         yield success
 
     @chain.source
