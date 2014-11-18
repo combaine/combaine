@@ -8,43 +8,23 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
-
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
-
-var (
-	log      *cocaine.Logger
-	logMutex sync.Mutex
-)
-
-func lazyLoggerInitialization() (*cocaine.Logger, error) {
-	var err error
-	if log != nil {
-		return log, nil
-	} else {
-		logMutex.Lock()
-		defer logMutex.Unlock()
-		if log != nil {
-			return log, nil
-		}
-		log, err = cocaine.NewLogger()
-		return log, err
-	}
-}
 
 const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
 
 var URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
 
-const CONNECTION_TIMEOUT = 2000
-const RW_TIMEOUT = 3000
+const (
+	CONNECTION_TIMEOUT = 2000 // ms
+	RW_TIMEOUT         = 3000 // ms
+)
 
 var DEFAULT_HEADERS = http.Header{
 	"User-Agent": {"Yandex/CombaineClient"},
@@ -60,9 +40,6 @@ func wrongCfgParametrError(param string) error {
 	return fmt.Errorf("Wrong type of parametr: %s", param)
 }
 
-// type DataItem map[string]interface{}
-// type DataType map[string]DataItem
-
 type AgaveSender struct {
 	// Handled items in data. Only this will be handled.
 	id            string
@@ -70,7 +47,6 @@ type AgaveSender struct {
 	graphName     string
 	graphTemplate string
 	hosts         []string
-	logger        *cocaine.Logger
 	fields        []string
 	step          int64
 }
@@ -84,7 +60,7 @@ func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
 				if len(as.fields) == 0 || len(as.fields) != rv.Len() {
-					as.logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.id, len(as.fields), rv.Len())
+					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.id, len(as.fields), rv.Len())
 					continue
 				}
 				forJoin := []string{}
@@ -126,7 +102,7 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 		as.step,
 	})
 	if err != nil {
-		as.logger.Errf("%s %s", as.id, err)
+		logger.Errf("%s %s", as.id, err)
 	} else {
 		as.sendPoint(url.String())
 	}
@@ -140,23 +116,22 @@ func (as *AgaveSender) sendPoint(url string) {
 		URL := fmt.Sprintf("http://%s%s", host, url)
 		req, _ := http.NewRequest("GET", URL, nil)
 		req.Header = DEFAULT_HEADERS
-		as.logger.Debugf("%s %s", as.id, req.URL)
+		logger.Debugf("%s %s", as.id, req.URL)
 		_ = client
 		if resp, err := client.Do(req); err != nil {
-			as.logger.Errf("%s Unable to create request %s", as.id, err)
+			logger.Errf("%s Unable to create request %s", as.id, err)
 		} else {
 			defer resp.Body.Close()
 			if body, err := ioutil.ReadAll(resp.Body); err != nil {
-				as.logger.Errf("%s %s %d %s", as.id, URL, resp.StatusCode, err)
+				logger.Errf("%s %s %d %s", as.id, URL, resp.StatusCode, err)
 			} else {
-				as.logger.Infof("%s %s %d %s", as.id, URL, resp.StatusCode, body)
+				logger.Infof("%s %s %d %s", as.id, URL, resp.StatusCode, body)
 			}
 		}
 	}
 }
 
 func (as *AgaveSender) Close() (err error) {
-	as.logger.Close()
 	return
 }
 
@@ -222,10 +197,6 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 	var id string
 	id, _ = config["Id"].(string)
 
-	logger, err := lazyLoggerInitialization()
-	if err != nil {
-		return nil, err
-	}
 	logger.Debugf("Goroutine num %d", runtime.NumGoroutine())
 	logger.Debugf("Step %v %v", step, config)
 	//fields
@@ -235,7 +206,6 @@ func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) 
 		graphName:     graphname,
 		graphTemplate: graphtemplate,
 		hosts:         hosts,
-		logger:        logger,
 		fields:        fields,
 		step:          step,
 	}
