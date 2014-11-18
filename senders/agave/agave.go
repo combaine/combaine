@@ -14,8 +14,6 @@ import (
 	"github.com/noxiouz/Combaine/common/httpclient"
 	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
-
-	"github.com/mitchellh/mapstructure"
 )
 
 const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
@@ -42,13 +40,13 @@ type AgaveSender struct {
 }
 
 type AgaveConfig struct {
-	Id            string   `mapstructure:"Id"`
-	Items         []string `mapstructure:"items"`
-	Hosts         []string `mapstructure:"hosts"`
-	GraphName     string   `mapstructure:"graph_name"`
-	GraphTemplate string   `mapstructure:"graph_template"`
-	Fields        []string `mapstructure:"Fields"`
-	Step          int64    `mapstructure:"step"`
+	Id            string   `codec:"Id"`
+	Items         []string `codec:"items"`
+	Hosts         []string `codec:"hosts"`
+	GraphName     string   `codec:"graph_name"`
+	GraphTemplate string   `codec:"graph_template"`
+	Fields        []string `codec:"Fields"`
+	Step          int64    `codec:"step"`
 }
 
 func (as *AgaveSender) Send(data tasks.DataType) (err error) {
@@ -137,14 +135,10 @@ func (as *AgaveSender) sendPoint(url string) {
 	}
 }
 
-func NewAgaveSender(config map[string]interface{}) (as IAgaveSender, err error) {
-	var agave_config AgaveConfig
-	if err = mapstructure.Decode(config, &agave_config); err != nil {
-		return nil, err
-	}
-
+func NewAgaveSender(config AgaveConfig) (as IAgaveSender, err error) {
+	logger.Debugf("%s AgaveConfig: %s", config.Id, config)
 	as = &AgaveSender{
-		AgaveConfig: agave_config,
+		AgaveConfig: config,
 	}
 	return as, nil
 }
