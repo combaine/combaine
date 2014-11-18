@@ -17,6 +17,7 @@ var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", 
 var DEFAULT_STEP = 300
 
 type Task struct {
+	Id     string
 	Data   tasks.DataType
 	Config map[string]interface{}
 }
@@ -32,17 +33,17 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	logger.Debugf("Task: %v", task)
+	logger.Debugf("%s Task: %v", task.Id, task)
 	var Items []string
 	for _, item := range task.Config["items"].([]interface{}) {
 		Items = append(Items, string(item.([]uint8)))
 	}
 
-	logger.Debugf("%v", task.Data)
+	logger.Debugf("%s %v", task.Id, task.Data)
 
 	cfgManager, err := cocaine.NewService(common.CFGMANAGER)
 	if err != nil {
-		logger.Errf("%s", err.Error())
+		logger.Errf("%s, %s", task.Id, err.Error())
 		return
 	}
 	defer cfgManager.Close()
@@ -60,6 +61,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	// Rewrite this shit to struct
 	task.Config["items"] = Items
+	task.Config["Id"] = task.Id
 	task.Config["hosts"] = combainerCfg.CloudSection.AgaveHosts
 	task.Config["graph_name"] = string(task.Config["graph_name"].([]uint8))
 	task.Config["graph_template"] = string(task.Config["graph_template"].([]uint8))
@@ -76,7 +78,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		fields = DEFAULT_FIELDS
 	}
 	task.Config["Fields"] = fields
-	logger.Debugf("Fields %v", fields)
+	logger.Debugf("%s Fields %v", task.Id, fields)
 
 	//step := DEFAULT_STEP
 	if cfgStep, ok := task.Config["step"]; ok {
@@ -89,12 +91,12 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	} else {
 		task.Config["step"] = int64(DEFAULT_STEP)
 	}
-	logger.Debugf("Step %v", task.Config["step"])
+	logger.Debugf("%s Step %v", task.Id, task.Config["step"])
 
 	agaveCfg := task.Config
 	as, err := agave.NewAgaveSender(agaveCfg)
 	if err != nil {
-		logger.Errf("Unexpected error %s", err)
+		logger.Errf("%s Unexpected error %s", task.Id, err)
 		response.ErrorMsg(-100, err.Error())
 		response.Close()
 		return
