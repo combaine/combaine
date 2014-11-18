@@ -16,7 +16,7 @@ var logger *cocaine.Logger
 
 type Task struct {
 	Id     string
-	Data   common.DataType
+	Data   tasks.DataType
 	Config graphite.GraphiteCfg
 }
 
