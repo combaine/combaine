@@ -1,3 +1,15 @@
+combaine (0.6.5.10) unstable; urgency=low
+
+  * [Parsing] Damn this closure
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 18 Nov 2014 15:56:13 +0400
+
+combaine (0.6.5.9) unstable; urgency=low
+
+  * [JUGGLER] Send point to all jugglers
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 10 Nov 2014 14:16:47 +0400
+
 combaine (0.6.5.8) unstable; urgency=low
 
   * [JUGGLER] Change format of passing methods_list
