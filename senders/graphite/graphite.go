@@ -32,6 +32,7 @@ const connectionTimeout = 900       //msec
 const connectionEndpoint = ":42000" //msec
 
 type graphiteClient struct {
+	id      string
 	cluster string
 	fields  []string
 }
@@ -53,12 +54,9 @@ common.DataType:
 
 func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 	if len(data) == 0 {
-		return fmt.Errorf("Empty data. Nothing to send.")
+		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
 
-	/*
-		Create socket here.
-	*/
 	sock, err := net.DialTimeout("tcp", connectionEndpoint, time.Microsecond*connectionTimeout)
 	if err != nil {
 		logger.Errf("Unable to connect to daemon %s: %s", connectionEndpoint, err)
@@ -67,14 +65,14 @@ func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 	defer sock.Close()
 
 	for aggname, subgroupsAndValues := range data {
-		logger.Debugf("Handle aggregate named %s", aggname)
+		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
 		for subgroup, value := range subgroupsAndValues {
 
 			rv := reflect.ValueOf(value)
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
 				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
-					logger.Errf("Unable to send a slice. Fields len %d, len of value %d", len(g.fields), rv.Len())
+					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
 					continue
 				}
 				for i := 0; i < rv.Len(); i++ {
@@ -87,9 +85,9 @@ func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 						common.InterfaceToString(itemInterface),
 						time.Now().Unix())
 
-					logger.Infof("Send %s", toSend)
+					logger.Infof("%s Send %s", g.id, toSend)
 					if _, err = fmt.Fprint(sock, toSend); err != nil {
-						logger.Errf("Sending error: %s", err)
+						logger.Errf("%s Sending error: %s", g.id, err)
 						return err
 					}
 				}
@@ -103,9 +101,9 @@ func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 					common.InterfaceToString(value),
 					time.Now().Unix())
 
-				logger.Infof("Send %s", toSend)
+				logger.Infof("%s Send %s", g.id, toSend)
 				if _, err = fmt.Fprint(sock, toSend); err != nil {
-					logger.Errf("Sending error: %s", err)
+					logger.Errf("%s Sending error: %s", g.id, err)
 					return err
 				}
 			}
@@ -115,8 +113,9 @@ func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 	return
 }
 
-func NewGraphiteClient(cfg *GraphiteCfg) (gs GraphiteSender, err error) {
+func NewGraphiteClient(cfg *GraphiteCfg, id string) (gs GraphiteSender, err error) {
 	gs = &graphiteClient{
+		id:      id,
 		cluster: cfg.Cluster,
 		fields:  cfg.Fields,
 	}
