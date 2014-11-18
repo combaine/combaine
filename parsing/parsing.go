@@ -153,7 +153,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 			log.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 
 			wg.Add(1)
-			go func(name string, k string, v interface{}, deadline time.Duration) {
+			go func(name string, k string, v interface{}, logName string, deadline time.Duration) {
 				defer wg.Done()
 				log, err := LazyLoggerInitialization()
 				storage, err := lazyStorageInitialization()
@@ -192,13 +192,13 @@ func Parsing(task tasks.ParsingTask) (err error) {
 
 					key := fmt.Sprintf("%s;%s;%s;%s;%v",
 						task.Host, task.ParsingConfigName,
-						aggLogName, k, task.CurrTime)
+						logName, k, task.CurrTime)
 					<-storage.Call("cache_write", "combaine", key, raw_res)
 					log.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					log.Errf("%s Failed task %s", task.Id, deadline)
 				}
-			}(aggType, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
+			}(aggType, k, v, aggLogName, time.Second*time.Duration(task.CurrTime-task.PrevTime))
 		}
 	}
 	wg.Wait()
