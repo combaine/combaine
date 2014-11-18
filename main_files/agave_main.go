@@ -101,7 +101,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		response.Close()
 		return
 	}
-	//defer as.Close()
 	as.Send(task.Data)
 	response.Write("OK")
 	response.Close()
