@@ -144,16 +144,24 @@ def aggreagate(request, response):
                                      key, err)
 
             mapping[subgroup] = subgroup_data
-            res = yield app.enqueue("aggregate_group",
-                                    msgpack.packb((cfg, subgroup_data)))
-            logger.info("name %s subgroup %s result %s", name, subgroup, res)
-            result[name][subgroup] = res
+            try:
+                res = yield app.enqueue("aggregate_group",
+                                        msgpack.packb((cfg, subgroup_data)))
+                logger.info("name %s subgroup %s result %s",
+                            name, subgroup, res)
+                result[name][subgroup] = res
+            except Exception as err:
+                logger.error("unable to aggregte %s %s %s",
+                             name, subgroup, err)
 
         all_data = []
         for v in mapping.itervalues():
             all_data.extend(v)
-        res = yield app.enqueue("aggregate_group",
-                                msgpack.packb((cfg, all_data)))
+        try:
+            res = yield app.enqueue("aggregate_group",
+                                    msgpack.packb((cfg, all_data)))
+        except Exception as err:
+            logger.error("unable to aggreagate all: %s %s", name, err)
         logger.info("name %s ALL %s %d" % (name, res, len(all_data)))
         result[name][METAHOST] = res
 
@@ -168,13 +176,12 @@ def aggreagate(request, response):
 
                 logger.info("Send to %s", sender_type)
                 s = Service(sender_type)
-            except Exception as err:
-                logger.error(err)
-            else:
                 res = yield s.enqueue("send", msgpack.packb({"Config": item,
                                                              "Data": result,
                                                              "Id": task.Id}))
                 logger.info("res for %s is %s", sender_type, res)
+            except Exception as err:
+                logger.error("unable to send to %s %s", name, err)
     except Exception as err:
         logger.exception("%s %s %s", err, aggcfg, aggcfg.senders)
 
