@@ -22,15 +22,6 @@ type sessionParams struct {
 	AggTasks    []tasks.AggregationTask
 }
 
-type clientStats struct {
-	sync.RWMutex
-	successParsing   int
-	failedParsing    int
-	successAggregate int
-	failedAggregate  int
-	last             int64
-}
-
 type Client struct {
 	Repository configs.Repository
 	Config     configs.CombainerConfig
@@ -39,54 +30,6 @@ type Client struct {
 	cloudHosts []string
 	*Context
 	clientStats
-
-	// various periods and list of tasks
-	sp *sessionParams
-}
-
-func (cs *clientStats) AddSuccessParsing() {
-	cs.Lock()
-	cs.successParsing++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
-}
-
-func (cs *clientStats) AddFailedParsing() {
-	cs.Lock()
-	cs.failedParsing++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
-}
-
-func (cs *clientStats) AddSuccessAggregate() {
-	cs.Lock()
-	cs.successAggregate++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
-}
-
-func (cs *clientStats) AddFailedAggregate() {
-	cs.Lock()
-	cs.failedAggregate++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
-}
-
-func (cs *clientStats) GetStats() (info *StatInfo) {
-	cs.RLock()
-	// var success = cs.success
-	// var failed = cs.failed
-	defer cs.RUnlock()
-	info = &StatInfo{
-		ParsingSuccess:   cs.successParsing,
-		ParsingFailed:    cs.failedParsing,
-		ParsingTotal:     cs.successParsing + cs.failedParsing,
-		AggregateSuccess: cs.successAggregate,
-		AggregateFailed:  cs.failedAggregate,
-		AggregateTotal:   cs.successAggregate + cs.failedAggregate,
-		Heartbeated:      cs.last,
-	}
-	return
 }
 
 func NewClient(context *Context, config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
@@ -108,22 +51,23 @@ func NewClient(context *Context, config configs.CombainerConfig, repo configs.Re
 		return nil, err
 	}
 
-	return &Client{
+	cl := &Client{
 		Repository: repo,
 		Config:     config,
 		DLS:        *dls,
 		lockname:   "",
 		cloudHosts: cloudHosts.AllHosts(),
 		Context:    context,
-		sp:         nil,
-	}, nil
+	}
+
+	return cl, nil
 }
 
 func (cl *Client) Close() {
 	cl.DLS.Close()
 }
 
-func (cl *Client) UpdateSessionParams(config string) (err error) {
+func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
 	LogInfo("Updating session parametrs")
 	var (
 		// tasks
@@ -138,13 +82,13 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	encodedParsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
-		return
+		return nil, err
 	}
 
 	var parsingConfig configs.ParsingConfig
 	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
 		LogErr("Unable to decode parsingConfig: %s", err)
-		return err
+		return nil, err
 	}
 
 	if parsingConfig.IterationDuration > 0 {
@@ -158,7 +102,6 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
-	// Make list of hosts
 
 	hostFetcher, err := NewSimpleFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
@@ -186,12 +129,13 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 			// It seems better to throw error here instead of
 			// going data processing on without config
 			LogErr("Unable to read aggregation config %s, %s", name, err)
-			return err
+			return nil, err
 		}
+
 		var aggConfig configs.AggregationConfig
 		if err := content.Decode(&aggConfig); err != nil {
 			LogErr("Unable to decode aggConfig: %s", err)
-			return err
+			return nil, err
 		}
 		aggregationConfigs[name] = aggConfig
 	}
@@ -220,7 +164,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 
 	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Config.MainSection.IterationDuration)
 
-	sp := sessionParams{
+	sp = &sessionParams{
 		ParsingTime: parsingTime,
 		WholeTime:   wholeTime,
 		PTasks:      p_tasks,
@@ -228,8 +172,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	}
 
 	LogInfo("Session parametrs have been updated successfully. %v", sp)
-	cl.sp = &sp
-	return nil
+	return sp, nil
 }
 
 func (cl *Client) Dispatch() {
@@ -253,30 +196,24 @@ func (cl *Client) Dispatch() {
 	)
 
 	for {
-		//Update session parametrs from config
-		if err := cl.UpdateSessionParams(cl.lockname); err != nil {
+		sessionParameters, err := cl.UpdateSessionParams(cl.lockname)
+		if err != nil {
 			LogInfo("Error %s", err)
 			return
 		}
 
-		if cl.sp == nil {
-			LogInfo("Unable to update parametrs of session")
-			return
-		}
-
-		// Start periodically
 		startTime = time.Now()
-		deadline = startTime.Add(cl.sp.ParsingTime)
+		deadline = startTime.Add(sessionParameters.ParsingTime)
 
 		// Generate session unique ID
 		uniqueID := GenerateSessionId(cl.lockname, &startTime, &deadline)
 		LogInfo("%s Start new iteration.", uniqueID)
 
 		// Parsing phase
-		for i, task := range cl.sp.PTasks {
+		for i, task := range sessionParameters.PTasks {
 			// Description of task
 			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
+			task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 			task.Id = uniqueID
 
 			LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
@@ -287,10 +224,10 @@ func (cl *Client) Dispatch() {
 		LogInfo("%s Parsing finished", uniqueID)
 
 		// Aggregation phase
-		deadline = startTime.Add(cl.sp.WholeTime)
-		for i, task := range cl.sp.AggTasks {
+		deadline = startTime.Add(sessionParameters.WholeTime)
+		for i, task := range sessionParameters.AggTasks {
 			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(cl.sp.WholeTime).Unix()
+			task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 			task.Id = uniqueID
 			LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
 			wg.Add(1)
