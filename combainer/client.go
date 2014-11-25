@@ -128,10 +128,16 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		wholeTime   time.Duration
 	)
 
-	parsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
+	encodedParsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return
+	}
+
+	var parsingConfig configs.ParsingConfig
+	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
+		LogErr("Unable to decode parsingConfig: %s", err)
+		return err
 	}
 
 	if parsingConfig.IterationDuration > 0 {
@@ -165,7 +171,12 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 			LogErr("Unable to read aggregation config %s, %s", name, err)
 			return err
 		}
-		aggregationConfigs[name] = content
+		var aggConfig configs.AggregationConfig
+		if err := content.Decode(&aggConfig); err != nil {
+			LogErr("Unable to decode aggConfig: %s", err)
+			return err
+		}
+		aggregationConfigs[name] = aggConfig
 	}
 
 	// Tasks for parsing
@@ -405,7 +416,8 @@ func (cl *Client) getRandomHost() string {
 
 // Private API
 func (cl *Client) acquireLock() chan bool {
-	for _, i := range cl.Repository.ListParsingConfigs() {
+	parsingListing, _ := cl.Repository.ListParsingConfigs()
+	for _, i := range parsingListing {
 		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
 		poller := cl.DLS.AcquireLock(lockname)
 		if poller != nil {

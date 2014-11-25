@@ -65,10 +65,7 @@ func main() {
 			}()
 
 			log.Println("Creating new client")
-			config, err := repository.GetCombainerConfig()
-			if err != nil {
-				log.Panicf("unable to get combaine config %s", err)
-			}
+			config := repository.GetCombainerConfig()
 			cl, err := combainer.NewClient(config, repository)
 			if err != nil {
 				log.Panicf("Can't create client: %s", err)
