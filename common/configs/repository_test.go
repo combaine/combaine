@@ -45,6 +45,9 @@ func TestRepository(t *testing.T) {
 		if !assert.NotNil(t, pcfg, "ooops") {
 			t.Fatal()
 		}
+
+		var decodedCfg ParsingConfig
+		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode parsing config")
 	}
 
 	for _, name := range la {
@@ -56,5 +59,8 @@ func TestRepository(t *testing.T) {
 		if !assert.NotNil(t, pcfg, "ooops") {
 			t.Fatal()
 		}
+
+		var decodedCfg AggregationConfig
+		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode aggregation config")
 	}
 }
