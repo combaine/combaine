@@ -23,6 +23,8 @@ type ParsingConfig struct {
 	// Set True to skip putting data into DataBase
 	Raw         bool `yaml:"raw"`
 	MainSection `yaml:"Combainer"`
+	// Overrides the same section in combainer.yaml
+	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
 }
 
 func (p *ParsingConfig) GetGroup() string {

@@ -37,6 +37,7 @@ type Client struct {
 	DLS        LockServer
 	lockname   string
 	cloudHosts []string
+	*Context
 	clientStats
 
 	// various periods and list of tasks
@@ -88,7 +89,7 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 	return
 }
 
-func NewClient(config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
+func NewClient(context *Context, config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
 	// TBD: It's better to pass config as is of create lockserver outside of client
 	dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
@@ -96,8 +97,13 @@ func NewClient(config configs.CombainerConfig, repo configs.Repository) (*Client
 		return nil, err
 	}
 
-	// Get list of Combaine hosts
-	cloudHosts, err := GetHosts(config.MainSection.Http_hand, config.MainSection.CloudGroup)
+	s, err := NewSimpleFetcher(context, config.CloudSection.HostFetcher)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get Combaine hosts
+	cloudHosts, err := s.Fetch(config.MainSection.CloudGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +113,8 @@ func NewClient(config configs.CombainerConfig, repo configs.Repository) (*Client
 		Config:     config,
 		DLS:        *dls,
 		lockname:   "",
-		cloudHosts: cloudHosts,
+		cloudHosts: cloudHosts.AllHosts(),
+		Context:    context,
 		sp:         nil,
 	}, nil
 }
@@ -144,23 +151,32 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
 	}
 
-	// common.MapUpdate(&(combainerCfg.CloudCfg.DF), &(cfg.DF))
-	// cfg.DF = combainerCfg.CloudCfg.DF
 	common.PluginConfigsUpdate(&cl.Config.CloudSection.DataFetcher, &parsingConfig.DataFetcher)
 	parsingConfig.DataFetcher = cl.Config.CloudSection.DataFetcher
+	common.PluginConfigsUpdate(&cl.Config.CloudSection.HostFetcher, &parsingConfig.HostFetcher)
+	parsingConfig.HostFetcher = cl.Config.CloudSection.HostFetcher
 
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 	// Make list of hosts
+
+	hostFetcher, err := NewSimpleFetcher(cl.Context, parsingConfig.HostFetcher)
+	if err != nil {
+		LogErr("Unable to construct SimpleFetcher: %s", err)
+		return
+	}
+
 	var hosts []string
 	for _, item := range parsingConfig.Groups {
-		if hosts_for_group, err := GetHosts(cl.Config.MainSection.Http_hand, item); err != nil {
-			LogInfo("Item %s, err %s", item, err)
-		} else {
-			hosts = append(hosts, hosts_for_group...)
+		hosts_for_group, err := hostFetcher.Fetch(item)
+		if err != nil {
+			LogInfo("Unable to get hosts for group %s: %s", item, err)
+			continue
 		}
-		LogInfo("Hosts: %s", hosts)
+
+		hosts = append(hosts, hosts_for_group.AllHosts()...)
 	}
+	LogInfo("Hosts: %s", hosts)
 
 	aggregationConfigs := make(map[string]configs.AggregationConfig)
 	for _, name := range parsingConfig.AggConfigs {

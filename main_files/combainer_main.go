@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/noxiouz/Combaine/combainer"
+	"github.com/noxiouz/Combaine/common/cache"
 	"github.com/noxiouz/Combaine/common/configs"
 )
 
@@ -43,7 +44,19 @@ func main() {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
 
-	combainer.InitializeCacher()
+	combainerConfig := repository.GetCombainerConfig()
+
+	cacheCfg := &combainerConfig.MainSection.Cache
+	log.Println(*cacheCfg)
+	cacheType, err := cacheCfg.Type()
+	if err != nil {
+		log.Fatalf("unable to get type of cache: %s", err)
+	}
+	cacher, err := cache.NewCache(cacheType, cacheCfg)
+	if err != nil {
+		log.Fatalf("unable to initialize cache: %s", err)
+	}
+
 	combainer.InitializeLogger(loglevel, logoutput)
 	if profiler != "" {
 		log.Println("Profiler enabled")
@@ -55,6 +68,9 @@ func main() {
 		}()
 	}
 
+	context := combainer.Context{
+		Cache: cacher,
+	}
 	go combainer.StartObserver(endpoint)
 	for {
 		go func() {
@@ -65,8 +81,7 @@ func main() {
 			}()
 
 			log.Println("Creating new client")
-			config := repository.GetCombainerConfig()
-			cl, err := combainer.NewClient(config, repository)
+			cl, err := combainer.NewClient(&context, combainerConfig, repository)
 			if err != nil {
 				log.Panicf("Can't create client: %s", err)
 			}

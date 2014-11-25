@@ -2,14 +2,13 @@ package configs
 
 // Describes Main section in combaine.yaml
 type MainSection struct {
-	// HTTP template. It's substituted with group name
-	// to get hosts in groups.
-	Http_hand string `yaml:"HTTP_HAND"`
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
 	IterationDuration uint "MINIMUM_PERIOD"
 	// Group of cloud machines
 	CloudGroup string `yaml:"cloud"`
+	// Cache options
+	Cache PluginConfig `yaml:"Cache"`
 }
 
 type LockServerSection struct {
@@ -25,7 +24,8 @@ type CloudSection struct {
 	// Default DataFetcher
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
 	// Hosts for AgavePlugin
-	AgaveHosts []string `yaml:"agave_hosts"`
+	AgaveHosts  []string     `yaml:"agave_hosts"`
+	HostFetcher PluginConfig `yaml:"HostFetcher`
 }
 
 type CombainerSection struct {
