@@ -27,4 +27,7 @@ def test_aggregation_task():
     assert aggt.Id == etalon["Id"]
     assert aggt.parsing_config.metahost == etalon["ParsingConfig"]["Metahost"]
 
-    etalon_items = etalon["AggregationConfig"]["Data"].items()
+    # etalon_items = etalon["AggregationConfig"]["Data"].items()
+
+    etalon_hosts = {"DC1": ["Host1", "Host2"], "DC2": ["Host3", "Host4"]}
+    assert aggt.hosts == etalon_hosts, aggt.hosts

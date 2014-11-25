@@ -101,6 +101,13 @@ class AggregationTask(object):
     def aggregation_config_name(self):
         return self.task['Config']
 
+    @property
+    def hosts(self):
+        try:
+            return self.task['Hosts']
+        except KeyError:
+            raise Exception("Malformed task: No Hosts")
+
 
 class ParsingTask(object):
     def __init__(self, packed_task):

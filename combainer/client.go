@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	// "github.com/howeyc/fsnotify"
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/noxiouz/Combaine/common/hosts"
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
@@ -166,7 +166,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 		return
 	}
 
-	var hosts []string
+	var allHosts hosts.Hosts
 	for _, item := range parsingConfig.Groups {
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
@@ -174,9 +174,10 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 			continue
 		}
 
-		hosts = append(hosts, hosts_for_group.AllHosts()...)
+		allHosts.Merge(&hosts_for_group)
 	}
-	LogInfo("Hosts: %s", hosts)
+	listOfHosts := allHosts.AllHosts()
+	LogInfo("Hosts: %s", listOfHosts)
 
 	aggregationConfigs := make(map[string]configs.AggregationConfig)
 	for _, name := range parsingConfig.AggConfigs {
@@ -196,7 +197,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 	}
 
 	// Tasks for parsing
-	for _, host := range hosts {
+	for _, host := range listOfHosts {
 		p_tasks = append(p_tasks, tasks.ParsingTask{
 			CommonTask:         tasks.EmptyCommonTask,
 			Host:               host,
@@ -213,6 +214,7 @@ func (cl *Client) UpdateSessionParams(config string) (err error) {
 			ParsingConfigName: cl.lockname,
 			ParsingConfig:     parsingConfig,
 			AggregationConfig: aggregationConfigs[name],
+			Hosts:             allHosts,
 		})
 	}
 

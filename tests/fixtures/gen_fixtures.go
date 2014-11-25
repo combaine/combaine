@@ -65,6 +65,11 @@ func main() {
 		},
 	}
 
+	hostsAndDc := map[string][]string{
+		"DC1": []string{"Host1", "Host2"},
+		"DC2": []string{"Host3", "Host4"},
+	}
+
 	parsing_task := tasks.ParsingTask{
 		CommonTask:        cm_task,
 		Host:              HOST,
@@ -78,6 +83,7 @@ func main() {
 		ParsingConfigName: PARSINGCONFIGNAME,
 		ParsingConfig:     parsing_config,
 		AggregationConfig: aggregation_config,
+		Hosts:             hostsAndDc,
 	}
 
 	gen := func(input interface{}) (js, msg []byte) {

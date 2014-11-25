@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/noxiouz/Combaine/common/hosts"
 )
 
 type CommonTask struct {
@@ -46,4 +47,6 @@ type AggregationTask struct {
 	ParsingConfig configs.ParsingConfig
 	// Current aggregation config
 	AggregationConfig configs.AggregationConfig
+	// Hosts
+	Hosts hosts.Hosts
 }

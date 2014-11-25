@@ -20,7 +20,6 @@ deps:
 	go get launchpad.net/gozk/zookeeper
 	go get launchpad.net/goyaml
 	go get github.com/cocaine/cocaine-framework-go/cocaine
-	go get github.com/howeyc/fsnotify
 	go get github.com/Sirupsen/logrus
 	go get github.com/mitchellh/mapstructure
 	mkdir -vp $(PACKAGE_PATH)
@@ -50,5 +49,4 @@ clean::
 
 test:
 	go get github.com/stretchr/testify/assert
-	go get github.com/smartystreets/goconvey
 	./run_test.sh

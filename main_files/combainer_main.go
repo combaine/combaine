@@ -76,7 +76,7 @@ func main() {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Println("Recovered in f", r)
+					log.Printf("Recovered: %s", r)
 				}
 			}()
 

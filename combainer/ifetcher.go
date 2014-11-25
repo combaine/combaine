@@ -7,24 +7,15 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/noxiouz/Combaine/common/hosts"
 )
 
 const (
 	fetcherCacheNamespace = "simpleFetcherCacheNamespace"
 )
 
-type Hosts map[string][]string
-
 type HostFetcher interface {
-	Fetch(group string) (Hosts, error)
-}
-
-func (h *Hosts) AllHosts() []string {
-	hosts := make([]string, 0)
-	for _, hostsInDc := range *h {
-		hosts = append(hosts, hostsInDc...)
-	}
-	return hosts
+	Fetch(group string) (hosts.Hosts, error)
 }
 
 type SimpleFetcher struct {
@@ -50,7 +41,7 @@ func NewSimpleFetcher(context *Context, config map[string]interface{}) (HostFetc
 	return f, nil
 }
 
-func (s *SimpleFetcher) Fetch(groupname string) (Hosts, error) {
+func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	url := fmt.Sprintf(s.BasicUrl, groupname)
 	resp, err := http.Get(url)
 	var body []byte
@@ -77,7 +68,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (Hosts, error) {
 	}
 
 	// Body parsing
-	hosts := make(Hosts)
+	fetchedHosts := make(hosts.Hosts)
 	items := strings.TrimSuffix(string(body), "\n")
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
@@ -86,10 +77,10 @@ func (s *SimpleFetcher) Fetch(groupname string) (Hosts, error) {
 			continue
 		}
 		dc, host := temp[0], temp[1]
-		hosts[dc] = append(hosts[dc], host)
+		fetchedHosts[dc] = append(fetchedHosts[dc], host)
 	}
-	if len(hosts) == 0 {
-		return hosts, fmt.Errorf("No hosts")
+	if len(fetchedHosts) == 0 {
+		return fetchedHosts, fmt.Errorf("No hosts")
 	}
-	return hosts, nil
+	return fetchedHosts, nil
 }
