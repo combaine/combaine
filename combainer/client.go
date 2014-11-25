@@ -311,10 +311,11 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
 			LogErr("%s Parsing task for host %s failed %v", task.Id, task.Host, res.Err())
+			cl.clientStats.AddFailedParsing()
 		} else {
 			LogInfo("%s Parsing task for host %s completed successfully", task.Id, task.Host)
+			cl.clientStats.AddSuccessParsing()
 		}
-		cl.clientStats.AddSuccessParsing()
 	}
 }
 
@@ -357,10 +358,11 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	case res := <-app.Call("enqueue", "handleTask", raw):
 		if res.Err() != nil {
 			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.ParsingConfig.GetGroup(), res.Err())
+			cl.clientStats.AddFailedAggregate()
 		} else {
 			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.ParsingConfig.GetGroup())
+			cl.clientStats.AddSuccessAggregate()
 		}
-		cl.clientStats.AddSuccessAggregate()
 	}
 }
 
