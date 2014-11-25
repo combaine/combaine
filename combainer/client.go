@@ -291,9 +291,9 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 			defer app.Close()
 			LogDebug("%s Host: %s", task.Id, host)
 			break
-		} else {
-			LogWarning("%s unable to connect to application %s %s %s", task.Id, common.PARSING, host, err)
 		}
+
+		LogWarning("%s unable to connect to application %s %s %s", task.Id, common.PARSING, host, err)
 		time.Sleep(200 * time.Microsecond)
 	}
 
@@ -304,19 +304,12 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	}
 
 	raw, _ := common.Pack(task)
-	select {
-	case <-time.After(limit):
-		LogErr("Task %s has been late\n", task.Id)
+	if err := PerformTask(app, raw, limit); err != nil {
+		LogErr("%s Parsing task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
 		cl.clientStats.AddFailedParsing()
-	case res := <-app.Call("enqueue", "handleTask", raw):
-		if res.Err() != nil {
-			LogErr("%s Parsing task for host %s failed %v", task.Id, task.Host, res.Err())
-			cl.clientStats.AddFailedParsing()
-		} else {
-			LogInfo("%s Parsing task for host %s completed successfully", task.Id, task.Host)
-			cl.clientStats.AddSuccessParsing()
-		}
+		return
 	}
+	cl.clientStats.AddSuccessParsing()
 }
 
 func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
@@ -334,13 +327,14 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.AGGREGATE)
 		}
+
 		if err == nil {
 			defer app.Close()
 			LogDebug("%s Host: %s", task.Id, host)
 			break
-		} else {
-			LogWarning("%s unable to connect to application %s %s %s", task.Id, common.AGGREGATE, host, err)
 		}
+
+		LogWarning("%s unable to connect to application %s %s %s", task.Id, common.AGGREGATE, host, err)
 		time.Sleep(time.Millisecond * 100)
 	}
 
@@ -351,19 +345,12 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	}
 
 	raw, _ := common.Pack(task)
-	select {
-	case <-time.After(limit):
-		LogErr("Task %s has been late", task.Id)
+	if err = PerformTask(app, raw, limit); err != nil {
+		LogErr("%s Aggreagation task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
 		cl.clientStats.AddFailedAggregate()
-	case res := <-app.Call("enqueue", "handleTask", raw):
-		if res.Err() != nil {
-			LogErr("%s Aggreagation task for group %s failed %v", task.Id, task.ParsingConfig.GetGroup(), res.Err())
-			cl.clientStats.AddFailedAggregate()
-		} else {
-			LogInfo("%s Aggregation task for group %s completed successfully", task.Id, task.ParsingConfig.GetGroup())
-			cl.clientStats.AddSuccessAggregate()
-		}
+		return
 	}
+	cl.clientStats.AddSuccessAggregate()
 }
 
 func (cl *Client) getRandomHost() string {
@@ -380,6 +367,18 @@ func (cl *Client) acquireLock() chan bool {
 		if poller != nil {
 			cl.lockname = i
 			return poller
+		}
+	}
+	return nil
+}
+
+func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) error {
+	select {
+	case <-time.After(limit):
+		return fmt.Errorf("timeout")
+	case res := <-app.Call("enqueue", "handleTask", payload):
+		if res.Err() != nil {
+			return res.Err()
 		}
 	}
 	return nil
