@@ -1,3 +1,0 @@
-[submodule "foreign/schema"]
-	path = foreign/schema
-	url = https://github.com/halst/schema

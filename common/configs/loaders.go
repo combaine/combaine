@@ -5,30 +5,35 @@ import (
 	"launchpad.net/goyaml"
 )
 
-func NewParsingConfig(path string) (config ParsingConfig, err error) {
-	err = newConfig(path, &config)
-	return
+type EncodedConfig []byte
+
+func (e *EncodedConfig) Decode(inplace interface{}) error {
+	return goyaml.Unmarshal(*e, inplace)
 }
 
-func NewAggregationConfig(path string) (config AggregationConfig, err error) {
-	err = newConfig(path, &config)
-	return
+func NewParsingConfig(path string) (EncodedConfig, error) {
+	return newConfig(path)
+}
+
+func NewAggregationConfig(path string) (EncodedConfig, error) {
+	return newConfig(path)
 }
 
 func NewCombaineConfig(path string) (config CombainerConfig, err error) {
-	err = newConfig(path, &config)
+	data, err := newConfig(path)
+	if err != nil {
+		return
+	}
+
+	err = goyaml.Unmarshal(data, &config)
 	return
 }
 
-func newConfig(path string, inplace interface{}) error {
-	data, err := ioutil.ReadFile(path)
+func newConfig(path string) (data EncodedConfig, err error) {
+	data, err = ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return
 	}
 
-	err = goyaml.Unmarshal(data, inplace)
-	if err != nil {
-		return err
-	}
-	return nil
+	return
 }
