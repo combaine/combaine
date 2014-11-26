@@ -26,6 +26,7 @@ pip-log.txt
 .tox
 nosetests.xml
 reports
+coverage.out
 
 tests/fixtures/fixture_*
 

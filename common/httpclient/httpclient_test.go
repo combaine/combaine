@@ -9,5 +9,6 @@ func MainTest(t *testing.T) {
 		CONNECTION_TIMEOUT = 1000
 		RW_TIMEOUT         = 3000
 	)
-	_ := NewClientWithTimeout(CONNECTION_TIMEOUT, RW_TIMEOUT)
+	c := NewClientWithTimeout(CONNECTION_TIMEOUT, RW_TIMEOUT)
+	c.Get("http://ya.ru")
 }
