@@ -1,3 +1,14 @@
+combaine (0.7.0.1-rc1) unstable; urgency=low
+
+  * Initial release of 0.7
+  * Tasks with configs
+  * Tasks in hosts
+  * Get rid of inotify
+  * Prepare to develop REST-API
+  * Change repo structure
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 26 Nov 2014 17:58:29 +0400
+
 combaine (0.6.5.10) unstable; urgency=low
 
   * [Parsing] Damn this closure
