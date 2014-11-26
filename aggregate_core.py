@@ -8,10 +8,6 @@ from cocaine.services import Service
 from combaine.common.logger import get_logger_adapter
 from combaine.common import AggregationTask
 
-from cocaine.logging import Logger
-
-log = Logger()
-
 
 storage = Service("elliptics")
 
@@ -63,7 +59,7 @@ def aggreagate(request, response):
         logger.info("Send to %s %s" % (name, cfg['type']))
         app = cache.get(cfg['type'])
         if app is None:
-            log.info("Skip %s" % cfg['type'])
+            logger.info("Skip %s" % cfg['type'])
             continue
 
         result[name] = {}
