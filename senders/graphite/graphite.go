@@ -84,23 +84,45 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 			case reflect.Map:
 				v_keys := rv.MapKeys()
 				for _, key := range v_keys {
-					itemInterface := rv.MapIndex(key).Interface()
+					itemInterface := rv.MapIndex(key)
 
-					toSend := fmt.Sprintf(
-						onePointFormat,
-						g.cluster,
-						formatSubgroup(subgroup),
-						fmt.Sprintf("%s.%s", aggname, common.InterfaceToString(key.Interface())),
-						common.InterfaceToString(itemInterface),
-						time.Now().Unix())
+					switch itemInterface.Kind() {
+					case reflect.Slice, reflect.Array:
+						if len(g.fields) == 0 || len(g.fields) != itemInterface.Len() {
+							logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), itemInterface.Len())
+						}
+						for i := 0; i < itemInterface.Len(); i++ {
+							itemInnerInterface := itemInterface.Index(i).Interface()
+							toSend := fmt.Sprintf(
+								onePointFormat,
+								g.cluster,
+								formatSubgroup(subgroup),
+								fmt.Sprintf("%s.%s.%s", aggname, common.InterfaceToString(key.Interface()), g.fields[i]),
+								common.InterfaceToString(itemInnerInterface),
+								time.Now().Unix())
 
-					logger.Infof("%s Send %s", g.id, toSend)
-					if _, err = fmt.Fprint(output, toSend); err != nil {
-						logger.Errf("%s Sending error: %s", g.id, err)
-						return err
+							logger.Infof("%s Send %s", g.id, toSend)
+							if _, err = fmt.Fprint(output, toSend); err != nil {
+								logger.Errf("%s Sending error: %s", g.id, err)
+								return err
+							}
+						}
+					default:
+						toSend := fmt.Sprintf(
+							onePointFormat,
+							g.cluster,
+							formatSubgroup(subgroup),
+							fmt.Sprintf("%s.%s", aggname, common.InterfaceToString(key.Interface())),
+							common.InterfaceToString(itemInterface.Interface()),
+							time.Now().Unix())
+
+						logger.Infof("%s Send %s", g.id, toSend)
+						if _, err = fmt.Fprint(output, toSend); err != nil {
+							logger.Errf("%s Sending error: %s", g.id, err)
+							return err
+						}
 					}
 				}
-
 			default:
 				toSend := fmt.Sprintf(
 					onePointFormat,

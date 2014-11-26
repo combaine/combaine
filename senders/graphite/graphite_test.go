@@ -2,7 +2,10 @@ package graphite
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/noxiouz/Combaine/common/tasks"
 )
@@ -13,6 +16,24 @@ func TestGraphiteSend(t *testing.T) {
 		cluster: "TESTCOMBAINE",
 		fields:  []string{"A", "B", "C"},
 	}
+
+	tms := fmt.Sprintf("%d", time.Now().Unix())
+	var (
+		expected = map[string]struct{}{
+			"TESTCOMBAINE.combaine.simple.20x 2000 " + tms:             struct{}{},
+			"TESTCOMBAINE.combaine.array.20x.A 20 " + tms:              struct{}{},
+			"TESTCOMBAINE.combaine.array.20x.B 30 " + tms:              struct{}{},
+			"TESTCOMBAINE.combaine.array.20x.C 40 " + tms:              struct{}{},
+			"TESTCOMBAINE.combaine.map_of_simple.20x.MP1 1000 " + tms:  struct{}{},
+			"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002 " + tms:  struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.A 201 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.B 301 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.C 401 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.A 202 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.B 302 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.C 402 " + tms: struct{}{},
+		}
+	)
 
 	data := tasks.DataType{
 		"20x": {
@@ -28,8 +49,20 @@ func TestGraphiteSend(t *testing.T) {
 			},
 		}}
 	buff := new(bytes.Buffer)
-	t.Log(grCfg)
 	err := grCfg.sendInternal(&data, buff)
-	t.Log(err)
-	t.Logf("%s", buff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range strings.Split(buff.String(), "\n") {
+		if len(item) == 0 {
+			continue
+		}
+		_, ok := expected[item]
+		if !ok {
+			t.Logf("%s is not in the expected", item)
+			t.Fail()
+		}
+
+	}
+
 }
