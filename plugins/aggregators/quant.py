@@ -7,10 +7,9 @@ import re
 import msgpack
 
 from cocaine.worker import Worker
-from cocaine.logging import Logger
 from cocaine.services import Service
 
-Log = Logger()
+from combaine.common.logger import get_logger_adapter
 
 TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
@@ -78,33 +77,33 @@ def quants(qts, it):
 def aggregate_host(request, response):
     raw = yield request.read()
     TASK = msgpack.unpackb(raw)
-    Log.info("%s Handle task" % TASK['id'])
+    logger = get_logger_adapter(TASK['id'])
+    logger.info("Handle task")
     cfg = TASK['config']  # config of aggregator
     token = TASK['token']
-    Log.debug(str(cfg))
+    logger.debug(str(cfg))
     dg = MysqlDG.get_service(DATABASEAPP)
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
-    Log.info("%s QUERY: %s" % (TASK['id'], q))
+    logger.info("QUERY: %s", q)
     pickled_res = yield dg.enqueue("query",
                                    msgpack.packb((token, q)))
     res = cPickle.loads(pickled_res)
-    Log.debug(str(res))
-    #Log.info("Data from DG " + str(res))
+    logger.debug("%s", res)
     ret = quantile_packer(itertools.chain(*res))
-    Log.info("%s Return " % TASK['id'] + str(ret))
+    logger.info("Return %s", str(ret))
     response.write(msgpack.packb(ret))
     response.close()
 
 
 def aggregate_group(request, response):
     raw = yield request.read()
-    inc = msgpack.unpackb(raw)
-    cfg, data = inc
-    Log.debug("Unpack raw data successfully")
+    tid, cfg, data = msgpack.unpackb(raw)
+    logger = get_logger_adapter(tid)
+    logger.debug("Unpack raw data successfully")
     raw_data = map(msgpack.unpackb, data)
     ret = merge(raw_data)
-    Log.debug("Data has been merged %s" % ret)
+    logger.debug("Data has been merged %s", ret)
     qts = map(int,
               map(lambda x: float(ret["count"]) * x / 100,
                   cfg.get("values", [75, 90, 93, 94, 95, 96, 97, 98, 99])))
@@ -112,10 +111,10 @@ def aggregate_group(request, response):
         ret = quants(qts,
                      ret['data'])
     except Exception as err:
-        Log.error(str(err))
+        logger.error(str(err))
         response.error(100, repr(err))
     else:
-        Log.info("Result of group aggreagtion " + str(ret))
+        logger.info("Result of group aggreagtion %s", ret)
         response.write(ret)
         response.close()
 

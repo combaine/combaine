@@ -77,7 +77,7 @@ def aggreagate(request, response):
                     subgroup_data.append(data)
                     if cfg.get("perHost"):
                         res = yield app.enqueue("aggregate_group",
-                                                msgpack.packb((cfg, [data])))
+                                                msgpack.packb((task.Id, cfg, [data])))
                         result[name][host] = res
                 except Exception as err:
                     if err.code != 2:
@@ -87,7 +87,7 @@ def aggreagate(request, response):
             mapping[subgroup] = subgroup_data
             try:
                 res = yield app.enqueue("aggregate_group",
-                                        msgpack.packb((cfg, subgroup_data)))
+                                        msgpack.packb((task.Id, cfg, subgroup_data)))
                 logger.info("name %s subgroup %s result %s",
                             name, subgroup, res)
                 result[name][subgroup] = res
@@ -100,7 +100,7 @@ def aggreagate(request, response):
             all_data.extend(v)
         try:
             res = yield app.enqueue("aggregate_group",
-                                    msgpack.packb((cfg, all_data)))
+                                    msgpack.packb((task.Id, cfg, all_data)))
         except Exception as err:
             logger.error("unable to aggreagate all: %s %s", name, err)
         logger.info("name %s ALL %s %d" % (name, res, len(all_data)))

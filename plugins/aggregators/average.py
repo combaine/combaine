@@ -5,10 +5,9 @@ import re
 import msgpack
 
 from cocaine.worker import Worker
-from cocaine.logging import Logger
 from cocaine.services import Service
 
-Log = Logger()
+from combaine.common.logger import get_logger_adapter
 
 TABLEREGEX = re.compile("%TABLENAME%")
 TIMEREGEX = re.compile("TIME\s*=\s*%%")
@@ -30,39 +29,40 @@ class MysqlDG(object):
 def aggregate_host(request, response):
     raw = yield request.read()
     TASK = msgpack.unpackb(raw)
-    Log.info("%s Handle task" % TASK['id'])
+    taskId = TASK['id']
+    logger = get_logger_adapter(taskId)
+    logger.info("Handle task")
     cfg = TASK['config']  # config of aggregator
     token = TASK['token']
     prtime = TASK['prevtime']
     currtime = TASK['currtime']
-    taskId = TASK['id']
     dg = MysqlDG.get_service(DATABASEAPP)
     q = TABLEREGEX.sub(token, cfg['query'])
     q = TIMEREGEX.sub("1=1", q)
-    Log.debug("%s QUERY: %s" % (taskId, q))
+    logger.debug("QUERY: %s", q)
     pickled_res = yield dg.enqueue("query",
                                    msgpack.packb((token, q)))
     res = cPickle.loads(pickled_res)
-    Log.debug(str(res))
+    logger.debug(str(res))
     try:
         ret = float(res[0][0])   # SELECT COUNT(*)
-        Log.info("%s Result from DG %s" % (taskId, ret))
+        logger.info("Result from DG %s", ret)
         if cfg.get('rps'):
             ret = ret / (currtime - prtime)
     except Exception:
         ret = 0
-    Log.info("%s %s" % (taskId, ret))
+    logger.info("%s", ret)
     response.write(msgpack.packb(ret))
     response.close()
 
 
 def aggregate_group(request, response):
     raw = yield request.read()
-    inc = msgpack.unpackb(raw)
-    cfg, data = inc
-    Log.info("Raw data is received %s" % str(inc))
+    tid, cfg, data = msgpack.unpackb(raw)
+    logger = get_logger_adapter(tid)
+    logger.info("Raw data is received %s" % data)
     res = sum(map(msgpack.unpackb, data))
-    Log.info("Solved %s" % res)
+    logger.info("Solved %s" % res)
     response.write(res)
     response.close()
 

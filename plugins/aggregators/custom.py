@@ -9,8 +9,9 @@ import msgpack
 from cocaine.worker import Worker
 from cocaine.logging import Logger
 
-Log = Logger()
+from combaine.common.logger import get_logger_adapter
 
+Log = Logger()
 
 PATH = os.environ.get('PLUGINS_PATH',
                       '/usr/lib/yandex/combaine/custom')
@@ -60,43 +61,45 @@ def plugin_import():
 
 def aggregate_host(request, response):
     raw = yield request.read()
-    TASK = msgpack.unpackb(raw)
-    tid = TASK['id']
-    Log.info("%s Handle task" % tid)
-    cfg = TASK['config']
+    task = msgpack.unpackb(raw)
+    tid = task['id']
+    logger = get_logger_adapter(tid)
+    logger.info("Handle task")
+    cfg = task['config']
     klass_name = cfg['class']
     # Replace this name
-    payload = TASK['token']
+    payload = task['token']
     try:
         result = _aggregate_host(klass_name, payload, cfg, task)
         response.write(msgpack.packb(result))
-        Log.info("%s Done" % tid)
+        logger.info("Done")
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
-        Log.error("%s class %s is absent" % (tid, klass_name))
+        logger.error("class %s is absent", klass_name)
     except Exception as err:
         response.error(-3, "Exception during handling %s" % repr(err))
-        Log.error("%s Error" % tid)
+        logger.error("Error %s", err)
     finally:
         response.close()
 
 
 def aggregate_group(request, response):
     raw = yield request.read()
-    cfg, data = msgpack.unpackb(raw)
-    Log.debug("Unpack raw data successfully")
+    tid, cfg, data = msgpack.unpackb(raw)
+    logger = get_logger_adapter(tid)
+    logger.debug("Unpack raw data successfully")
     payload = map(msgpack.unpackb, data)
     klass_name = cfg['class']
     try:
-        result = _aggregate_group(klass_name, payload, cfg, task)
+        result = _aggregate_group(klass_name, payload, cfg)
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
-        Log.error("class %s is absent" % klass_name)
+        logger.error("class %s is absent", klass_name)
     except Exception as err:
-        Log.error(str(err))
+        logger.error("%s", err)
         response.error(100, repr(err))
     else:
-        Log.info("Result of group aggreagtion " + str(result))
+        logger.info("Result of group aggreagtion %s", str(result))
         response.write(result)
         response.close()
 
@@ -109,7 +112,7 @@ def _aggregate_host(klass_name, payload, config, task):
     return handler.aggregate_host(payload, prevtime, currtime)
 
 
-def _aggregate_group(klass_name, payload, config, task):
+def _aggregate_group(klass_name, payload, config):
     available = plugin_import()
     klass = available[klass_name]
     handler = klass(config)
