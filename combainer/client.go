@@ -109,7 +109,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		return
 	}
 
-	var allHosts hosts.Hosts
+	allHosts := make(hosts.Hosts)
 	for _, item := range parsingConfig.Groups {
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
