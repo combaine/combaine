@@ -66,6 +66,9 @@ func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
 				}
 				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
+			case reflect.Map:
+				logger.Errf("%s Map values hasn't been supported in Agave", as.Id)
+				continue
 			default:
 				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, common.InterfaceToString(value)))
 			}
