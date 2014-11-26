@@ -20,9 +20,14 @@
 
 import logging
 
+from cocaine.logging import Logger
 from cocaine.logging.hanlders import CocaineHandler
 
+Log = Logger()
+Log.error("INITIALIZE")
+
 l = logging.getLogger("combaine")
+l.setLevel(logging.DEBUG)
 ch = CocaineHandler()
 formatter = logging.Formatter("%(tid)s %(message)s")
 ch.setFormatter(formatter)

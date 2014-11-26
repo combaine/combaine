@@ -5,6 +5,7 @@ import msgpack
 from cocaine.worker import Worker
 from cocaine.services import Service
 
+
 from combaine.common.logger import get_logger_adapter
 from combaine.common import AggregationTask
 
@@ -124,7 +125,7 @@ def aggreagate(request, response):
             logger.error("unable to send to %s %s", name, err)
 
     logger.info("Result %s", result)
-    response.write("Done %s" % task.Id)
+    response.write("Done")
     response.close()
 
 

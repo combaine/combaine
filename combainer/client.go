@@ -304,10 +304,12 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	}
 
 	raw, _ := common.Pack(task)
-	if err := PerformTask(app, raw, limit); err != nil {
+	if res, err := PerformTask(app, raw, limit); err != nil {
 		LogErr("%s Parsing task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
 		cl.clientStats.AddFailedParsing()
 		return
+	} else {
+		LogErr("%s Parsing task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
 	}
 	cl.clientStats.AddSuccessParsing()
 }
@@ -345,10 +347,12 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	}
 
 	raw, _ := common.Pack(task)
-	if err = PerformTask(app, raw, limit); err != nil {
+	if res, err := PerformTask(app, raw, limit); err != nil {
 		LogErr("%s Aggreagation task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
 		cl.clientStats.AddFailedAggregate()
 		return
+	} else {
+		LogErr("%s Aggreagation task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
 	}
 	cl.clientStats.AddSuccessAggregate()
 }
@@ -372,14 +376,17 @@ func (cl *Client) acquireLock() chan bool {
 	return nil
 }
 
-func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) error {
+func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (interface{}, error) {
 	select {
 	case <-time.After(limit):
-		return fmt.Errorf("timeout")
+		return nil, fmt.Errorf("timeout")
 	case res := <-app.Call("enqueue", "handleTask", payload):
 		if res.Err() != nil {
-			return res.Err()
+			return nil, res.Err()
 		}
+		var i interface{}
+		err := res.Extract(&i)
+		return i, err
 	}
-	return nil
+	return nil, nil
 }
