@@ -25,7 +25,7 @@ type CloudSection struct {
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
 	// Hosts for AgavePlugin
 	AgaveHosts  []string     `yaml:"agave_hosts"`
-	HostFetcher PluginConfig `yaml:"HostFetcher`
+	HostFetcher PluginConfig `yaml:"HostFetcher"`
 }
 
 type CombainerSection struct {

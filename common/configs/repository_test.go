@@ -36,6 +36,10 @@ func TestRepository(t *testing.T) {
 	cmbCg := repo.GetCombainerConfig()
 	assert.Equal(t, expectedLockHosts, cmbCg.LockServerSection.Hosts, "")
 
+	if len(cmbCg.CloudSection.HostFetcher) == 0 {
+		t.Fatal("section isn't supposed to empty")
+	}
+
 	for _, name := range lp {
 		pcfg, err := repo.GetParsingConfig(name)
 		if !assert.Nil(t, err, "unable to read %s: %s", name, err) {
