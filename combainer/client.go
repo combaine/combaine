@@ -79,7 +79,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		wholeTime   time.Duration
 	)
 
-	encodedParsingConfig, err := cl.Repository.GetParsingConfig(cl.lockname)
+	encodedParsingConfig, err := cl.Repository.GetParsingConfig(config)
 	if err != nil {
 		LogErr("Unable to load config %s", err)
 		return nil, err

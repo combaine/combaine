@@ -46,9 +46,10 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	resp, err := http.Get(url)
 	var body []byte
 	if err != nil {
-		LogErr("Unable to fetch hosts from %s: %s. Cache is used", url, err)
+		LogWarning("Unable to fetch hosts from %s: %s. Cache is used", url, err)
 		body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
 		if err != nil {
+			LogErr("Unable to read data from the cache: %s", err)
 			return nil, err
 		}
 	} else {
