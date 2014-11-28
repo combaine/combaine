@@ -100,6 +100,10 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	common.PluginConfigsUpdate(&cl.Config.CloudSection.HostFetcher, &parsingConfig.HostFetcher)
 	parsingConfig.HostFetcher = cl.Config.CloudSection.HostFetcher
 
+	if parsingConfig.GetMetahost() == "" {
+		parsingConfig.Metahost = parsingConfig.Groups[0]
+	}
+
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 
