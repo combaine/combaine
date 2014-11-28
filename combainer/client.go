@@ -313,7 +313,7 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 		cl.clientStats.AddFailedParsing()
 		return
 	} else {
-		LogErr("%s Parsing task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
+		LogInfo("%s Parsing task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
 	}
 	cl.clientStats.AddSuccessParsing()
 }
@@ -356,7 +356,7 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 		cl.clientStats.AddFailedAggregate()
 		return
 	} else {
-		LogErr("%s Aggreagation task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
+		LogInfo("%s Aggreagation task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
 	}
 	cl.clientStats.AddSuccessAggregate()
 }
