@@ -95,9 +95,9 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
 	}
 
-	common.PluginConfigsUpdate(&cl.Config.CloudSection.DataFetcher, &parsingConfig.DataFetcher)
+	common.PluginConfigsUpdate(&(cl.Config.CloudSection.DataFetcher), &(parsingConfig.DataFetcher))
 	parsingConfig.DataFetcher = cl.Config.CloudSection.DataFetcher
-	common.PluginConfigsUpdate(&cl.Config.CloudSection.HostFetcher, &parsingConfig.HostFetcher)
+	common.PluginConfigsUpdate(&(cl.Config.CloudSection.HostFetcher), &(parsingConfig.HostFetcher))
 	parsingConfig.HostFetcher = cl.Config.CloudSection.HostFetcher
 
 	if parsingConfig.GetMetahost() == "" {
