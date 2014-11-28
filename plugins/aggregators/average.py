@@ -60,9 +60,9 @@ def aggregate_group(request, response):
     raw = yield request.read()
     tid, cfg, data = msgpack.unpackb(raw)
     logger = get_logger_adapter(tid)
-    logger.info("Raw data is received %s" % data)
+    logger.info("Raw data is received %s", str(data))
     res = sum(map(msgpack.unpackb, data))
-    logger.info("Solved %s" % res)
+    logger.info("Solved %s", str(res))
     response.write(res)
     response.close()
 

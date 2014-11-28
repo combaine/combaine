@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc3) unstable; urgency=low
+
+  * Fix logging format
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 28 Nov 2014 20:49:47 +0400
+
 combaine (0.7.0.1-rc2) unstable; urgency=low
 
   * Fix metahost
