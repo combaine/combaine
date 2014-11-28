@@ -34,6 +34,10 @@ func NewSimpleFetcher(context *Context, config map[string]interface{}) (HostFetc
 		return nil, err
 	}
 
+	if fetcherConfig.Separator == "" {
+		fetcherConfig.Separator = "\t"
+	}
+
 	f := &SimpleFetcher{
 		SimpleFetcherConfig: fetcherConfig,
 		Context:             context,

@@ -32,10 +32,7 @@ func (p *ParsingConfig) GetGroup() string {
 }
 
 func (p *ParsingConfig) GetMetahost() string {
-	if p.Metahost != "" {
-		return p.Metahost
-	}
-	return p.GetGroup()
+	return p.Metahost
 }
 
 func (p *ParsingConfig) NeedToSkipParsingStage() bool {

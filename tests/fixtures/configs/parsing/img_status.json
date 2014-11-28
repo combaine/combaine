@@ -1,6 +1,5 @@
 Combainer: {MINIMUM_PERIOD: 60}
 DataFetcher: {timetail_url: '/timetail?pattern=img_status&log_ts='}
 agg_configs: [http_ok]
-groups: [photo-proxy]
-metahost: TESTCOMB0812
+groups: [photo-proxy, fake-proxy]
 parser: http_status

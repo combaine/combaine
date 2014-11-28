@@ -100,7 +100,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	common.PluginConfigsUpdate(&(cl.Config.CloudSection.HostFetcher), &(parsingConfig.HostFetcher))
 	parsingConfig.HostFetcher = cl.Config.CloudSection.HostFetcher
 
-	if parsingConfig.GetMetahost() == "" {
+	if parsingConfig.Metahost == "" {
 		parsingConfig.Metahost = parsingConfig.Groups[0]
 	}
 
@@ -149,7 +149,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		p_tasks = append(p_tasks, tasks.ParsingTask{
 			CommonTask:         tasks.EmptyCommonTask,
 			Host:               host,
-			ParsingConfigName:  cl.lockname,
+			ParsingConfigName:  config,
 			ParsingConfig:      parsingConfig,
 			AggregationConfigs: aggregationConfigs,
 		})
@@ -159,7 +159,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		agg_tasks = append(agg_tasks, tasks.AggregationTask{
 			CommonTask:        tasks.EmptyCommonTask,
 			Config:            name,
-			ParsingConfigName: cl.lockname,
+			ParsingConfigName: config,
 			ParsingConfig:     parsingConfig,
 			AggregationConfig: aggregationConfigs[name],
 			Hosts:             allHosts,
