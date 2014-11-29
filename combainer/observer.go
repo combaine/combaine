@@ -121,14 +121,29 @@ func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.Re
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
+	aggregationConfigs, err := GetAggregationConfigs(repo, &parsingCfg)
+	if err != nil {
+		LogErr("Unable to read aggregation configs: %s", err)
+		return
+	}
+
 	data, err := common.Encode(&parsingCfg)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
 		return
 	}
 
+	fmt.Fprintf(w, "============ %s ============\n", name)
 	fmt.Fprintf(w, "%s", data)
-	return
+	for aggname, v := range *aggregationConfigs {
+		fmt.Fprintf(w, "============ %s ============\n", aggname)
+		d, err := common.Encode(&v)
+		if err != nil {
+			fmt.Fprintf(w, "%s", err)
+			return
+		}
+		fmt.Fprintf(w, "%s\n", d)
+	}
 }
 
 func StartObserver(endpoint string, services ...interface{}) {

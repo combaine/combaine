@@ -23,11 +23,11 @@ senders:
     description: "Some very important check"
     checkname: "checkname"
 data:
-  20x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 200 AND http_status < 300
+  20x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 200 AND {{ .Field }} < 300
       AND TIME= %%,
       perHost: 1,
       type: summa}
-  30x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 300 AND http_status < 400,
+  30x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 300 AND {{ .Field }} < 400,
     type: summa}
   50x: {query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 500 AND TIME = %%,
     type: summa}

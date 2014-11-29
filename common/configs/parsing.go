@@ -25,6 +25,8 @@ type ParsingConfig struct {
 	MainSection `yaml:"Combainer"`
 	// Overrides the same section in combainer.yaml
 	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
+	// Placeholders for template
+	Placeholders map[string]interface{} `yaml:"Placeholders,omitempty"`
 }
 
 func (p *ParsingConfig) GetGroup() string {

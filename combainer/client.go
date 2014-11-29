@@ -92,6 +92,11 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	parsingConfig.UpdateByCombainerConfig(&cl.Config)
+	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
+	if err != nil {
+		LogErr("Unable to read aggregation configs: %s", err)
+		return nil, err
+	}
 
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
@@ -115,24 +120,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	listOfHosts := allHosts.AllHosts()
 	LogInfo("Hosts: %s", listOfHosts)
 
-	aggregationConfigs := make(map[string]configs.AggregationConfig)
-	for _, name := range parsingConfig.AggConfigs {
-		content, err := cl.Repository.GetAggregationConfig(name)
-		if err != nil {
-			// It seems better to throw error here instead of
-			// going data processing on without config
-			LogErr("Unable to read aggregation config %s, %s", name, err)
-			return nil, err
-		}
-
-		var aggConfig configs.AggregationConfig
-		if err := content.Decode(&aggConfig); err != nil {
-			LogErr("Unable to decode aggConfig: %s", err)
-			return nil, err
-		}
-		aggregationConfigs[name] = aggConfig
-	}
-
 	// Tasks for parsing
 	for _, host := range listOfHosts {
 		p_tasks = append(p_tasks, tasks.ParsingTask{
@@ -140,7 +127,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 			Host:               host,
 			ParsingConfigName:  config,
 			ParsingConfig:      parsingConfig,
-			AggregationConfigs: aggregationConfigs,
+			AggregationConfigs: *aggregationConfigs,
 		})
 	}
 
@@ -150,7 +137,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 			Config:            name,
 			ParsingConfigName: config,
 			ParsingConfig:     parsingConfig,
-			AggregationConfig: aggregationConfigs[name],
+			AggregationConfig: (*aggregationConfigs)[name],
 			Hosts:             allHosts,
 		})
 	}
