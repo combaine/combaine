@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+
+	"github.com/go-martini/martini"
 )
 
 type StatInfo struct {
@@ -95,6 +97,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartObserver(endpoint string) {
-	http.HandleFunc("/", Dashboard)
-	http.ListenAndServe(endpoint, nil)
+	m := martini.Classic()
+	m.Get("/", Dashboard)
+	http.ListenAndServe(endpoint, m)
 }

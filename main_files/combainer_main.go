@@ -38,6 +38,16 @@ func init() {
 
 func main() {
 	flag.Parse()
+	if profiler != "" {
+		log.Println("Profiler enabled")
+		go func() {
+			if err := http.ListenAndServe(profiler, nil); err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+
+	combainer.InitializeLogger(loglevel, logoutput)
 
 	repository, err := configs.NewFilesystemRepository(ConfigsPath)
 	if err != nil {
@@ -45,27 +55,15 @@ func main() {
 	}
 
 	combainerConfig := repository.GetCombainerConfig()
-
 	cacheCfg := &combainerConfig.MainSection.Cache
-	log.Println(*cacheCfg)
 	cacheType, err := cacheCfg.Type()
 	if err != nil {
 		log.Fatalf("unable to get type of cache: %s", err)
 	}
+
 	cacher, err := cache.NewCache(cacheType, cacheCfg)
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
-	}
-
-	combainer.InitializeLogger(loglevel, logoutput)
-	if profiler != "" {
-		log.Println("Profiler enabled")
-		go func() {
-			if err := http.ListenAndServe(profiler, nil); err != nil {
-				log.Fatal(err)
-			}
-			log.Println("Launch profiler successfully on ", profiler)
-		}()
 	}
 
 	context := combainer.Context{
