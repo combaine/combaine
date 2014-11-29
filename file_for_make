@@ -22,6 +22,7 @@ deps:
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get github.com/Sirupsen/logrus
 	go get github.com/mitchellh/mapstructure
+	go get github.com/go-martini/martini
 	mkdir -vp $(PACKAGE_PATH)
 	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
