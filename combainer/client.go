@@ -3,7 +3,6 @@ package combainer
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,21 +23,19 @@ type sessionParams struct {
 
 type Client struct {
 	Repository configs.Repository
-	Config     configs.CombainerConfig
-	DLS        LockServer
-	lockname   string
+	Config     *configs.CombainerConfig
 	cloudHosts []string
 	*Context
 	clientStats
 }
 
-func NewClient(context *Context, config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
+func NewClient(context *Context, config *configs.CombainerConfig, repo configs.Repository) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
 	// TBD: It's better to pass config as is of create lockserver outside of client
-	dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
-	if err != nil {
-		return nil, err
-	}
+	// dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	s, err := NewSimpleFetcher(context, config.CloudSection.HostFetcher)
 	if err != nil {
@@ -54,17 +51,11 @@ func NewClient(context *Context, config configs.CombainerConfig, repo configs.Re
 	cl := &Client{
 		Repository: repo,
 		Config:     config,
-		DLS:        *dls,
-		lockname:   "",
 		cloudHosts: cloudHosts.AllHosts(),
 		Context:    context,
 	}
 
 	return cl, nil
-}
-
-func (cl *Client) Close() {
-	cl.DLS.Close()
 }
 
 func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
@@ -91,7 +82,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	parsingConfig.UpdateByCombainerConfig(&cl.Config)
+	parsingConfig.UpdateByCombainerConfig(cl.Config)
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
 		LogErr("Unable to read aggregation configs: %s", err)
@@ -155,78 +146,57 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	return sp, nil
 }
 
-func (cl *Client) Dispatch() {
-	defer cl.Close()
+func (cl *Client) Dispatch(parsingConfigName string) error {
+	_observer.RegisterClient(cl, parsingConfigName)
+	defer _observer.UnregisterClient(parsingConfigName)
 
-	lockpoller := cl.acquireLock()
-	if lockpoller != nil {
-		LogInfo("Acquire Lock %s", cl.lockname)
-	} else {
-		return
+	var deadline, startTime time.Time
+	var wg sync.WaitGroup
+
+	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
+	if err != nil {
+		LogInfo("Error %s", err)
+		return err
 	}
 
-	_observer.RegisterClient(cl, cl.lockname)
-	defer _observer.UnregisterClient(cl.lockname)
+	startTime = time.Now()
+	deadline = startTime.Add(sessionParameters.ParsingTime)
 
-	// Dispatch
-	var (
-		deadline  time.Time
-		startTime time.Time
-		wg        sync.WaitGroup
-	)
+	// Generate session unique ID
+	uniqueID := GenerateSessionId(parsingConfigName, &startTime, &deadline)
+	LogInfo("%s Start new iteration.", uniqueID)
 
-	for {
-		sessionParameters, err := cl.UpdateSessionParams(cl.lockname)
-		if err != nil {
-			LogInfo("Error %s", err)
-			return
-		}
+	// Parsing phase
+	for i, task := range sessionParameters.PTasks {
+		// Description of task
+		task.PrevTime = startTime.Unix()
+		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
+		task.Id = uniqueID
 
-		startTime = time.Now()
-		deadline = startTime.Add(sessionParameters.ParsingTime)
-
-		// Generate session unique ID
-		uniqueID := GenerateSessionId(cl.lockname, &startTime, &deadline)
-		LogInfo("%s Start new iteration.", uniqueID)
-
-		// Parsing phase
-		for i, task := range sessionParameters.PTasks {
-			// Description of task
-			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
-			task.Id = uniqueID
-
-			LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
-			wg.Add(1)
-			go cl.parsingTaskHandler(task, &wg, deadline)
-		}
-		wg.Wait()
-		LogInfo("%s Parsing finished", uniqueID)
-
-		// Aggregation phase
-		deadline = startTime.Add(sessionParameters.WholeTime)
-		for i, task := range sessionParameters.AggTasks {
-			task.PrevTime = startTime.Unix()
-			task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
-			task.Id = uniqueID
-			LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
-			wg.Add(1)
-			go cl.aggregationTaskHandler(task, &wg, deadline)
-		}
-		wg.Wait()
-		LogInfo("%s Aggregation finished", uniqueID)
-
-		select {
-		// Does lock exist?
-		case <-lockpoller: // Lock
-			LogInfo("%s Drop lock %s", uniqueID, cl.lockname)
-			return
-
-		// Wait for next iteration
-		case <-time.After(deadline.Sub(time.Now())):
-		}
-		LogInfo("%s Go to the next iteration", uniqueID)
+		LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
+		wg.Add(1)
+		go cl.parsingTaskHandler(task, &wg, deadline)
 	}
+	wg.Wait()
+	LogInfo("%s Parsing finished", uniqueID)
+
+	// Aggregation phase
+	deadline = startTime.Add(sessionParameters.WholeTime)
+	for i, task := range sessionParameters.AggTasks {
+		task.PrevTime = startTime.Unix()
+		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
+		task.Id = uniqueID
+		LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
+		wg.Add(1)
+		go cl.aggregationTaskHandler(task, &wg, deadline)
+	}
+	wg.Wait()
+	LogInfo("%s Aggregation finished", uniqueID)
+
+	// Wait for next iteration
+	time.Sleep(deadline.Sub(time.Now()))
+	LogInfo("%s Go to the next iteration", uniqueID)
+	return nil
 }
 
 type ResolveInfo struct {
@@ -343,18 +313,18 @@ func (cl *Client) getRandomHost() string {
 }
 
 // Private API
-func (cl *Client) acquireLock() chan bool {
-	parsingListing, _ := cl.Repository.ListParsingConfigs()
-	for _, i := range parsingListing {
-		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
-		poller := cl.DLS.AcquireLock(lockname)
-		if poller != nil {
-			cl.lockname = i
-			return poller
-		}
-	}
-	return nil
-}
+// func (cl *Client) acquireLock() chan bool {
+// 	parsingListing, _ := cl.Repository.ListParsingConfigs()
+// 	for _, i := range parsingListing {
+// 		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
+// 		poller := cl.DLS.AcquireLock(lockname)
+// 		if poller != nil {
+// 			cl.lockname = i
+// 			return poller
+// 		}
+// 	}
+// 	return nil
+// }
 
 func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (interface{}, error) {
 	select {

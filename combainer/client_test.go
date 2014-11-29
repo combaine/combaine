@@ -26,8 +26,7 @@ func TestClient(t *testing.T) {
 	cacher.Put("simpleFetcherCacheNamespace", "photo-proxy", []byte(mockHosts))
 	cl := Client{
 		Repository: repo,
-		Config:     cfg,
-		lockname:   "",
+		Config:     &cfg,
 		cloudHosts: []string{"HOST1", "HOST2"},
 		Context:    &ctx,
 	}

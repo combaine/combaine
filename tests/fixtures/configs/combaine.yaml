@@ -1,7 +1,7 @@
 Combainer:
   Lockserver:
     app_id: Combaine
-    host: ['ZK1:2181', 'ZK2:2181']
+    host: ['localhost:2181']
     name: combainer_lock
     timeout: 5
     type: Zookeeper
