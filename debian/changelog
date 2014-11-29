@@ -1,3 +1,12 @@
+combaine (0.7.0.1-rc5) unstable; urgency=low
+
+  * Templated configs
+  * HTTPConfiguration watcher
+  * Single zookeeper connection
+  * CombaineServer was introduced
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Sun, 30 Nov 2014 03:10:52 +0400
+
 combaine (0.7.0.1-rc4) unstable; urgency=low
 
   * Fix updation
