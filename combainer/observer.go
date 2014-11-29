@@ -9,6 +9,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
+
 	"github.com/go-martini/martini"
 )
 
@@ -96,8 +99,49 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func StartObserver(endpoint string) {
+func ParsingConfigs(repo configs.Repository, w http.ResponseWriter, r *http.Request) {
+	list, _ := repo.ListParsingConfigs()
+	json.NewEncoder(w).Encode(&list)
+}
+
+func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.ResponseWriter) {
+	name := params["name"]
+	combainerCfg := repo.GetCombainerConfig()
+	var parsingCfg configs.ParsingConfig
+	r, err := repo.GetParsingConfig(name)
+	if err != nil {
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	err = r.Decode(&parsingCfg)
+	if err != nil {
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
+	data, err := common.Encode(&parsingCfg)
+	if err != nil {
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	fmt.Fprintf(w, "%s", data)
+	return
+}
+
+func StartObserver(endpoint string, services ...interface{}) {
 	m := martini.Classic()
+	for _, service := range services {
+		m.Map(service)
+	}
+	m.Group("/parsing", func(r martini.Router) {
+		r.Get("/", ParsingConfigs)
+		r.Get("", ParsingConfigs)
+		r.Get("/:name", ReadParsingConfig)
+	})
+
 	m.Get("/", Dashboard)
 	http.ListenAndServe(endpoint, m)
 }

@@ -91,18 +91,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	if parsingConfig.IterationDuration > 0 {
-		cl.Config.MainSection.IterationDuration = parsingConfig.IterationDuration
-	}
-
-	common.PluginConfigsUpdate(&(cl.Config.CloudSection.DataFetcher), &(parsingConfig.DataFetcher))
-	parsingConfig.DataFetcher = cl.Config.CloudSection.DataFetcher
-	common.PluginConfigsUpdate(&(cl.Config.CloudSection.HostFetcher), &(parsingConfig.HostFetcher))
-	parsingConfig.HostFetcher = cl.Config.CloudSection.HostFetcher
-
-	if parsingConfig.Metahost == "" {
-		parsingConfig.Metahost = parsingConfig.Groups[0]
-	}
+	parsingConfig.UpdateByCombainerConfig(&cl.Config)
 
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
@@ -166,7 +155,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		})
 	}
 
-	parsingTime, wholeTime = GenerateSessionTimeFrame(cl.Config.MainSection.IterationDuration)
+	parsingTime, wholeTime = GenerateSessionTimeFrame(parsingConfig.IterationDuration)
 
 	sp = &sessionParams{
 		ParsingTime: parsingTime,

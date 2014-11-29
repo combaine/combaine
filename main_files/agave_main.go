@@ -51,7 +51,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 	var combainerCfg configs.CombainerConfig
-	err = common.Encode(rawCfg, &combainerCfg)
+	err = common.Decode(rawCfg, &combainerCfg)
 
 	task.Config.Id = task.Id
 	task.Config.Hosts = combainerCfg.CloudSection.AgaveHosts

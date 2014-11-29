@@ -38,3 +38,9 @@ func (p *PluginConfig) HasKey(key string) bool {
 	_, ok := (*p)[key]
 	return ok
 }
+
+func PluginConfigsUpdate(source *PluginConfig, update *PluginConfig) {
+	for k, v := range *update {
+		(*source)[k] = v
+	}
+}

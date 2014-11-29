@@ -6,8 +6,6 @@ import (
 
 	"github.com/ugorji/go/codec"
 	"launchpad.net/goyaml"
-
-	"github.com/noxiouz/Combaine/common/configs"
 )
 
 var (
@@ -16,9 +14,13 @@ var (
 )
 
 //Utils
-func Encode(data []byte, res interface{}) (err error) {
+func Decode(data []byte, res interface{}) (err error) {
 	err = goyaml.Unmarshal(data, res)
 	return
+}
+
+func Encode(in interface{}) ([]byte, error) {
+	return goyaml.Marshal(in)
 }
 
 func Pack(input interface{}) (buf []byte, err error) {
@@ -44,12 +46,6 @@ func GetType(cfg map[string]interface{}) (string, error) {
 }
 
 func MapUpdate(source *map[string]interface{}, update *map[string]interface{}) {
-	for k, v := range *update {
-		(*source)[k] = v
-	}
-}
-
-func PluginConfigsUpdate(source *configs.PluginConfig, update *configs.PluginConfig) {
 	for k, v := range *update {
 		(*source)[k] = v
 	}

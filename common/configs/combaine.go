@@ -8,7 +8,7 @@ type MainSection struct {
 	// Group of cloud machines
 	CloudGroup string `yaml:"cloud"`
 	// Cache options
-	Cache PluginConfig `yaml:"Cache"`
+	Cache PluginConfig `yaml:"Cache,omitempty"`
 }
 
 type LockServerSection struct {

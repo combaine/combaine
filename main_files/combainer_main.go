@@ -69,7 +69,7 @@ func main() {
 	context := combainer.Context{
 		Cache: cacher,
 	}
-	go combainer.StartObserver(endpoint)
+	go combainer.StartObserver(endpoint, repository)
 	for {
 		go func() {
 			defer func() {

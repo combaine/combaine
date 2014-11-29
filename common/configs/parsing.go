@@ -38,3 +38,20 @@ func (p *ParsingConfig) GetMetahost() string {
 func (p *ParsingConfig) NeedToSkipParsingStage() bool {
 	return p.Parser == ParserSkipValue || p.Parser == ""
 }
+
+func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) error {
+	if p.IterationDuration == 0 {
+		p.IterationDuration = config.MainSection.IterationDuration
+	}
+
+	PluginConfigsUpdate(&config.CloudSection.DataFetcher, &p.DataFetcher)
+	p.DataFetcher = config.CloudSection.DataFetcher
+	PluginConfigsUpdate(&config.CloudSection.HostFetcher, &p.HostFetcher)
+	p.HostFetcher = config.CloudSection.HostFetcher
+
+	if p.Metahost == "" {
+		p.Metahost = p.Groups[0]
+	}
+
+	return nil
+}
