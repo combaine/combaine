@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc6) unstable; urgency=low
+
+  * Bugfix: metahost property in ParsingConfig
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 15:24:09 +0400
+
 combaine (0.7.0.1-rc5) unstable; urgency=low
 
   * Templated configs
