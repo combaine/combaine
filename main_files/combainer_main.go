@@ -140,7 +140,7 @@ LOCKSERVER_LOOP:
 					defer Trap()
 
 					log.Printf("Creating new client with lock: %s", lockname)
-					cl, err := combainer.NewClient(c.Context, &c.CombainerConfig, c.Repository)
+					cl, err := combainer.NewClient(c.Context, c.CombainerConfig, c.Repository)
 					if err != nil {
 						log.Printf("Can't create client: %s", err)
 						return

@@ -19,7 +19,7 @@ type ParsingConfig struct {
 	// Overrides the same section in combainer.yaml
 	DataFetcher PluginConfig `yaml:"DataFetcher,omitempty"`
 	// Overrides name of host group
-	Metahost string `yaml:"metahost"`
+	Metahost string `yaml:"metahost",codec:"metahost"`
 	// Set True to skip putting data into DataBase
 	Raw         bool `yaml:"raw"`
 	MainSection `yaml:"Combainer"`

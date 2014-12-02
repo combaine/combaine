@@ -23,13 +23,13 @@ type sessionParams struct {
 
 type Client struct {
 	Repository configs.Repository
-	Config     *configs.CombainerConfig
+	Config     configs.CombainerConfig
 	cloudHosts []string
 	*Context
 	clientStats
 }
 
-func NewClient(context *Context, config *configs.CombainerConfig, repo configs.Repository) (*Client, error) {
+func NewClient(context *Context, config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
 	// Zookeeper hosts. Connect to Zookeeper
 	// TBD: It's better to pass config as is of create lockserver outside of client
 	// dls, err := NewLockServer(strings.Join(config.LockServerSection.Hosts, ","))
@@ -82,7 +82,8 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	parsingConfig.UpdateByCombainerConfig(cl.Config)
+	cfg := cl.Config
+	parsingConfig.UpdateByCombainerConfig(&cfg)
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
 		LogErr("Unable to read aggregation configs: %s", err)

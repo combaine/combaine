@@ -1,3 +1,27 @@
+combaine (0.7.0.1-rc10) unstable; urgency=low
+
+  * Fixed passing of Combainer config
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 16:50:28 +0400
+
+combaine (0.7.0.1-rc9) unstable; urgency=low
+
+  * Fixed metahost, I hoped
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 16:12:54 +0400
+
+combaine (0.7.0.1-rc8) unstable; urgency=low
+
+  * Fix repo 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 15:52:52 +0400
+
+combaine (0.7.0.1-rc7) unstable; urgency=low
+
+  * Codec serialization
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 15:44:38 +0400
+
 combaine (0.7.0.1-rc6) unstable; urgency=low
 
   * Bugfix: metahost property in ParsingConfig

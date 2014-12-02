@@ -26,7 +26,7 @@ type Repository interface {
 }
 
 func NewFilesystemRepository(basepath string) (Repository, error) {
-	cfg, err := NewCombaineConfig(path.Join(basepath, combaine_config))
+	_, err := NewCombaineConfig(path.Join(basepath, combaine_config))
 	if err != nil {
 		return nil, fmt.Errorf("unable to load combaine.yaml: %s", err)
 	}
@@ -35,7 +35,6 @@ func NewFilesystemRepository(basepath string) (Repository, error) {
 		basepath:        basepath,
 		parsingpath:     path.Join(basepath, parsing_suffix),
 		aggregationpath: path.Join(basepath, aggregatio_suffix),
-		combainerConfig: &cfg,
 	}
 
 	return f, nil
@@ -45,7 +44,6 @@ type filesystemRepository struct {
 	basepath        string
 	parsingpath     string
 	aggregationpath string
-	combainerConfig *CombainerConfig
 }
 
 func (f *filesystemRepository) GetAggregationConfig(name string) (config EncodedConfig, err error) {
@@ -71,7 +69,8 @@ func (f *filesystemRepository) GetParsingConfig(name string) (config EncodedConf
 }
 
 func (f *filesystemRepository) GetCombainerConfig() (cfg CombainerConfig) {
-	return *f.combainerConfig
+	cfg, _ = NewCombaineConfig(path.Join(f.basepath, combaine_config))
+	return cfg
 }
 
 func (f *filesystemRepository) ListParsingConfigs() ([]string, error) {

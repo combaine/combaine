@@ -34,7 +34,7 @@ class ParsingConfig(object):
 
     @property
     def metahost(self):
-        return self.cfg["metahost"]
+        return self.cfg.get("metahost") or self.cfg["Metahost"]
 
 
 class Item(object):
