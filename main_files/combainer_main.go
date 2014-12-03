@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"os/signal"
 	"time"
 
 	"launchpad.net/gozk/zookeeper"
@@ -24,6 +26,7 @@ var (
 	loglevel    string
 	ConfigsPath string
 	period      uint
+	active      bool
 )
 
 func init() {
@@ -32,6 +35,7 @@ func init() {
 	flag.StringVar(&loglevel, "loglevel", "INFO", "loglevel (DEBUG|INFO|WARN|ERROR)")
 	flag.StringVar(&ConfigsPath, "configspath", CONFIGS_PATH, "path to root of configs")
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
+	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 }
 
 func Trap() {
@@ -57,6 +61,8 @@ type CombaineServerConfig struct {
 	Period time.Duration
 	// Addrto listen for incoming http REST API requests
 	RestEndpoint string
+	//
+	Active bool
 }
 
 func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
@@ -96,6 +102,19 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 func (c *CombaineServer) Serve() error {
 	log.Println("Starting REST API")
 	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository)
+	if c.Configuration.Active {
+		log.Println("Launch task distribution")
+		go c.distributeTasks()
+	}
+
+	sigWatcher := make(chan os.Signal, 1)
+	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
+	s := <-sigWatcher
+	log.Println("Got signal:", s)
+	return nil
+}
+
+func (c *CombaineServer) distributeTasks() {
 LOCKSERVER_LOOP:
 	for {
 		DLS, err := combainer.NewLockServer(c.CombainerConfig.LockServerSection)
@@ -184,7 +203,6 @@ LOCKSERVER_LOOP:
 		}
 	}
 
-	return nil
 }
 
 func main() {
@@ -194,6 +212,7 @@ func main() {
 		ConfigsPath:  ConfigsPath,
 		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
+		Active:       active,
 	}
 
 	cmb, err := NewCombainer(cfg)
