@@ -13,6 +13,7 @@ import (
 	"github.com/noxiouz/Combaine/common/configs"
 
 	"github.com/go-martini/martini"
+	"github.com/kr/pretty"
 )
 
 type StatInfo struct {
@@ -161,10 +162,9 @@ func Tasks(repo configs.Repository, context *Context, params martini.Params, w h
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(sp)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	for n, task := range sp.PTasks {
+		fmt.Fprintf(w, "============ (%d/%d) ============\n", n+1, len(sp.PTasks))
+		fmt.Fprintf(w, "%# v\n", pretty.Formatter(task))
 	}
 }
 

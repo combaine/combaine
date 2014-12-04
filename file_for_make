@@ -23,6 +23,7 @@ deps:
 	go get github.com/Sirupsen/logrus
 	go get github.com/mitchellh/mapstructure
 	go get github.com/go-martini/martini
+	go get github.com/kr/pretty
 	mkdir -vp $(PACKAGE_PATH)
 	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
