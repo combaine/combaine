@@ -101,7 +101,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 
 func (c *CombaineServer) Serve() error {
 	log.Println("Starting REST API")
-	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository)
+	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository, c.Context)
 	if c.Configuration.Active {
 		log.Println("Launch task distribution")
 		go c.distributeTasks()

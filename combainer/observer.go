@@ -146,6 +146,28 @@ func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.Re
 	}
 }
 
+func Tasks(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
+	name := params["name"]
+	combainerConfig := repo.GetCombainerConfig()
+	cl, err := NewClient(context, combainerConfig, repo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sp, err := cl.UpdateSessionParams(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(sp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func StartObserver(endpoint string, services ...interface{}) {
 	m := martini.Classic()
 	for _, service := range services {
@@ -156,6 +178,7 @@ func StartObserver(endpoint string, services ...interface{}) {
 		r.Get("", ParsingConfigs)
 		r.Get("/:name", ReadParsingConfig)
 	})
+	m.Get("/tasks/:name", Tasks)
 
 	m.Get("/", Dashboard)
 	http.ListenAndServe(endpoint, m)
