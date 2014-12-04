@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc11) unstable; urgency=low
+
+  * Improve a viewer of tasks
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 04 Dec 2014 18:31:57 +0400
+
 combaine (0.7.0.1-rc10) unstable; urgency=low
 
   * Fixed passing of Combainer config
