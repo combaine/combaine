@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc12) unstable; urgency=low
+
+  * Drop useless field from Client
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 05 Dec 2014 00:27:09 +0400
+
 combaine (0.7.0.1-rc11) unstable; urgency=low
 
   * Improve a viewer of tasks
