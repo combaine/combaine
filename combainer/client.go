@@ -138,7 +138,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	return sp, nil
 }
 
-func (cl *Client) Dispatch(parsingConfigName string, uniqueID string) error {
+func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait bool) error {
 	_observer.RegisterClient(cl, parsingConfigName)
 	defer _observer.UnregisterClient(parsingConfigName)
 
@@ -189,7 +189,9 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string) error {
 	LogInfo("%s Aggregation finished", uniqueID)
 
 	// Wait for next iteration
-	time.Sleep(deadline.Sub(time.Now()))
+	if shouldWait {
+		time.Sleep(deadline.Sub(time.Now()))
+	}
 	LogInfo("%s Go to the next iteration", uniqueID)
 	return nil
 }

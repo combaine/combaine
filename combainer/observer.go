@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
@@ -177,9 +178,10 @@ func Launch(repo configs.Repository, context *Context, params martini.Params, w 
 		return
 	}
 
-	ID := "ZZZ"
-	err = cl.Dispatch(name, ID)
-	fmt.Fprint(w, ID)
+	t := time.Now()
+	ID := GenerateSessionId(name, &t, &t)
+	err = cl.Dispatch(name, ID, false)
+	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

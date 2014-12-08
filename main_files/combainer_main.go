@@ -28,6 +28,8 @@ var (
 	ConfigsPath string
 	period      uint
 	active      bool
+
+	SHOULD_WAIT bool = true
 )
 
 func init() {
@@ -174,7 +176,7 @@ LOCKSERVER_LOOP:
 					}
 
 					for {
-						if err := cl.Dispatch(lockname, GEN_UNIQUE_ID); err != nil {
+						if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
 							log.Println("Dispatch error: %s", err)
 							return
 						}
