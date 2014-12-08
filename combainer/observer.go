@@ -168,6 +168,26 @@ func Tasks(repo configs.Repository, context *Context, params martini.Params, w h
 	}
 }
 
+func Launch(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
+	name := params["name"]
+	combainerConfig := repo.GetCombainerConfig()
+	cl, err := NewClient(context, combainerConfig, repo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	ID := "ZZZ"
+	err = cl.Dispatch(name, ID)
+	fmt.Fprint(w, ID)
+	w.(http.Flusher).Flush()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprint(w, "DONE")
+}
+
 func StartObserver(endpoint string, services ...interface{}) {
 	m := martini.Classic()
 	for _, service := range services {
@@ -179,6 +199,7 @@ func StartObserver(endpoint string, services ...interface{}) {
 		r.Get("/:name", ReadParsingConfig)
 	})
 	m.Get("/tasks/:name", Tasks)
+	m.Get("/launch/:name", Launch)
 
 	m.Get("/", Dashboard)
 	http.ListenAndServe(endpoint, m)

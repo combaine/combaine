@@ -138,7 +138,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	return sp, nil
 }
 
-func (cl *Client) Dispatch(parsingConfigName string) error {
+func (cl *Client) Dispatch(parsingConfigName string, uniqueID string) error {
 	_observer.RegisterClient(cl, parsingConfigName)
 	defer _observer.UnregisterClient(parsingConfigName)
 
@@ -154,8 +154,11 @@ func (cl *Client) Dispatch(parsingConfigName string) error {
 	startTime = time.Now()
 	deadline = startTime.Add(sessionParameters.ParsingTime)
 
-	// Generate session unique ID
-	uniqueID := GenerateSessionId(parsingConfigName, &startTime, &deadline)
+	if uniqueID == "" {
+		// Generate session unique ID if it hasn't been specified
+		uniqueID = GenerateSessionId(parsingConfigName, &startTime, &deadline)
+		LogInfo("%s ID has been generated", uniqueID)
+	}
 	LogInfo("%s Start new iteration.", uniqueID)
 
 	// Parsing phase

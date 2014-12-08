@@ -17,6 +17,7 @@ import (
 const (
 	CONFIGS_PATH   = "/etc/combaine"
 	DEFAULT_PERIOD = 5
+	GEN_UNIQUE_ID  = ""
 )
 
 var (
@@ -173,7 +174,7 @@ LOCKSERVER_LOOP:
 					}
 
 					for {
-						if err := cl.Dispatch(lockname); err != nil {
+						if err := cl.Dispatch(lockname, GEN_UNIQUE_ID); err != nil {
 							log.Println("Dispatch error: %s", err)
 							return
 						}
