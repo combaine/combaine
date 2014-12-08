@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ugorji/go/codec"
-	"launchpad.net/goyaml"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -15,12 +15,12 @@ var (
 
 //Utils
 func Decode(data []byte, res interface{}) (err error) {
-	err = goyaml.Unmarshal(data, res)
+	err = yaml.Unmarshal(data, res)
 	return
 }
 
 func Encode(in interface{}) ([]byte, error) {
-	return goyaml.Marshal(in)
+	return yaml.Marshal(in)
 }
 
 func Pack(input interface{}) (buf []byte, err error) {

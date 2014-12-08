@@ -115,7 +115,7 @@ def aggreagate(request, response):
                 logger.error("unable to detect sender type: %s", name)
                 continue
 
-            logger.info("Send to %s", sender_type)
+            logger.info("Send to %s: %s", sender_type, str(result))
             s = Service(sender_type)
             res = yield s.enqueue("send", msgpack.packb({"Config": item,
                                                          "Data": result,

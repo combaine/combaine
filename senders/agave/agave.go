@@ -51,6 +51,7 @@ type AgaveConfig struct {
 
 func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 	// Repack data by subgroups
+	logger.Debugf("%s Data to send: %v", as.Id, data)
 	var repacked map[string][]string = make(map[string][]string)
 	for _, aggname := range as.Items {
 		for subgroup, value := range data[aggname] {

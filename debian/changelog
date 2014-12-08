@@ -1,3 +1,15 @@
+combaine (0.7.0.1-rc14) unstable; urgency=low
+
+  * New yaml
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 08 Dec 2014 13:30:33 +0400
+
+combaine (0.7.0.1-rc13) unstable; urgency=low
+
+  * Add more dubeg 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 08 Dec 2014 13:03:39 +0400
+
 combaine (0.7.0.1-rc12) unstable; urgency=low
 
   * Drop useless field from Client

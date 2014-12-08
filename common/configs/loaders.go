@@ -5,13 +5,13 @@ import (
 	"io/ioutil"
 	"text/template"
 
-	"launchpad.net/goyaml"
+	"gopkg.in/yaml.v2"
 )
 
 type EncodedConfig []byte
 
 func (e *EncodedConfig) Decode(inplace interface{}) error {
-	return goyaml.Unmarshal(*e, inplace)
+	return yaml.Unmarshal(*e, inplace)
 }
 
 func (e *EncodedConfig) Generate(placeholders *map[string]interface{}) (EncodedConfig, error) {
@@ -42,7 +42,7 @@ func NewCombaineConfig(path string) (config CombainerConfig, err error) {
 		return
 	}
 
-	err = goyaml.Unmarshal(data, &config)
+	err = yaml.Unmarshal(data, &config)
 	return
 }
 
