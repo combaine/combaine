@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc16) unstable; urgency=low
+
+  * Send []int(0) in graphite in case of no data
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 09 Dec 2014 16:40:50 +0400
+
 combaine (0.7.0.1-rc15) unstable; urgency=low
 
   * Introduce launcher

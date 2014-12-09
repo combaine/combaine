@@ -56,14 +56,13 @@ common.DataType:
 func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (err error) {
 	for aggname, subgroupsAndValues := range *data {
 		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
-	SUBGROUPS_AND_VALUES:
 		for subgroup, value := range subgroupsAndValues {
 			rv := reflect.ValueOf(value)
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
 				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
 					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
-					continue SUBGROUPS_AND_VALUES
+                    rv = reflect.ValueOf(make([]int, len(g.fields), len(g.fields)))
 				}
 				for i := 0; i < rv.Len(); i++ {
 					itemInterface := rv.Index(i).Interface()
