@@ -23,29 +23,21 @@ type sessionParams struct {
 
 type Client struct {
 	Repository configs.Repository
-	cloudHosts []string
 	*Context
 	clientStats
 }
 
-func NewClient(context *Context, config configs.CombainerConfig, repo configs.Repository) (*Client, error) {
-	s, err := NewSimpleFetcher(context, config.CloudSection.HostFetcher)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get Combaine hosts
-	cloudHosts, err := s.Fetch(config.MainSection.CloudGroup)
-	if err != nil {
+func NewClient(context *Context, repo configs.Repository) (*Client, error) {
+	if context.Hosts == nil {
+		err := fmt.Errorf("Unable to create new client: Hosts delegate must be specified")
+		LogErr(err.Error())
 		return nil, err
 	}
 
 	cl := &Client{
 		Repository: repo,
-		cloudHosts: cloudHosts.AllHosts(),
 		Context:    context,
 	}
-
 	return cl, nil
 }
 
@@ -102,6 +94,9 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	}
 	listOfHosts := allHosts.AllHosts()
 	LogInfo("Hosts: %s", listOfHosts)
+	if len(listOfHosts) == 0 {
+		return nil, fmt.Errorf("No hosts in given groups")
+	}
 
 	// Tasks for parsing
 	for _, host := range listOfHosts {
@@ -161,6 +156,12 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	}
 	LogInfo("%s Start new iteration.", uniqueID)
 
+	hosts, err := cl.Context.Hosts()
+	if err != nil || len(hosts) == 0 {
+		LogErr("%s unable to get (or empty) the list of the cloud hosts: %s", uniqueID, err)
+		return err
+	}
+
 	// Parsing phase
 	for i, task := range sessionParameters.PTasks {
 		// Description of task
@@ -170,7 +171,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 		LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
 		wg.Add(1)
-		go cl.parsingTaskHandler(task, &wg, deadline)
+		go cl.parsingTaskHandler(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 	LogInfo("%s Parsing finished", uniqueID)
@@ -183,7 +184,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.Id = uniqueID
 		LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
 		wg.Add(1)
-		go cl.aggregationTaskHandler(task, &wg, deadline)
+		go cl.aggregationTaskHandler(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 	LogInfo("%s Aggregation finished", uniqueID)
@@ -219,14 +220,14 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 	return res
 }
 
-func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
-	var app *cocaine.Service
 	var err error
+	var app *cocaine.Service
 	for deadline.After(time.Now()) {
-		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
+		host := fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-Resolve(common.PARSING, host):
 			err = r.Err
@@ -261,14 +262,14 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	cl.clientStats.AddSuccessParsing()
 }
 
-func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time) {
+func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
-	var app *cocaine.Service
 	var err error
+	var app *cocaine.Service
 	for deadline.After(time.Now()) {
-		host := fmt.Sprintf("%s:10053", cl.getRandomHost())
+		host := fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-Resolve(common.AGGREGATE, host):
 			err = r.Err
@@ -304,24 +305,10 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 	cl.clientStats.AddSuccessAggregate()
 }
 
-func (cl *Client) getRandomHost() string {
-	max := len(cl.cloudHosts)
-	return cl.cloudHosts[rand.Intn(max)]
+func getRandomHost(input []string) string {
+	max := len(input)
+	return input[rand.Intn(max)]
 }
-
-// Private API
-// func (cl *Client) acquireLock() chan bool {
-// 	parsingListing, _ := cl.Repository.ListParsingConfigs()
-// 	for _, i := range parsingListing {
-// 		lockname := fmt.Sprintf("/%s/%s", cl.Config.LockServerSection.Id, i)
-// 		poller := cl.DLS.AcquireLock(lockname)
-// 		if poller != nil {
-// 			cl.lockname = i
-// 			return poller
-// 		}
-// 	}
-// 	return nil
-// }
 
 func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (interface{}, error) {
 	select {

@@ -150,8 +150,7 @@ func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.Re
 
 func Tasks(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
 	name := params["name"]
-	combainerConfig := repo.GetCombainerConfig()
-	cl, err := NewClient(context, combainerConfig, repo)
+	cl, err := NewClient(context, repo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -171,8 +170,7 @@ func Tasks(repo configs.Repository, context *Context, params martini.Params, w h
 
 func Launch(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
 	name := params["name"]
-	combainerConfig := repo.GetCombainerConfig()
-	cl, err := NewClient(context, combainerConfig, repo)
+	cl, err := NewClient(context, repo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

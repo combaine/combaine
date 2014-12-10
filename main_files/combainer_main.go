@@ -87,8 +87,24 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
 
+	// Get Combaine hosts
+	cloud_group := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
 		Cache: cacher,
+		Hosts: nil,
+	}
+
+	s, err := combainer.NewSimpleFetcher(context, combainerConfig.CloudSection.HostFetcher)
+	if err != nil {
+		return nil, err
+	}
+
+	context.Hosts = func() ([]string, error) {
+		h, err := s.Fetch(cloud_group)
+		if err != nil {
+			return nil, err
+		}
+		return h.AllHosts(), nil
 	}
 
 	server := &CombaineServer{
@@ -162,7 +178,7 @@ LOCKSERVER_LOOP:
 					defer Trap()
 
 					log.Printf("Creating new client with lock: %s", lockname)
-					cl, err := combainer.NewClient(c.Context, c.CombainerConfig, c.Repository)
+					cl, err := combainer.NewClient(c.Context, c.Repository)
 					if err != nil {
 						log.Printf("Can't create client: %s", err)
 						return
