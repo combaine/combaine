@@ -19,6 +19,11 @@ cloud_config:
     type: timetail}
   agave_hosts: ["agave01g.media.yandex.net", "agave01e.media.yandex.net"]
   HostFetcher: {
-    BasicUrl: "http://givemehostsplese/?=&s",
-    Separator: "\t"
+    type: "predefine",
+    Clusters: {
+      "combaine-cloud": {
+        "IVA": ["host1-IVA", "host2-IVA"],
+        "UGR": ["host1-ugr"]
+      }
+    }
   }

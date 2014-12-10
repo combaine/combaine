@@ -5,14 +5,55 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
 )
+
+func init() {
+	if err := RegisterFetcherLoader("http", newHttpFetcher); err != nil {
+		panic(err)
+	}
+	if err := RegisterFetcherLoader("predefine", newPredefineFetcher); err != nil {
+		panic(err)
+	}
+}
 
 const (
 	fetcherCacheNamespace = "simpleFetcherCacheNamespace"
 )
+
+type FetcherLoader func(*Context, map[string]interface{}) (HostFetcher, error)
+
+var (
+	fetchers map[string]FetcherLoader = make(map[string]FetcherLoader)
+)
+
+func RegisterFetcherLoader(name string, f FetcherLoader) error {
+	_, ok := fetchers[name]
+	if ok {
+		return fmt.Errorf("HostFetcher `%s` is already registered", name)
+	}
+
+	fetchers[name] = f
+	return nil
+}
+
+func LoadHostFetcher(context *Context, config configs.PluginConfig) (HostFetcher, error) {
+	name, err := config.Type()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get type of HostFetcher: %s", err)
+	}
+
+	initializer, ok := fetchers[name]
+	if !ok {
+		return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
+	}
+
+	return initializer(context, config)
+}
 
 type HostFetcher interface {
 	Fetch(group string) (hosts.Hosts, error)
@@ -28,7 +69,38 @@ type SimpleFetcherConfig struct {
 	BasicUrl  string
 }
 
-func NewSimpleFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
+type PredefineFetcher struct {
+	mutex sync.Mutex
+	PredefineFetcherConfig
+}
+
+type PredefineFetcherConfig struct {
+	Clusters map[string]hosts.Hosts
+}
+
+func newPredefineFetcher(_ *Context, config map[string]interface{}) (HostFetcher, error) {
+	var fetcherConfig PredefineFetcherConfig
+	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+		return nil, err
+	}
+
+	f := &PredefineFetcher{
+		PredefineFetcherConfig: fetcherConfig,
+	}
+	return f, nil
+}
+
+func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	hosts, ok := p.Clusters[groupname]
+	if !ok {
+		return nil, fmt.Errorf("hosts for group `%s` are not specified", groupname)
+	}
+	return hosts, nil
+}
+
+func newHttpFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err

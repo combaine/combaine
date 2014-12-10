@@ -76,7 +76,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	LogInfo("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 
-	hostFetcher, err := NewSimpleFetcher(cl.Context, parsingConfig.HostFetcher)
+	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
 		LogErr("Unable to construct SimpleFetcher: %s", err)
 		return

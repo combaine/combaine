@@ -94,7 +94,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		Hosts: nil,
 	}
 
-	s, err := combainer.NewSimpleFetcher(context, combainerConfig.CloudSection.HostFetcher)
+	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
 	if err != nil {
 		return nil, err
 	}
