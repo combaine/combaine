@@ -62,7 +62,11 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 			case reflect.Slice, reflect.Array:
 				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
 					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
-                    rv = reflect.ValueOf(make([]int, len(g.fields), len(g.fields)))
+					val := make([]float32, len(g.fields))
+					for i := range g.fields {
+						val[i] = 0.001
+					}
+					rv = reflect.ValueOf(val)
 				}
 				for i := 0; i < rv.Len(); i++ {
 					itemInterface := rv.Index(i).Interface()
