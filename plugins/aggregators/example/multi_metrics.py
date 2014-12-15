@@ -52,7 +52,8 @@ class Multimetrics(object):
         """ Payload is list of dict[string][]float"""
         if len(payload) == 0:
             raise Exception("No data to aggregate")
-        names_of_metrics = payload[0].keys()
+        names_of_metrics = set()
+        map(names_of_metrics.update, (i.keys() for i in payload))
         result = {}
         for metric in names_of_metrics:
             if is_timings(metric):
