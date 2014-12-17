@@ -228,7 +228,7 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 	var app *cocaine.Service
 	var host string
 	for deadline.After(time.Now()) {
-		host := fmt.Sprintf("%s:10053", getRandomHost(hosts))
+		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-Resolve(common.PARSING, host):
 			err = r.Err

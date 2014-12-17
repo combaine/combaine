@@ -1,6 +1,12 @@
+combaine (0.7.0.1-rc18) unstable; urgency=low
+
+  * [Client] Fix logs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 18 Dec 2014 00:15:50 +0400
+
 combaine (0.7.0.1-rc17) unstable; urgency=low
 
-  * [Grapgite] Use 1 as a placeholder in case of empty data 
+  * [Grapgite] Use 1 as a placeholder in case of empty data
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 17 Dec 2014 23:42:12 +0400
 
@@ -24,7 +30,7 @@ combaine (0.7.0.1-rc14) unstable; urgency=low
 
 combaine (0.7.0.1-rc13) unstable; urgency=low
 
-  * Add more dubeg 
+  * Add more dubeg
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 08 Dec 2014 13:03:39 +0400
 
@@ -54,7 +60,7 @@ combaine (0.7.0.1-rc9) unstable; urgency=low
 
 combaine (0.7.0.1-rc8) unstable; urgency=low
 
-  * Fix repo 
+  * Fix repo
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Dec 2014 15:52:52 +0400
 
@@ -146,7 +152,7 @@ combaine (0.6.5.5) unstable; urgency=low
 
 combaine (0.6.5.4) unstable; urgency=low
 
-  * [Juggler] Fix send_point. Get rid of that damn futures magic 
+  * [Juggler] Fix send_point. Get rid of that damn futures magic
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 22 Oct 2014 15:13:35 +0400
 
@@ -188,7 +194,7 @@ combaine (0.6.4.682) unstable; urgency=low
 
 combaine (0.6.4.681) unstable; urgency=low
 
-  * fix hosts in juggler 
+  * fix hosts in juggler
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 09 Oct 2014 16:26:45 +0400
 
@@ -220,13 +226,13 @@ combaine (0.6.4.676) unstable; urgency=low
 
 combaine (0.6.4.675) unstable; urgency=low
 
-  * fix period 
+  * fix period
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:15:19 +0400
 
 combaine (0.6.4.674) unstable; urgency=low
 
-  * fix seek 
+  * fix seek
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 01 Sep 2014 15:04:53 +0400
 
@@ -251,7 +257,7 @@ combaine (0.6.4.670) unstable; urgency=low
 
 combaine (0.6.4.669) unstable; urgency=low
 
-  * Reduce timeout for an application resolve to 1 sec  
+  * Reduce timeout for an application resolve to 1 sec
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 13 Aug 2014 18:22:37 +0400
 
