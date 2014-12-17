@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc17) unstable; urgency=low
+
+  * [Grapgite] Use 1 as a placeholder in case of empty data 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 17 Dec 2014 23:42:12 +0400
+
 combaine (0.7.0.1-rc16) unstable; urgency=low
 
   * Send []int(0) in graphite in case of no data

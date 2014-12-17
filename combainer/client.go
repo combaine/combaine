@@ -226,6 +226,7 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 
 	var err error
 	var app *cocaine.Service
+	var host string
 	for deadline.After(time.Now()) {
 		host := fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
@@ -253,11 +254,11 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 
 	raw, _ := common.Pack(task)
 	if res, err := PerformTask(app, raw, limit); err != nil {
-		LogErr("%s Parsing task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
+		LogErr("%s Parsing task for group %s %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), host, err)
 		cl.clientStats.AddFailedParsing()
 		return
 	} else {
-		LogInfo("%s Parsing task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
+		LogInfo("%s Parsing task for group %s %s done: %s", task.Id, task.ParsingConfig.GetGroup(), host, res)
 	}
 	cl.clientStats.AddSuccessParsing()
 }
@@ -268,8 +269,9 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 
 	var err error
 	var app *cocaine.Service
+	var host string
 	for deadline.After(time.Now()) {
-		host := fmt.Sprintf("%s:10053", getRandomHost(hosts))
+		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-Resolve(common.AGGREGATE, host):
 			err = r.Err
@@ -296,11 +298,11 @@ func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.Wa
 
 	raw, _ := common.Pack(task)
 	if res, err := PerformTask(app, raw, limit); err != nil {
-		LogErr("%s Aggreagation task for group %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), err)
+		LogErr("%s Aggreagation task for group %s %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), host, err)
 		cl.clientStats.AddFailedAggregate()
 		return
 	} else {
-		LogInfo("%s Aggreagation task for group %s finished good: %s", task.Id, task.ParsingConfig.GetGroup(), res)
+		LogInfo("%s Aggreagation task for group %s %s done: %s", task.Id, task.ParsingConfig.GetGroup(), host, res)
 	}
 	cl.clientStats.AddSuccessAggregate()
 }
