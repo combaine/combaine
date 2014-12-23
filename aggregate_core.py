@@ -117,9 +117,12 @@ def aggreagate(request, response):
 
             logger.info("Send to %s: %s", sender_type, str(result))
             s = Service(sender_type)
-            res = yield s.enqueue("send", msgpack.packb({"Config": item,
-                                                         "Data": result,
-                                                         "Id": task.Id}))
+            payload_to_send = {"Config": item,
+                               "Data": result,
+                               "CurrTime": task.CurrTime,
+                               "PrevTime": task.PrevTime,
+                               "Id": task.Id}
+            res = yield s.enqueue("send", msgpack.packb(payload_to_send))
             logger.info("res for %s is %s", sender_type, res)
         except Exception as err:
             logger.error("unable to send to %s %s", name, err)

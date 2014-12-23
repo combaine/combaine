@@ -15,9 +15,11 @@ var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", 
 var logger *cocaine.Logger
 
 type Task struct {
-	Id     string
-	Data   tasks.DataType
-	Config graphite.GraphiteCfg
+	Id       string
+	Data     tasks.DataType
+	Config   graphite.GraphiteCfg
+	CurrTime uint64
+	PrevTime uint64
 }
 
 func Send(request *cocaine.Request, response *cocaine.Response) {
@@ -43,7 +45,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	err = gCli.Send(task.Data)
+	err = gCli.Send(task.Data, task.CurrTime)
 	if err != nil {
 		logger.Errf("Sending error %s", err)
 		response.ErrorMsg(-100, err.Error())

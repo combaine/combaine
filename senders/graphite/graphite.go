@@ -26,7 +26,7 @@ const onePointFormat = "%s.combaine.%s.%s %s %d\n"
 // var onePointTemplate *template.Template = template.Must(template.New("URL").Parse(onePointTemplateText))
 
 type GraphiteSender interface {
-	Send(tasks.DataType) error
+	Send(tasks.DataType, uint64) error
 }
 
 const connectionTimeout = 900       //msec
@@ -53,7 +53,7 @@ common.DataType:
 }
 */
 
-func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (err error) {
+func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
 	for aggname, subgroupsAndValues := range *data {
 		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
 		for subgroup, value := range subgroupsAndValues {
@@ -76,7 +76,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 						formatSubgroup(subgroup),
 						fmt.Sprintf("%s.%s", aggname, g.fields[i]),
 						common.InterfaceToString(itemInterface),
-						time.Now().Unix())
+						timestamp)
 
 					logger.Infof("%s Send %s", g.id, toSend)
 					if _, err = fmt.Fprint(output, toSend); err != nil {
@@ -102,7 +102,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 								formatSubgroup(subgroup),
 								fmt.Sprintf("%s.%s.%s", aggname, common.InterfaceToString(key.Interface()), g.fields[i]),
 								common.InterfaceToString(itemInnerInterface),
-								time.Now().Unix())
+								timestamp)
 
 							logger.Infof("%s Send %s", g.id, toSend)
 							if _, err = fmt.Fprint(output, toSend); err != nil {
@@ -117,7 +117,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 							formatSubgroup(subgroup),
 							fmt.Sprintf("%s.%s", aggname, common.InterfaceToString(key.Interface())),
 							common.InterfaceToString(itemInterface.Interface()),
-							time.Now().Unix())
+							timestamp)
 
 						logger.Infof("%s Send %s", g.id, toSend)
 						if _, err = fmt.Fprint(output, toSend); err != nil {
@@ -133,7 +133,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 					formatSubgroup(subgroup),
 					aggname,
 					common.InterfaceToString(value),
-					time.Now().Unix())
+					timestamp)
 
 				logger.Infof("%s Send %s", g.id, toSend)
 				if _, err = fmt.Fprint(output, toSend); err != nil {
@@ -147,7 +147,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, output io.Writer) (e
 	return nil
 }
 
-func (g *graphiteClient) Send(data tasks.DataType) (err error) {
+func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) (err error) {
 	if len(data) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
@@ -158,7 +158,7 @@ func (g *graphiteClient) Send(data tasks.DataType) (err error) {
 		return
 	}
 	defer sock.Close()
-	return g.sendInternal(&data, sock)
+	return g.sendInternal(&data, timestamp, sock)
 }
 
 func NewGraphiteClient(cfg *GraphiteCfg, id string) (gs GraphiteSender, err error) {
