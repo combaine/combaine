@@ -45,7 +45,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	err = gCli.Send(task.Data, task.CurrTime)
+	err = gCli.Send(task.Data, task.PrevTime)
 	if err != nil {
 		logger.Errf("Sending error %s", err)
 		response.ErrorMsg(-100, err.Error())
