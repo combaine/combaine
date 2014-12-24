@@ -284,8 +284,7 @@ class Juggler(object):
                                        " info about childs %s" % str(err))
                         continue
                 else:
-                    self.log.error("unexpected reply from `has_check`: %s",
-                                   response.body)
+                    self.log.error("unexpected reply from `has_check`: %s" % response.body)
 
                 if self.flap is not None:
                     url = CHECK_FLAP.format(**params)
@@ -297,7 +296,7 @@ class Juggler(object):
                         self.flap["host"] = params["host"]
                         self.flap["service"] = params["service"]
                         url = ADD_FLAP.format(**self.flap)
-                        self.log.info("Add flap: %s", url)
+                        self.log.info("Add flap: %s" % url)
                         yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
                         self.log.info("Flap has been added successfully")
             except HTTPError as err:

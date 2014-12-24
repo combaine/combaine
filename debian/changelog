@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc24) unstable; urgency=low
+
+  * [Juggler] Fix typo
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 24 Dec 2014 21:14:03 +0400
+
 combaine (0.7.0.1-rc23) unstable; urgency=low
 
   * [Juggler] Default values for antiflap 
