@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc21) unstable; urgency=low
+
+  * [Juggler] Antiflap
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 24 Dec 2014 20:37:47 +0400
+
 combaine (0.7.0.1-rc20) unstable; urgency=low
 
   * @vyacheslav asks for another timestamp in graphite
@@ -6,7 +12,7 @@ combaine (0.7.0.1-rc20) unstable; urgency=low
 
 combaine (0.7.0.1-rc19) unstable; urgency=low
 
-  * Send timestamp to sender 
+  * Send timestamp to sender
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 23 Dec 2014 18:25:29 +0400
 
