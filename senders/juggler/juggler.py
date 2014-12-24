@@ -60,6 +60,10 @@ ADD_FLAP = "http://{juggler}/api/checks/set_flap?host_name={host}&\
 service_name={service}&flap_time={flap_time}&stable_time={stable_time}&\
 critical_time={critical_time}&do=1"
 
+DEFAULT_FLAP_TIME = 0
+DEFAULT_STABLE_TIME = 600
+DEFAULT_CRITICAL_TIME = 1200
+
 log = Logger()
 
 
@@ -110,6 +114,10 @@ class Juggler(object):
         self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS',
                                                     DEFAULT_AGGREGATOR_KWARGS))
         self.flap = cfg.get('FLAP', None)
+        if self.flap is not None:
+            self.flap["flap_time"] = self.flap.get("flap_time", DEFAULT_FLAP_TIME)
+            self.flap["stable_time"] = self.flap.get("stable_time", DEFAULT_STABLE_TIME)
+            self.flap["critical_time"] = self.flap.get("critical_time", DEFAULT_CRITICAL_TIME)
 
     def Do(self, data):
         packed = collections.defaultdict(dict)
