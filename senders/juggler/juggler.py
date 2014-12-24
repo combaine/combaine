@@ -57,7 +57,7 @@ REMOVE_FLAP = "http://{juggler}/api/checks/flap?host_name={host}&\
 service_name={service}&do=1"
 
 ADD_FLAP = "http://{juggler}/api/checks/set_flap?host_name={host}&\
-service_name={service}&\flap_time={flap_time}&stable_time={stable_time}&\
+service_name={service}&flap_time={flap_time}&stable_time={stable_time}&\
 critical_time={critical_time}&do=1"
 
 log = Logger()

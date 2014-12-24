@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc22) unstable; urgency=low
+
+  * [Juggler] Fix ADD_FLAP
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 24 Dec 2014 20:51:04 +0400
+
 combaine (0.7.0.1-rc21) unstable; urgency=low
 
   * [Juggler] Antiflap
