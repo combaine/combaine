@@ -50,6 +50,16 @@ service_name={service}&methods_list={methods}&do=1"
 EMIT_EVENT = "http://{juggler_frontend}/juggler-fcgi.py?status={level}&\
 description={description}&service={service}&instance=&host={host}"
 
+CHECK_FLAP = "http://{juggler}/api/checks/flap?host_name={host}&s\
+ervice_name={service}&do=1"
+
+REMOVE_FLAP = "http://{juggler}/api/checks/flap?host_name={host}&\
+service_name={service}&do=1"
+
+ADD_FLAP = "http://{juggler}/api/checks/set_flap?host_name={host}&\
+service_name={service}&\flap_time={flap_time}&stable_time={stable_time}&\
+critical_time={critical_time}&do=1"
+
 log = Logger()
 
 
@@ -99,6 +109,7 @@ class Juggler(object):
         self.juggler_frontend = cfg['JUGGLER_FRONTEND']
         self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS',
                                                     DEFAULT_AGGREGATOR_KWARGS))
+        self.flap = cfg.get('FLAP', None)
 
     def Do(self, data):
         packed = collections.defaultdict(dict)
@@ -234,6 +245,7 @@ class Juggler(object):
                     url = ADD_METHOD.format(**params)
                     self.log.info("Add method %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+
                 elif response.body == "true":
                     # check exists, but existance of child must be checked
                     url = LIST_CHILD.format(**params)
@@ -266,6 +278,20 @@ class Juggler(object):
                 else:
                     self.log.error("unexpected reply from `has_check`: %s",
                                    response.body)
+
+                if self.flap is not None:
+                    url = CHECK_FLAP.format(**params)
+                    self.log.info("Check flap %s" % url)
+                    res_flap = yield HTTP_CLIENT.fetch(url,
+                                                       headers=DEFAULT_HEADERS)
+                    if res_flap.body == "null":
+                        self.flap["juggler"] = params["juggler"]
+                        self.flap["host"] = params["host"]
+                        self.flap["service"] = params["service"]
+                        url = ADD_FLAP.format(**self.flap)
+                        self.log.info("Add flap: %s", url)
+                        yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+                        self.log.info("Flap has been added successfully")
             except HTTPError as err:
                 self.log.error(str(err))
                 continue
