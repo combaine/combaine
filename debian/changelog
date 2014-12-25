@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc25) unstable; urgency=low
+
+  * [Graphite] Fix reflection checker in case of map-in-map
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 26 Dec 2014 02:27:57 +0400
+
 combaine (0.7.0.1-rc24) unstable; urgency=low
 
   * [Juggler] Fix typo
