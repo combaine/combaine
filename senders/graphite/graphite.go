@@ -58,8 +58,10 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
 		for subgroup, value := range subgroupsAndValues {
 			rv := reflect.ValueOf(value)
+			logger.Debugf("%s %s", g.id, rv.Kind())
 			switch kind := rv.Kind(); kind {
 			case reflect.Slice, reflect.Array:
+				logger.Debugf("%s Item is Slice or Array: %v", g.id, value)
 				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
 					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
 					val := make([]int, len(g.fields))
@@ -85,10 +87,11 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 					}
 				}
 			case reflect.Map:
+				logger.Debugf("%s Item is Map: %v", g.id, value)
 				v_keys := rv.MapKeys()
 				for _, key := range v_keys {
-					itemInterface := rv.MapIndex(key)
-
+					itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
+					logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
 					switch itemInterface.Kind() {
 					case reflect.Slice, reflect.Array:
 						if len(g.fields) == 0 || len(g.fields) != itemInterface.Len() {

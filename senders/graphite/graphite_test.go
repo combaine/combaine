@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/noxiouz/Combaine/common/tasks"
 )
@@ -17,7 +16,7 @@ func TestGraphiteSend(t *testing.T) {
 		fields:  []string{"A", "B", "C"},
 	}
 
-	tms := fmt.Sprintf("%d", time.Now().Unix())
+	tms := fmt.Sprintf("%d", 100)
 	var (
 		expected = map[string]struct{}{
 			"TESTCOMBAINE.combaine.simple.20x 2000 " + tms:             struct{}{},
@@ -39,17 +38,17 @@ func TestGraphiteSend(t *testing.T) {
 		"20x": {
 			"simple": 2000,
 			"array":  []int{20, 30, 40},
-			"map_of_array": map[string][]int{
-				"MAP1": []int{201, 301, 401},
-				"MAP2": []int{202, 302, 402},
+			"map_of_array": map[string]interface{}{
+				"MAP1": []interface{}{201, 301, 401},
+				"MAP2": []interface{}{202, 302, 402},
 			},
-			"map_of_simple": map[string]int{
+			"map_of_simple": map[string]interface{}{
 				"MP1": 1000,
 				"MP2": 1002,
 			},
 		}}
 	buff := new(bytes.Buffer)
-	err := grCfg.sendInternal(&data, buff)
+	err := grCfg.sendInternal(&data, 100, buff)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +58,7 @@ func TestGraphiteSend(t *testing.T) {
 		}
 		_, ok := expected[item]
 		if !ok {
-			t.Logf("%s is not in the expected", item)
+			t.Logf("%s is not in the expected\n", item)
 			t.Fail()
 		}
 
