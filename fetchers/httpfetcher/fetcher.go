@@ -17,13 +17,12 @@ func init() {
 const CONNECTION_TIMEOUT = 1000
 const RW_TIMEOUT = 3000
 
-func get(url string) ([]byte, error) {
+var HttpClient = httpclient.NewClientWithTimeout(
+	time.Millisecond*CONNECTION_TIMEOUT,
+	time.Millisecond*RW_TIMEOUT)
 
-	// resp, err := http.Get(url)
-	client := httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
-	resp, err := client.Get(url)
+func get(url string) ([]byte, error) {
+	resp, err := HttpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}

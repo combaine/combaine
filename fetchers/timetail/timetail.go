@@ -17,12 +17,13 @@ func init() {
 const CONNECTION_TIMEOUT = 1000
 const RW_TIMEOUT = 3000
 
+var HttpClient = httpclient.NewClientWithTimeout(
+	time.Millisecond*CONNECTION_TIMEOUT,
+	time.Millisecond*RW_TIMEOUT)
+
 //{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
 func get(url string) ([]byte, error) {
-	client := httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
-	resp, err := client.Get(url)
+	resp, err := HttpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +37,19 @@ type Timetail struct {
 }
 
 func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
+	var period int
+	if offset, ok := t.cfg["offset"]; ok {
+		period = offset + (task.CurrTime - task.PrevTime)
+	} else {
+		period = task.CurrTime - task.PrevTime
+	}
+
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d",
 		task.Target,
 		t.cfg["timetail_port"],
 		t.cfg["timetail_url"],
 		t.cfg["logname"],
-		task.CurrTime-task.PrevTime)
+		period)
 
 	log, err := parsing.LazyLoggerInitialization()
 	if err != nil {
