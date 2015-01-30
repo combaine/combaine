@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc27) unstable; urgency=low
+
+  * [Timetail] Migrate to mapstructure
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 30 Jan 2015 15:56:19 +0400
+
 combaine (0.7.0.1-rc26) unstable; urgency=low
 
   * [Http] Enable DualStack
