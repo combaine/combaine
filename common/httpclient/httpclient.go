@@ -8,7 +8,11 @@ import (
 
 func timeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, addr string) (c net.Conn, err error) {
 	return func(netw, addr string) (net.Conn, error) {
-		conn, err := net.DialTimeout(netw, addr, cTimeout)
+		d := net.Dialer{
+			Timeout:   cTimeout,
+			DualStack: true,
+		}
+		conn, err := d.Dial(netw, addr)
 		if err != nil {
 			return nil, err
 		}
