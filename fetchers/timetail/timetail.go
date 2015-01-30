@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/noxiouz/Combaine/common/httpclient"
 	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
@@ -21,6 +23,17 @@ var HttpClient = httpclient.NewClientWithTimeout(
 	time.Millisecond*CONNECTION_TIMEOUT,
 	time.Millisecond*RW_TIMEOUT)
 
+type Timetail struct {
+	TimetailConfig
+}
+
+type TimetailConfig struct {
+	Port    uint   `mapstructure:"timetail_port"`
+	Url     string `mapstructure:"timetail_url"`
+	Logname string `mapstructure:"logname"`
+	Offset  int64  `mapstructure:"offset"`
+}
+
 //{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
 func get(url string) ([]byte, error) {
 	resp, err := HttpClient.Get(url)
@@ -28,27 +41,19 @@ func get(url string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, nil
 }
 
-type Timetail struct {
-	cfg map[string]interface{}
-}
-
 func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
-	var period int
-	if offset, ok := t.cfg["offset"]; ok {
-		period = offset + (task.CurrTime - task.PrevTime)
-	} else {
-		period = task.CurrTime - task.PrevTime
-	}
+	period := t.Offset + (task.CurrTime - task.PrevTime)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d",
 		task.Target,
-		t.cfg["timetail_port"],
-		t.cfg["timetail_url"],
-		t.cfg["logname"],
+		t.Port,
+		t.Url,
+		t.Logname,
 		period)
 
 	log, err := parsing.LazyLoggerInitialization()
@@ -61,8 +66,13 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 }
 
 func NewTimetail(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
+	var config TimetailConfig
+	if err := mapstructure.Decode(cfg, &config); err != nil {
+		return nil, err
+	}
+
 	t = &Timetail{
-		cfg: cfg,
+		TimetailConfig: config,
 	}
 	return
 }
