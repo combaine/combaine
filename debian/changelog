@@ -1,3 +1,10 @@
+combaine (0.7.0.1-rc26) unstable; urgency=low
+
+  * [Http] Enable DualStack
+  * [Timetail] Add offset option to support logs in different TZ
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 30 Jan 2015 15:33:07 +0400
+
 combaine (0.7.0.1-rc25) unstable; urgency=low
 
   * [Graphite] Fix reflection checker in case of map-in-map
