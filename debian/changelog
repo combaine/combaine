@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc28) unstable; urgency=low
+
+  * [Timetail] Use WeakedType decoder
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 03 Feb 2015 18:43:58 +0400
+
 combaine (0.7.0.1-rc27) unstable; urgency=low
 
   * [Timetail] Migrate to mapstructure
