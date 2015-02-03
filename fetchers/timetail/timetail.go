@@ -67,7 +67,20 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 
 func NewTimetail(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
 	var config TimetailConfig
-	if err := mapstructure.Decode(cfg, &config); err != nil {
+
+	var decoder_config = mapstructure.DecoderConfig{
+		// To allow decoder parses []uint8 as string
+		WeaklyTypedInput: true,
+		Result:           &config,
+	}
+
+	decoder, err := mapstructure.NewDecoder(&decoder_config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = decoder.Decode(cfg)
+	if err != nil {
 		return nil, err
 	}
 
