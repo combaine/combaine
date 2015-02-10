@@ -2,8 +2,8 @@
 
 
 DEFAULT_QUANTILE_VALUES = [75, 90, 93, 94, 95, 96, 97, 98, 99]
-DEFAULT_TIMINGS_VALUE = [0]
-DEFAULT_VALUE = 0
+DEFAULT_TIMINGS_VALUE = [0.]
+DEFAULT_VALUE = 0.
 
 
 def is_timings(name):
@@ -16,37 +16,44 @@ class Multimetrics(object):
     Data looks like:
     uploader_timings_request_post_patch-url 0.001 0.001 0.002
     uploader_timings_request_post_upload-from-service
-    uploader_timings_request_post_upload-url 0.001 0.002 0.001 0.002 0.001 0.002
+    uploader_timings_request_post_upload-url 0.001 0.002 0.001 0.002 0.001
     uploader_timings_request_put_patch-target 0.651 0.562 1.171
     """
     def __init__(self, config):
         self.quantile = config.get("values") or DEFAULT_QUANTILE_VALUES
         self.quantile.sort()
 
-    def _parse_metrics(self, line):
-        name, _, metrics_as_strings = line.partition(" ")
-        if is_timings(name):
-            if not metrics_as_strings:
-                return name, DEFAULT_TIMINGS_VALUE
+    def _parse_metrics(self, lines):
+        result = {}
+        for line in lines:
+            name, _, metrics_as_strings = line.partition(" ")
+            mertrics_as_values = None
+            if is_timings(name):
+                # put a default placeholder here if there's no such result yet
+                if not metrics_as_strings and name not in result:
+                    result[name] = DEFAULT_TIMINGS_VALUE
+                try:
+                    mertrics_as_values = map(float, metrics_as_strings.split())
+                except ValueError as err:
+                    raise Exception("Unable to parse %s: %s" % (line, err))
 
-            try:
-                mertrics_as_values = map(float, metrics_as_strings.split())
-                return name, mertrics_as_values
-            except ValueError as err:
-                raise Exception("Unable to parse %s: %s" % (line, err))
-        else:
-            if not metrics_as_strings:
-                return name, DEFAULT_VALUE
-            try:
-                mertrics_as_values = sum(map(float, metrics_as_strings.split()))
-                return name, mertrics_as_values
-            except ValueError as err:
-                raise Exception("Unable to parse %s: %s" % (line, err))
+            else:
+                # put a default placeholder here if there's no such result yet
+                if not metrics_as_strings and name not in result:
+                    result[name] = DEFAULT_VALUE
+                try:
+                    mertrics_as_values = sum(map(float, metrics_as_strings.split()))
+                except ValueError as err:
+                    raise Exception("Unable to parse %s: %s" % (line, err))
+
+            if mertrics_as_values is not None and name in result:
+                result[name] += mertrics_as_values
+
+        return result
 
     def aggregate_host(self, payload, prevtime, currtime):
         """ Convert strings of payload into dict[string][]float and return """
-        _parse = self._parse_metrics
-        return dict((_parse(line) for line in payload.splitlines()))
+        return self._parse_metrics(payload.splitlines())
 
     def aggregate_group(self, payload):
         """ Payload is list of dict[string][]float"""
