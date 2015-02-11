@@ -32,8 +32,13 @@ class Multimetrics(object):
                 # put a default placeholder here if there's no such result yet
                 if not metrics_as_strings and name not in result:
                     result[name] = DEFAULT_TIMINGS_VALUE
+                    continue
                 try:
-                    mertrics_as_values = map(float, metrics_as_strings.split())
+                    metrics_as_values = map(float, metrics_as_strings.split())
+                    if name in result:
+                        result[name] += metrics_as_values
+                    else:
+                        result[name] = metrics_as_values
                 except ValueError as err:
                     raise Exception("Unable to parse %s: %s" % (line, err))
 
@@ -41,14 +46,15 @@ class Multimetrics(object):
                 # put a default placeholder here if there's no such result yet
                 if not metrics_as_strings and name not in result:
                     result[name] = DEFAULT_VALUE
+                    continue
                 try:
-                    mertrics_as_values = sum(map(float, metrics_as_strings.split()))
+                    metrics_as_values = sum(map(float, metrics_as_strings.split()))
+                    if name in result:
+                        result[name] += metrics_as_values
+                    else:
+                        result[name] = metrics_as_values
                 except ValueError as err:
                     raise Exception("Unable to parse %s: %s" % (line, err))
-
-            if mertrics_as_values is not None and name in result:
-                result[name] += mertrics_as_values
-
         return result
 
     def aggregate_host(self, payload, prevtime, currtime):
@@ -85,7 +91,7 @@ class Multimetrics(object):
 if __name__ == '__main__':
     import pprint
     m = Multimetrics({})
-    with open('example/bullet.log', 'r') as f:
+    with open('example/t.log', 'r') as f:
         payload = f.read()
     r = m.aggregate_host(payload, None, None)
     pprint.pprint(r)
