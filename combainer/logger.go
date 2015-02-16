@@ -14,7 +14,7 @@ import (
 const syslogTag = "combainer"
 
 var (
-	severity_map = map[string]logrus.Level{
+	severityMap = map[string]logrus.Level{
 		"DEBUG": logrus.DebugLevel,
 		"INFO":  logrus.InfoLevel,
 		"WARN":  logrus.WarnLevel,
@@ -22,54 +22,53 @@ var (
 	}
 
 	// logoutput
-	file        io.WriteCloser
-	output_path string
+	file       io.WriteCloser
+	outputPath string
 
-	// compatibility mappings
 	LogDebug   = logrus.Debugf
 	LogInfo    = logrus.Infof
 	LogWarning = logrus.Warningf
 	LogErr     = logrus.Errorf
 
-	rotation_mutex sync.Mutex
+	rotationMutex sync.Mutex
 
-	sighup_trap = make(chan os.Signal, 1)
+	sighupTrap = make(chan os.Signal, 1)
 )
 
 func rotateFile() error {
-	rotation_mutex.Lock()
-	defer rotation_mutex.Unlock()
+	rotationMutex.Lock()
+	defer rotationMutex.Unlock()
 
 	if file != nil {
 		file.Close()
 	}
 
 	var err error
-	raw_file, err := os.OpenFile(output_path, os.O_RDWR|os.O_CREATE, 0666)
+	rawFile, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
 
-	if output_path != "/dev/stderr" && output_path != "/dev/stdout" {
-		if _, err := raw_file.Seek(0, os.SEEK_END); err != nil {
+	if outputPath != "/dev/stderr" && outputPath != "/dev/stdout" {
+		if _, err := rawFile.Seek(0, os.SEEK_END); err != nil {
 			return err
 		}
 	}
 
-	file = raw_file
+	file = rawFile
 
 	logrus.SetOutput(file)
 	return nil
 }
 
 func InitializeLogger(loglevel, output string) {
-	if lvl, ok := severity_map[loglevel]; ok {
+	if lvl, ok := severityMap[loglevel]; ok {
 		logrus.SetLevel(lvl)
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
 
-	output_path = output
+	outputPath = output
 	formatter := &logrus.TextFormatter{
 		DisableColors: true,
 	}
@@ -78,11 +77,11 @@ func InitializeLogger(loglevel, output string) {
 		log.Fatalf("unable to initialize logger %s", err)
 	}
 
-	signal.Notify(sighup_trap, syscall.SIGHUP)
+	signal.Notify(sighupTrap, syscall.SIGHUP)
 
 	go func() {
 		for {
-			<-sighup_trap
+			<-sighupTrap
 			if err := rotateFile(); err != nil {
 				log.Fatalf("unable to rotate output %s", err)
 			}

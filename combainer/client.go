@@ -50,8 +50,8 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	LogInfo("Updating session parametrs")
 	var (
 		// tasks
-		p_tasks   []tasks.ParsingTask
-		agg_tasks []tasks.AggregationTask
+		pTasks   []tasks.ParsingTask
+		aggTasks []tasks.AggregationTask
 
 		// timeouts
 		parsingTime time.Duration
@@ -105,7 +105,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	// Tasks for parsing
 	for _, host := range listOfHosts {
-		p_tasks = append(p_tasks, tasks.ParsingTask{
+		pTasks = append(pTasks, tasks.ParsingTask{
 			CommonTask:         tasks.EmptyCommonTask,
 			Host:               host,
 			ParsingConfigName:  config,
@@ -115,7 +115,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	for _, name := range parsingConfig.AggConfigs {
-		agg_tasks = append(agg_tasks, tasks.AggregationTask{
+		aggTasks = append(aggTasks, tasks.AggregationTask{
 			CommonTask:        tasks.EmptyCommonTask,
 			Config:            name,
 			ParsingConfigName: config,
@@ -130,8 +130,8 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	sp = &sessionParams{
 		ParsingTime: parsingTime,
 		WholeTime:   wholeTime,
-		PTasks:      p_tasks,
-		AggTasks:    agg_tasks,
+		PTasks:      pTasks,
+		AggTasks:    aggTasks,
 	}
 
 	LogInfo("Session parametrs have been updated successfully. %v", sp)
@@ -202,17 +202,17 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	return nil
 }
 
-type ResolveInfo struct {
+type resolveInfo struct {
 	App *cocaine.Service
 	Err error
 }
 
-func Resolve(appname, endpoint string) <-chan ResolveInfo {
-	res := make(chan ResolveInfo)
+func resolve(appname, endpoint string) <-chan resolveInfo {
+	res := make(chan resolveInfo)
 	go func() {
 		app, err := cocaine.NewService(appname, endpoint)
 		select {
-		case res <- ResolveInfo{
+		case res <- resolveInfo{
 			App: app,
 			Err: err,
 		}:
@@ -238,7 +238,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	for deadline.After(time.Now()) {
 		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
-		case r := <-Resolve(appName, host):
+		case r := <-resolve(appName, host):
 			err, app = r.Err, r.App
 		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id(), host, appName)

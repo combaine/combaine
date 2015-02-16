@@ -71,7 +71,7 @@ func (o *Observer) GetClient(config string) *Client {
 }
 
 func Dashboard(w http.ResponseWriter, r *http.Request) {
-	get_number_openfiles := func() uint64 {
+	getNumberOfOpenfiles := func() uint64 {
 		files, _ := ioutil.ReadDir("/proc/self/fd")
 		return uint64(len(files))
 	}
@@ -91,7 +91,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(info{
 		GoRoutines: runtime.NumGoroutine(),
 		Files: OpenFiles{
-			get_number_openfiles(),
+			getNumberOfOpenfiles(),
 			limit,
 		},
 		Clients: stats,
