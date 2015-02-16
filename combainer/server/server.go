@@ -1,11 +1,11 @@
 package server
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/combainer"
