@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/noxiouz/Combaine/common"
@@ -35,7 +36,7 @@ type Client struct {
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	if context.Hosts == nil {
 		err := fmt.Errorf("Unable to create new client: Hosts delegate must be specified")
-		LogErr(err.Error())
+		log.Errorf(err.Error())
 		return nil, err
 	}
 
@@ -47,7 +48,7 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 }
 
 func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
-	LogInfo("Updating session parametrs")
+	log.Infof("Updating session parametrs")
 	var (
 		// tasks
 		pTasks   []tasks.ParsingTask
@@ -60,13 +61,13 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	encodedParsingConfig, err := cl.Repository.GetParsingConfig(config)
 	if err != nil {
-		LogErr("Unable to load config %s", err)
+		log.Errorf("Unable to load config %s", err)
 		return nil, err
 	}
 
 	var parsingConfig configs.ParsingConfig
 	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
-		LogErr("Unable to decode parsingConfig: %s", err)
+		log.Errorf("Unable to decode parsingConfig: %s", err)
 		return nil, err
 	}
 
@@ -74,16 +75,16 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	parsingConfig.UpdateByCombainerConfig(&cfg)
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
-		LogErr("Unable to read aggregation configs: %s", err)
+		log.Errorf("Unable to read aggregation configs: %s", err)
 		return nil, err
 	}
 
-	LogInfo("Updating config: group %s, metahost %s",
+	log.Infof("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
-		LogErr("Unable to construct SimpleFetcher: %s", err)
+		log.Errorf("Unable to construct SimpleFetcher: %s", err)
 		return
 	}
 
@@ -91,14 +92,14 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	for _, item := range parsingConfig.Groups {
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
-			LogInfo("Unable to get hosts for group %s: %s", item, err)
+			log.Infof("Unable to get hosts for group %s: %s", item, err)
 			continue
 		}
 
 		allHosts.Merge(&hosts_for_group)
 	}
 	listOfHosts := allHosts.AllHosts()
-	LogInfo("Hosts: %s", listOfHosts)
+	log.Infof("Hosts: %s", listOfHosts)
 	if len(listOfHosts) == 0 {
 		return nil, fmt.Errorf("No hosts in given groups")
 	}
@@ -134,7 +135,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:    aggTasks,
 	}
 
-	LogInfo("Session parametrs have been updated successfully. %v", sp)
+	log.Infof("Session parametrs have been updated successfully. %v", sp)
 	return sp, nil
 }
 
@@ -147,7 +148,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
 	if err != nil {
-		LogInfo("Error %s", err)
+		log.Infof("Error %s", err)
 		return err
 	}
 
@@ -157,13 +158,13 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	if uniqueID == "" {
 		// Generate session unique ID if it hasn't been specified
 		uniqueID = GenerateSessionId(parsingConfigName, &startTime, &deadline)
-		LogInfo("%s ID has been generated", uniqueID)
+		log.Infof("%s ID has been generated", uniqueID)
 	}
-	LogInfo("%s Start new iteration.", uniqueID)
+	log.Infof("%s Start new iteration.", uniqueID)
 
 	hosts, err := cl.Context.Hosts()
 	if err != nil || len(hosts) == 0 {
-		LogErr("%s unable to get (or empty) the list of the cloud hosts: %s", uniqueID, err)
+		log.Errorf("%s unable to get (or empty) the list of the cloud hosts: %s", uniqueID, err)
 		return err
 	}
 
@@ -174,12 +175,12 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
+		log.Infof("%s Send task number %d to parsing %v", uniqueID, i+1, task)
 		wg.Add(1)
 		go cl.doParsingTask(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	LogInfo("%s Parsing finished", uniqueID)
+	log.Infof("%s Parsing finished", uniqueID)
 
 	// Aggregation phase
 	deadline = startTime.Add(sessionParameters.WholeTime)
@@ -187,18 +188,18 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
-		LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
+		log.Infof("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
 		wg.Add(1)
 		go cl.doAggregationHandler(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	LogInfo("%s Aggregation finished", uniqueID)
+	log.Infof("%s Aggregation finished", uniqueID)
 
 	// Wait for next iteration
 	if shouldWait {
 		time.Sleep(deadline.Sub(time.Now()))
 	}
-	LogInfo("%s Go to the next iteration", uniqueID)
+	log.Infof("%s Go to the next iteration", uniqueID)
 	return nil
 }
 
@@ -245,26 +246,26 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		}
 		if err == nil {
 			defer app.Close()
-			LogDebug("%s Host: %s", task.Id, host)
+			log.Debugf("%s Host: %s", task.Id, host)
 			break
 		}
 
-		LogWarning("%s unable to connect to application %s %s %s", task.Id(), appName, host, err)
+		log.Warningf("%s unable to connect to application %s %s %s", task.Id(), appName, host, err)
 		time.Sleep(200 * time.Microsecond)
 	}
 
 	if app == nil {
-		LogErr("Unable to send task %s. Application is unavailable", task.Id())
+		log.Errorf("Unable to send task %s. Application is unavailable", task.Id())
 		return ErrAppUnavailable
 	}
 
 	raw, _ := task.Raw()
 	res, err := PerformTask(app, raw, limit)
 	if err != nil {
-		LogErr("%s %s task for group %s %s failed: %s", appName, task.Id, task.Group(), host, err)
+		log.Errorf("%s %s task for group %s %s failed: %s", appName, task.Id, task.Group(), host, err)
 		return err
 	}
-	LogInfo("%s %s task for group %s %s done: %s", appName, task.Id, task.Group(), host, res)
+	log.Infof("%s %s task for group %s %s done: %s", appName, task.Id, task.Group(), host, res)
 	return nil
 }
 

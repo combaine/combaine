@@ -6,6 +6,8 @@ import (
 	"io"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/noxiouz/Combaine/common/configs"
 )
 
@@ -35,7 +37,7 @@ func GetAggregationConfigs(repo configs.Repository, parsingConfig *configs.Parsi
 		if err != nil {
 			// It seems better to throw error here instead of
 			// going data processing on without config
-			LogErr("Unable to read aggregation config %s, %s", name, err)
+			log.Errorf("Unable to read aggregation config %s, %s", name, err)
 			return nil, err
 		}
 
@@ -48,7 +50,7 @@ func GetAggregationConfigs(repo configs.Repository, parsingConfig *configs.Parsi
 
 		var aggConfig configs.AggregationConfig
 		if err := content.Decode(&aggConfig); err != nil {
-			LogErr("Unable to decode aggConfig: %s", err)
+			log.Errorf("Unable to decode aggConfig: %s", err)
 			return nil, err
 		}
 		aggregationConfigs[name] = aggConfig

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
@@ -122,16 +124,16 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	resp, err := http.Get(url)
 	var body []byte
 	if err != nil {
-		LogWarning("Unable to fetch hosts from %s: %s. Cache is used", url, err)
+		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)
 		body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
 		if err != nil {
-			LogErr("Unable to read data from the cache: %s", err)
+			log.Errorf("Unable to read data from the cache: %s", err)
 			return nil, err
 		}
 	} else {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			LogErr("%s answered with %s. Cache is used", url, resp.Status)
+			log.Errorf("%s answered with %s. Cache is used", url, resp.Status)
 			body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
 			if err != nil {
 				return nil, err
@@ -139,7 +141,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		} else {
 			body, _ = ioutil.ReadAll(resp.Body)
 			if put_err := s.Cache.Put(fetcherCacheNamespace, groupname, body); put_err != nil {
-				LogInfo("Put error: %s", put_err)
+				log.Infof("Put error: %s", put_err)
 			}
 		}
 	}
@@ -150,7 +152,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
 		if len(temp) != 2 {
-			LogInfo("Wrong input string %s", temp)
+			log.Infof("Wrong input string %s", temp)
 			continue
 		}
 		dc, host := temp[0], temp[1]

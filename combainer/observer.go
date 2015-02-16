@@ -10,11 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/configs"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
 	"github.com/kr/pretty"
+
+	"github.com/noxiouz/Combaine/common"
+	"github.com/noxiouz/Combaine/common/configs"
 )
 
 type StatInfo struct {
@@ -125,7 +126,7 @@ func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.Re
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
 	aggregationConfigs, err := GetAggregationConfigs(repo, &parsingCfg)
 	if err != nil {
-		LogErr("Unable to read aggregation configs: %s", err)
+		log.Errorf("Unable to read aggregation configs: %s", err)
 		return
 	}
 

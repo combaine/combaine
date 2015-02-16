@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/common/configs"
@@ -20,10 +21,10 @@ type LockServer struct {
 
 func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 	endpoints := strings.Join(config.Hosts, ",")
-	LogInfo("Zookeeper: connecting to %s", endpoints)
+	log.Infof("Zookeeper: connecting to %s", endpoints)
 	zk, session, err := zookeeper.Dial(endpoints, 5e9)
 	if err != nil {
-		LogErr("Zookeeper: unable to connect to %s %s", endpoints, err)
+		log.Errorf("Zookeeper: unable to connect to %s %s", endpoints, err)
 		return nil, err
 	}
 
@@ -33,18 +34,18 @@ ZK_CONNECTING_WAIT_LOOP:
 		case event := <-session:
 			if !event.Ok() {
 				err = fmt.Errorf("%s", event.String())
-				LogErr("Zookeeper connection error: %s", err)
+				log.Errorf("Zookeeper connection error: %s", err)
 				return nil, err
 			}
 
 			switch event.State {
 			case zookeeper.STATE_CONNECTED:
-				LogInfo("Connected to Zookeeper successfully")
+				log.Infof("Connected to Zookeeper successfully")
 				break ZK_CONNECTING_WAIT_LOOP
 			case zookeeper.STATE_CONNECTING:
-				LogInfo("Connecting to Zookeeper...")
+				log.Infof("Connecting to Zookeeper...")
 			default:
-				LogWarning("Unexpectable Zookeeper session event: %s", event)
+				log.Warningf("Unexpectable Zookeeper session event: %s", event)
 			}
 		case <-time.After(5 * time.Second):
 			zk.Close()
@@ -64,7 +65,7 @@ ZK_CONNECTING_WAIT_LOOP:
 
 func (ls *LockServer) Lock(node string) error {
 	path := fmt.Sprintf("/%s/%s", ls.LockServerSection.Id, node)
-	LogInfo("Locking %s", path)
+	log.Infof("Locking %s", path)
 	content, err := os.Hostname()
 	if err != nil {
 		return err
@@ -75,7 +76,7 @@ func (ls *LockServer) Lock(node string) error {
 
 func (ls *LockServer) Unlock(node string) error {
 	path := fmt.Sprintf("/%s/%s", ls.LockServerSection.Id, node)
-	LogInfo("Unlocking %s", path)
+	log.Infof("Unlocking %s", path)
 	return ls.Zk.Delete(path, -1)
 }
 
