@@ -11,8 +11,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-const syslogTag = "combainer"
-
 var (
 	severityMap = map[string]logrus.Level{
 		"DEBUG": logrus.DebugLevel,
