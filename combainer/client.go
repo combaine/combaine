@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrAppUnavailable = fmt.Errorf("Application is unavailable")
+	ErrHandlerTimeout = fmt.Errorf("Timeout")
 )
 
 type sessionParams struct {
@@ -290,8 +291,6 @@ func getRandomHost(input []string) string {
 
 func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (interface{}, error) {
 	select {
-	case <-time.After(limit):
-		return nil, fmt.Errorf("timeout")
 	case res := <-app.Call("enqueue", "handleTask", payload):
 		if res.Err() != nil {
 			return nil, res.Err()
@@ -299,6 +298,7 @@ func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (int
 		var i interface{}
 		err := res.Extract(&i)
 		return i, err
+	case <-time.After(limit):
 	}
-	return nil, nil
+	return nil, ErrHandlerTimeout
 }
