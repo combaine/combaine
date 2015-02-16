@@ -14,6 +14,10 @@ import (
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
+var (
+	ErrAppUnavailable = fmt.Errorf("Application is unavailable")
+)
+
 type sessionParams struct {
 	ParsingTime time.Duration
 	WholeTime   time.Duration
@@ -167,11 +171,11 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		// Description of task
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
-		task.Id = uniqueID
+		task.CommonTask.Id = uniqueID
 
 		LogInfo("%s Send task number %d to parsing %v", uniqueID, i+1, task)
 		wg.Add(1)
-		go cl.parsingTaskHandler(task, &wg, deadline, hosts)
+		go cl.doParsingTask(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 	LogInfo("%s Parsing finished", uniqueID)
@@ -181,10 +185,10 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	for i, task := range sessionParameters.AggTasks {
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
-		task.Id = uniqueID
+		task.CommonTask.Id = uniqueID
 		LogInfo("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
 		wg.Add(1)
-		go cl.aggregationTaskHandler(task, &wg, deadline, hosts)
+		go cl.doAggregationHandler(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 	LogInfo("%s Aggregation finished", uniqueID)
@@ -203,7 +207,7 @@ type ResolveInfo struct {
 }
 
 func Resolve(appname, endpoint string) <-chan ResolveInfo {
-	res := make(chan ResolveInfo, 1)
+	res := make(chan ResolveInfo)
 	go func() {
 		app, err := cocaine.NewService(appname, endpoint)
 		select {
@@ -220,21 +224,23 @@ func Resolve(appname, endpoint string) <-chan ResolveInfo {
 	return res
 }
 
-func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) error {
 	defer (*wg).Done()
 	limit := deadline.Sub(time.Now())
 
-	var err error
-	var app *cocaine.Service
-	var host string
+	var (
+		err  error
+		app  *cocaine.Service
+		host string
+	)
+
 	for deadline.After(time.Now()) {
 		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
-		case r := <-Resolve(common.PARSING, host):
-			err = r.Err
-			app = r.App
+		case r := <-Resolve(appName, host):
+			err, app = r.Err, r.App
 		case <-time.After(1 * time.Second):
-			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.PARSING)
+			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id(), host, appName)
 		}
 		if err == nil {
 			defer app.Close()
@@ -242,67 +248,37 @@ func (cl *Client) parsingTaskHandler(task tasks.ParsingTask, wg *sync.WaitGroup,
 			break
 		}
 
-		LogWarning("%s unable to connect to application %s %s %s", task.Id, common.PARSING, host, err)
+		LogWarning("%s unable to connect to application %s %s %s", task.Id(), appName, host, err)
 		time.Sleep(200 * time.Microsecond)
 	}
 
 	if app == nil {
-		LogErr("Unable to send task %s. Application is unavailable", task.Id)
-		cl.clientStats.AddFailedParsing()
-		return
+		LogErr("Unable to send task %s. Application is unavailable", task.Id())
+		return ErrAppUnavailable
 	}
 
-	raw, _ := common.Pack(task)
-	if res, err := PerformTask(app, raw, limit); err != nil {
-		LogErr("%s Parsing task for group %s %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), host, err)
+	raw, _ := task.Raw()
+	res, err := PerformTask(app, raw, limit)
+	if err != nil {
+		LogErr("%s %s task for group %s %s failed: %s", appName, task.Id, task.Group(), host, err)
+		return err
+	}
+	LogInfo("%s %s task for group %s %s done: %s", appName, task.Id, task.Group(), host, res)
+	return nil
+}
+
+func (cl *Client) doParsingTask(task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.PARSING, task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedParsing()
 		return
-	} else {
-		LogInfo("%s Parsing task for group %s %s done: %s", task.Id, task.ParsingConfig.GetGroup(), host, res)
 	}
 	cl.clientStats.AddSuccessParsing()
 }
 
-func (cl *Client) aggregationTaskHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
-	defer (*wg).Done()
-	limit := deadline.Sub(time.Now())
-
-	var err error
-	var app *cocaine.Service
-	var host string
-	for deadline.After(time.Now()) {
-		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
-		select {
-		case r := <-Resolve(common.AGGREGATE, host):
-			err = r.Err
-			app = r.App
-		case <-time.After(1 * time.Second):
-			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id, host, common.AGGREGATE)
-		}
-
-		if err == nil {
-			defer app.Close()
-			LogDebug("%s Host: %s", task.Id, host)
-			break
-		}
-
-		LogWarning("%s unable to connect to application %s %s %s", task.Id, common.AGGREGATE, host, err)
-		time.Sleep(time.Millisecond * 100)
-	}
-
-	if app == nil {
-		cl.clientStats.AddFailedAggregate()
-		LogErr("Unable to send aggregate task %s. Application is unavailable", task.Id)
-		return
-	}
-
-	raw, _ := common.Pack(task)
-	if res, err := PerformTask(app, raw, limit); err != nil {
-		LogErr("%s Aggreagation task for group %s %s failed: %s", task.Id, task.ParsingConfig.GetGroup(), host, err)
+func (cl *Client) doAggregationHandler(task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.AGGREGATE, task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedAggregate()
 		return
-	} else {
-		LogInfo("%s Aggreagation task for group %s %s done: %s", task.Id, task.ParsingConfig.GetGroup(), host, res)
 	}
 	cl.clientStats.AddSuccessAggregate()
 }

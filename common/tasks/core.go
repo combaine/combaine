@@ -3,9 +3,16 @@ package tasks
 import (
 	"fmt"
 
+	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
 )
+
+type Task interface {
+	Id() string
+	Raw() ([]byte, error)
+	Group() string
+}
 
 type CommonTask struct {
 	Id       string `codec:"Id"`
@@ -33,8 +40,20 @@ type ParsingTask struct {
 	AggregationConfigs map[string]configs.AggregationConfig
 }
 
-func (t *ParsingTask) String() string {
-	return fmt.Sprintf("%v", t)
+func (p *ParsingTask) String() string {
+	return fmt.Sprintf("%v", p)
+}
+
+func (p *ParsingTask) Id() string {
+	return p.CommonTask.Id
+}
+
+func (p *ParsingTask) Group() string {
+	return p.ParsingConfig.GetGroup()
+}
+
+func (p *ParsingTask) Raw() ([]byte, error) {
+	return common.Pack(p)
 }
 
 type AggregationTask struct {
@@ -49,4 +68,16 @@ type AggregationTask struct {
 	AggregationConfig configs.AggregationConfig
 	// Hosts
 	Hosts hosts.Hosts
+}
+
+func (a *AggregationTask) Id() string {
+	return a.CommonTask.Id
+}
+
+func (a *AggregationTask) Group() string {
+	return a.ParsingConfig.GetGroup()
+}
+
+func (a *AggregationTask) Raw() ([]byte, error) {
+	return common.Pack(a)
 }
