@@ -1,11 +1,9 @@
 package combainer
 
 import (
-	"crypto/md5"
-	"fmt"
-	"io"
 	"time"
 
+	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/noxiouz/Combaine/common/configs"
@@ -17,12 +15,7 @@ const (
 	COMBAINER_PATH           = "/etc/combaine/combaine.yaml"
 )
 
-//Various utility functions
-func GenerateSessionId(lockname string, start, deadline *time.Time) string {
-	h := md5.New()
-	io.WriteString(h, (fmt.Sprintf("%s%d%d", lockname, *start, *deadline)))
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
+var GenerateSessionId = uuid.New
 
 func GenerateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
 	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second

@@ -35,8 +35,10 @@ type Client struct {
 
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	if context.Hosts == nil {
-		err := fmt.Errorf("Unable to create new client: Hosts delegate must be specified")
-		log.Errorf(err.Error())
+		err := fmt.Errorf("Hosts delegate must be specified")
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("Unable to create Client")
 		return nil, err
 	}
 
@@ -61,13 +63,19 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	encodedParsingConfig, err := cl.Repository.GetParsingConfig(config)
 	if err != nil {
-		log.Errorf("Unable to load config %s", err)
+		log.WithFields(log.Fields{
+			"config": config,
+			"error":  err,
+		}).Error("Unable to load config")
 		return nil, err
 	}
 
 	var parsingConfig configs.ParsingConfig
 	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
-		log.Errorf("Unable to decode parsingConfig: %s", err)
+		log.WithFields(log.Fields{
+			"config": config,
+			"error":  err,
+		}).Error("Unable to decode parsingConfig")
 		return nil, err
 	}
 
@@ -75,7 +83,10 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	parsingConfig.UpdateByCombainerConfig(&cfg)
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
-		log.Errorf("Unable to read aggregation configs: %s", err)
+		log.WithFields(log.Fields{
+			"config": config,
+			"error":  err,
+		}).Error("Unable to read aggregation configs")
 		return nil, err
 	}
 
@@ -84,7 +95,10 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
-		log.Errorf("Unable to construct SimpleFetcher: %s", err)
+		log.WithFields(log.Fields{
+			"config": config,
+			"error":  err,
+		}).Error("Unable to construct SimpleFetcher")
 		return
 	}
 
@@ -92,16 +106,26 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	for _, item := range parsingConfig.Groups {
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
-			log.Infof("Unable to get hosts for group %s: %s", item, err)
+			log.WithFields(log.Fields{
+				"config": config,
+				"error":  err,
+				"group":  item,
+			}).Warn("Unable to get hosts")
 			continue
 		}
 
 		allHosts.Merge(&hosts_for_group)
 	}
+
 	listOfHosts := allHosts.AllHosts()
 	log.Infof("Hosts: %s", listOfHosts)
 	if len(listOfHosts) == 0 {
-		return nil, fmt.Errorf("No hosts in given groups")
+		err := fmt.Errorf("No hosts in given groups")
+		log.WithFields(log.Fields{
+			"config": config,
+			"group":  parsingConfig.Groups,
+		}).Warn("No hosts in given groups")
+		return nil, err
 	}
 
 	// Tasks for parsing
@@ -143,63 +167,102 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	_observer.RegisterClient(cl, parsingConfigName)
 	defer _observer.UnregisterClient(parsingConfigName)
 
+	if uniqueID == "" {
+		uniqueID = GenerateSessionId()
+		log.WithFields(log.Fields{
+			"id":     uniqueID,
+			"config": parsingConfigName,
+		}).Info("ID has been generated")
+	}
+
 	var deadline, startTime time.Time
 	var wg sync.WaitGroup
 
 	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
 	if err != nil {
-		log.Infof("Error %s", err)
+		log.WithFields(log.Fields{
+			"id":     uniqueID,
+			"config": parsingConfigName,
+			"error":  err,
+		}).Error("Unable to update session parametrs")
 		return err
 	}
 
 	startTime = time.Now()
 	deadline = startTime.Add(sessionParameters.ParsingTime)
 
-	if uniqueID == "" {
-		// Generate session unique ID if it hasn't been specified
-		uniqueID = GenerateSessionId(parsingConfigName, &startTime, &deadline)
-		log.Infof("%s ID has been generated", uniqueID)
-	}
-	log.Infof("%s Start new iteration.", uniqueID)
+	log.WithFields(log.Fields{
+		"id":     uniqueID,
+		"config": parsingConfigName,
+	}).Info("Start new iteration")
 
 	hosts, err := cl.Context.Hosts()
 	if err != nil || len(hosts) == 0 {
-		log.Errorf("%s unable to get (or empty) the list of the cloud hosts: %s", uniqueID, err)
+		log.WithFields(log.Fields{
+			"id":     uniqueID,
+			"config": parsingConfigName,
+			"error":  err,
+		}).Error("Unable to get (or empty) the list of the cloud hosts")
+
 		return err
 	}
 
 	// Parsing phase
+	totalTasksAmount := len(sessionParameters.PTasks)
 	for i, task := range sessionParameters.PTasks {
 		// Description of task
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.Infof("%s Send task number %d to parsing %v", uniqueID, i+1, task)
+		log.WithFields(log.Fields{
+			"id":     uniqueID,
+			"config": parsingConfigName,
+		}).Info("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
+
 		wg.Add(1)
 		go cl.doParsingTask(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	log.Infof("%s Parsing finished", uniqueID)
+
+	log.WithFields(log.Fields{
+		"id":     uniqueID,
+		"config": parsingConfigName,
+	}).Info("Parsing finished")
 
 	// Aggregation phase
 	deadline = startTime.Add(sessionParameters.WholeTime)
+	totalTasksAmount = len(sessionParameters.AggTasks)
 	for i, task := range sessionParameters.AggTasks {
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
-		log.Infof("%s Send task number %d to aggregate %v", uniqueID, i+1, task)
+
+		log.WithFields(log.Fields{
+			"id":     uniqueID,
+			"config": parsingConfigName,
+		}).Info("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
+
 		wg.Add(1)
 		go cl.doAggregationHandler(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	log.Infof("%s Aggregation finished", uniqueID)
+
+	log.WithFields(log.Fields{
+		"id":     uniqueID,
+		"config": parsingConfigName,
+	}).Info("Aggregation has finished")
 
 	// Wait for next iteration
 	if shouldWait {
 		time.Sleep(deadline.Sub(time.Now()))
 	}
-	log.Infof("%s Go to the next iteration", uniqueID)
+
+	log.WithFields(log.Fields{
+		"id":     uniqueID,
+		"config": parsingConfigName,
+	}).Debug("Go to the next iteration")
+
 	return nil
 }
 

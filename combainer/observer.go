@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
@@ -177,8 +176,7 @@ func Launch(repo configs.Repository, context *Context, params martini.Params, w 
 		return
 	}
 
-	t := time.Now()
-	ID := GenerateSessionId(name, &t, &t)
+	ID := GenerateSessionId()
 	err = cl.Dispatch(name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
