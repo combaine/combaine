@@ -64,7 +64,7 @@ class Multimetrics(object):
             delta = float(currtime - prevtime)
             if delta <= 0:
                 delta = 1
-            for name in (key for key in result.keys() if is_timings(key)):
+            for name in (key for key in result.keys() if not is_timings(key)):
                 result[name] /= delta
         return result
 
