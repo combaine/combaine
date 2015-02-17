@@ -21,13 +21,13 @@ class Multimetrics(object):
     """
     def __init__(self, config):
         self.quantile = config.get("values") or DEFAULT_QUANTILE_VALUES
+        self.rps = ("yes" == config.get("rps", "yes"))
         self.quantile.sort()
 
     def _parse_metrics(self, lines):
         result = {}
         for line in lines:
             name, _, metrics_as_strings = line.partition(" ")
-            mertrics_as_values = None
             if is_timings(name):
                 # put a default placeholder here if there's no such result yet
                 if not metrics_as_strings and name not in result:
@@ -59,7 +59,14 @@ class Multimetrics(object):
 
     def aggregate_host(self, payload, prevtime, currtime):
         """ Convert strings of payload into dict[string][]float and return """
-        return self._parse_metrics(payload.splitlines())
+        result = self._parse_metrics(payload.splitlines())
+        if self.rps:
+            delta = float(currtime - prevtime)
+            if delta <= 0:
+                delta = 1
+            for name in (key for key in result.keys() if is_timings(key)):
+                result[name] /= delta
+        return result
 
     def aggregate_group(self, payload):
         """ Payload is list of dict[string][]float"""
