@@ -1,8 +1,6 @@
 package tasks
 
 import (
-	"fmt"
-
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
@@ -38,10 +36,6 @@ type ParsingTask struct {
 	// Content of aggreagtion configs
 	// related to the current parsing config
 	AggregationConfigs map[string]configs.AggregationConfig
-}
-
-func (p *ParsingTask) String() string {
-	return fmt.Sprintf("%v", p)
 }
 
 func (p *ParsingTask) Id() string {

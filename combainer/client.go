@@ -56,6 +56,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		"client": cl.Id,
 		"config": config,
 	}).Info("Updating session parametrs")
+
 	var (
 		// tasks
 		pTasks   []tasks.ParsingTask
