@@ -115,7 +115,9 @@ LOCKSERVER_LOOP:
 	for {
 		DLS, err := combainer.NewLockServer(c.CombainerConfig.LockServerSection)
 		if err != nil {
-			log.Printf("Unable to create Zookeeper lockserver: %s", err)
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("unable to create Zookeeper lockserver")
 			time.Sleep(c.Configuration.Period)
 			continue LOCKSERVER_LOOP
 		}
@@ -131,7 +133,9 @@ LOCKSERVER_LOOP:
 				next = time.After(c.Configuration.Period)
 				configs, err := c.Repository.ListParsingConfigs()
 				if err != nil {
-					log.Printf("Unable to get list of parsing configs: %s", err)
+					log.WithFields(log.Fields{
+						"error": err,
+					}).Error("Unable to get list of parsing configs")
 					continue DISPATCH_LOOP
 				}
 
@@ -146,7 +150,9 @@ LOCKSERVER_LOOP:
 				}
 
 				if lockerr != nil {
-					log.Printf("Unable to get any freelock: %s", lockerr)
+					log.WithFields(log.Fields{
+						"error": lockerr,
+					}).Error("Unable to get any freelock")
 					continue DISPATCH_LOOP
 				}
 
@@ -157,31 +163,39 @@ LOCKSERVER_LOOP:
 					log.Printf("Creating new client with lock: %s", lockname)
 					cl, err := combainer.NewClient(c.Context, c.Repository)
 					if err != nil {
-						log.Printf("Can't create client: %s", err)
+						log.WithFields(log.Fields{
+							"error": err,
+						}).Errorf("can't create client")
 						return
 					}
 
 					var watcher <-chan zookeeper.Event
 					watcher, err = DLS.Watch(lockname)
 					if err != nil {
-						log.Printf("Can't watch %s: %s", lockname, err)
+						log.WithFields(log.Fields{
+							"error": err,
+						}).Errorf("can't watch %s", lockname)
 						return
 					}
 
 					for {
 						if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
-							log.Println("Dispatch error: %s", err)
+							log.WithFields(log.Fields{
+								"error": err,
+							}).Error("Dispatch error")
 							return
 						}
 						select {
 						case event := <-watcher:
 							if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
-								log.Println("lock has been lost: %s", event)
+								log.Errorf("lock has been lost: %s", event)
 								return
 							}
 							watcher, err = DLS.Watch(lockname)
 							if err != nil {
-								log.Printf("Can't watch %s: %s", lockname, err)
+								log.WithFields(log.Fields{
+									"error": err,
+								}).Errorf("Can't watch %s", lockname)
 								return
 							}
 						default:
@@ -190,7 +204,7 @@ LOCKSERVER_LOOP:
 				}(lockname)
 			case event := <-DLS.Session:
 				if !event.Ok() {
-					log.Printf("Not OK event from Zookeeper: %s", event)
+					log.Errorf("Not OK event from Zookeeper: %s", event)
 					DLS.Close()
 					break DISPATCH_LOOP
 				}
