@@ -66,10 +66,9 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 
 	// Get Combaine hosts
 	cloud_group := combainerConfig.MainSection.CloudGroup
-	context := &combainer.Context{
-		Cache: cacher,
-		Hosts: nil,
-	}
+	context := combainer.NewContext()
+	context.Cache = cacher
+	context.Hosts = nil
 
 	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
 	if err != nil {
