@@ -175,7 +175,10 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:    aggTasks,
 	}
 
-	log.Infof("Session parametrs have been updated successfully. %v", sp)
+	log.WithFields(log.Fields{
+		"client": cl.Id,
+		"config": config,
+	}).Infof("Session parametrs have been updated successfully. %v", sp)
 	return sp, nil
 }
 
@@ -185,12 +188,12 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 	if uniqueID == "" {
 		uniqueID = GenerateSessionId()
-		log.WithFields(log.Fields{
-			"client":  cl.Id,
-			"session": uniqueID,
-			"config":  parsingConfigName,
-		}).Info("ID has been generated")
 	}
+
+	contextFields := log.Fields{
+		"client":  cl.Id,
+		"session": uniqueID,
+		"config":  parsingConfigName}
 
 	var deadline, startTime time.Time
 	var wg sync.WaitGroup
@@ -209,11 +212,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	startTime = time.Now()
 	deadline = startTime.Add(sessionParameters.ParsingTime)
 
-	log.WithFields(log.Fields{
-		"client":  cl.Id,
-		"session": uniqueID,
-		"config":  parsingConfigName,
-	}).Info("Start new iteration")
+	log.WithFields(contextFields).Info("Start new iteration")
 
 	hosts, err := cl.Context.Hosts()
 	if err != nil || len(hosts) == 0 {
@@ -235,22 +234,14 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(log.Fields{
-			"client":  cl.Id,
-			"session": uniqueID,
-			"config":  parsingConfigName,
-		}).Info("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
+		log.WithFields(contextFields).Info("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doParsingTask(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
-	log.WithFields(log.Fields{
-		"client":  cl.Id,
-		"session": uniqueID,
-		"config":  parsingConfigName,
-	}).Info("Parsing finished")
+	log.WithFields(contextFields).Info("Parsing finished")
 
 	// Aggregation phase
 	deadline = startTime.Add(sessionParameters.WholeTime)
@@ -260,33 +251,21 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(log.Fields{
-			"client":  cl.Id,
-			"session": uniqueID,
-			"config":  parsingConfigName,
-		}).Info("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
+		log.WithFields(contextFields).Info("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doAggregationHandler(&task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
-	log.WithFields(log.Fields{
-		"client":  cl.Id,
-		"session": uniqueID,
-		"config":  parsingConfigName,
-	}).Info("Aggregation has finished")
+	log.WithFields(contextFields).Info("Aggregation has finished")
 
 	// Wait for next iteration
 	if shouldWait {
 		time.Sleep(deadline.Sub(time.Now()))
 	}
 
-	log.WithFields(log.Fields{
-		"client":  cl.Id,
-		"session": uniqueID,
-		"config":  parsingConfigName,
-	}).Debug("Go to the next iteration")
+	log.WithFields(contextFields).Debug("Go to the next iteration")
 
 	return nil
 }
