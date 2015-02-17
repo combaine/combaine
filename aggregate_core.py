@@ -104,8 +104,9 @@ def aggreagate(request, response):
                                     msgpack.packb((task.Id, cfg, all_data)))
         except Exception as err:
             logger.error("unable to aggreagate all: %s %s", name, err)
-        logger.info("name %s ALL %s %d" % (name, res, len(all_data)))
-        result[name][metahost] = res
+        else:
+            logger.info("name %s ALL %s %d" % (name, res, len(all_data)))
+            result[name][metahost] = res
 
     # Send data to various senders
     for name, item in aggcfg.senders.iteritems():
