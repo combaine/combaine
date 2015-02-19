@@ -22,9 +22,15 @@ class Multimetrics(object):
     def __init__(self, config):
         self.quantile = config.get("values") or DEFAULT_QUANTILE_VALUES
         self.rps = ("yes" == config.get("rps", "yes"))
+        factor = config.get("factor", 1)
+        if factor == 1:
+            self.factor = float
+        else:
+            self.factor = lambda x: factor * float(x)
         self.quantile.sort()
 
     def _parse_metrics(self, lines):
+        factor = self.factor
         result = {}
         for line in lines:
             name, _, metrics_as_strings = line.partition(" ")
@@ -34,7 +40,7 @@ class Multimetrics(object):
                     result[name] = DEFAULT_TIMINGS_VALUE
                     continue
                 try:
-                    metrics_as_values = map(float, metrics_as_strings.split())
+                    metrics_as_values = map(factor, metrics_as_strings.split())
                     if name in result:
                         result[name] += metrics_as_values
                     else:
