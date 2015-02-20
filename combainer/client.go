@@ -310,13 +310,13 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		case r := <-resolve(appName, host):
 			err, app = r.Err, r.App
 		case <-time.After(1 * time.Second):
-			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Id(), host, appName)
+			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Tid(), host, appName)
 		}
 		if err == nil {
 			defer app.Close()
 			log.WithFields(log.Fields{
 				"client":  cl.Id,
-				"session": task.Id(),
+				"session": task.Tid(),
 				"host":    host,
 				"appname": appName,
 			}).Debug("application successfully connected")
@@ -325,7 +325,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 
 		log.WithFields(log.Fields{
 			"client":  cl.Id,
-			"session": task.Id(),
+			"session": task.Tid(),
 			"error":   err,
 			"appname": appName,
 			"host":    host,
@@ -336,7 +336,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	if app == nil {
 		log.WithFields(log.Fields{
 			"client":  cl.Id,
-			"session": task.Id(),
+			"session": task.Tid(),
 			"error":   ErrAppUnavailable,
 			"appname": appName,
 		}).Error("unable to send task")
@@ -348,7 +348,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	if err != nil {
 		log.WithFields(log.Fields{
 			"client":  cl.Id,
-			"session": task.Id(),
+			"session": task.Tid(),
 			"error":   err,
 			"appname": appName,
 			"host":    host,
@@ -358,7 +358,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 
 	log.WithFields(log.Fields{
 		"client":  cl.Id,
-		"session": task.Id(),
+		"session": task.Tid(),
 		"error":   err,
 		"appname": appName,
 		"host":    host,

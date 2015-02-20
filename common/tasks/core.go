@@ -7,7 +7,7 @@ import (
 )
 
 type Task interface {
-	Id() string
+	Tid() string
 	Raw() ([]byte, error)
 	Group() string
 }
@@ -16,6 +16,10 @@ type CommonTask struct {
 	Id       string `codec:"Id"`
 	PrevTime int64  `codec:"PrevTime"`
 	CurrTime int64  `codec:"CurrTime"`
+}
+
+func (c *CommonTask) Tid() string {
+	return c.Id
 }
 
 var (
@@ -38,9 +42,9 @@ type ParsingTask struct {
 	AggregationConfigs map[string]configs.AggregationConfig
 }
 
-func (p *ParsingTask) Id() string {
-	return p.CommonTask.Id
-}
+// func (p *ParsingTask) Id() string {
+// 	return p.CommonTask.Id
+// }
 
 func (p *ParsingTask) Group() string {
 	return p.ParsingConfig.GetGroup()
@@ -64,9 +68,9 @@ type AggregationTask struct {
 	Hosts hosts.Hosts
 }
 
-func (a *AggregationTask) Id() string {
-	return a.CommonTask.Id
-}
+// func (a *AggregationTask) Id() string {
+// 	return a.CommonTask.Id
+// }
 
 func (a *AggregationTask) Group() string {
 	return a.ParsingConfig.GetGroup()

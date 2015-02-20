@@ -1,63 +1,43 @@
 package logger
 
 import (
-	"sync"
+	"fmt"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 var (
-	log      *cocaine.Logger
-	logMutex sync.Mutex
+	Log *cocaine.Logger = mustCreateLogger()
 )
 
-func LazyLoggerInitialization() (*cocaine.Logger, error) {
-	var err error
-	if log != nil {
-		return log, nil
-	} else {
-		logMutex.Lock()
-		defer logMutex.Unlock()
-		if log != nil {
-			return log, nil
-		}
-		log, err = cocaine.NewLogger()
-		return log, err
+func mustCreateLogger() *cocaine.Logger {
+	log, err := cocaine.NewLogger()
+	if err != nil {
+		panic(fmt.Sprintf("Unable to create Cocaine logger, but must %v", err))
 	}
+	return log
 }
 
-func Debugf(format string, data ...interface{}) (err error) {
-	log, err := LazyLoggerInitialization()
+func MustCreteService(name string) *cocaine.Service {
+	service, err := cocaine.NewService(name)
 	if err != nil {
-		return
+		panic(fmt.Sprintf("Unable to create Cocaine service %s, but must %v", name, err))
 	}
-	log.Debugf(format, data...)
-	return
+	return service
 }
 
-func Infof(format string, data ...interface{}) (err error) {
-	log, err := LazyLoggerInitialization()
-	if err != nil {
-		return
-	}
-	log.Infof(format, data...)
-	return
+func Debugf(format string, data ...interface{}) {
+	Log.Debugf(format, data...)
 }
 
-func Errf(format string, data ...interface{}) (err error) {
-	log, err := LazyLoggerInitialization()
-	if err != nil {
-		return
-	}
-	log.Errf(format, data...)
-	return
+func Infof(format string, data ...interface{}) {
+	Log.Infof(format, data...)
 }
 
-func Warnf(format string, data ...interface{}) (err error) {
-	log, err := LazyLoggerInitialization()
-	if err != nil {
-		return
-	}
-	log.Warnf(format, data...)
-	return
+func Errf(format string, data ...interface{}) {
+	Log.Errf(format, data...)
+}
+
+func Warnf(format string, data ...interface{}) {
+	Log.Warnf(format, data...)
 }

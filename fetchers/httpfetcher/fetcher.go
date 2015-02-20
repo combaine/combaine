@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
 )
@@ -27,7 +28,9 @@ func get(url string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
+
 	return body, nil
 }
 
@@ -61,10 +64,6 @@ func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 		t.port,
 		t.uri)
 
-	log, err := parsing.LazyLoggerInitialization()
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("%s Requested URL: %s", task.Id, url)
+	logger.Infof("%s Requested URL: %s", task.Id, url)
 	return get(url)
 }

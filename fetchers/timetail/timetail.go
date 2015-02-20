@@ -8,6 +8,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
 	"github.com/noxiouz/Combaine/parsing"
 )
@@ -56,12 +57,7 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 		t.Logname,
 		period)
 
-	log, err := parsing.LazyLoggerInitialization()
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("%s Requested URL: %s", task.Id, url)
-
+	logger.Infof("%s Requested URL: %s", task.Id, url)
 	return get(url)
 }
 
