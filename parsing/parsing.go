@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	storage *cocaine.Service     = logger.MustCreteService(storageServiceName)
+	storage *cocaine.Service     = logger.MustCreateService(storageServiceName)
 	cacher  servicecacher.Cacher = servicecacher.NewCacher()
 )
 

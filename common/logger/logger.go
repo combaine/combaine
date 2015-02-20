@@ -18,7 +18,7 @@ func mustCreateLogger() *cocaine.Logger {
 	return log
 }
 
-func MustCreteService(name string) *cocaine.Service {
+func MustCreateService(name string) *cocaine.Service {
 	service, err := cocaine.NewService(name)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create Cocaine service %s, but must %v", name, err))
