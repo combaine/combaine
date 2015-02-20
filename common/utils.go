@@ -14,9 +14,8 @@ var (
 )
 
 //Utils
-func Decode(data []byte, res interface{}) (err error) {
-	err = yaml.Unmarshal(data, res)
-	return
+func Decode(data []byte, res interface{}) error {
+	return yaml.Unmarshal(data, res)
 }
 
 func Encode(in interface{}) ([]byte, error) {
@@ -28,9 +27,8 @@ func Pack(input interface{}) (buf []byte, err error) {
 	return
 }
 
-func Unpack(data []byte, res interface{}) (err error) {
-	err = codec.NewDecoderBytes(data, h).Decode(res)
-	return
+func Unpack(data []byte, res interface{}) error {
+	return codec.NewDecoderBytes(data, h).Decode(res)
 }
 
 func GetType(cfg map[string]interface{}) (string, error) {
