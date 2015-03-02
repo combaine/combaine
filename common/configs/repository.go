@@ -3,6 +3,7 @@ package configs
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 )
@@ -21,6 +22,7 @@ type Repository interface {
 	GetAggregationConfig(name string) (EncodedConfig, error)
 	GetParsingConfig(name string) (EncodedConfig, error)
 	GetCombainerConfig() CombainerConfig
+	ParsingConfigIsExists(name string) bool
 	ListParsingConfigs() ([]string, error)
 	ListAggregationConfigs() ([]string, error)
 }
@@ -79,6 +81,16 @@ func (f *filesystemRepository) ListParsingConfigs() ([]string, error) {
 
 func (f *filesystemRepository) ListAggregationConfigs() ([]string, error) {
 	return lsConfigs(f.aggregationpath)
+}
+
+func (f *filesystemRepository) ParsingConfigIsExists(name string) bool {
+	for _, suffix := range config_suffixes {
+		fpath := path.Join(f.parsingpath, name+suffix)
+		if _, err := os.Stat(fpath); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func lsConfigs(filepath string) (list []string, err error) {

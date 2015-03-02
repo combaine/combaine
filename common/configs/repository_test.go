@@ -20,7 +20,7 @@ func TestRepository(t *testing.T) {
 	var (
 		expectedPcfg      = []string{"img_status"}
 		expectedAggcfg    = []string{"http_ok"}
-		expectedLockHosts = []string{"ZK1:2181", "ZK2:2181"}
+		expectedLockHosts = []string{"localhost:2181"}
 	)
 
 	repo, err := NewFilesystemRepository(repopath)
@@ -43,6 +43,14 @@ func TestRepository(t *testing.T) {
 	for _, name := range lp {
 		pcfg, err := repo.GetParsingConfig(name)
 		if !assert.Nil(t, err, "unable to read %s: %s", name, err) {
+			t.Fatal()
+		}
+
+		if !repo.ParsingConfigIsExists(name) {
+			t.Fatal()
+		}
+
+		if repo.ParsingConfigIsExists("balbla") {
 			t.Fatal()
 		}
 

@@ -132,6 +132,7 @@ LOCKSERVER_LOOP:
 			// Spawn one more client
 			case <-next:
 				next = time.After(c.Configuration.Period)
+
 				configs, err := c.Repository.ListParsingConfigs()
 				if err != nil {
 					log.WithFields(log.Fields{
@@ -140,8 +141,10 @@ LOCKSERVER_LOOP:
 					continue DISPATCH_LOOP
 				}
 
-				var lockname string
-				var lockerr error
+				var (
+					lockname string
+					lockerr  error
+				)
 				for _, cfg := range configs {
 					lockerr = DLS.Lock(cfg)
 					if lockerr == nil {
