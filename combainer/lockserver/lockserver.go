@@ -1,4 +1,4 @@
-package combainer
+package lockserver
 
 import (
 	"fmt"

@@ -9,6 +9,7 @@ import (
 	"launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/combainer"
+	"github.com/noxiouz/Combaine/combainer/lockserver"
 	"github.com/noxiouz/Combaine/common/cache"
 	"github.com/noxiouz/Combaine/common/configs"
 )
@@ -113,7 +114,7 @@ func (c *CombaineServer) Serve() error {
 func (c *CombaineServer) distributeTasks() {
 LOCKSERVER_LOOP:
 	for {
-		DLS, err := combainer.NewLockServer(c.CombainerConfig.LockServerSection)
+		DLS, err := lockserver.NewLockServer(c.CombainerConfig.LockServerSection)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
