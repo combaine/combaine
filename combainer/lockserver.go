@@ -12,11 +12,17 @@ import (
 	"github.com/noxiouz/Combaine/common/configs"
 )
 
+type locksInfo struct {
+	AllLocks []string
+	Version  int
+}
+
 type LockServer struct {
 	Zk      *zookeeper.Conn
 	Session <-chan zookeeper.Event
 	stop    chan struct{}
 	configs.LockServerSection
+	locksInfo
 }
 
 func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
@@ -58,6 +64,10 @@ ZK_CONNECTING_WAIT_LOOP:
 		Session:           session,
 		stop:              make(chan struct{}),
 		LockServerSection: config,
+		locksInfo: locksInfo{
+			AllLocks: make([]string, 10),
+			Version:  -1,
+		},
 	}
 
 	return ls, nil
@@ -84,6 +94,56 @@ func (ls *LockServer) Watch(node string) (<-chan zookeeper.Event, error) {
 	path := fmt.Sprintf("/%s/%s", ls.LockServerSection.Id, node)
 	_, _, w, err := ls.Zk.GetW(path)
 	return w, err
+}
+
+func (ls *LockServer) Locks() []string {
+	return ls.locksInfo.AllLocks
+}
+
+func (ls *LockServer) watchLocks() error {
+	path := fmt.Sprintf("/%s", ls.LockServerSection.Id)
+	var (
+		watch    <-chan zookeeper.Event
+		err      error
+		children []string
+		stat     *zookeeper.Stat
+	)
+
+	children, stat, watch, err = ls.Zk.ChildrenW(path)
+	if err != nil {
+		return err
+	}
+
+	ls.locksInfo.Version = stat.CVersion()
+	ls.locksInfo.AllLocks = children
+
+	go func() {
+		for {
+			select {
+			case event := <-watch:
+				if !event.Ok() {
+					err = fmt.Errorf("%s", event.String())
+					log.Errorf("locks watcher error: %s", err)
+					return
+				}
+
+				children, stat, watch, err = ls.Zk.ChildrenW(path)
+				if err != nil {
+					log.Errorf("unable to watch locks: %s", err)
+					return
+				}
+
+				if stat.CVersion() >= ls.locksInfo.Version {
+					ls.locksInfo.Version = stat.CVersion()
+					ls.locksInfo.AllLocks = children
+				}
+
+			case <-ls.stop:
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 func (ls *LockServer) Close() {
