@@ -68,6 +68,6 @@ def aggregate_group(request, response):
 
 
 if __name__ == '__main__':
-    W = Worker()
+    W = Worker(disown_timeout=100)
     W.run({"aggregate_host": aggregate_host,
            "aggregate_group": aggregate_group})

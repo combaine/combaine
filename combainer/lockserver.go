@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -18,6 +19,7 @@ type locksInfo struct {
 }
 
 type LockServer struct {
+	mu      sync.Mutex
 	Zk      *zookeeper.Conn
 	Session <-chan zookeeper.Event
 	stop    chan struct{}
@@ -97,7 +99,18 @@ func (ls *LockServer) Watch(node string) (<-chan zookeeper.Event, error) {
 }
 
 func (ls *LockServer) Locks() []string {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	return ls.locksInfo.AllLocks
+}
+
+func (ls *LockServer) updateAllLocks(children []string, stat *zookeeper.Stat) {
+	ls.mu.Lock()
+	if stat.CVersion() >= ls.locksInfo.Version {
+		ls.locksInfo.Version = stat.CVersion()
+		ls.locksInfo.AllLocks = children
+	}
+	ls.mu.Unlock()
 }
 
 func (ls *LockServer) watchLocks() error {
@@ -114,8 +127,7 @@ func (ls *LockServer) watchLocks() error {
 		return err
 	}
 
-	ls.locksInfo.Version = stat.CVersion()
-	ls.locksInfo.AllLocks = children
+	ls.updateAllLocks(children, stat)
 
 	go func() {
 		for {
@@ -132,11 +144,7 @@ func (ls *LockServer) watchLocks() error {
 					log.Errorf("unable to watch locks: %s", err)
 					return
 				}
-
-				if stat.CVersion() >= ls.locksInfo.Version {
-					ls.locksInfo.Version = stat.CVersion()
-					ls.locksInfo.AllLocks = children
-				}
+				ls.updateAllLocks(children, stat)
 
 			case <-ls.stop:
 				return
