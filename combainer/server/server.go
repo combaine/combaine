@@ -137,75 +137,76 @@ LOCKSERVER_LOOP:
 				if err != nil {
 					log.WithFields(log.Fields{
 						"error": err,
-					}).Error("Unable to get list of parsing configs")
+					}).Error("Unable to list parsing configs")
 					continue DISPATCH_LOOP
 				}
 
-				var (
-					lockname string
-					lockerr  error
-				)
-				for _, cfg := range configs {
-					lockerr = DLS.Lock(cfg)
-					if lockerr == nil {
-						lockname = cfg
-						break
-					}
-				}
+				go func(configs []string) {
+					var (
+						lockname string
+						lockerr  error
+					)
 
-				if lockerr != nil {
-					log.WithFields(log.Fields{
-						"error": lockerr,
-					}).Error("Unable to get any freelock")
-					continue DISPATCH_LOOP
-				}
-
-				go func(lockname string) {
-					defer DLS.Unlock(lockname)
-					defer Trap()
-
-					log.Printf("Creating new client with lock: %s", lockname)
-					cl, err := combainer.NewClient(c.Context, c.Repository)
-					if err != nil {
-						log.WithFields(log.Fields{
-							"error": err,
-						}).Errorf("can't create client")
-						return
-					}
-
-					var watcher <-chan zookeeper.Event
-					watcher, err = DLS.Watch(lockname)
-					if err != nil {
-						log.WithFields(log.Fields{
-							"error": err,
-						}).Errorf("can't watch %s", lockname)
-						return
-					}
-
-					for {
-						if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
-							log.WithFields(log.Fields{
-								"error": err,
-							}).Error("Dispatch error")
-							return
+					for _, cfg := range configs {
+						lockerr = DLS.Lock(cfg)
+						if lockerr != nil {
+							continue
 						}
-						select {
-						case event := <-watcher:
-							if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
-								log.Errorf("lock has been lost: %s", event)
+
+						// Inline function to use defers
+						func(lockname string) {
+							defer DLS.Unlock(lockname)
+							defer Trap()
+
+							if !c.Repository.ParsingConfigIsExists(cfg) {
+								log.WithField("error", "config doesn't exist").Error(cfg)
 								return
 							}
+
+							log.Printf("Creating new client with lock: %s", lockname)
+							cl, err := combainer.NewClient(c.Context, c.Repository)
+							if err != nil {
+								log.WithFields(log.Fields{
+									"error": err,
+								}).Errorf("can't create client")
+								return
+							}
+
+							var watcher <-chan zookeeper.Event
 							watcher, err = DLS.Watch(lockname)
 							if err != nil {
 								log.WithFields(log.Fields{
 									"error": err,
-								}).Errorf("Can't watch %s", lockname)
+								}).Errorf("can't watch %s", lockname)
 								return
 							}
-						default:
-						}
+
+							for {
+								if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
+									log.WithFields(log.Fields{
+										"error": err,
+									}).Error("Dispatch error")
+									return
+								}
+								select {
+								case event := <-watcher:
+									if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
+										log.Errorf("lock has been lost: %s", event)
+										return
+									}
+									watcher, err = DLS.Watch(lockname)
+									if err != nil {
+										log.WithFields(log.Fields{
+											"error": err,
+										}).Errorf("Can't watch %s", lockname)
+										return
+									}
+								default:
+								}
+							}
+						}(lockname)
 					}
-				}(lockname)
+				}(configs)
 			case event := <-DLS.Session:
 				if !event.Ok() {
 					log.Errorf("Not OK event from Zookeeper: %s", event)
