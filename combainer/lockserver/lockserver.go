@@ -36,6 +36,8 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 		return nil, err
 	}
 
+	deadline := time.After(time.Duration(config.Timeout) * time.Second)
+
 ZK_CONNECTING_WAIT_LOOP:
 	for {
 		select {
@@ -55,7 +57,7 @@ ZK_CONNECTING_WAIT_LOOP:
 			default:
 				log.Warningf("Unexpectable Zookeeper session event: %s", event)
 			}
-		case <-time.After(5 * time.Second):
+		case <-deadline:
 			zk.Close()
 			return nil, fmt.Errorf("Zookeeper: connection timeout")
 		}
