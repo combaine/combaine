@@ -23,7 +23,7 @@ cloud_config:
     Clusters: {
       "combaine-cloud": {
         "IVA": ["host1-IVA", "host2-IVA"],
-        "UGR": ["host1-ugr"]
+        "UGR": ["host1-ugr", "localhost"]
       }
     }
   }
