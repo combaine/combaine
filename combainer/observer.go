@@ -11,7 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
-	"github.com/hashicorp/memberlist"
+//	"github.com/hashicorp/memberlist"
 	"github.com/kr/pretty"
 
 	"github.com/noxiouz/Combaine/common"
@@ -188,11 +188,13 @@ func Launch(repo configs.Repository, context *Context, params martini.Params, w 
 	fmt.Fprint(w, "DONE")
 }
 
+/*
 func Cluster(cluster *memberlist.Memberlist, w http.ResponseWriter) {
 	for _, node := range cluster.Members() {
 		fmt.Fprintf(w, "%s %s\n", node.Name, node.Addr)
 	}
 }
+*/
 
 func StartObserver(endpoint string, services ...interface{}) {
 	m := martini.Classic()
@@ -206,7 +208,7 @@ func StartObserver(endpoint string, services ...interface{}) {
 	})
 	m.Get("/tasks/:name", Tasks)
 	m.Get("/launch/:name", Launch)
-	m.Get("/cluster", Cluster)
+//	m.Get("/cluster", Cluster)
 
 	m.Get("/", Dashboard)
 	http.ListenAndServe(endpoint, m)

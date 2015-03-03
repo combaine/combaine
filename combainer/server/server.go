@@ -33,7 +33,7 @@ type CombaineServer struct {
 	configs.Repository
 	cache.Cache
 	*combainer.Context
-	Cluster *memberlist.Memberlist
+//	Cluster *memberlist.Memberlist
 }
 
 type CombaineServerConfig struct {
@@ -99,7 +99,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		}
 		return h.AllHosts(), nil
 	}
-
+/*
 	cloudHosts, err := context.Hosts()
 	if err != nil {
 		return nil, err
@@ -115,14 +115,14 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if _, err := cluster.Join(cloudHosts); err != nil {
 		return nil, err
 	}
-
+*/
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
 		Cache:           cacher,
 		Context:         context,
-		Cluster:         cluster,
+//		Cluster:         cluster,
 	}
 
 	return server, nil
@@ -130,7 +130,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 
 func (c *CombaineServer) Serve() error {
 	log.Println("Starting REST API")
-	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository, c.Context, c.Cluster)
+	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository, c.Context)
 	if c.Configuration.Active {
 		log.Println("Launch task distribution")
 		go c.distributeTasks()
