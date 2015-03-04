@@ -184,8 +184,8 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 }
 
 func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait bool) error {
-	_observer.RegisterClient(cl, parsingConfigName)
-	defer _observer.UnregisterClient(parsingConfigName)
+	GlobalObserver.RegisterClient(cl, parsingConfigName)
+	defer GlobalObserver.UnregisterClient(parsingConfigName)
 
 	if uniqueID == "" {
 		uniqueID = GenerateSessionId()

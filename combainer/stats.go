@@ -44,9 +44,8 @@ func (cs *clientStats) AddFailedAggregate() {
 
 func (cs *clientStats) GetStats() (info *StatInfo) {
 	cs.RLock()
-	// var success = cs.success
-	// var failed = cs.failed
 	defer cs.RUnlock()
+
 	info = &StatInfo{
 		ParsingSuccess:   cs.successParsing,
 		ParsingFailed:    cs.failedParsing,

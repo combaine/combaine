@@ -1,12 +1,12 @@
 package server
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/hashicorp/memberlist"
 	"launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/combainer"
@@ -33,7 +33,6 @@ type CombaineServer struct {
 	configs.Repository
 	cache.Cache
 	*combainer.Context
-//	Cluster *memberlist.Memberlist
 }
 
 type CombaineServerConfig struct {
@@ -46,20 +45,6 @@ type CombaineServerConfig struct {
 	RestEndpoint string
 	//
 	Active bool
-}
-
-type ClusterEventHandler struct{}
-
-func (c ClusterEventHandler) NotifyJoin(node *memberlist.Node) {
-	log.Infof("%s %s has joined the cluster", node.Name, node.Addr)
-}
-
-func (c ClusterEventHandler) NotifyLeave(node *memberlist.Node) {
-	log.Infof("%s %s has left the cluster", node.Name, node.Addr)
-}
-
-func (c ClusterEventHandler) NotifyUpdate(node *memberlist.Node) {
-	log.Infof("%s %s has been updated", node.Name, node.Addr)
 }
 
 func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
@@ -92,6 +77,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	context.Hosts = func() ([]string, error) {
 		h, err := s.Fetch(cloud_group)
 		if err != nil {
@@ -99,38 +85,36 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		}
 		return h.AllHosts(), nil
 	}
-/*
-	cloudHosts, err := context.Hosts()
-	if err != nil {
-		return nil, err
-	}
 
-	memberlistConfig := memberlist.DefaultWANConfig()
-	memberlistConfig.Events = ClusterEventHandler{}
-	cluster, err := memberlist.Create(memberlistConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := cluster.Join(cloudHosts); err != nil {
-		return nil, err
-	}
-*/
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
 		Cache:           cacher,
 		Context:         context,
-//		Cluster:         cluster,
 	}
 
 	return server, nil
 }
 
+func (c *CombaineServer) GetContext() *combainer.Context {
+	return c.Context
+}
+
+func (c *CombaineServer) GetRepository() configs.Repository {
+	return c.Repository
+}
+
 func (c *CombaineServer) Serve() error {
 	log.Println("Starting REST API")
-	go combainer.StartObserver(c.Configuration.RestEndpoint, c.Repository, c.Context)
+	router := combainer.GetRouter(c)
+	go func() {
+		err := http.ListenAndServe(c.Configuration.RestEndpoint, router)
+		if err != nil {
+			log.Fatal("ListenAndServe: ", err)
+		}
+	}()
+
 	if c.Configuration.Active {
 		log.Println("Launch task distribution")
 		go c.distributeTasks()

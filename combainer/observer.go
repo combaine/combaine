@@ -10,10 +10,10 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-martini/martini"
-//	"github.com/hashicorp/memberlist"
+	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
+	// "github.com/noxiouz/Combaine/combainer/server"
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 )
@@ -38,7 +38,9 @@ type info struct {
 	Clients    map[string]*StatInfo
 }
 
-var _observer = Observer{clients: make(map[string]*Client)}
+var GlobalObserver = Observer{
+	clients: make(map[string]*Client),
+}
 
 type Observer struct {
 	sync.RWMutex
@@ -79,7 +81,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	stats := make(map[string]*StatInfo)
-	for config, client := range _observer.GetClients() {
+	for config, client := range GlobalObserver.GetClients() {
 		stats[config] = client.GetStats()
 	}
 
@@ -102,22 +104,23 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ParsingConfigs(repo configs.Repository, w http.ResponseWriter, r *http.Request) {
-	list, _ := repo.ListParsingConfigs()
+func ParsingConfigs(s ServerContext, w http.ResponseWriter, r *http.Request) {
+	list, _ := s.GetRepository().ListParsingConfigs()
 	json.NewEncoder(w).Encode(&list)
 }
 
-func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.ResponseWriter) {
-	name := params["name"]
+func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	repo := s.GetRepository()
 	combainerCfg := repo.GetCombainerConfig()
 	var parsingCfg configs.ParsingConfig
-	r, err := repo.GetParsingConfig(name)
+	cfg, err := repo.GetParsingConfig(name)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
 		return
 	}
 
-	err = r.Decode(&parsingCfg)
+	err = cfg.Decode(&parsingCfg)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
 		return
@@ -149,9 +152,9 @@ func ReadParsingConfig(repo configs.Repository, params martini.Params, w http.Re
 	}
 }
 
-func Tasks(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
-	name := params["name"]
-	cl, err := NewClient(context, repo)
+func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	cl, err := NewClient(s.GetContext(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -169,9 +172,9 @@ func Tasks(repo configs.Repository, context *Context, params martini.Params, w h
 	}
 }
 
-func Launch(repo configs.Repository, context *Context, params martini.Params, w http.ResponseWriter) {
-	name := params["name"]
-	cl, err := NewClient(context, repo)
+func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	cl, err := NewClient(s.GetContext(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -188,28 +191,30 @@ func Launch(repo configs.Repository, context *Context, params martini.Params, w 
 	fmt.Fprint(w, "DONE")
 }
 
-/*
-func Cluster(cluster *memberlist.Memberlist, w http.ResponseWriter) {
-	for _, node := range cluster.Members() {
-		fmt.Fprintf(w, "%s %s\n", node.Name, node.Addr)
+type ServerContext interface {
+	GetContext() *Context
+	GetRepository() configs.Repository
+}
+
+func attachServer(s ServerContext,
+	wrapped func(s ServerContext, w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		wrapped(s, w, r)
 	}
 }
-*/
 
-func StartObserver(endpoint string, services ...interface{}) {
-	m := martini.Classic()
-	for _, service := range services {
-		m.Map(service)
-	}
-	m.Group("/parsing", func(r martini.Router) {
-		r.Get("/", ParsingConfigs)
-		r.Get("", ParsingConfigs)
-		r.Get("/:name", ReadParsingConfig)
-	})
-	m.Get("/tasks/:name", Tasks)
-	m.Get("/launch/:name", Launch)
-//	m.Get("/cluster", Cluster)
+func GetRouter(context ServerContext) http.Handler {
+	root := mux.NewRouter()
+	root.StrictSlash(true)
 
-	m.Get("/", Dashboard)
-	http.ListenAndServe(endpoint, m)
+	parsingRouter := root.PathPrefix("/parsing/").Subrouter()
+	parsingRouter.StrictSlash(true)
+	parsingRouter.HandleFunc("/", attachServer(context, ParsingConfigs)).Methods("GET")
+	parsingRouter.HandleFunc("/{name}", attachServer(context, ReadParsingConfig)).Methods("GET")
+
+	root.HandleFunc("/tasks/{name}", attachServer(context, Tasks)).Methods("GET")
+	root.HandleFunc("/launch/{name}", attachServer(context, Launch)).Methods("GET")
+	root.HandleFunc("/", Dashboard).Methods("GET")
+
+	return root
 }
