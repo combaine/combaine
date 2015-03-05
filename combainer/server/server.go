@@ -158,16 +158,14 @@ LOCKSERVER_LOOP:
 				}
 
 				go func(configs []string) {
-					var (
-						lockname string
-						lockerr  error
-					)
 
 					for _, cfg := range configs {
-						lockerr = DLS.Lock(cfg)
+						lockerr := DLS.Lock(cfg)
 						if lockerr != nil {
 							continue
 						}
+
+						lockname := cfg
 
 						// Inline function to use defers
 						func(lockname string) {
