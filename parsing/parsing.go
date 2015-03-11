@@ -83,6 +83,8 @@ func Parsing(task tasks.ParsingTask) error {
 		}
 	}
 
+	payload = blob
+
 	if !task.ParsingConfig.Raw {
 		logger.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
 		datagrid, err := cacher.Get(common.DATABASEAPP)
