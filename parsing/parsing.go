@@ -74,7 +74,7 @@ func Parsing(task tasks.ParsingTask) error {
 		return err
 	}
 
-	if !task.ParsingConfig.NeedToSkipParsingStage() {
+	if !task.ParsingConfig.SkipParsingStage() {
 		logger.Infof("%s Send data to parsing", task.Id)
 		blob, err = parseData(&task, blob)
 		if err != nil {
