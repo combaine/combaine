@@ -50,7 +50,7 @@ func Parsing(task tasks.ParsingTask) (err error) {
 		logger.Errf("%s %v", task.Id, err)
 		return
 	}
-	logger.Debugf("%s Fetch %d bytes", task.Id, len(blob))
+	logger.Debugf("%s Fetch %d bytes %s", task.Id, len(blob), blob)
 
 	var payload interface{} = blob
 	/*

@@ -359,7 +359,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	log.WithFields(log.Fields{
 		"client":  cl.Id,
 		"session": task.Tid(),
-		"error":   err,
 		"appname": appName,
 		"host":    host,
 	}).Infof("task for group %s done: %s", task.Group(), res)

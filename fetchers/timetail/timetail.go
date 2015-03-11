@@ -35,19 +35,7 @@ type TimetailConfig struct {
 	Offset  int64  `mapstructure:"offset"`
 }
 
-//{logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
-func get(url string) ([]byte, error) {
-	resp, err := HttpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	return body, nil
-}
-
-func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
+func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 	period := t.Offset + (task.CurrTime - task.PrevTime)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d",
@@ -58,7 +46,15 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
 		period)
 
 	logger.Infof("%s Requested URL: %s", task.Id, url)
-	return get(url)
+	resp, err := HttpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	logger.Infof("%s Result for URL %s: %d", task.Id, url, resp.StatusCode)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	return body, nil
 }
 
 func NewTimetail(cfg map[string]interface{}) (t parsing.Fetcher, err error) {

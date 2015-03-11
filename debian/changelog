@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc33) unstable; urgency=low
+
+  * [Timetail] More logs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 11 Mar 2015 14:16:50 +0400
+
 combaine (0.7.0.1-rc32) unstable; urgency=low
 
   * [Bugfix] Set lockname properly
