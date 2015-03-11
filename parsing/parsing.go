@@ -49,35 +49,38 @@ func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	return blob, nil
 }
 
+func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
+	parser, err := GetParser()
+	if err != nil {
+		return nil, err
+	}
+
+	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
+}
+
 func Parsing(task tasks.ParsingTask) error {
 	logger.Infof("%s start parsing", task.Id)
 
 	var (
+		blob    []byte
+		err     error
 		payload interface{}
 		wg      sync.WaitGroup
 	)
 
-	blob, err := fetchDataFromTarget(&task)
+	blob, err = fetchDataFromTarget(&task)
 	if err != nil {
-		logger.Errf("%s error %v occured while fetching data", task.Id, err)
+		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
 		return err
 	}
-	payload = blob
 
 	if !task.ParsingConfig.NeedToSkipParsingStage() {
 		logger.Infof("%s Send data to parsing", task.Id)
-		parser, err := GetParser()
+		blob, err = parseData(&task, blob)
 		if err != nil {
-			logger.Errf("%s %v", task.Id, err)
+			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
 			return err
 		}
-
-		blob, err := parser.Parse(task.Id, task.ParsingConfig.Parser, blob)
-		if err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return err
-		}
-		payload = blob
 	}
 
 	if !task.ParsingConfig.Raw {
