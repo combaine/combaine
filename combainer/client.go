@@ -238,7 +238,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		log.WithFields(contextFields).Info("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
-		go cl.doParsingTask(&task, &wg, deadline, hosts)
+		go cl.doParsingTask(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
@@ -255,7 +255,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		log.WithFields(contextFields).Info("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
-		go cl.doAggregationHandler(&task, &wg, deadline, hosts)
+		go cl.doAggregationHandler(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
@@ -365,16 +365,16 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	return nil
 }
 
-func (cl *Client) doParsingTask(task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
-	if err := cl.doGeneralTask(common.PARSING, task, wg, deadline, hosts); err != nil {
+func (cl *Client) doParsingTask(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.PARSING, &task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedParsing()
 		return
 	}
 	cl.clientStats.AddSuccessParsing()
 }
 
-func (cl *Client) doAggregationHandler(task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
-	if err := cl.doGeneralTask(common.AGGREGATE, task, wg, deadline, hosts); err != nil {
+func (cl *Client) doAggregationHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.AGGREGATE, &task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedAggregate()
 		return
 	}
