@@ -78,6 +78,7 @@ func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 
 	//Send points
 	for subgroup, value := range repacked {
+		subgroup, value := subgroup, value
 		go as.handleOneItem(subgroup, strings.Join(value, "+"))
 	}
 
