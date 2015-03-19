@@ -19,18 +19,16 @@ func formatSubgroup(input string) string {
 		"-", "_", -1)
 }
 
-const onePointTemplateText = "{{.cluster}}.combaine.{{.metahost}}.{{.item}} {{.value}} {{.timestamp}}"
+const (
+	onePointFormat = "%s.combaine.%s.%s %s %d\n"
 
-const onePointFormat = "%s.combaine.%s.%s %s %d\n"
-
-// var onePointTemplate *template.Template = template.Must(template.New("URL").Parse(onePointTemplateText))
+	connectionTimeout  = 900      //msec
+	connectionEndpoint = ":42000" //msec
+)
 
 type GraphiteSender interface {
 	Send(tasks.DataType, uint64) error
 }
-
-const connectionTimeout = 900       //msec
-const connectionEndpoint = ":42000" //msec
 
 type graphiteClient struct {
 	id      string
@@ -43,23 +41,13 @@ type GraphiteCfg struct {
 	Fields  []string `codec:"Fields"`
 }
 
-/*
-common.DataType:
-{
-	"20x": {
-		"group1": 2000,
-		"group2": [20, 30, 40]
-	},
-}
-*/
-
 func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
 	for aggname, subgroupsAndValues := range *data {
 		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
 		for subgroup, value := range subgroupsAndValues {
 			rv := reflect.ValueOf(value)
 			logger.Debugf("%s %s", g.id, rv.Kind())
-			switch kind := rv.Kind(); kind {
+			switch rv.Kind() {
 			case reflect.Slice, reflect.Array:
 				logger.Debugf("%s Item is Slice or Array: %v", g.id, value)
 				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
