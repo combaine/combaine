@@ -31,6 +31,7 @@ func TestGraphiteSend(t *testing.T) {
 			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.A 202 " + tms: struct{}{},
 			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.B 302 " + tms: struct{}{},
 			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.C 402 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.simple.30x 2000 " + tms:             struct{}{},
 		}
 	)
 
@@ -46,7 +47,11 @@ func TestGraphiteSend(t *testing.T) {
 				"MP1": 1000,
 				"MP2": 1002,
 			},
-		}}
+		},
+		"30x": {
+			"simple": 2000,
+		},
+	}
 	buff := new(bytes.Buffer)
 	err := grCfg.sendInternal(&data, 100, buff)
 	if err != nil {
