@@ -15,24 +15,12 @@ func init() {
 	parsing.Register("http", NewHttpFetcher)
 }
 
-const CONNECTION_TIMEOUT = 1000
-const RW_TIMEOUT = 3000
+var (
+	CONNECTION_TIMEOUT = 1000 * time.Millisecond
+	RW_TIMEOUT         = 3000 * time.Millisecond
+)
 
-var HttpClient = httpclient.NewClientWithTimeout(
-	time.Millisecond*CONNECTION_TIMEOUT,
-	time.Millisecond*RW_TIMEOUT)
-
-func get(url string) ([]byte, error) {
-	resp, err := HttpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	return body, nil
-}
+var HttpClient = httpclient.NewClientWithTimeout(CONNECTION_TIMEOUT, RW_TIMEOUT)
 
 type HttpFetcher struct {
 	port interface{}
@@ -58,12 +46,19 @@ func NewHttpFetcher(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
 	return
 }
 
-func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
+func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 	url := fmt.Sprintf("http://%s:%d%s",
 		task.Target,
 		t.port,
 		t.uri)
 
 	logger.Infof("%s Requested URL: %s", task.Id, url)
-	return get(url)
+
+	resp, err := HttpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
 }
