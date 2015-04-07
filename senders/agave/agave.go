@@ -16,24 +16,25 @@ import (
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
-const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
-
-var URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
-
 const (
 	CONNECTION_TIMEOUT = 2000 // ms
 	RW_TIMEOUT         = 3000 // ms
+
+	urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
 )
 
-var DEFAULT_HEADERS = http.Header{
-	"User-Agent": {"Yandex/CombaineClient"},
-	"Connection": {"TE"},
-	"TE":         {"deflate", "gzip;q=0.3"},
-}
+var (
+	AgaveHttpClient = httpclient.NewClientWithTimeout(
+		time.Millisecond*CONNECTION_TIMEOUT,
+		time.Millisecond*RW_TIMEOUT)
 
-var AgaveHttpClient = httpclient.NewClientWithTimeout(
-	time.Millisecond*CONNECTION_TIMEOUT,
-	time.Millisecond*RW_TIMEOUT,
+	DEFAULT_HEADERS = http.Header{
+		"User-Agent": {"Yandex/CombaineClient"},
+		"Connection": {"TE"},
+		"TE":         {"deflate", "gzip;q=0.3"},
+	}
+
+	URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
 )
 
 type IAgaveSender interface {
