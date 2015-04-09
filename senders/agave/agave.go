@@ -16,20 +16,26 @@ import (
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
-const urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
-
-var URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
-
 const (
 	CONNECTION_TIMEOUT = 2000 // ms
 	RW_TIMEOUT         = 3000 // ms
+
+	urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
 )
 
-var DEFAULT_HEADERS = http.Header{
-	"User-Agent": {"Yandex/CombaineClient"},
-	"Connection": {"TE"},
-	"TE":         {"deflate", "gzip;q=0.3"},
-}
+var (
+	AgaveHttpClient = httpclient.NewClientWithTimeout(
+		time.Millisecond*CONNECTION_TIMEOUT,
+		time.Millisecond*RW_TIMEOUT)
+
+	DEFAULT_HEADERS = http.Header{
+		"User-Agent": {"Yandex/CombaineClient"},
+		"Connection": {"TE"},
+		"TE":         {"deflate", "gzip;q=0.3"},
+	}
+
+	URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
+)
 
 type IAgaveSender interface {
 	Send(tasks.DataType) error
@@ -78,6 +84,7 @@ func (as *AgaveSender) Send(data tasks.DataType) (err error) {
 
 	//Send points
 	for subgroup, value := range repacked {
+		subgroup, value := subgroup, value
 		go as.handleOneItem(subgroup, strings.Join(value, "+"))
 	}
 
@@ -112,17 +119,13 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 
 func (as *AgaveSender) sendPoint(url string) {
 	for _, host := range as.Hosts {
-		client := httpclient.NewClientWithTimeout(
-			time.Millisecond*CONNECTION_TIMEOUT,
-			time.Millisecond*RW_TIMEOUT,
-		)
 		req, _ := http.NewRequest("GET",
 			fmt.Sprintf("http://%s%s", host, url),
 			nil)
 		req.Header = DEFAULT_HEADERS
 
 		logger.Debugf("%s %s", as.Id, req.URL)
-		resp, err := client.Do(req)
+		resp, err := AgaveHttpClient.Do(req)
 		if err != nil {
 			logger.Errf("%s Unable to do request %s", as.Id, err)
 			continue

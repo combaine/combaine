@@ -23,23 +23,18 @@ var (
 	cacher  servicecacher.Cacher = servicecacher.NewCacher()
 )
 
-func Parsing(task tasks.ParsingTask) (err error) {
-	logger.Infof("%s Start parsing", task.Id)
-
+func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
 	if err != nil {
-		logger.Errf("%s %v", task.Id, err)
-		return
+		return nil, err
 	}
-	logger.Debugf("%s Use %s for fetching data", task.Id, fetcherType)
 
+	logger.Debugf("%s use %s for fetching data", task.Id, fetcherType)
 	fetcher, err := NewFetcher(fetcherType, task.ParsingConfig.DataFetcher)
 	if err != nil {
-		logger.Errf("%s %v", task.Id, err)
-		return
+		return nil, err
 	}
 
-	// Per host
 	fetcherTask := tasks.FetcherTask{
 		Target:     task.Host,
 		CommonTask: task.CommonTask,
@@ -47,37 +42,49 @@ func Parsing(task tasks.ParsingTask) (err error) {
 
 	blob, err := fetcher.Fetch(&fetcherTask)
 	if err != nil {
-		logger.Errf("%s %v", task.Id, err)
-		return
+		return nil, err
 	}
+
 	logger.Debugf("%s Fetch %d bytes from %s: %s", task.Id, len(blob), task.Host, blob)
+	return blob, nil
+}
 
-	var payload interface{} = blob
-	/*
-		ParsingApp stage
-	*/
-	if !task.ParsingConfig.NeedToSkipParsingStage() {
-		logger.Infof("%s Send data to parsing", task.Id)
-		parser, err := GetParser()
-		if err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return err
-		}
-
-		blob, err = parser.Parse(task.Id, task.ParsingConfig.Parser, blob)
-		if err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return err
-		}
-		payload = blob
-	} else {
-		// Remove this logging later
-		logger.Infof("%s parsing has been skipped", task.Id)
+func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
+	parser, err := GetParser()
+	if err != nil {
+		return nil, err
 	}
 
-	/*
-		Database stage
-	*/
+	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
+}
+
+func Parsing(task tasks.ParsingTask) error {
+	logger.Infof("%s start parsing", task.Id)
+
+	var (
+		blob    []byte
+		err     error
+		payload interface{}
+		wg      sync.WaitGroup
+	)
+
+	blob, err = fetchDataFromTarget(&task)
+	if err != nil {
+		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
+		return err
+	}
+
+	if !task.ParsingConfig.SkipParsingStage() {
+		logger.Infof("%s Send data to parsing", task.Id)
+		blob, err = parseData(&task, blob)
+		if err != nil {
+			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
+			return err
+		}
+	}
+
+	payload = blob
+
 	if !task.ParsingConfig.Raw {
 		logger.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
 		datagrid, err := cacher.Get(common.DATABASEAPP)
@@ -103,14 +110,8 @@ func Parsing(task tasks.ParsingTask) (err error) {
 			logger.Debugf("%s Drop table", task.Id)
 		}()
 		payload = token
-	} else {
-		logger.Infof("%s Skip DataBase stage. Raw data", task.Id)
 	}
 
-	/*
-
-	*/
-	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {
 			aggType, err := v.Type()
@@ -136,7 +137,8 @@ func Parsing(task tasks.ParsingTask) (err error) {
 					"token":    payload,
 					"prevtime": task.PrevTime,
 					"currtime": task.CurrTime,
-					"id":       task.Id})
+					"id":       task.Id,
+				})
 
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):

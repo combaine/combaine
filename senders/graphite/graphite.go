@@ -19,18 +19,16 @@ func formatSubgroup(input string) string {
 		"-", "_", -1)
 }
 
-const onePointTemplateText = "{{.cluster}}.combaine.{{.metahost}}.{{.item}} {{.value}} {{.timestamp}}"
+const (
+	onePointFormat = "%s.combaine.%s.%s %s %d\n"
 
-const onePointFormat = "%s.combaine.%s.%s %s %d\n"
-
-// var onePointTemplate *template.Template = template.Must(template.New("URL").Parse(onePointTemplateText))
+	connectionTimeout  = 900      //msec
+	connectionEndpoint = ":42000" //msec
+)
 
 type GraphiteSender interface {
 	Send(tasks.DataType, uint64) error
 }
-
-const connectionTimeout = 900       //msec
-const connectionEndpoint = ":42000" //msec
 
 type graphiteClient struct {
 	id      string
@@ -43,109 +41,136 @@ type GraphiteCfg struct {
 	Fields  []string `codec:"Fields"`
 }
 
-/*
-common.DataType:
-{
-	"20x": {
-		"group1": 2000,
-		"group2": [20, 30, 40]
-	},
+type NameStack []string
+
+func (n *NameStack) Push(item string) {
+	*n = append(*n, item)
 }
-*/
 
-func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
-	for aggname, subgroupsAndValues := range *data {
-		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
-		for subgroup, value := range subgroupsAndValues {
-			rv := reflect.ValueOf(value)
-			logger.Debugf("%s %s", g.id, rv.Kind())
-			switch kind := rv.Kind(); kind {
-			case reflect.Slice, reflect.Array:
-				logger.Debugf("%s Item is Slice or Array: %v", g.id, value)
-				if len(g.fields) == 0 || len(g.fields) != rv.Len() {
-					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
-					val := make([]int, len(g.fields))
-					for i := range g.fields {
-						val[i] = 1
-					}
-					rv = reflect.ValueOf(val)
-				}
-				for i := 0; i < rv.Len(); i++ {
-					itemInterface := rv.Index(i).Interface()
-					toSend := fmt.Sprintf(
-						onePointFormat,
-						g.cluster,
-						formatSubgroup(subgroup),
-						fmt.Sprintf("%s.%s", aggname, g.fields[i]),
-						common.InterfaceToString(itemInterface),
-						timestamp)
+func (n *NameStack) Pop() (item string) {
+	item, *n = (*n)[len(*n)-1], (*n)[:len(*n)-1]
+	return item
+}
 
-					logger.Infof("%s Send %s", g.id, toSend)
-					if _, err = fmt.Fprint(output, toSend); err != nil {
-						logger.Errf("%s Sending error: %s", g.id, err)
-						return err
-					}
-				}
-			case reflect.Map:
-				logger.Debugf("%s Item is Map: %v", g.id, value)
-				v_keys := rv.MapKeys()
-				for _, key := range v_keys {
-					itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-					logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
-					switch itemInterface.Kind() {
-					case reflect.Slice, reflect.Array:
-						if len(g.fields) == 0 || len(g.fields) != itemInterface.Len() {
-							logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), itemInterface.Len())
-						}
-						for i := 0; i < itemInterface.Len(); i++ {
-							itemInnerInterface := itemInterface.Index(i).Interface()
-							toSend := fmt.Sprintf(
-								onePointFormat,
-								g.cluster,
-								formatSubgroup(subgroup),
-								fmt.Sprintf("%s.%s.%s", aggname, common.InterfaceToString(key.Interface()), g.fields[i]),
-								common.InterfaceToString(itemInnerInterface),
-								timestamp)
+type pointFormat func(NameStack, interface{}, uint64) string
 
-							logger.Infof("%s Send %s", g.id, toSend)
-							if _, err = fmt.Fprint(output, toSend); err != nil {
-								logger.Errf("%s Sending error: %s", g.id, err)
-								return err
-							}
-						}
-					default:
-						toSend := fmt.Sprintf(
-							onePointFormat,
-							g.cluster,
-							formatSubgroup(subgroup),
-							fmt.Sprintf("%s.%s", aggname, common.InterfaceToString(key.Interface())),
-							common.InterfaceToString(itemInterface.Interface()),
-							timestamp)
+func makePoint(format, cluster, subgroup string) pointFormat {
+	return func(metric NameStack, value interface{}, timestamp uint64) string {
+		return fmt.Sprintf(
+			format,
+			cluster,
+			formatSubgroup(subgroup),
+			strings.Join(metric, "."),
+			common.InterfaceToString(value),
+			timestamp,
+		)
+	}
+}
 
-						logger.Infof("%s Send %s", g.id, toSend)
-						if _, err = fmt.Fprint(output, toSend); err != nil {
-							logger.Errf("%s Sending error: %s", g.id, err)
-							return err
-						}
-					}
-				}
-			default:
-				toSend := fmt.Sprintf(
-					onePointFormat,
-					g.cluster,
-					formatSubgroup(subgroup),
-					aggname,
-					common.InterfaceToString(value),
-					timestamp)
+func (g *graphiteClient) send(output io.Writer, data string) error {
+	logger.Infof("%s Send %s", g.id, data)
+	if _, err := fmt.Fprint(output, data); err != nil {
+		logger.Errf("%s Sending error: %s", g.id, err)
+		return err
+	}
+	return nil
+}
 
-				logger.Infof("%s Send %s", g.id, toSend)
-				if _, err = fmt.Fprint(output, toSend); err != nil {
-					logger.Errf("%s Sending error: %s", g.id, err)
-					return err
-				}
+func (g *graphiteClient) sendInterface(output io.Writer, metricName NameStack,
+	f pointFormat, value interface{}, timestamp uint64) error {
+	data := f(metricName, value, timestamp)
+	return g.send(output, data)
+}
+
+func (g *graphiteClient) sendSlice(output io.Writer, metricName NameStack, f pointFormat,
+	rv reflect.Value, timestamp uint64) error {
+
+	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
+		logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
+		val := make([]int, len(g.fields))
+		for i := range g.fields {
+			val[i] = 1
+		}
+		rv = reflect.ValueOf(val)
+	}
+
+	for i := 0; i < rv.Len(); i++ {
+		metricName.Push(g.fields[i])
+
+		item := rv.Index(i).Interface()
+		err := g.sendInterface(output, metricName, f, common.InterfaceToString(item), timestamp)
+		if err != nil {
+			return err
+		}
+
+		metricName.Pop()
+	}
+
+	return nil
+}
+
+func (g *graphiteClient) sendMap(output io.Writer, metricName NameStack, f pointFormat,
+	rv reflect.Value, timestamp uint64) (err error) {
+
+	keys := rv.MapKeys()
+	for _, key := range keys {
+		// Push key of map
+		metricName.Push(common.InterfaceToString(key.Interface()))
+
+		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
+		logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
+
+		switch itemInterface.Kind() {
+		case reflect.Slice, reflect.Array:
+			err = g.sendSlice(output, metricName, f, itemInterface, timestamp)
+			if err != nil {
+				return err
+			}
+
+		default:
+			err = g.sendInterface(output, metricName, f,
+				common.InterfaceToString(itemInterface.Interface()), timestamp)
+			if err != nil {
+				return err
 			}
 		}
 
+		// Pop key of map
+		metricName.Pop()
+	}
+
+	return nil
+}
+
+func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) error {
+	var err error
+	metricName := make(NameStack, 0, 3)
+
+	for aggname, subgroupsAndValues := range *data {
+		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
+
+		metricName.Push(aggname)
+		for subgroup, value := range subgroupsAndValues {
+			pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
+			rv := reflect.ValueOf(value)
+			logger.Debugf("%s %s", g.id, rv.Kind())
+
+			switch rv.Kind() {
+			case reflect.Slice, reflect.Array:
+				err = g.sendSlice(output, metricName, pointFormatter, rv, timestamp)
+
+			case reflect.Map:
+				err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
+
+			default:
+				err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(value), timestamp)
+
+			}
+			if err != nil {
+				return err
+			}
+		}
+		metricName.Pop()
 	}
 	return nil
 }

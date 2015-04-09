@@ -37,7 +37,7 @@ func (p *ParsingConfig) GetMetahost() string {
 	return p.Metahost
 }
 
-func (p *ParsingConfig) NeedToSkipParsingStage() bool {
+func (p *ParsingConfig) SkipParsingStage() bool {
 	return p.Parser == ParserSkipValue || p.Parser == ""
 }
 
