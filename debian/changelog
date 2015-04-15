@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc44) unstable; urgency=low
+
+  * Fix of bugfix
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 15 Apr 2015 14:31:51 +0400
+
 combaine (0.7.0.1-rc43) unstable; urgency=low
 
   * [Fix] MySQL reconnect decorator
