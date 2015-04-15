@@ -33,6 +33,7 @@ def reconnect(func):
             self.logger.error('Error in MySQLdb: %s. Try again' % err)
             self.ping(True)
             return func(self, *args, **kwargs)
+    return wrapper
 
 
 class MySqlDG(object):
@@ -56,7 +57,7 @@ class MySqlDG(object):
             self.db.select_db(self.dbname)
         except Exception as err:
             self.logger.error('Error in init MySQLdb %s' % err)
-            raise Exception
+            raise err
 
     def ping(self):
         self.db.ping(True)
