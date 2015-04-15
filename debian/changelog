@@ -1,3 +1,15 @@
+combaine (0.7.0.1-rc43) unstable; urgency=low
+
+  * [Fix] MySQL reconnect decorator
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 15 Apr 2015 14:16:59 +0400
+
+combaine (0.7.0.1-rc42) unstable; urgency=low
+
+  * Fix MySQLdb. Allow the plugin to reconnect
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 15 Apr 2015 13:50:42 +0400
+
 combaine (0.7.0.1-rc41) unstable; urgency=low
 
   * Rebuild with go1.3.3
