@@ -31,7 +31,7 @@ def reconnect(func):
             return func(self, *args, **kwargs)
         except MySQLdb.MySQLError as err:
             self.logger.error('Error in MySQLdb: %s. Try again' % err)
-            self.ping(True)
+            self.ping()
             return func(self, *args, **kwargs)
     return wrapper
 
