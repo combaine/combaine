@@ -71,30 +71,33 @@ class Apdex(object):
     def aggregate_group(self, payload):
         """payload: []("metric_name", (<sat>, <tol>, <res>))"""
         res = {}
-        for metric_name, values in payload:
-            if metric_name in res:
-                fast = res[metric_name]
-                res[metric_name] = tuple(i + j for i, j in zip(fast, values))
-            else:
-                res[metric_name] = values
+        for payload_from_one in payload:
+            for metric_name, values in payload_from_one:
+                if metric_name in res:
+                    fast = res[metric_name]
+                    res[metric_name] = tuple(i + j for i, j in zip(fast, values))
+                else:
+                    res[metric_name] = values
 
         apdex_res = {}
         for k, v in res.iteritems():
-            apdex_res[k] = calc_apdex(*values)
-
+            apdex_res[k] = calc_apdex(*v)
         return apdex_res
 
 
 if __name__ == '__main__':
     payload = "blabla_timings " + ' '.join(map(str, xrange(0, 100)))
     payload += "\nblabla_timings " + ' '.join(map(str, xrange(0, 100)))
+    payload += "\nb_timings " + ' '.join(map(str, xrange(0, 300)))
     config = {"satisfied": 30,
               "tolerating": 90}
     apdex = Apdex(config)
-    res = apdex.aggregate_host(payload, 0, 100)[0]
+    t = apdex.aggregate_host(payload, 0, 100)
+    res = t[0]
     assert "blabla_timings" in res, res
     assert res[1] == (60, 120, 20), res[1]
 
-    final = apdex.aggregate_group([res, res, res])
+    final = apdex.aggregate_group([t, t, t])
     assert "blabla_timings" in final, final
-    assert final["blabla_timings"] == 0.6
+    assert final["blabla_timings"] == 0.6, final["blabla_timings"]
+    assert final["b_timings"] == 0.2, final["b_timings"]
