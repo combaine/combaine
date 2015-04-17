@@ -1,5 +1,7 @@
 package agave
 
+// IT"S ABSOLUTE SHIT! I MUST REWRITE IT!!! I WROTE IT WHEN I DID NOT KNOW GO! PLEASE, DO NOT PUSH ME!!!
+
 import (
 	"bytes"
 	"fmt"
@@ -55,40 +57,69 @@ type AgaveConfig struct {
 	Step          int64    `codec:"step"`
 }
 
-func (as *AgaveSender) Send(data tasks.DataType) (err error) {
+func (as *AgaveSender) Send(data tasks.DataType) error {
+
+	repacked, err := as.send(data)
+	if err != nil {
+		return err
+	}
+
+	//Send points
+	for subgroup, value := range repacked {
+		go as.handleOneItem(subgroup, strings.Join(value, "+"))
+	}
+
+	return nil
+}
+
+func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
 	// Repack data by subgroups
 	logger.Debugf("%s Data to send: %v", as.Id, data)
 	var repacked map[string][]string = make(map[string][]string)
 	for _, aggname := range as.Items {
 		for subgroup, value := range data[aggname] {
 			rv := reflect.ValueOf(value)
-			switch kind := rv.Kind(); kind {
+			switch rv.Kind() {
 			case reflect.Slice, reflect.Array:
 				if len(as.Fields) == 0 || len(as.Fields) != rv.Len() {
 					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
 					continue
 				}
-				forJoin := []string{}
+
+				forJoin := make([]string, 0, len(as.Fields))
 				for i, field := range as.Fields {
 					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
 				}
+
 				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 			case reflect.Map:
-				logger.Errf("%s Map values hasn't been supported in Agave", as.Id)
-				continue
+				keys := rv.MapKeys()
+				for _, key := range keys {
+					value := reflect.ValueOf(rv.MapIndex(key).Interface())
+
+					switch value.Kind() {
+					case reflect.Slice, reflect.Array:
+						if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
+							logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
+							continue
+						}
+						forJoin := make([]string, 0, len(as.Fields))
+						for i, field := range as.Fields {
+							forJoin = append(forJoin, fmt.Sprintf("%s_%s:%s", key, field, common.InterfaceToString(value.Index(i).Interface())))
+						}
+						repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
+					default:
+						repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s_%s:%s", aggname, key, common.InterfaceToString(value.Interface())))
+					}
+
+				}
 			default:
 				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, common.InterfaceToString(value)))
 			}
 		}
 	}
 
-	//Send points
-	for subgroup, value := range repacked {
-		subgroup, value := subgroup, value
-		go as.handleOneItem(subgroup, strings.Join(value, "+"))
-	}
-
-	return
+	return repacked, nil
 }
 
 func (as *AgaveSender) handleOneItem(subgroup string, values string) {
