@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc45) unstable; urgency=low
+
+  * [Agave] Send maps
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 17 Apr 2015 18:10:33 +0400
+
 combaine (0.7.0.1-rc44) unstable; urgency=low
 
   * Fix of bugfix
