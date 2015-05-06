@@ -94,7 +94,10 @@ class Multimetrics(object):
                 all_resuts.sort()
                 count = float(len(all_resuts))
                 for q in self.quantile:
-                    index = int(count / 100 * q)
+                    if q < 100:
+                        index = int(count / 100 * q)
+                    else:
+                        index = count - 1
                     result[metric].append(all_resuts[index])
             else:
                 result[metric] = sum(item.get(metric, 0) for item in payload)
