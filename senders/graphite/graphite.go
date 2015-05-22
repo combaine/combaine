@@ -127,6 +127,12 @@ func (g *graphiteClient) sendMap(output io.Writer, metricName NameStack, f point
 				return err
 			}
 
+		case reflect.Map:
+			err = g.sendMap(output, metricName, f, itemInterface, timestamp)
+			if err != nil {
+				return err
+			}
+
 		default:
 			err = g.sendInterface(output, metricName, f,
 				common.InterfaceToString(itemInterface.Interface()), timestamp)
