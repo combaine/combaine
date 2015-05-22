@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc46) unstable; urgency=low
+
+  * [Graphite] Support `map of map` values
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 22 May 2015 15:23:04 +0300
+
 combaine (0.7.0.1-rc45) unstable; urgency=low
 
   * [Agave] Send maps
@@ -97,7 +103,7 @@ combaine (0.7.0.1-rc24) unstable; urgency=low
 
 combaine (0.7.0.1-rc23) unstable; urgency=low
 
-  * [Juggler] Default values for antiflap 
+  * [Juggler] Default values for antiflap
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 24 Dec 2014 21:02:58 +0400
 
