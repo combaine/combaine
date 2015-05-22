@@ -8,7 +8,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"launchpad.net/gozk/zookeeper"
+	"github.com/noxiouz/Combaine/vendor/launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/common/configs"
 )
