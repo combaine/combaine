@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc48) unstable; urgency=low
+
+  * [Juggler] Clean descr 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 09 Jun 2015 16:48:20 +0300
+
 combaine (0.7.0.1-rc47) unstable; urgency=low
 
   * [Juggler] Fix description
