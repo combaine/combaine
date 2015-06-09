@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc47) unstable; urgency=low
+
+  * [Juggler] Fix description
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 09 Jun 2015 16:17:29 +0300
+
 combaine (0.7.0.1-rc46) unstable; urgency=low
 
   * [Graphite] Support `map of map` values
