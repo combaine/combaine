@@ -67,6 +67,16 @@ DEFAULT_CRITICAL_TIME = 1200
 log = Logger()
 
 
+def extract_condition(inp):
+    # ToDo: optimize
+    left = len(inp)
+    for sym in ("<", ">", "="):
+        pos = inp.find(sym)
+        if pos != -1 and pos < left:
+            left = pos
+    return inp[:left], inp[left:]
+
+
 def upper_dict(dict_object):
     return dict((k.upper(), v) for (k, v) in dict_object.iteritems())
 
@@ -172,11 +182,16 @@ class Juggler(object):
                 # if res looks like True
                 # send point and return True
                 if res:
+                    condition, limit = extract_condition(code)
+                    try:
+                        ev_cond = "%s %s" % (eval(condition), limit)
+                    except Exception as err:
+                        ev_cond = "<placeholder> " + limit
                     IOLoop.current().add_callback(self.send_point,
                                                   "%s-%s" % (self.Host,
                                                              subgroup),
                                                   REVERSE_STATUSES[level],
-                                                  code)
+                                                  ev_cond)
                     return True
             except SyntaxError as err:
                 self.log.error("SyntaxError in expression %s" % code)
@@ -184,7 +199,6 @@ class Juggler(object):
                 self.log.error(repr(err))
         return False
 
-    #self, level, data, name, status
     @chain.source
     def send_point(self, name, status, trigger_description=None):
         if trigger_description:
