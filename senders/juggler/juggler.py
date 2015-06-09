@@ -201,15 +201,12 @@ class Juggler(object):
 
     @chain.source
     def send_point(self, name, status, trigger_description=None):
-        if trigger_description:
-            description = "%s trigger: %s" % (self.description,
-                                              trigger_description)
-        else:
-            description = self.description
+        if trigger_description is None:
+            trigger_description = "no trigger description"
 
         params = {"host": name,
                   "service": urllib.quote(self.checkname),
-                  "description": urllib.quote(description),
+                  "description": urllib.quote(trigger_description),
                   "level": STATUSES[status]}
 
         child = name
