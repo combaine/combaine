@@ -3,6 +3,7 @@ package timetail
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -29,10 +30,12 @@ type Timetail struct {
 }
 
 type TimetailConfig struct {
-	Port    uint   `mapstructure:"timetail_port"`
-	Url     string `mapstructure:"timetail_url"`
-	Logname string `mapstructure:"logname"`
-	Offset  int64  `mapstructure:"offset"`
+	Port        uint   `mapstructure:"timetail_port"`
+	Url         string `mapstructure:"timetail_url"`
+	Logname     string `mapstructure:"logname"`
+	Offset      int64  `mapstructure:"offset"`
+	ConnTimeout int    `mapstructure:"connection_timeout"`
+	ReadTimeout int    `mapstructure:"read_timeout"`
 }
 
 func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
@@ -46,7 +49,21 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 		period)
 
 	logger.Infof("%s Requested URL: %s", task.Id, url)
-	resp, err := HttpClient.Get(url)
+
+	var (
+		resp *http.Response
+		err  error
+	)
+
+	if t.TimetailConfig.ConnTimeout == CONNECTION_TIMEOUT && t.TimetailConfig.ReadTimeout == RW_TIMEOUT {
+		resp, err = HttpClient.Get(url)
+	} else {
+		httpCli := httpclient.NewClientWithTimeout(
+			time.Duration(t.TimetailConfig.ConnTimeout)*time.Millisecond,
+			time.Duration(t.TimetailConfig.ReadTimeout)*time.Millisecond)
+		httpCli.Transport.(*http.Transport).DisableKeepAlives = true
+		resp, err = httpCli.Get(url)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +75,14 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 }
 
 func NewTimetail(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
-	var config TimetailConfig
-
-	var decoder_config = mapstructure.DecoderConfig{
-		// To allow decoder parses []uint8 as string
-		WeaklyTypedInput: true,
-		Result:           &config,
-	}
+	var (
+		config         TimetailConfig
+		decoder_config = mapstructure.DecoderConfig{
+			// To allow decoder parses []uint8 as string
+			WeaklyTypedInput: true,
+			Result:           &config,
+		}
+	)
 
 	decoder, err := mapstructure.NewDecoder(&decoder_config)
 	if err != nil {
@@ -74,6 +92,14 @@ func NewTimetail(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
 	err = decoder.Decode(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.ConnTimeout <= 0 {
+		config.ConnTimeout = CONNECTION_TIMEOUT
+	}
+
+	if config.ReadTimeout <= 0 {
+		config.ReadTimeout = RW_TIMEOUT
 	}
 
 	t = &Timetail{
