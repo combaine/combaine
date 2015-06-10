@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc49) unstable; urgency=low
+
+  * [HTTP & Timetail] Add timeouts
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 10 Jun 2015 19:38:36 +0300
+
 combaine (0.7.0.1-rc48) unstable; urgency=low
 
   * [Juggler] Clean descr 
