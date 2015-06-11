@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/noxiouz/Combaine/common/httpclient"
 	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
@@ -29,70 +31,78 @@ var (
 var HttpClient = httpclient.NewClientWithTimeout(CONNECTION_TIMEOUT, RW_TIMEOUT)
 
 type HttpFetcher struct {
-	port              interface{}
-	uri               interface{}
-	connectionTimeout int
-	rwTimeout         int
+	httpFetcherConfig
+}
+
+type httpFetcherConfig struct {
+	Port        int    `mapstructure:"port"`
+	Uri         string `mapstructure:"uri"`
+	ConnTimeout int    `mapstructure:"connection_timeout"`
+	ReadTimeout int    `mapstructure:"read_timeout"`
 }
 
 func NewHttpFetcher(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
-	port, ok := cfg["port"]
-	if !ok {
-		err = fmt.Errorf("Missing option port")
-		return
-	}
-
-	uri, ok := cfg["uri"]
-	if !ok {
-		uri = "/"
-	}
-
 	var (
-		connTimeout int = DEFAULT_CONNECTION_TIMEOUT
-		rwTimeout   int = DEFAULT_RW_TIMEOUT
+		config         httpFetcherConfig
+		decoder_config = mapstructure.DecoderConfig{
+			// To allow decoder parses []uint8 as string
+			WeaklyTypedInput: true,
+			Result:           &config,
+		}
 	)
 
-	if raw_val, ok := cfg["connection_timeout"]; ok {
-		if val, ok := raw_val.(int); ok {
-			connTimeout = val
-		}
+	decoder, err := mapstructure.NewDecoder(&decoder_config)
+	if err != nil {
+		return nil, err
 	}
 
-	if raw_val, ok := cfg["read_timeout"]; ok {
-		if val, ok := raw_val.(int); ok {
-			rwTimeout = val
-		}
+	err = decoder.Decode(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	t = &HttpFetcher{
-		port:              port,
-		uri:               uri,
-		connectionTimeout: connTimeout,
-		rwTimeout:         rwTimeout,
+	if config.ConnTimeout <= 0 {
+		config.ConnTimeout = DEFAULT_CONNECTION_TIMEOUT
 	}
-	return
+
+	if config.ReadTimeout <= 0 {
+		config.ReadTimeout = DEFAULT_RW_TIMEOUT
+	}
+
+	if config.Uri == "" {
+		config.Uri = "/"
+	}
+
+	if config.Port == 0 {
+		return nil, fmt.Errorf("Missing option port")
+	}
+
+	return &HttpFetcher{
+		httpFetcherConfig: config,
+	}, nil
 }
 
 func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) ([]byte, error) {
+	logger.Infof("%s HTTPFetcher config: %v", task.Id, t.httpFetcherConfig)
 	url := fmt.Sprintf("http://%s:%d%s",
 		task.Target,
-		t.port,
-		t.uri)
+		t.Port,
+		t.Uri)
 
 	var (
 		resp *http.Response
 		err  error
 	)
-	if t.connectionTimeout == DEFAULT_CONNECTION_TIMEOUT && t.rwTimeout == DEFAULT_RW_TIMEOUT {
-		logger.Infof("%s requested URL: %s, default timeouts conn %d rw %d",
-			task.Id, url, t.connectionTimeout, t.rwTimeout)
+	if t.ConnTimeout == DEFAULT_CONNECTION_TIMEOUT && t.ReadTimeout == DEFAULT_RW_TIMEOUT {
+		logger.Infof("%s requested URL: %s, default timeouts conn %v rw %v",
+			task.Id, url, CONNECTION_TIMEOUT, RW_TIMEOUT)
 		resp, err = HttpClient.Get(url)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		connTimeout := time.Duration(t.connectionTimeout) * time.Millisecond
-		rwTimeout := time.Duration(t.rwTimeout) * time.Millisecond
+		connTimeout := time.Duration(t.ConnTimeout) * time.Millisecond
+		rwTimeout := time.Duration(t.ReadTimeout) * time.Millisecond
 		logger.Infof("%s requested URL: %s, nondefault timeouts: conn %v rw %v",
 			task.Id, url, connTimeout, rwTimeout)
 		httpCli := httpclient.NewClientWithTimeout(

@@ -235,7 +235,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(contextFields).Info("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
+		log.WithFields(contextFields).Infof("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doParsingTask(task, &wg, deadline, hosts)
@@ -252,7 +252,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(contextFields).Info("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
+		log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doAggregationHandler(task, &wg, deadline, hosts)

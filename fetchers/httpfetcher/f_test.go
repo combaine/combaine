@@ -37,10 +37,10 @@ func TestConfig(t *testing.T) {
 	}
 
 	casted_f := f.(*HttpFetcher)
-	assert.Equal(t, 300, casted_f.connectionTimeout)
-	assert.Equal(t, 20, casted_f.rwTimeout)
-	assert.Equal(t, 8089, casted_f.port)
-	assert.Equal(t, "/TEST", casted_f.uri)
+	assert.Equal(t, 300, casted_f.ConnTimeout)
+	assert.Equal(t, 20, casted_f.ReadTimeout)
+	assert.Equal(t, 8089, casted_f.Port)
+	assert.Equal(t, "/TEST", casted_f.Uri)
 }
 
 func TestTimeout(t *testing.T) {

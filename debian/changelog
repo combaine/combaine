@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc51) unstable; urgency=low
+
+  * [HTTP] Parse config with mapstructure
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 11 Jun 2015 17:46:36 +0300
+
 combaine (0.7.0.1-rc50) unstable; urgency=low
 
   * [HTTP] Tests & logs
