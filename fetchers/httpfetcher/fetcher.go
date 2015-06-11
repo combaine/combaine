@@ -79,21 +79,24 @@ func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 		t.port,
 		t.uri)
 
-	logger.Infof("%s Requested URL: %s", task.Id, url)
-
 	var (
 		resp *http.Response
 		err  error
 	)
 	if t.connectionTimeout == DEFAULT_CONNECTION_TIMEOUT && t.rwTimeout == DEFAULT_RW_TIMEOUT {
+		logger.Infof("%s requested URL: %s, default timeouts conn %d rw %d",
+			task.Id, url, t.connectionTimeout, t.rwTimeout)
 		resp, err = HttpClient.Get(url)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		connTimeout := time.Duration(t.connectionTimeout) * time.Millisecond
+		rwTimeout := time.Duration(t.rwTimeout) * time.Millisecond
+		logger.Infof("%s requested URL: %s, nondefault timeouts: conn %v rw %v",
+			task.Id, url, connTimeout, rwTimeout)
 		httpCli := httpclient.NewClientWithTimeout(
-			time.Duration(t.connectionTimeout)*time.Millisecond,
-			time.Duration(t.rwTimeout)*time.Millisecond)
+			connTimeout, rwTimeout)
 		httpCli.Transport.(*http.Transport).DisableKeepAlives = true
 		resp, err = httpCli.Get(url)
 		if err != nil {
