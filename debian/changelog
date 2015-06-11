@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc50) unstable; urgency=low
+
+  * [HTTP] Tests & logs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 11 Jun 2015 16:46:36 +0300
+
 combaine (0.7.0.1-rc49) unstable; urgency=low
 
   * [HTTP & Timetail] Add timeouts
@@ -6,7 +12,7 @@ combaine (0.7.0.1-rc49) unstable; urgency=low
 
 combaine (0.7.0.1-rc48) unstable; urgency=low
 
-  * [Juggler] Clean descr 
+  * [Juggler] Clean descr
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 09 Jun 2015 16:48:20 +0300
 
