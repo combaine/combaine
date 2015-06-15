@@ -77,10 +77,21 @@ func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
 	logger.Debugf("%s Data to send: %v", as.Id, data)
 	var repacked map[string][]string = make(map[string][]string)
 	for _, aggname := range as.Items {
-		for subgroup, value := range data[aggname] {
+		var root, metricname string
+		items := strings.SplitN(aggname, ".", 2)
+		if len(items) > 1 {
+			root, metricname = items[0], items[1]
+		} else {
+			root = items[0]
+		}
+		for subgroup, value := range data[root] {
 			rv := reflect.ValueOf(value)
 			switch rv.Kind() {
 			case reflect.Slice, reflect.Array:
+				if len(metricname) != 0 {
+					// we expect neted map here
+					continue
+				}
 				if len(as.Fields) == 0 || len(as.Fields) != rv.Len() {
 					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
 					continue
@@ -93,28 +104,40 @@ func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
 
 				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 			case reflect.Map:
-				keys := rv.MapKeys()
-				for _, key := range keys {
-					value := reflect.ValueOf(rv.MapIndex(key).Interface())
-
-					switch value.Kind() {
-					case reflect.Slice, reflect.Array:
-						if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
-							logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
-							continue
-						}
-						forJoin := make([]string, 0, len(as.Fields))
-						for i, field := range as.Fields {
-							forJoin = append(forJoin, fmt.Sprintf("%s_%s:%s", key, field, common.InterfaceToString(value.Index(i).Interface())))
-						}
-						repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
-					default:
-						repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s_%s:%s", aggname, key, common.InterfaceToString(value.Interface())))
-					}
-
+				if len(metricname) == 0 {
+					continue
 				}
+
+				key := reflect.ValueOf(metricname)
+				mapVal := rv.MapIndex(key)
+				if !mapVal.IsValid() {
+					continue
+				}
+
+				value := reflect.ValueOf(mapVal.Interface())
+
+				switch value.Kind() {
+				case reflect.Slice, reflect.Array:
+					if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
+						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
+						continue
+					}
+					forJoin := make([]string, 0, len(as.Fields))
+					for i, field := range as.Fields {
+						forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(value.Index(i).Interface())))
+					}
+					repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
+				default:
+					repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", metricname, common.InterfaceToString(value.Interface())))
+				}
+
+				// }
 			default:
-				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", aggname, common.InterfaceToString(value)))
+				if len(metricname) != 0 {
+					// we expect neted map here
+					continue
+				}
+				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", root, common.InterfaceToString(value)))
 			}
 		}
 	}

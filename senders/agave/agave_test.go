@@ -10,7 +10,7 @@ import (
 func TestMain(t *testing.T) {
 	testConfig := AgaveConfig{
 		Id:            "testID",
-		Items:         []string{"30x", "20x"},
+		Items:         []string{"20x", "20x.MAP1", "20x.MP2", "20x.MP3", "30x"},
 		Hosts:         []string{"blabla:8080"},
 		GraphName:     "GraphName",
 		GraphTemplate: "graph_template",
@@ -18,31 +18,33 @@ func TestMain(t *testing.T) {
 		Step:          300,
 	}
 	s := AgaveSender{testConfig}
-	t.Log(s)
 
 	data := tasks.DataType{
 		"20x": {
-			"simple": 2000,
-			"array":  []int{20, 30, 40},
-			"map_of_array": map[string]interface{}{
+			"host1": 2000,
+			"host3": map[string]interface{}{
 				"MAP1": []interface{}{201, 301, 401},
 				"MAP2": []interface{}{202, 302, 402},
 			},
-			"map_of_simple": map[string]interface{}{
+			"host4": map[string]interface{}{
 				"MP1": 1000,
 				"MP2": 1002,
 			},
 		},
 		"30x": {
-			"simple": 2000,
+			"host2": []int{20, 30, 40},
+			"host4": map[string]interface{}{
+				"MP1": 1000,
+				"MP2": 1002,
+			},
 		},
 	}
 
 	expected := map[string][]string{
-		"simple":        []string{"30x:2000", "20x:2000"},
-		"array":         []string{"A:20+B:30+C:40"},
-		"map_of_array":  []string{"MAP1_A:201+MAP1_B:301+MAP1_C:401", "MAP2_A:202+MAP2_B:302+MAP2_C:402"},
-		"map_of_simple": []string{"20x_MP1:1000", "20x_MP2:1002"},
+		"host1": []string{"20x:2000"},
+		"host3": []string{"A:201+B:301+C:401"},
+		"host4": []string{"MP2:1002"},
+		"host2": []string{"A:20+B:30+C:40"},
 	}
 
 	actual, err := s.send(data)
