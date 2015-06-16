@@ -127,6 +127,8 @@ func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
 						forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(value.Index(i).Interface())))
 					}
 					repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
+				case reflect.Map:
+					//unsupported
 				default:
 					repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", metricname, common.InterfaceToString(value.Interface())))
 				}
