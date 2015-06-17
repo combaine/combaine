@@ -13,8 +13,12 @@ BUILD_DIR=$(CURDIR)/build
 
 #export GOPATH=$(CURDIR)
 
+OS := $(shell uname)
+ifeq ($(OS), Darwin)
+	export CGO_CFLAGS=-I/usr/local/include/zookeeper
+endif
 
-all: deps combainer_ agave_ cfgmanager_ parsing_ graphite_ razladki_
+all: deps combainer_ agave_ parsing_ graphite_ razladki_
 
 deps:
 	go get gopkg.in/yaml.v2
@@ -29,13 +33,11 @@ deps:
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
 
 combainer_: deps
+
 	go build -o $(BUILD_DIR)/main_combainer $(MAIN_FILES_DIR)/combainer_main.go
 
 parsing_: deps
 	go build -o $(BUILD_DIR)/main_parsing-core $(MAIN_FILES_DIR)/parsing_main.go
-
-cfgmanager_: deps
-	go build -o $(BUILD_DIR)/main_cfgmanager $(MAIN_FILES_DIR)/cfgmanager_main.go
 
 agave_: deps
 	go build -o $(BUILD_DIR)/main_agave $(MAIN_FILES_DIR)/agave_main.go

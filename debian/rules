@@ -39,11 +39,6 @@ override_dh_install:
 	install -m755 aggregate_core.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m664 deploy/manifests/manifest_aggregate-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m755 deploy/scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
-	# cfgmanager
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m755 $(BUILD_DIR)/main_cfgmanager  $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m664 deploy/manifests/manifest_cfgmanager.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager
-	install -m755 deploy/scripts/deploy_cfgmanager.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cfgmanager/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app

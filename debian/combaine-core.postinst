@@ -8,10 +8,6 @@ case $1 in
 		cd /usr/lib/yandex/combaine/core-apps/parsing-core/
 		./deploy.sh
 
-		echo "Deploy cfgmanager"
-		cd /usr/lib/yandex/combaine/core-apps/cfgmanager/
-		./deploy.sh
-
 		echo "Deploy parsing-app"
 		cd /usr/lib/yandex/combaine/core-apps/parsing-app/
 		./deploy.sh

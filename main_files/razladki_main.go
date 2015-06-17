@@ -28,7 +28,7 @@ type Task struct {
 var razladkiHost = getRazladkiHost()
 
 func getRazladkiHost() string {
-	var path string = os.Getenv("Config")
+	var path string = os.Getenv("config")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
