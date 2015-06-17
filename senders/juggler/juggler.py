@@ -16,6 +16,9 @@ from cocaine.futures import chain
 from cocaine.worker import Worker
 from cocaine.logging import Logger
 
+
+from helpers import helpers_globals
+
 LEVELS = ("INFO", "WARN", "CRIT", "OK")
 
 STATUSES = {0: "OK",
@@ -70,7 +73,7 @@ log = Logger()
 def extract_condition(inp):
     # ToDo: optimize
     left = len(inp)
-    for sym in ("<", ">", "="):
+    for sym in ("<", ">", "=", "!"):
         pos = inp.find(sym)
         if pos != -1 and pos < left:
             left = pos
@@ -129,6 +132,18 @@ class Juggler(object):
             self.flap["stable_time"] = self.flap.get("stable_time", DEFAULT_STABLE_TIME)
             self.flap["critical_time"] = self.flap.get("critical_time", DEFAULT_CRITICAL_TIME)
 
+        self.variables = dict()
+        variables = cfg.get("VARIABLES", None)
+        if variables is not None:
+            for var, expr in variables.iteritems():
+                try:
+                    self.variables[var] = eval(expr, None, helpers_globals)
+                except Exception as err:
+                    self.log.error("unable to eval a variable %s %s: %s"
+                                   % (var, expr, str(err)))
+        self.variables.update(helpers_globals)
+        self.log.debug("available vars: %s" % str(self.variables))
+
     def Do(self, data):
         packed = collections.defaultdict(dict)
         for aggname, subgroups in data.iteritems():
@@ -184,7 +199,8 @@ class Juggler(object):
                 if res:
                     condition, limit = extract_condition(code)
                     try:
-                        ev_cond = "%s %s" % (eval(condition), limit)
+                        ev_cond = "%s %s" % (eval(condition, None, self.variables),
+                                             limit)
                     except Exception as err:
                         ev_cond = "<placeholder> " + limit
                     IOLoop.current().add_callback(self.send_point,
