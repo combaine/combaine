@@ -74,6 +74,11 @@ override_dh_install:
 	install -m755 $(BUILD_DIR)/main_graphite  $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite
 	install -m664 deploy/manifests/manifest_graphite.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite
 	install -m755 deploy/scripts/deploy_graphite.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/graphite/deploy.sh
+	# razladki
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/razladki
+	install -m755 $(BUILD_DIR)/main_razladki  $(DEB_DESTDIR)$(CORE_APPS_PATH)/razladki
+	install -m664 deploy/manifests/manifest_razladki.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/razladki
+	install -m755 deploy/scripts/deploy_razladki.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/razladki/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler

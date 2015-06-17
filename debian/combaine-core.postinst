@@ -42,6 +42,10 @@ case $1 in
 		echo "Deploy graphite"
 		cd /usr/lib/yandex/combaine/core-apps/graphite/
 		./deploy.sh
+
+		echo "Deploy razladki"
+		cd /usr/lib/yandex/combaine/core-apps/razladki/
+		./deploy.sh
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

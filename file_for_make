@@ -14,10 +14,9 @@ BUILD_DIR=$(CURDIR)/build
 #export GOPATH=$(CURDIR)
 
 
-all: deps combainer_ agave_ cfgmanager_ parsing_ graphite_
+all: deps combainer_ agave_ cfgmanager_ parsing_ graphite_ razladki_
 
 deps:
-	#go get launchpad.net/gozk/zookeeper
 	go get gopkg.in/yaml.v2
 	go get github.com/cocaine/cocaine-framework-go/cocaine
 	go get github.com/Sirupsen/logrus
@@ -43,6 +42,9 @@ agave_: deps
 
 graphite_: deps
 	go build -o $(BUILD_DIR)/main_graphite $(MAIN_FILES_DIR)/graphite_main.go
+
+razladki_: deps
+	go build -o $(BUILD_DIR)/main_razladki $(MAIN_FILES_DIR)/razladki_main.go
 
 fixture: deps
 	go run tests/fixtures/gen_fixtures.go
