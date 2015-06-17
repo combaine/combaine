@@ -1,3 +1,10 @@
+combaine (0.7.0.1-rc52) unstable; urgency=low
+
+  * [Juggler] Beta support of vars
+  * [Razladki] Razladki is introduced
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 17 Jun 2015 12:21:59 +0300
+
 combaine (0.7.0.1-rc51) unstable; urgency=low
 
   * [HTTP] Parse config with mapstructure
