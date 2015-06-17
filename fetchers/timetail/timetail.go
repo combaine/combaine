@@ -18,19 +18,26 @@ func init() {
 	parsing.Register("timetail", NewTimetail)
 }
 
-const CONNECTION_TIMEOUT = 1000
-const RW_TIMEOUT = 3000
+const (
+	CONNECTION_TIMEOUT = 1000
+	RW_TIMEOUT         = 3000
+)
+
+var (
+	D_CONNECTION_TIMEOUT = time.Millisecond * CONNECTION_TIMEOUT
+	D_RW_TIMEOUT         = time.Millisecond * RW_TIMEOUT
+)
 
 var HttpClient = httpclient.NewClientWithTimeout(
-	time.Millisecond*CONNECTION_TIMEOUT,
-	time.Millisecond*RW_TIMEOUT)
+	D_CONNECTION_TIMEOUT,
+	D_RW_TIMEOUT)
 
 type Timetail struct {
 	TimetailConfig
 }
 
 type TimetailConfig struct {
-	Port        uint   `mapstructure:"timetail_port"`
+	Port        int    `mapstructure:"timetail_port"`
 	Url         string `mapstructure:"timetail_url"`
 	Logname     string `mapstructure:"logname"`
 	Offset      int64  `mapstructure:"offset"`
@@ -56,11 +63,16 @@ func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
 	)
 
 	if t.TimetailConfig.ConnTimeout == CONNECTION_TIMEOUT && t.TimetailConfig.ReadTimeout == RW_TIMEOUT {
+		logger.Infof("%s requested URL: %s, default timeouts conn %v rw %v",
+			task.Id, url, D_CONNECTION_TIMEOUT, D_RW_TIMEOUT)
 		resp, err = HttpClient.Get(url)
 	} else {
+		connTimeout := time.Duration(t.TimetailConfig.ConnTimeout) * time.Millisecond
+		rwTimeout := time.Duration(t.TimetailConfig.ReadTimeout) * time.Millisecond
+		logger.Infof("%s requested URL: %s, timeouts conn %v rw %v",
+			task.Id, url, connTimeout, rwTimeout)
 		httpCli := httpclient.NewClientWithTimeout(
-			time.Duration(t.TimetailConfig.ConnTimeout)*time.Millisecond,
-			time.Duration(t.TimetailConfig.ReadTimeout)*time.Millisecond)
+			connTimeout, rwTimeout)
 		httpCli.Transport.(*http.Transport).DisableKeepAlives = true
 		resp, err = httpCli.Get(url)
 	}
