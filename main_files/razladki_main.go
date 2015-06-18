@@ -1,7 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
+	"bufio"
+	"bytes"
 	"log"
 	"os"
 
@@ -25,20 +26,24 @@ type Task struct {
 	PrevTime uint64
 }
 
-var razladkiHost = getRazladkiHost()
-
-func getRazladkiHost() string {
+func getRazladkiHost() (string, error) {
 	var path string = os.Getenv("config")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
 
-	conf, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		return string(bytes.TrimSpace(scanner.Bytes())), nil
 	}
 
-	return string(conf)
+	return "", scanner.Err()
 }
 
 func Send(request *cocaine.Request, response *cocaine.Response) {
@@ -51,7 +56,13 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	task.Config.Host = razladkiHost
+
+	task.Config.Host, err = getRazladkiHost()
+	if err != nil {
+		response.ErrorMsg(-100, err.Error())
+		return
+	}
+
 	logger.Debugf("Task: %v", task)
 
 	rCli, err := razladki.NewRazladkiClient(&task.Config, task.Id)

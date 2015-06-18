@@ -1,11 +1,11 @@
 package main
 
 import (
-	"io/ioutil"
+	"bufio"
+	"bytes"
 	"log"
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
@@ -26,12 +26,23 @@ func getAgaveHosts() ([]string, error) {
 		path = "/etc/combaine/agave.conf"
 	}
 
-	body, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
-	return strings.Split(string(body), ","), nil
+	var result []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		result = append(result, string(bytes.TrimSpace(scanner.Bytes())))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 type Task struct {
