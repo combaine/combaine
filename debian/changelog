@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc53) unstable; urgency=low
+
+  * [Cfgmanager] Eliminated 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 18 Jun 2015 15:06:57 +0300
+
 combaine (0.7.0.1-rc52) unstable; urgency=low
 
   * [Juggler] Beta support of vars
