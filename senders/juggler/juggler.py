@@ -190,7 +190,7 @@ class Juggler(object):
                                                                 code))
                 # evaluate code
                 # TBD: make it safer!!!
-                res = eval(code)
+                res = eval(code, None, self.variables)
 
                 self.log.debug("Evaluated result: %s %s" % (check, res))
 
