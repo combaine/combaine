@@ -25,8 +25,8 @@ method: "GOLEM,SMS"
 aggregator_kwargs:
   - "ignore_nodata": 1
 variables:
-  - "var1": "100 + 200"
-  - "load": "iftimeofday(20, 6, 100, 200)"  # load = 10 from 20:00 to 6:00, otherwise 200
+  "var1": "100 + 200"
+  "load": "iftimeofday(20, 6, 100, 200)"  # load = 10 from 20:00 to 6:00, otherwise 200
 # conditions for different levels
 crit: ["$nginx['20x'] < load"]
 warn: ["$nginx['20x'] < load + 50"]
