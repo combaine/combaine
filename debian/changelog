@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc55) unstable; urgency=low
+
+  * [Juggler] Eval the check with proper globals & locals
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 22 Jun 2015 15:37:08 +0300
+
 combaine (0.7.0.1-rc54) unstable; urgency=low
 
   * [Agave & Razladki] Fix config readers
