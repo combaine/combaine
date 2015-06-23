@@ -12,10 +12,13 @@ razladkihost.domain.net
 ### Senders section
 
 ```yaml
-items:
-  - "nginx.20x": "a title of this metric"
-  - "nginx": "other title"
-project: "example_project_name"
+senders:
+ somesendername:
+  type: "razladki"
+  items:
+   "nginx.20x": "a title of this metric"
+   "nginx": "other title"
+  project: "example_project_name"
 ```
 
 ### Description
