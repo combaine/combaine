@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
-	// "github.com/noxiouz/Combaine/combainer/server"
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 )
@@ -173,8 +172,21 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 }
 
 func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetContext(), s.GetRepository())
+
+	logger := log.New()
+	logger.Level = log.DebugLevel
+	logger.Formatter = s.GetContext().Logger.Formatter
+	logger.Out = w
+
+	ctx := &Context{
+		Logger: logger,
+		Cache:  s.GetContext().Cache,
+		Hosts:  s.GetContext().Hosts,
+	}
+
+	cl, err := NewClient(ctx, s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -185,7 +197,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Fprintf(w, "FAILED: %v\n", err)
 		return
 	}
 	fmt.Fprint(w, "DONE")

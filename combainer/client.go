@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/noxiouz/Combaine/common"
@@ -31,28 +31,31 @@ type Client struct {
 	Id         string
 	Repository configs.Repository
 	*Context
+	Log *logrus.Entry
 	clientStats
 }
 
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	if context.Hosts == nil {
 		err := fmt.Errorf("Hosts delegate must be specified")
-		log.WithFields(log.Fields{
+		context.Logger.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to create Client")
 		return nil, err
 	}
 
+	id := GenerateSessionId()
 	cl := &Client{
-		Id:         GenerateSessionId(),
+		Id:         id,
 		Repository: repo,
 		Context:    context,
+		Log:        context.Logger.WithField("client", id),
 	}
 	return cl, nil
 }
 
 func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
-	log.WithFields(log.Fields{
+	cl.Log.WithFields(logrus.Fields{
 		"client": cl.Id,
 		"config": config,
 	}).Info("Updating session parametrs")
@@ -69,7 +72,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	encodedParsingConfig, err := cl.Repository.GetParsingConfig(config)
 	if err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client": cl.Id,
 			"config": config,
 			"error":  err,
@@ -79,7 +82,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	var parsingConfig configs.ParsingConfig
 	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client": cl.Id,
 			"config": config,
 			"error":  err,
@@ -91,7 +94,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	parsingConfig.UpdateByCombainerConfig(&cfg)
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client": cl.Id,
 			"config": config,
 			"error":  err,
@@ -99,12 +102,12 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	log.Infof("Updating config: group %s, metahost %s",
+	logrus.Infof("Updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client": cl.Id,
 			"config": config,
 			"error":  err,
@@ -116,7 +119,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	for _, item := range parsingConfig.Groups {
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
-			log.WithFields(log.Fields{
+			cl.Log.WithFields(logrus.Fields{
 				"client": cl.Id,
 				"config": config,
 				"error":  err,
@@ -130,14 +133,14 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	listOfHosts := allHosts.AllHosts()
 
-	log.WithFields(log.Fields{
+	cl.Log.WithFields(logrus.Fields{
 		"client": cl.Id,
 		"config": config,
 	}).Infof("Hosts: %s", listOfHosts)
 
 	if len(listOfHosts) == 0 {
 		err := fmt.Errorf("No hosts in given groups")
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client": cl.Id,
 			"config": config,
 			"group":  parsingConfig.Groups,
@@ -176,7 +179,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:    aggTasks,
 	}
 
-	log.WithFields(log.Fields{
+	cl.Log.WithFields(logrus.Fields{
 		"client": cl.Id,
 		"config": config,
 	}).Infof("Session parametrs have been updated successfully. %v", sp)
@@ -191,7 +194,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		uniqueID = GenerateSessionId()
 	}
 
-	contextFields := log.Fields{
+	contextFields := logrus.Fields{
 		"client":  cl.Id,
 		"session": uniqueID,
 		"config":  parsingConfigName}
@@ -201,7 +204,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
 	if err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client":  cl.Id,
 			"session": uniqueID,
 			"config":  parsingConfigName,
@@ -213,11 +216,11 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	startTime = time.Now()
 	deadline = startTime.Add(sessionParameters.ParsingTime)
 
-	log.WithFields(contextFields).Info("Start new iteration")
+	cl.Log.WithFields(contextFields).Info("Start new iteration")
 
 	hosts, err := cl.Context.Hosts()
 	if err != nil || len(hosts) == 0 {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client":  cl.Id,
 			"session": uniqueID,
 			"config":  parsingConfigName,
@@ -235,14 +238,14 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(contextFields).Infof("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
+		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doParsingTask(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
-	log.WithFields(contextFields).Info("Parsing finished")
+	cl.Log.WithFields(contextFields).Info("Parsing finished")
 
 	// Aggregation phase
 	deadline = startTime.Add(sessionParameters.WholeTime)
@@ -252,21 +255,21 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
 
-		log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
+		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
 		go cl.doAggregationHandler(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
 
-	log.WithFields(contextFields).Info("Aggregation has finished")
+	cl.Log.WithFields(contextFields).Info("Aggregation has finished")
 
 	// Wait for next iteration
 	if shouldWait {
 		time.Sleep(deadline.Sub(time.Now()))
 	}
 
-	log.WithFields(contextFields).Debug("Go to the next iteration")
+	cl.Log.WithFields(contextFields).Debug("Go to the next iteration")
 
 	return nil
 }
@@ -314,7 +317,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		}
 		if err == nil {
 			defer app.Close()
-			log.WithFields(log.Fields{
+			cl.Log.WithFields(logrus.Fields{
 				"client":  cl.Id,
 				"session": task.Tid(),
 				"host":    host,
@@ -323,7 +326,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 			break
 		}
 
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   err,
@@ -334,7 +337,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	}
 
 	if app == nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   ErrAppUnavailable,
@@ -346,7 +349,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	raw, _ := task.Raw()
 	res, err := PerformTask(app, raw, limit)
 	if err != nil {
-		log.WithFields(log.Fields{
+		cl.Log.WithFields(logrus.Fields{
 			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   err,
@@ -356,7 +359,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		return err
 	}
 
-	log.WithFields(log.Fields{
+	cl.Log.WithFields(logrus.Fields{
 		"client":  cl.Id,
 		"session": task.Tid(),
 		"appname": appName,
