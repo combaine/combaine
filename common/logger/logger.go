@@ -3,17 +3,34 @@ package logger
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 var (
-	Log *cocaine.Logger = mustCreateLogger()
+	Log Logger = mustCreateLogger()
 )
 
-func mustCreateLogger() *cocaine.Logger {
+type Logger interface {
+	Debugf(format string, data ...interface{})
+	Infof(format string, data ...interface{})
+	Warnf(format string, data ...interface{})
+	Errf(format string, data ...interface{})
+}
+
+type loggerLogrus struct {
+	*logrus.Logger
+}
+
+func (l *loggerLogrus) Errf(format string, data ...interface{}) {
+	l.Errorf(format, data...)
+}
+
+func mustCreateLogger() Logger {
 	log, err := cocaine.NewLogger()
 	if err != nil {
-		panic(fmt.Sprintf("Unable to create Cocaine logger, but must %v", err))
+		// panic(fmt.Sprintf("Unable to create Cocaine logger, but must %v", err))
+		return &loggerLogrus{Logger: logrus.StandardLogger()}
 	}
 	return log
 }

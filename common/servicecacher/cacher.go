@@ -2,6 +2,7 @@ package servicecacher
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
@@ -10,15 +11,18 @@ type Cacher interface {
 	Get(name string) (*cocaine.Service, error)
 }
 
+type cache map[string]*cocaine.Service
+
 type cacher struct {
-	mutex sync.RWMutex
-	data  map[string]*cocaine.Service
+	mutex sync.Mutex
+	data  atomic.Value
 }
 
-func NewCacher() (c Cacher) {
-	return &cacher{
-		data: make(map[string]*cocaine.Service),
-	}
+func NewCacher() Cacher {
+	c := &cacher{}
+	c.data.Store(make(cache))
+
+	return c
 }
 
 func (c *cacher) Get(name string) (s *cocaine.Service, err error) {
@@ -32,19 +36,26 @@ func (c *cacher) Get(name string) (s *cocaine.Service, err error) {
 }
 
 func (c *cacher) get(name string) (s *cocaine.Service, ok bool) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	s, ok = c.data[name]
+	s, ok = c.data.Load().(cache)[name]
 	return
 }
 
-func (c *cacher) create(name string) (s *cocaine.Service, err error) {
+func (c *cacher) create(name string) (*cocaine.Service, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	s, err = cocaine.NewService(name)
-	if err != nil {
-		return
+	s, ok := c.get(name)
+	if ok {
+		return s, nil
 	}
-	c.data[name] = s
-	return
+
+	s, err := cocaine.NewService(name)
+	if err != nil {
+		return nil, err
+	}
+
+	data := c.data.Load().(cache)
+	data[name] = s
+	c.data.Store(data)
+
+	return s, nil
 }

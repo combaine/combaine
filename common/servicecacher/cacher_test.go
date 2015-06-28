@@ -22,5 +22,4 @@ func TestMain(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Unexpected error %s", err)
 	}
-
 }
