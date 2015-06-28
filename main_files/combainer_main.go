@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/noxiouz/Combaine/combainer/server"
+	"github.com/noxiouz/Combaine/common/formatter"
 )
 
 const (
@@ -93,9 +94,7 @@ func rotateFile() error {
 
 func initializeLogger(loglevel logrus.Level, output string) {
 	outputPath = output
-	formatter := &logrus.TextFormatter{
-		DisableColors: true,
-	}
+	formatter := &formatter.CombaineFormatter{}
 	logrus.SetLevel(loglevel)
 	logrus.SetFormatter(formatter)
 

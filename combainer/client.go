@@ -56,7 +56,6 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 
 func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{
-		"client": cl.Id,
 		"config": config,
 	}).Info("Updating session parametrs")
 
@@ -73,7 +72,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	encodedParsingConfig, err := cl.Repository.GetParsingConfig(config)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client": cl.Id,
 			"config": config,
 			"error":  err,
 		}).Error("Unable to load config")
@@ -83,7 +81,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	var parsingConfig configs.ParsingConfig
 	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client": cl.Id,
 			"config": config,
 			"error":  err,
 		}).Error("Unable to decode parsingConfig")
@@ -95,7 +92,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	aggregationConfigs, err := GetAggregationConfigs(cl.Repository, &parsingConfig)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client": cl.Id,
 			"config": config,
 			"error":  err,
 		}).Error("Unable to read aggregation configs")
@@ -108,7 +104,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client": cl.Id,
 			"config": config,
 			"error":  err,
 		}).Error("Unable to construct SimpleFetcher")
@@ -120,7 +115,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		hosts_for_group, err := hostFetcher.Fetch(item)
 		if err != nil {
 			cl.Log.WithFields(logrus.Fields{
-				"client": cl.Id,
 				"config": config,
 				"error":  err,
 				"group":  item,
@@ -134,14 +128,12 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	listOfHosts := allHosts.AllHosts()
 
 	cl.Log.WithFields(logrus.Fields{
-		"client": cl.Id,
 		"config": config,
 	}).Infof("Hosts: %s", listOfHosts)
 
 	if len(listOfHosts) == 0 {
 		err := fmt.Errorf("No hosts in given groups")
 		cl.Log.WithFields(logrus.Fields{
-			"client": cl.Id,
 			"config": config,
 			"group":  parsingConfig.Groups,
 		}).Warn("No hosts in given groups")
@@ -180,7 +172,6 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	cl.Log.WithFields(logrus.Fields{
-		"client": cl.Id,
 		"config": config,
 	}).Infof("Session parametrs have been updated successfully. %v", sp)
 	return sp, nil
@@ -195,7 +186,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	}
 
 	contextFields := logrus.Fields{
-		"client":  cl.Id,
 		"session": uniqueID,
 		"config":  parsingConfigName}
 
@@ -205,7 +195,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client":  cl.Id,
 			"session": uniqueID,
 			"config":  parsingConfigName,
 			"error":   err,
@@ -221,7 +210,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	hosts, err := cl.Context.Hosts()
 	if err != nil || len(hosts) == 0 {
 		cl.Log.WithFields(logrus.Fields{
-			"client":  cl.Id,
 			"session": uniqueID,
 			"config":  parsingConfigName,
 			"error":   err,
@@ -318,7 +306,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		if err == nil {
 			defer app.Close()
 			cl.Log.WithFields(logrus.Fields{
-				"client":  cl.Id,
 				"session": task.Tid(),
 				"host":    host,
 				"appname": appName,
@@ -327,7 +314,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 		}
 
 		cl.Log.WithFields(logrus.Fields{
-			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   err,
 			"appname": appName,
@@ -338,7 +324,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 
 	if app == nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   ErrAppUnavailable,
 			"appname": appName,
@@ -350,7 +335,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	res, err := PerformTask(app, raw, limit)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
-			"client":  cl.Id,
 			"session": task.Tid(),
 			"error":   err,
 			"appname": appName,
@@ -360,7 +344,6 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGr
 	}
 
 	cl.Log.WithFields(logrus.Fields{
-		"client":  cl.Id,
 		"session": task.Tid(),
 		"appname": appName,
 		"host":    host,
