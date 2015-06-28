@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/noxiouz/Combaine/vendor/launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/common/configs"
@@ -19,6 +19,7 @@ type locksInfo struct {
 }
 
 type LockServer struct {
+	log     *logrus.Entry
 	mu      sync.Mutex
 	Zk      *zookeeper.Conn
 	Session <-chan zookeeper.Event
@@ -29,7 +30,8 @@ type LockServer struct {
 
 func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 	endpoints := strings.Join(config.Hosts, ",")
-	log.Infof("Zookeeper: connecting to %s", endpoints)
+	log := logrus.WithField("source", "zookeeper")
+	log.Infof("connecting to %s", endpoints)
 	zk, session, err := zookeeper.Dial(endpoints, 5e9)
 	if err != nil {
 		log.Errorf("Zookeeper: unable to connect to %s %s", endpoints, err)
@@ -44,7 +46,7 @@ ZK_CONNECTING_WAIT_LOOP:
 		case event := <-session:
 			if !event.Ok() {
 				err = fmt.Errorf("%s", event.String())
-				log.Errorf("Zookeeper connection error: %s", err)
+				log.Errorf("connection error: %s", err)
 				return nil, err
 			}
 
@@ -59,11 +61,12 @@ ZK_CONNECTING_WAIT_LOOP:
 			}
 		case <-deadline:
 			zk.Close()
-			return nil, fmt.Errorf("Zookeeper: connection timeout")
+			return nil, fmt.Errorf("connection timeout")
 		}
 	}
 
 	ls := &LockServer{
+		log:               log,
 		Zk:                zk,
 		Session:           session,
 		stop:              make(chan struct{}),
@@ -79,7 +82,7 @@ ZK_CONNECTING_WAIT_LOOP:
 
 func (ls *LockServer) Lock(node string) error {
 	path := fmt.Sprintf("/%s/%s", ls.LockServerSection.Id, node)
-	log.Infof("Locking %s", path)
+	ls.log.Infof("Locking %s", path)
 	content, err := os.Hostname()
 	if err != nil {
 		return err
@@ -90,7 +93,7 @@ func (ls *LockServer) Lock(node string) error {
 
 func (ls *LockServer) Unlock(node string) error {
 	path := fmt.Sprintf("/%s/%s", ls.LockServerSection.Id, node)
-	log.Infof("Unlocking %s", path)
+	ls.log.Infof("Unlocking %s", path)
 	return ls.Zk.Delete(path, -1)
 }
 
@@ -137,13 +140,13 @@ func (ls *LockServer) watchLocks() error {
 			case event := <-watch:
 				if !event.Ok() {
 					err = fmt.Errorf("%s", event.String())
-					log.Errorf("locks watcher error: %s", err)
+					ls.log.Errorf("locks watcher error: %s", err)
 					return
 				}
 
 				children, stat, watch, err = ls.Zk.ChildrenW(path)
 				if err != nil {
-					log.Errorf("unable to watch locks: %s", err)
+					ls.log.Errorf("unable to watch locks: %s", err)
 					return
 				}
 				ls.updateAllLocks(children, stat)

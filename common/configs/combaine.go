@@ -4,7 +4,7 @@ package configs
 type MainSection struct {
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
-	IterationDuration uint "MINIMUM_PERIOD"
+	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
 	// Group of cloud machines
 	CloudGroup string `yaml:"cloud"`
 	// Cache options
@@ -36,4 +36,20 @@ type CombainerSection struct {
 type CombainerConfig struct {
 	CombainerSection `yaml:"Combainer"`
 	CloudSection     `yaml:"cloud_config"`
+}
+
+type ConfigurationError struct {
+	message string
+}
+
+func (c *ConfigurationError) Error() string {
+	return c.message
+}
+
+func VerifyCombainerConfig(cfg *CombainerConfig) error {
+	if cfg.MainSection.IterationDuration <= 0 {
+		return &ConfigurationError{"MINIMUM_PERIOD must be positive"}
+	}
+
+	return nil
 }

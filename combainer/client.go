@@ -57,7 +57,7 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{
 		"config": config,
-	}).Info("Updating session parametrs")
+	}).Info("updating session parametrs")
 
 	var (
 		// tasks
@@ -74,7 +74,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		cl.Log.WithFields(logrus.Fields{
 			"config": config,
 			"error":  err,
-		}).Error("Unable to load config")
+		}).Error("unable to load config")
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		cl.Log.WithFields(logrus.Fields{
 			"config": config,
 			"error":  err,
-		}).Error("Unable to decode parsingConfig")
+		}).Error("unable to decode parsingConfig")
 		return nil, err
 	}
 
@@ -94,11 +94,11 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 		cl.Log.WithFields(logrus.Fields{
 			"config": config,
 			"error":  err,
-		}).Error("Unable to read aggregation configs")
+		}).Error("unable to read aggregation configs")
 		return nil, err
 	}
 
-	logrus.Infof("Updating config: group %s, metahost %s",
+	cl.Log.Infof("updating config: group %s, metahost %s",
 		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
 
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
@@ -118,7 +118,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 				"config": config,
 				"error":  err,
 				"group":  item,
-			}).Warn("Unable to get hosts")
+			}).Warn("unable to get hosts")
 			continue
 		}
 
@@ -127,18 +127,18 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	listOfHosts := allHosts.AllHosts()
 
-	cl.Log.WithFields(logrus.Fields{
-		"config": config,
-	}).Infof("Hosts: %s", listOfHosts)
-
 	if len(listOfHosts) == 0 {
 		err := fmt.Errorf("No hosts in given groups")
 		cl.Log.WithFields(logrus.Fields{
 			"config": config,
 			"group":  parsingConfig.Groups,
-		}).Warn("No hosts in given groups")
+		}).Warn("no hosts in given groups")
 		return nil, err
 	}
+
+	cl.Log.WithFields(logrus.Fields{
+		"config": config,
+	}).Infof("hosts: %s", listOfHosts)
 
 	// Tasks for parsing
 	for _, host := range listOfHosts {
@@ -198,7 +198,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 			"session": uniqueID,
 			"config":  parsingConfigName,
 			"error":   err,
-		}).Error("Unable to update session parametrs")
+		}).Error("unable to update session parametrs")
 		return err
 	}
 
@@ -213,7 +213,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 			"session": uniqueID,
 			"config":  parsingConfigName,
 			"error":   err,
-		}).Error("Unable to get (or empty) the list of the cloud hosts")
+		}).Error("unable to get (or empty) the list of the cloud hosts")
 
 		return err
 	}

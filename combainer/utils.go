@@ -1,9 +1,12 @@
 package combainer
 
 import (
+	"crypto/md5"
+	"fmt"
+	"math/rand"
+	"strconv"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/noxiouz/Combaine/common/configs"
@@ -15,7 +18,14 @@ const (
 	COMBAINER_PATH           = "/etc/combaine/combaine.yaml"
 )
 
-var GenerateSessionId = uuid.New
+// var GenerateSessionId = uuid.New
+func GenerateSessionId() string {
+	var buf = make([]byte, 0, 16)
+	buf = strconv.AppendInt(buf, time.Now().UnixNano(), 10)
+	buf = strconv.AppendInt(buf, rand.Int63(), 10)
+	val := md5.Sum(buf)
+	return fmt.Sprintf("%x", string(val[:]))
+}
 
 func GenerateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
 	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second

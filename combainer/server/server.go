@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/noxiouz/Combaine/vendor/launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/combainer"
@@ -22,7 +22,7 @@ var (
 
 func Trap() {
 	if r := recover(); r != nil {
-		log.Printf("Recovered: %s", r)
+		logrus.Printf("Recovered: %s", r)
 	}
 }
 
@@ -33,6 +33,7 @@ type CombaineServer struct {
 	configs.Repository
 	cache.Cache
 	*combainer.Context
+	log *logrus.Entry
 }
 
 type CombaineServerConfig struct {
@@ -48,12 +49,16 @@ type CombaineServerConfig struct {
 }
 
 func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
+	log := logrus.WithField("source", "server")
 	repository, err := configs.NewFilesystemRepository(config.ConfigsPath)
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
 
 	combainerConfig := repository.GetCombainerConfig()
+	if err := configs.VerifyCombainerConfig(&combainerConfig); err != nil {
+		log.Fatalf("malformed combainer config: %s", err)
+	}
 
 	cacheCfg := &combainerConfig.MainSection.Cache
 	cacheType, err := cacheCfg.Type()
@@ -71,7 +76,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	context := &combainer.Context{
 		Cache:  cacher,
 		Hosts:  nil,
-		Logger: log.StandardLogger(),
+		Logger: logrus.StandardLogger(),
 	}
 
 	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
@@ -93,6 +98,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		Repository:      repository,
 		Cache:           cacher,
 		Context:         context,
+		log:             log,
 	}
 
 	return server, nil
@@ -107,24 +113,24 @@ func (c *CombaineServer) GetRepository() configs.Repository {
 }
 
 func (c *CombaineServer) Serve() error {
-	log.Println("Starting REST API")
+	c.log.Info("starting REST API")
 	router := combainer.GetRouter(c)
 	go func() {
 		err := http.ListenAndServe(c.Configuration.RestEndpoint, router)
 		if err != nil {
-			log.Fatal("ListenAndServe: ", err)
+			c.log.Fatal("ListenAndServe: ", err)
 		}
 	}()
 
 	if c.Configuration.Active {
-		log.Println("Launch task distribution")
+		c.log.Info("start task distribution")
 		go c.distributeTasks()
 	}
 
 	sigWatcher := make(chan os.Signal, 1)
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
 	s := <-sigWatcher
-	log.Println("Got signal:", s)
+	c.log.Info("Got signal:", s)
 	return nil
 }
 
@@ -133,7 +139,7 @@ LOCKSERVER_LOOP:
 	for {
 		DLS, err := lockserver.NewLockServer(c.CombainerConfig.LockServerSection)
 		if err != nil {
-			log.WithFields(log.Fields{
+			c.log.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("unable to create Zookeeper lockserver")
 			time.Sleep(c.Configuration.Period)
@@ -152,9 +158,9 @@ LOCKSERVER_LOOP:
 
 				configs, err := c.Repository.ListParsingConfigs()
 				if err != nil {
-					log.WithFields(log.Fields{
+					c.log.WithFields(logrus.Fields{
 						"error": err,
-					}).Error("Unable to list parsing configs")
+					}).Error("unable to list parsing configs")
 					continue DISPATCH_LOOP
 				}
 
@@ -174,46 +180,50 @@ LOCKSERVER_LOOP:
 							defer Trap()
 
 							if !c.Repository.ParsingConfigIsExists(cfg) {
-								log.WithField("error", "config doesn't exist").Error(cfg)
+								c.log.WithField("error", "config doesn't exist").Error(cfg)
 								return
 							}
 
-							log.Printf("Creating new client with lock: %s", lockname)
+							c.log.Info("creating new client", lockname)
 							cl, err := combainer.NewClient(c.Context, c.Repository)
 							if err != nil {
-								log.WithFields(log.Fields{
-									"error": err,
-								}).Errorf("can't create client")
+								c.log.WithFields(logrus.Fields{
+									"error":    err,
+									"lockname": lockname,
+								}).Error("can't create client")
 								return
 							}
 
 							var watcher <-chan zookeeper.Event
 							watcher, err = DLS.Watch(lockname)
 							if err != nil {
-								log.WithFields(log.Fields{
-									"error": err,
-								}).Errorf("can't watch %s", lockname)
+								c.log.WithFields(logrus.Fields{
+									"error":    err,
+									"lockname": lockname,
+								}).Error("can't watch")
 								return
 							}
 
 							for {
 								if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
-									log.WithFields(log.Fields{
-										"error": err,
+									c.log.WithFields(logrus.Fields{
+										"error":    err,
+										"lockname": lockname,
 									}).Error("Dispatch error")
 									return
 								}
 								select {
 								case event := <-watcher:
 									if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
-										log.Errorf("lock has been lost: %s", event)
+										c.log.Error("lock has been lost: %s", event)
 										return
 									}
 									watcher, err = DLS.Watch(lockname)
 									if err != nil {
-										log.WithFields(log.Fields{
-											"error": err,
-										}).Errorf("Can't watch %s", lockname)
+										c.log.WithFields(logrus.Fields{
+											"error":    err,
+											"lockname": lockname,
+										}).Error("can't watch")
 										return
 									}
 								default:
@@ -224,7 +234,7 @@ LOCKSERVER_LOOP:
 				}(configs)
 			case event := <-DLS.Session:
 				if !event.Ok() {
-					log.Errorf("Not OK event from Zookeeper: %s", event)
+					c.log.Errorf("not OK event from Zookeeper: %s", event)
 					DLS.Close()
 					break DISPATCH_LOOP
 				}
