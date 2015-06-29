@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
+	"github.com/noxiouz/Combaine/common/httpclient"
 )
 
 func init() {
@@ -30,7 +32,8 @@ const (
 type FetcherLoader func(*Context, map[string]interface{}) (HostFetcher, error)
 
 var (
-	fetchers map[string]FetcherLoader = make(map[string]FetcherLoader)
+	fetchers   map[string]FetcherLoader = make(map[string]FetcherLoader)
+	httpClient                          = httpclient.NewClientWithTimeout(1*time.Second, 3*time.Second)
 )
 
 func RegisterFetcherLoader(name string, f FetcherLoader) error {
@@ -121,7 +124,7 @@ func newHttpFetcher(context *Context, config map[string]interface{}) (HostFetche
 
 func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	url := fmt.Sprintf(s.BasicUrl, groupname)
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	var body []byte
 	if err != nil {
 		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)
