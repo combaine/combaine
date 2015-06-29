@@ -42,6 +42,10 @@ case $1 in
 		echo "Deploy razladki"
 		cd /usr/lib/yandex/combaine/core-apps/razladki/
 		./deploy.sh
+
+		echo "Deploy cbb"
+		cd /usr/lib/yandex/combaine/core-apps/cbb/
+		./deploy.sh
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
