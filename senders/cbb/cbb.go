@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/noxiouz/Combaine/common/httpclient"
-	//"github.com/noxiouz/Combaine/common/logger"
+	"github.com/noxiouz/Combaine/common/logger"
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
@@ -90,7 +90,7 @@ func (c *CBBSender) makeUrlValues(ip string, code string, rate float64) url.Valu
 }
 
 func (c *CBBSender) send(data tasks.DataType, timestamp uint64) (<-chan url.URL, error) {
-	//logger.Debugf("%s Data to send: %v", c.id, data)
+	logger.Debugf("%s Data to send: %v", c.id, data)
 	result := make(chan url.URL)
 	go func() {
 		request := c.makeBaseUrl()
