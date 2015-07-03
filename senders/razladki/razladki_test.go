@@ -20,6 +20,7 @@ func TestMain(t *testing.T) {
 		Host:    "127.0.0.1",
 	}
 	s := RazladkiSender{RazladkiConfig: &testConfig}
+	s.id = "UNIQID"
 
 	data := tasks.DataType{
 		"20x": {
@@ -83,4 +84,6 @@ func TestMain(t *testing.T) {
 
 	mbody, _ := json.Marshal(actual)
 	t.Logf("%s", mbody)
+
+	s.Send(data, 123)
 }

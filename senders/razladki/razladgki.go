@@ -142,17 +142,22 @@ func (r *RazladkiSender) Send(data tasks.DataType, timestamp uint64) error {
 	if err = json.NewEncoder(buffer).Encode(res); err != nil {
 		return err
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/save_new_data_json/%s/", r.Host, r.Project), buffer)
+
+	url := fmt.Sprintf("http://%s/save_new_data_json/%s/", r.Host, r.Project)
+	logger.Infof("%s send to url %s, data %s", r.id, url, buffer.Bytes())
+	req, err := http.NewRequest("POST", url, buffer)
 	if err != nil {
 		return err
 	}
 
 	resp, err := RazladkiHttpClient.Do(req)
 	if err != nil {
+		logger.Errf("%s unable to do http request: %v", r.id, err)
 		return err
 	}
 	defer resp.Body.Close()
 
+	logger.Infof("%s response status %d %s", r.id, resp.StatusCode, resp.Status)
 	if resp.StatusCode != http.StatusOK {
 		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
