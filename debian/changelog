@@ -1,3 +1,11 @@
+combaine (0.7.0.1-rc56) unstable; urgency=low
+
+  * [CBB] Introduced CBB
+  * [Razladki] Add logs
+  * [Combainer] Pretty logs
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 03 Jul 2015 17:15:13 +0300
+
 combaine (0.7.0.1-rc55) unstable; urgency=low
 
   * [Juggler] Eval the check with proper globals & locals
@@ -12,7 +20,7 @@ combaine (0.7.0.1-rc54) unstable; urgency=low
 
 combaine (0.7.0.1-rc53) unstable; urgency=low
 
-  * [Cfgmanager] Eliminated 
+  * [Cfgmanager] Eliminated
 
  -- Anton Tyurin <noxiouz@yandex-team.ru>  Thu, 18 Jun 2015 15:06:57 +0300
 
