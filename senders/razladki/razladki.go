@@ -143,7 +143,7 @@ func (r *RazladkiSender) Send(data tasks.DataType, timestamp uint64) error {
 		return err
 	}
 
-	url := fmt.Sprintf("http://%s/save_new_data_json/%s/", r.Host, r.Project)
+	url := fmt.Sprintf("http://%s/save_new_data_json/%s", r.Host, r.Project)
 	logger.Infof("%s send to url %s, data %s", r.id, url, buffer.Bytes())
 	req, err := http.NewRequest("POST", url, buffer)
 	if err != nil {
