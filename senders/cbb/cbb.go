@@ -89,44 +89,41 @@ func (c *CBBSender) makeUrlValues(ip string, code string, rate float64) url.Valu
 	return val
 }
 
-func (c *CBBSender) send(data tasks.DataType, timestamp uint64) (<-chan url.URL, error) {
+func (c *CBBSender) send(data tasks.DataType, timestamp uint64) ([]url.URL, error) {
 	logger.Debugf("%s Data to send: %v", c.id, data)
-	result := make(chan url.URL)
-	go func() {
+	result := make([]url.URL, 0)
+	for _, aggname := range c.Items {
 		request := c.makeBaseUrl()
-		for _, aggname := range c.Items {
-			var root, metricname string
-			if items := strings.SplitN(aggname, ".", 2); len(items) > 1 {
-				root, metricname = items[0], items[1]
-			} else {
-				root = items[0]
+		var root, metricname string
+		if items := strings.SplitN(aggname, ".", 2); len(items) > 1 {
+			root, metricname = items[0], items[1]
+		} else {
+			root = items[0]
+		}
+
+		for _, value := range data[root] {
+			subgroup := reflect.ValueOf(value)
+			if subgroup.Kind() != reflect.Map {
+				continue
+			} // {4xx: {ip:99%} ...
+
+			codes := subgroup.MapIndex(reflect.ValueOf(metricname))
+			if !codes.IsValid() {
+				continue
+			}
+			ips := reflect.ValueOf(codes.Interface())
+			if ips.Kind() != reflect.Map {
+				continue
 			}
 
-			for _, value := range data[root] {
-				subgroup := reflect.ValueOf(value)
-				if subgroup.Kind() != reflect.Map {
-					continue
-				} // {4xx: {ip:99%} ...
-
-				codes := subgroup.MapIndex(reflect.ValueOf(metricname))
-				if !codes.IsValid() {
-					continue
-				}
-				ips := reflect.ValueOf(codes.Interface())
-				if ips.Kind() != reflect.Map {
-					continue
-				}
-
-				for _, ip := range ips.MapKeys() {
-					rps_prc := reflect.ValueOf(ips.MapIndex(ip).Interface())
-					val := c.makeUrlValues(reflect.ValueOf(ip.Interface()).String(), metricname, rps_prc.Float())
-					request.RawQuery = val.Encode()
-					result <- request
-				}
+			for _, ip := range ips.MapKeys() {
+				rps_prc := reflect.ValueOf(ips.MapIndex(ip).Interface())
+				val := c.makeUrlValues(reflect.ValueOf(ip.Interface()).String(), metricname, rps_prc.Float())
+				request.RawQuery = val.Encode()
+				result = append(result, request)
 			}
 		}
-		defer close(result)
-	}()
+	}
 	return result, nil
 }
 
@@ -135,7 +132,7 @@ func (c *CBBSender) Send(data tasks.DataType, timestamp uint64) error {
 	if err != nil {
 		return err
 	}
-	for query := range result {
+	for _, query := range result {
 		req, err := http.NewRequest("GET", query.String(), nil)
 		if err != nil {
 			return err
