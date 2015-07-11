@@ -50,7 +50,7 @@ func TestMain(t *testing.T) {
 			t.Fail()
 		}
 		requests := make([]url.URL, 0)
-		for u := range res {
+		for _, u := range res {
 			requests = append(requests, u)
 		}
 		return requests
