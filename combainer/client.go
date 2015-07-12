@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
+	"github.com/noxiouz/Combaine/combainer/slave"
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
@@ -278,8 +279,8 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 }
 
 type resolveInfo struct {
-	App *cocaine.Service
-	Err error
+	Slave slave.Slave
+	Err   error
 }
 
 func resolve(appname, endpoint string) <-chan resolveInfo {
@@ -288,8 +289,8 @@ func resolve(appname, endpoint string) <-chan resolveInfo {
 		app, err := cocaine.NewService(appname, endpoint)
 		select {
 		case res <- resolveInfo{
-			App: app,
-			Err: err,
+			Slave: slave.NewSlave(app),
+			Err:   err,
 		}:
 		default:
 			if err == nil {
@@ -307,21 +308,21 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 	}
 
 	var (
-		err  error
-		app  *cocaine.Service
-		host string
+		err   error
+		slave slave.Slave
+		host  string
 	)
 
 	for deadline.After(time.Now()) {
 		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-resolve(appName, host):
-			err, app = r.Err, r.App
+			err, slave = r.Err, r.Slave
 		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Tid(), host, appName)
 		}
 		if err == nil {
-			defer app.Close()
+			defer slave.Close()
 			cl.Log.WithFields(logrus.Fields{
 				"session": task.Tid(),
 				"host":    host,
@@ -339,7 +340,7 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 		time.Sleep(200 * time.Microsecond)
 	}
 
-	if app == nil {
+	if slave == nil {
 		cl.Log.WithFields(logrus.Fields{
 			"session": task.Tid(),
 			"error":   ErrAppUnavailable,
@@ -349,7 +350,8 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 	}
 
 	raw, _ := task.Raw()
-	res, err := PerformTask(ctx, app, raw)
+	var res string
+	err = slave.Do("enqueue", "handleTask", raw).Wait(ctx, &res)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
 			"session": task.Tid(),
@@ -399,6 +401,6 @@ func PerformTask(ctx context.Context, app *cocaine.Service, payload []byte) (int
 		err := res.Extract(&i)
 		return i, err
 	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return nil, ErrHandlerTimeout
 }
