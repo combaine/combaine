@@ -27,6 +27,7 @@ deps:
 	go get github.com/gorilla/mux
 	go get github.com/mitchellh/mapstructure
 	go get github.com/kr/pretty
+	go get golang.org/x/net/context
 	mkdir -vp $(PACKAGE_PATH)
 	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
