@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
 
-const format = "02/01/2006 15:04:05"
+// const format = "02/01/2006 15:04:05"
+const format = time.RFC3339
 
 type CombaineFormatter struct{}
 
