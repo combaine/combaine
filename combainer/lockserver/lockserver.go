@@ -52,16 +52,17 @@ ZK_CONNECTING_WAIT_LOOP:
 
 			switch event.State {
 			case zookeeper.STATE_CONNECTED:
-				log.Infof("Connected to Zookeeper successfully")
+				log.Infof("connected to Zookeeper successfully")
 				break ZK_CONNECTING_WAIT_LOOP
 			case zookeeper.STATE_CONNECTING:
-				log.Infof("Connecting to Zookeeper...")
+				log.Infof("connecting to Zookeeper")
 			default:
-				log.Warningf("Unexpectable Zookeeper session event: %s", event)
+				log.Warningf("unexpectable Zookeeper session event: %s", event)
 			}
 		case <-deadline:
 			zk.Close()
-			return nil, fmt.Errorf("connection timeout")
+			log.Error("connection deadline exceeded")
+			return nil, fmt.Errorf("connection deadline exceeded")
 		}
 	}
 
