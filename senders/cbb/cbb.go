@@ -64,8 +64,7 @@ func (c *CBBSender) makeBaseUrl() url.URL {
 	return reqUrl
 }
 
-func (c *CBBSender) makeUrlValues(ip string, code string, rate float64) url.Values {
-	var desc string
+func (c *CBBSender) makeUrlValues(ip string, code string, desc string) url.Values {
 	val := url.Values{
 		"flag":      []string{strconv.Itoa(c.Flag)},
 		"operation": []string{"add"},
@@ -80,10 +79,8 @@ func (c *CBBSender) makeUrlValues(ip string, code string, rate float64) url.Valu
 		val.Add("net_ip", ip)
 		val.Add("net_mask", "32")
 	}
-	if c.Description == "" {
-		desc = fmt.Sprintf("Combaine: %s(%.1f%%) rps over limit!", code, rate)
-	} else {
-		desc = fmt.Sprintf(c.Description)
+	if c.Description != "" {
+		desc = fmt.Sprintf("%s: %s", c.Description, desc)
 	}
 	val.Add("description", desc)
 	return val
@@ -105,7 +102,7 @@ func (c *CBBSender) send(data tasks.DataType, timestamp uint64) ([]url.URL, erro
 			subgroup := reflect.ValueOf(value)
 			if subgroup.Kind() != reflect.Map {
 				continue
-			} // {4xx: {ip:99%} ...
+			} // {4xx: {ip: "some text desc 99%"} ...
 
 			codes := subgroup.MapIndex(reflect.ValueOf(metricname))
 			if !codes.IsValid() {
@@ -116,9 +113,18 @@ func (c *CBBSender) send(data tasks.DataType, timestamp uint64) ([]url.URL, erro
 				continue
 			}
 
+			var desc string
 			for _, ip := range ips.MapKeys() {
-				rps_prc := reflect.ValueOf(ips.MapIndex(ip).Interface())
-				val := c.makeUrlValues(reflect.ValueOf(ip.Interface()).String(), metricname, rps_prc.Float())
+				desc_v := reflect.ValueOf(ips.MapIndex(ip).Interface())
+				desc_t := desc_v.Type()
+
+				if desc_v.Kind() == reflect.Slice && desc_t.Elem().Kind() == reflect.Uint8 {
+					desc = string(desc_v.Bytes())
+				} else {
+					desc = fmt.Sprintf("%v", desc_v.Interface())
+				}
+
+				val := c.makeUrlValues(reflect.ValueOf(ip.Interface()).String(), metricname, desc)
 				request.RawQuery = val.Encode()
 				result = append(result, request)
 			}
