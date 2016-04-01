@@ -46,6 +46,10 @@ case $1 in
 		echo "Deploy cbb"
 		cd /usr/lib/yandex/combaine/core-apps/cbb/
 		./deploy.sh
+
+		echo "Deploy solomon"
+		cd /usr/lib/yandex/combaine/core-apps/solomon/
+		./deploy.sh
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

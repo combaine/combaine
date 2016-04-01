@@ -79,6 +79,11 @@ override_dh_install:
 	install -m755 $(BUILD_DIR)/main_cbb  $(DEB_DESTDIR)$(CORE_APPS_PATH)/cbb
 	install -m664 deploy/manifests/manifest_cbb.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/cbb
 	install -m755 deploy/scripts/deploy_cbb.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/cbb/deploy.sh
+	# solomon
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/solomon
+	install -m755 $(BUILD_DIR)/main_solomon  $(DEB_DESTDIR)$(CORE_APPS_PATH)/solomon
+	install -m664 deploy/manifests/manifest_solomon.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/solomon
+	install -m755 deploy/scripts/deploy_solomon.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/solomon/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
