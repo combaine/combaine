@@ -2,7 +2,7 @@
 
 ### Host configuration
 
-API url to send data can be overridden in the configuration file ```/etc/combaine/cbb.conf```:
+API url to send data can be overridden in the configuration file ```/etc/combaine/solomon-api.conf```:
 
 ```
 http://api.domain.net/api/push/json
