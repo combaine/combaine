@@ -1,5 +1,7 @@
 .PHONY: clean
 
+export GO15VENDOREXPERIMENT=0
+
 # pwd
 CURDIR:=$(shell pwd)
 
