@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc58) unstable; urgency=low
+
+  * [Sender] Solomon
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 07 Apr 2016 01:49:26 +0300
+
 combaine (0.7.0.1-rc57) unstable; urgency=low
 
   * [Razladki] Remove the slash from URI
