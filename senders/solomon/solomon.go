@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/noxiouz/Combaine/common"
@@ -40,6 +41,7 @@ type SolomonSender interface {
 type solomonClient struct {
 	id      string
 	api     string
+	prefix  string
 	project string
 	cluster string
 	fields  []string
@@ -94,7 +96,7 @@ func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
 	}
 
 	*sensors = append(*sensors, sensor{
-		Labels: map[string]string{"sensor": name},
+		Labels: map[string]string{"sensor": s.prefix + name},
 		Ts:     timestamp,
 		Value:  sensorValue,
 	})
@@ -173,12 +175,19 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 	for aggname, subgroupsAndValues := range *data {
 		logger.Debugf("%s Sender handle aggregate named %s", s.id, aggname)
 
+		service := aggname
+		if strings.ContainsRune(aggname, '.') {
+			aPrefix := strings.SplitN(aggname, ".", 2)
+			service = aPrefix[0]
+			s.prefix = aPrefix[1] + "."
+		}
+
 		for host, value := range subgroupsAndValues {
 			sensors := make([]sensor, 0)
 			pushData = solomonPush{
 				CommonLabels: comLabels{
 					Host:    host,
-					Service: aggname,
+					Service: service,
 					Cluster: s.cluster,
 					Project: s.project,
 				},

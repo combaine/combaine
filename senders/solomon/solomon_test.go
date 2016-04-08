@@ -24,7 +24,7 @@ func TestSolomonSend(t *testing.T) {
 	}
 
 	simpleOneItemData := tasks.DataType{
-		"serviceName": {
+		"serviceName.With.Dot": {
 			"hostName": map[string]interface{}{
 				"sensorName": 17,
 			},
@@ -38,7 +38,7 @@ func TestSolomonSend(t *testing.T) {
 			"host":	   "hostName",
 			"service": "serviceName"
 		},
-		"sensors": [{"labels": {"sensor": "sensorName"}, "ts": 10, "value": 17}]}
+		"sensors": [{"labels": {"sensor": "With.Dot.sensorName"}, "ts": 10, "value": 17}]}
 	}`
 
 	if err := json.Unmarshal([]byte(simpleOneItemJSON), &expectedData); err != nil {
