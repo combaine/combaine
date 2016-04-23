@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc71-custom1) unstable; urgency=medium
+
+  * revert 8b173e6 (Slave) 0930e45 (Context)
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sun, 24 Apr 2016 02:01:38 +0600
+
 combaine (0.7.0.1-rc71) unstable; urgency=low
 
   * [Solomon] prefix for sensors from aggname
