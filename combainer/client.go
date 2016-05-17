@@ -2,7 +2,6 @@ package combainer
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
-	"github.com/noxiouz/Combaine/combainer/slave"
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/hosts"
@@ -35,13 +33,12 @@ type Client struct {
 	*Context
 	Log *logrus.Entry
 	clientStats
-	context context.Context
 }
 
-func NewClient(ctx *Context, repo configs.Repository) (*Client, error) {
-	if ctx.Hosts == nil {
+func NewClient(context *Context, repo configs.Repository) (*Client, error) {
+	if context.Hosts == nil {
 		err := fmt.Errorf("Hosts delegate must be specified")
-		ctx.Logger.WithFields(logrus.Fields{
+		context.Logger.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to create Client")
 		return nil, err
@@ -51,9 +48,8 @@ func NewClient(ctx *Context, repo configs.Repository) (*Client, error) {
 	cl := &Client{
 		Id:         id,
 		Repository: repo,
-		Context:    ctx,
-		Log:        ctx.Logger.WithField("client", id),
-		context:    context.Background(),
+		Context:    context,
+		Log:        context.Logger.WithField("client", id),
 	}
 	return cl, nil
 }
@@ -208,6 +204,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 	startTime = time.Now()
 	deadline = startTime.Add(sessionParameters.ParsingTime)
+
 	cl.Log.WithFields(contextFields).Info("Start new iteration")
 
 	hosts, err := cl.Context.Hosts()
@@ -223,7 +220,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 	// Parsing phase
 	totalTasksAmount := len(sessionParameters.PTasks)
-	parsingCtx, parsingCancel := context.WithDeadline(cl.context, deadline)
 	for i, task := range sessionParameters.PTasks {
 		// Description of task
 		task.PrevTime = startTime.Unix()
@@ -233,22 +229,15 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to parsing %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cl.doParsingTask(parsingCtx, task, hosts)
-		}()
+		go cl.doParsingTask(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	// release all resources connected with context
-	parsingCancel()
 
 	cl.Log.WithFields(contextFields).Info("Parsing finished")
 
 	// Aggregation phase
 	deadline = startTime.Add(sessionParameters.WholeTime)
 	totalTasksAmount = len(sessionParameters.AggTasks)
-	aggContext, aggCancel := context.WithDeadline(cl.context, deadline)
-
 	for i, task := range sessionParameters.AggTasks {
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
@@ -257,14 +246,9 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cl.doAggregationHandler(aggContext, task, hosts)
-		}()
+		go cl.doAggregationHandler(task, &wg, deadline, hosts)
 	}
 	wg.Wait()
-	// release all resources connected with context
-	aggCancel()
 
 	cl.Log.WithFields(contextFields).Info("Aggregation has finished")
 
@@ -279,8 +263,8 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 }
 
 type resolveInfo struct {
-	Slave slave.Slave
-	Err   error
+	App *cocaine.Service
+	Err error
 }
 
 func resolve(appname, endpoint string) <-chan resolveInfo {
@@ -289,8 +273,8 @@ func resolve(appname, endpoint string) <-chan resolveInfo {
 		app, err := cocaine.NewService(appname, endpoint)
 		select {
 		case res <- resolveInfo{
-			Slave: slave.NewSlave(app),
-			Err:   err,
+			App: app,
+			Err: err,
 		}:
 		default:
 			if err == nil {
@@ -301,28 +285,26 @@ func resolve(appname, endpoint string) <-chan resolveInfo {
 	return res
 }
 
-func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.Task, hosts []string) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("no deadline is set")
-	}
+func (cl *Client) doGeneralTask(appName string, task tasks.Task, wg *sync.WaitGroup, deadline time.Time, hosts []string) error {
+	defer (*wg).Done()
+	limit := deadline.Sub(time.Now())
 
 	var (
-		err   error
-		slave slave.Slave
-		host  string
+		err  error
+		app  *cocaine.Service
+		host string
 	)
 
 	for deadline.After(time.Now()) {
 		host = fmt.Sprintf("%s:10053", getRandomHost(hosts))
 		select {
 		case r := <-resolve(appName, host):
-			err, slave = r.Err, r.Slave
+			err, app = r.Err, r.App
 		case <-time.After(1 * time.Second):
 			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Tid(), host, appName)
 		}
 		if err == nil {
-			defer slave.Close()
+			defer app.Close()
 			cl.Log.WithFields(logrus.Fields{
 				"session": task.Tid(),
 				"host":    host,
@@ -340,7 +322,7 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 		time.Sleep(200 * time.Microsecond)
 	}
 
-	if slave == nil {
+	if app == nil {
 		cl.Log.WithFields(logrus.Fields{
 			"session": task.Tid(),
 			"error":   ErrAppUnavailable,
@@ -350,8 +332,7 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 	}
 
 	raw, _ := task.Raw()
-	var res string
-	err = slave.Do("enqueue", "handleTask", raw).Wait(ctx, &res)
+	res, err := PerformTask(app, raw, limit)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
 			"session": task.Tid(),
@@ -370,16 +351,16 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 	return nil
 }
 
-func (cl *Client) doParsingTask(ctx context.Context, task tasks.ParsingTask, hosts []string) {
-	if err := cl.doGeneralTask(ctx, common.PARSING, &task, hosts); err != nil {
+func (cl *Client) doParsingTask(task tasks.ParsingTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.PARSING, &task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedParsing()
 		return
 	}
 	cl.clientStats.AddSuccessParsing()
 }
 
-func (cl *Client) doAggregationHandler(ctx context.Context, task tasks.AggregationTask, hosts []string) {
-	if err := cl.doGeneralTask(ctx, common.AGGREGATE, &task, hosts); err != nil {
+func (cl *Client) doAggregationHandler(task tasks.AggregationTask, wg *sync.WaitGroup, deadline time.Time, hosts []string) {
+	if err := cl.doGeneralTask(common.AGGREGATE, &task, wg, deadline, hosts); err != nil {
 		cl.clientStats.AddFailedAggregate()
 		return
 	}
@@ -391,7 +372,7 @@ func getRandomHost(input []string) string {
 	return input[rand.Intn(max)]
 }
 
-func PerformTask(ctx context.Context, app *cocaine.Service, payload []byte) (interface{}, error) {
+func PerformTask(app *cocaine.Service, payload []byte, limit time.Duration) (interface{}, error) {
 	select {
 	case res := <-app.Call("enqueue", "handleTask", payload):
 		if res.Err() != nil {
@@ -400,7 +381,7 @@ func PerformTask(ctx context.Context, app *cocaine.Service, payload []byte) (int
 		var i interface{}
 		err := res.Extract(&i)
 		return i, err
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-time.After(limit):
 	}
+	return nil, ErrHandlerTimeout
 }
