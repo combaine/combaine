@@ -1,3 +1,9 @@
+combaine (0.7.0.1-rc72) unstable; urgency=medium
+
+  * [Sender] juggler: filter metrics by name
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sat, 18 Jun 2016 22:58:08 +0600
+
 combaine (0.7.0.1-rc71-custom1) unstable; urgency=medium
 
   * revert 8b173e6 (Slave) 0930e45 (Context)
