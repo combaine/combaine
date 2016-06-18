@@ -70,6 +70,10 @@ DEFAULT_CRITICAL_TIME = 1200
 log = Logger()
 
 
+def filtered_by_end(k, ends):
+    return any((k.endswith(i) for i in ends))
+
+
 def extract_condition(inp):
     # ToDo: optimize
     left = len(inp)
@@ -126,6 +130,7 @@ class Juggler(object):
         self.juggler_frontend = cfg['JUGGLER_FRONTEND']
         self.aggregator_kwargs = json.dumps(cfg.get('AGGREGATOR_KWARGS',
                                                     DEFAULT_AGGREGATOR_KWARGS))
+        self.subgroup_notendswith_filters = cfg.get('FILTERS', [])
         self.flap = cfg.get('FLAP', None)
         if self.flap is not None:
             self.flap["flap_time"] = self.flap.get("flap_time", DEFAULT_FLAP_TIME)
@@ -150,7 +155,8 @@ class Juggler(object):
             for subgroup, value in subgroups.iteritems():
                 packed[subgroup][aggname] = value
 
-        for subgroup, value in packed.iteritems():
+        generated = ((k, v) for k, v in packed.iteritems() if not filtered_by_end(k, self.subgroup_notendswith_filters))
+        for subgroup, value in generated:
             self.log.debug("Habdling subgroup %s" % subgroup)
             if self.check(value, subgroup, "CRIT"):
                 self.log.debug("CRIT")
