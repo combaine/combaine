@@ -19,19 +19,14 @@ import (
 )
 
 const (
-	CONNECTION_TIMEOUT = 2000 // ms
-	RW_TIMEOUT         = 3000 // ms
+	CONNECTION_TIMEOUT = 3000 // ms
+	RW_TIMEOUT         = 5000 // ms
 )
 
 var (
 	SolomonHTTPClient = httpclient.NewClientWithTimeout(
 		time.Millisecond*CONNECTION_TIMEOUT,
 		time.Millisecond*RW_TIMEOUT)
-)
-
-const (
-	connectionTimeout  = 900      //msec
-	connectionEndpoint = ":42000" //msec
 )
 
 type SolomonSender interface {
@@ -223,6 +218,7 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s %s", s.id, err)
 	}
+	logger.Infof("%s Send %d items", s.id, len(data))
 	for _, v := range data {
 		push, err := json.Marshal(v)
 		if err != nil {
