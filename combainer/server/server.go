@@ -200,7 +200,7 @@ LOCKSERVER_LOOP:
 								c.log.WithFields(logrus.Fields{
 									"error":    err,
 									"lockname": lockname,
-								}).Error("can't watch")
+								}).Error("can't create watch")
 								return
 							}
 
@@ -223,7 +223,7 @@ LOCKSERVER_LOOP:
 										c.log.WithFields(logrus.Fields{
 											"error":    err,
 											"lockname": lockname,
-										}).Error("can't watch")
+										}).Error("can't continue watch")
 										return
 									}
 								default:
@@ -233,6 +233,12 @@ LOCKSERVER_LOOP:
 					}
 				}(configs)
 			case event := <-DLS.Session:
+				if event.Type == zookeeper.STATE_CONNECTING {
+					// https://godoc.org/launchpad.net/gozk/zookeeper#Event
+					c.log.Warn("reconnecting event from Zookeeper session")
+					continue
+				}
+
 				if !event.Ok() {
 					c.log.Errorf("not OK event from Zookeeper: %s", event)
 					DLS.Close()
