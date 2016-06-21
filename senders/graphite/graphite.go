@@ -68,7 +68,7 @@ func makePoint(format, cluster, subgroup string) pointFormat {
 }
 
 func (g *graphiteClient) send(output io.Writer, data string) error {
-	logger.Infof("%s Send %s", g.id, data)
+	logger.Debugf("%s Send %s", g.id, data)
 	if _, err := fmt.Fprint(output, data); err != nil {
 		logger.Errf("%s Sending error: %s", g.id, err)
 		return err
@@ -153,7 +153,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 	metricName := make(NameStack, 0, 3)
 
 	for aggname, subgroupsAndValues := range *data {
-		logger.Debugf("%s Handle aggregate named %s", g.id, aggname)
+		logger.Infof("%s Handle aggregate named %s", g.id, aggname)
 
 		metricName.Push(aggname)
 		for subgroup, value := range subgroupsAndValues {
