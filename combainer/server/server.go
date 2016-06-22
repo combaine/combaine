@@ -223,7 +223,7 @@ LOCKSERVER_LOOP:
 										c.log.WithFields(logrus.Fields{
 											"error":    err,
 											"lockname": lockname,
-										}).Error("can't continue watch")
+										}).Error("can't continue watching")
 										return
 									}
 								default:
