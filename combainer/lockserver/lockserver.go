@@ -88,6 +88,9 @@ func (ls *LockServer) Lock(node string) error {
 	if err != nil {
 		return err
 	}
+	if meta, err := ls.Zk.Exists(path); meta != nil {
+		return fmt.Errorf("Node %s alredy exists", path)
+	}
 	_, err = ls.Zk.Create(path, content, zookeeper.EPHEMERAL, zookeeper.WorldACL(zookeeper.PERM_ALL))
 	return err
 }

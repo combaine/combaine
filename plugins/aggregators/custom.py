@@ -67,6 +67,7 @@ def aggregate_host(request, response):
     logger.info("Handle task")
     cfg = task['config']
     klass_name = cfg['class']
+    cfg['logger'] = logger
     # Replace this name
     payload = task['token']
     try:
@@ -90,6 +91,7 @@ def aggregate_group(request, response):
     logger.debug("Unpack raw data successfully")
     payload = map(msgpack.unpackb, data)
     klass_name = cfg['class']
+    cfg['logger'] = logger
     try:
         result = _aggregate_group(klass_name, payload, cfg)
     except KeyError:
