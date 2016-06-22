@@ -1,3 +1,12 @@
+combaine (0.7.0.2) unstable; urgency=medium
+
+  * [Lockserver] ignore session re-connecting, more clear logs [Sergey Kacheev]
+  * [Custom] Propagate logger into custom plugin [Anton Tiurin]
+  * [Senders] graphite sender log.info only aggregate name [Sergey Kacheev]
+  * [Senders] more logging for solomon [Sergey Kacheev]
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 22 Jun 2016 13:22:28 +0600
+
 combaine (0.7.0.1-rc72) unstable; urgency=medium
 
   * [Sender] juggler: filter metrics by name
