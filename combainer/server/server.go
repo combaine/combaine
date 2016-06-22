@@ -215,7 +215,7 @@ LOCKSERVER_LOOP:
 								select {
 								case event := <-watcher:
 									if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
-										c.log.Error("lock has been lost: %s", event)
+										c.log.Errorf("lock has been lost: %s", event)
 										return
 									}
 									watcher, err = DLS.Watch(lockname)
