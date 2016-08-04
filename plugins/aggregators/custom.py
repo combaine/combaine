@@ -1,65 +1,74 @@
 #!/usr/bin/env python
+"""Aggregator with extensions support"""
 
 import os
 import sys
 import imp
 
 import msgpack
-
+# pylint: disable=import-error
 from cocaine.worker import Worker
 from cocaine.logging import Logger
 
 from combaine.common.logger import get_logger_adapter
+# pylint: enable=import-error
 
-Log = Logger()
+LOG = Logger()
 
-PATH = os.environ.get('PLUGINS_PATH',
-                      '/usr/lib/yandex/combaine/custom')
+PATH = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
 sys.path.insert(0, PATH)
 
 EXTS = [ext for (ext, _, _) in imp.get_suffixes()]
 
 
-def _isPlugin(candidate):
+def _is_plugin(candidate):
     name, extension = os.path.splitext(candidate)
-    if name != "__init__" and extension in EXTS:
-        return True
-    else:
-        return False
+    return name != "__init__" and extension in EXTS
+
+
+def _is_candidate(name):
+    return not name.startswith("_") and name[0].isupper()
 
 
 def plugin_import():
-    modules = set(map(lambda x: x.split('.')[0], filter(_isPlugin,
-                                                        os.listdir(PATH))))
-    all_parser_functions = {}
+    """
+    It tries to import the extensions of a custom aggregator
+    in the private namespace and select all the names starting
+    with an uppercase letter
+    """
+
+    modules = set(os.path.splitext(c)[0] for c in os.listdir(PATH)
+                  if _is_plugin(c))
+    all_custom_parsers = {}
     for module in modules:
         try:
-            fp, path, descr = imp.find_module(module, [PATH])
+            mfp, path, descr = imp.find_module(module, [PATH])
         except ImportError:
             continue
-        else:
-            try:
-                _temp = imp.load_module("temp", fp, path, descr)
-                for item in filter(lambda x: not x.startswith("__"),
-                                   dir(_temp)):
-                    candidate = getattr(_temp, item)
-                    if callable(candidate):
-                        all_parser_functions[item] = candidate
-            except ImportError as err:
-                Log.error("ImportError. Module: %s %s" % (module, repr(err)))
-                pass
-            except Exception as err:
-                Log.error("Exception. Module: %s %s" % (module, repr(err)))
-                pass
-            finally:
-                if fp:
-                    fp.close()
-    Log.debug("%s are available functions for parsing"
-              % ' '.join(all_parser_functions.keys()))
-    return all_parser_functions
+
+        try:
+            _temp = imp.load_module(module, mfp, path, descr)
+            for item in (x for x in dir(_temp) if _is_candidate(x)):
+                candidate = getattr(_temp, item)
+                if callable(candidate):
+                    all_custom_parsers[item] = candidate
+        except ImportError as err:
+            LOG.error("ImportError. Module: %s %s" % (module, repr(err)))
+        except Exception as err:  # pylint: disable=broad-except
+            LOG.error("Exception. Module: %s %s" % (module, repr(err)))
+        finally:
+            if mfp:
+                mfp.close()
+    LOG.debug("%s are available custom plugin for parsing"
+              % str(all_custom_parsers.keys()))
+    return all_custom_parsers
 
 
 def aggregate_host(request, response):
+    """
+    Gets the result of a single host,
+    performs parsing and their aggregation
+    """
     raw = yield request.read()
     task = msgpack.unpackb(raw)
     tid = task['id']
@@ -77,7 +86,7 @@ def aggregate_host(request, response):
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
-    except Exception as err:
+    except Exception as err:  # pylint: disable=broad-except
         response.error(-3, "Exception during handling %s" % repr(err))
         logger.error("Error %s", err)
     finally:
@@ -85,6 +94,10 @@ def aggregate_host(request, response):
 
 
 def aggregate_group(request, response):
+    """
+    Receives a list of results from the aggregate_host,
+    and performs aggregation by group
+    """
     raw = yield request.read()
     tid, cfg, data = msgpack.unpackb(raw)
     logger = get_logger_adapter(tid)
@@ -97,7 +110,7 @@ def aggregate_group(request, response):
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
-    except Exception as err:
+    except Exception as err:  # pylint: disable=broad-except
         logger.error("%s", err)
         response.error(100, repr(err))
     else:
