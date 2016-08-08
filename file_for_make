@@ -3,7 +3,7 @@
 # pwd
 CURDIR:=$(shell pwd)
 
-MAIN_FILES_DIR=$(CURDIR)/main_files
+CMD_DIR=$(CURDIR)/cmd
 
 # packages for go
 PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz
@@ -32,26 +32,25 @@ deps:
 		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
 
 combainer_: deps
-
-	go build -o $(BUILD_DIR)/main_combainer $(MAIN_FILES_DIR)/combainer_main.go
+	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go
 
 parsing_: deps
-	go build -o $(BUILD_DIR)/main_parsing-core $(MAIN_FILES_DIR)/parsing_main.go
+	go build -o $(BUILD_DIR)/parsing-core $(CMD_DIR)/parsing/main.go
 
 agave_: deps
-	go build -o $(BUILD_DIR)/main_agave $(MAIN_FILES_DIR)/agave_main.go
+	go build -o $(BUILD_DIR)/agave $(CMD_DIR)/agave/main.go
 
 graphite_: deps
-	go build -o $(BUILD_DIR)/main_graphite $(MAIN_FILES_DIR)/graphite_main.go
+	go build -o $(BUILD_DIR)/graphite $(CMD_DIR)/graphite/main.go
 
 razladki_: deps
-	go build -o $(BUILD_DIR)/main_razladki $(MAIN_FILES_DIR)/razladki_main.go
+	go build -o $(BUILD_DIR)/razladki $(CMD_DIR)/razladki/main.go
 
 cbb_: deps
-	go build -o $(BUILD_DIR)/main_cbb $(MAIN_FILES_DIR)/cbb_main.go
+	go build -o $(BUILD_DIR)/cbb $(CMD_DIR)/cbb/main.go
 
 solomon_: deps
-	go build -o $(BUILD_DIR)/main_solomon $(MAIN_FILES_DIR)/solomon_main.go
+	go build -o $(BUILD_DIR)/solomon $(CMD_DIR)/solomon/main.go
 
 
 fixture: deps
