@@ -114,7 +114,7 @@ def aggregate_group(request, response):
         logger.error(str(err))
         response.error(100, repr(err))
     else:
-        logger.info("Result of group aggreagtion %s", ret)
+        logger.info("Result of group aggregation %s", ret)
         response.write(ret)
         response.close()
 

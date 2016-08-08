@@ -37,7 +37,7 @@ type ParsingTask struct {
 	ParsingConfigName string
 	// Content of the current parsing config
 	ParsingConfig configs.ParsingConfig
-	// Content of aggreagtion configs
+	// Content of aggregation configs
 	// related to the current parsing config
 	AggregationConfigs map[string]configs.AggregationConfig
 }
