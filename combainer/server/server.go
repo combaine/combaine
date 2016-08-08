@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/noxiouz/Combaine/vendor/launchpad.net/gozk/zookeeper"
+
+	"launchpad.net/gozk/zookeeper"
 
 	"github.com/noxiouz/Combaine/combainer"
 	"github.com/noxiouz/Combaine/combainer/lockserver"

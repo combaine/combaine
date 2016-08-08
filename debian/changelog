@@ -1,3 +1,10 @@
+combaine (0.7.0.3) precise; urgency=low
+
+  * vendor like go1.6 imports
+  * Private namespace for custom aggregator extensions
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 08 Aug 2016 17:20:57 +0300
+
 combaine (0.7.0.2) unstable; urgency=medium
 
   * [Lockserver] ignore session re-connecting, more clear logs [Sergey Kacheev]

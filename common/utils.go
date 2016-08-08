@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/noxiouz/Combaine/vendor/github.com/ugorji/go/codec"
+	"github.com/ugorji/go/codec"
+
 	"gopkg.in/yaml.v2"
 )
 

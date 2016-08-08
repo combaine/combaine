@@ -1,7 +1,5 @@
 .PHONY: clean
 
-export GO15VENDOREXPERIMENT=0
-
 # pwd
 CURDIR:=$(shell pwd)
 
@@ -67,3 +65,5 @@ test:
 	go test -v ./senders/...
 	go test -v ./fetchers/...
 	go test -v ./combainer/...
+
+# vim: ft=make

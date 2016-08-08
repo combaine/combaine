@@ -7,9 +7,10 @@ import (
 	"os"
 	"path"
 
+	"github.com/ugorji/go/codec"
+
 	"github.com/noxiouz/Combaine/common/configs"
 	"github.com/noxiouz/Combaine/common/tasks"
-	"github.com/ugorji/go/codec"
 )
 
 var (
