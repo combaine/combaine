@@ -1,0 +1,10 @@
+data:
+  apps:
+    type: custom
+    class: Multimetrics
+    rps: "no"
+    perHost: YES
+senders:
+  graphite:
+    type: graphite
+    cluster: combaine.test
