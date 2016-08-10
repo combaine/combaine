@@ -44,5 +44,5 @@ func TestAggregating(t *testing.T) {
 		"DC1": []string{"Host1", "Host2"},
 		"DC2": []string{"Host3", "Host4"},
 	}
-	Aggregating(&aggTask)
+	Aggregating(aggTask)
 }

@@ -1,6 +1,6 @@
 groups: [test-combainer]
 metahost: test-combainer
-agg_configs: [testCombainerSystemResourcesByApp]
+agg_configs: [forAggCore]
 parser: NullParser
 raw: true
 DataFetcher:

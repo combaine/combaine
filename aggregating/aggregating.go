@@ -15,7 +15,7 @@ var (
 	cacher servicecacher.Cacher = servicecacher.NewCacher()
 )
 
-func Aggregating(task *tasks.AggregationTask) error {
+func Aggregating(task tasks.AggregationTask) error {
 	logger.Infof("%s start aggregating", task.Id)
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
 
