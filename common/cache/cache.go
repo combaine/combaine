@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/Combaine/Combaine/common/configs"
 )
 
 func init() {

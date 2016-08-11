@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/noxiouz/Combaine/common/tasks"
-	"github.com/noxiouz/Combaine/parsing"
+	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/parsing"
 )
 
 func init() {

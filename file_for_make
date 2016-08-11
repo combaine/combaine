@@ -6,7 +6,7 @@ CURDIR:=$(shell pwd)
 CMD_DIR=$(CURDIR)/cmd
 
 # packages for go
-PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz
+PACKAGE_PATH=$(CURDIR)/src/github.com/Combaine
 
 # build dir
 BUILD_DIR=$(CURDIR)/build
@@ -28,8 +28,8 @@ deps:
 	go get github.com/mitchellh/mapstructure
 	go get github.com/kr/pretty
 	mkdir -vp $(PACKAGE_PATH)
-	if [ ! -d $(CURDIR)/src/github.com/noxiouz/Combaine ];then\
-		ln -vs $(CURDIR) $(CURDIR)/src/github.com/noxiouz/Combaine; fi;
+	if [ ! -d $(CURDIR)/src/github.com/Combaine/Combaine ];then\
+		ln -vs $(CURDIR) $(CURDIR)/src/github.com/Combaine/Combaine; fi;
 
 combainer_: deps
 	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go

@@ -10,7 +10,7 @@
 #export DH_VERBOSE=1
 #export DEB_VERBOSE_ALL=1
 
-PACKAGE_PATH=$(CURDIR)/src/github.com/noxiouz/Combaine
+PACKAGE_PATH=$(CURDIR)/src/github.com/Combaine/Combaine
 BUILD_DIR=$(CURDIR)/build
 
 COMBAINE_LIB_PATH=/usr/lib/yandex/combaine

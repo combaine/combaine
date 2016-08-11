@@ -17,9 +17,9 @@ __status__ = 'Production'
 __title__ = 'Combaine'
 __build__ = 0x000000
 
-__url__ = 'https://github.com/noxiouz/Combaine'
+__url__ = 'https://github.com/Combaine/Combaine'
 __description__ = 'Bleeding edge'
-d = 'https://github.com/noxiouz/docker-registry-driver-elliptics/archive/\
+d = 'https://github.com/Combaine/docker-registry-driver-elliptics/archive/\
 master.zip'
 
 setuptools.setup(

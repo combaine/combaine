@@ -11,9 +11,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/noxiouz/Combaine/common/configs"
-	"github.com/noxiouz/Combaine/common/hosts"
-	"github.com/noxiouz/Combaine/common/httpclient"
+	"github.com/Combaine/Combaine/common/configs"
+	"github.com/Combaine/Combaine/common/hosts"
+	"github.com/Combaine/Combaine/common/httpclient"
 )
 
 func init() {

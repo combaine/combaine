@@ -8,10 +8,10 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/logger"
-	"github.com/noxiouz/Combaine/common/tasks"
-	"github.com/noxiouz/Combaine/senders/agave"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/logger"
+	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/senders/agave"
 )
 
 var (

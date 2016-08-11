@@ -3,7 +3,7 @@ package agave
 import (
 	"testing"
 
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 

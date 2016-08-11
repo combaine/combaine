@@ -12,10 +12,10 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/httpclient"
-	"github.com/noxiouz/Combaine/common/logger"
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/httpclient"
+	"github.com/Combaine/Combaine/common/logger"
+	"github.com/Combaine/Combaine/common/tasks"
 )
 
 const (

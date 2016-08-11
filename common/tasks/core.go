@@ -1,9 +1,9 @@
 package tasks
 
 import (
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/configs"
-	"github.com/noxiouz/Combaine/common/hosts"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/configs"
+	"github.com/Combaine/Combaine/common/hosts"
 )
 
 type Task interface {

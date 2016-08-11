@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/tasks"
 
 	"github.com/stretchr/testify/assert"
 )

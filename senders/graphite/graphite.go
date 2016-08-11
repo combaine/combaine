@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/logger"
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/logger"
+	"github.com/Combaine/Combaine/common/tasks"
 )
 
 func formatSubgroup(input string) string {

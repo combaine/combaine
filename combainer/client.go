@@ -9,10 +9,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/configs"
-	"github.com/noxiouz/Combaine/common/hosts"
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/configs"
+	"github.com/Combaine/Combaine/common/hosts"
+	"github.com/Combaine/Combaine/common/tasks"
 )
 
 var (

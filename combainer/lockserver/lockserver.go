@@ -11,7 +11,7 @@ import (
 
 	"launchpad.net/gozk/zookeeper"
 
-	"github.com/noxiouz/Combaine/common/configs"
+	"github.com/Combaine/Combaine/common/configs"
 )
 
 type locksInfo struct {
