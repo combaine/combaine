@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"log"
 	"os"
-	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
@@ -52,6 +51,8 @@ type Task struct {
 }
 
 func Send(request *cocaine.Request, response *cocaine.Response) {
+	defer response.Close()
+
 	raw := <-request.Read()
 
 	var task Task
@@ -83,16 +84,13 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if err != nil {
 		logger.Errf("%s Unexpected error %s", task.Id, err)
 		response.ErrorMsg(-100, err.Error())
-		response.Close()
 		return
 	}
 	as.Send(task.Data)
 	response.Write("OK")
-	response.Close()
 }
 
 func main() {
-	runtime.GOMAXPROCS(2)
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
 	}
