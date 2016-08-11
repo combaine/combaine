@@ -10,9 +10,6 @@ from combaine.common.logger import get_logger_adapter
 from combaine.common import AggregationTask
 
 
-storage = Service("elliptics")
-
-
 class Cache(object):
 
     def __init__(self):
@@ -74,16 +71,14 @@ def aggreagate(request, response):
                                           name,
                                           task.CurrTime)
                 try:
-                    data = yield storage.read("combaine", key)
+                    data = task.parsing_result[key]
                     subgroup_data.append(data)
                     if cfg.get("perHost"):
                         res = yield app.enqueue("aggregate_group",
                                                 msgpack.packb((task.Id, cfg, [data])))
                         result[name][host] = res
                 except Exception as err:
-                    if err.code != 2:
-                        logger.error("unable to read from cache %s %s",
-                                     key, err)
+                    logger.error("unable to aggregte %s %s %s", name, host, err)
 
             mapping[subgroup] = subgroup_data
             try:
@@ -93,8 +88,7 @@ def aggreagate(request, response):
                             name, subgroup, res)
                 result[name][subgroup] = res
             except Exception as err:
-                logger.error("unable to aggregte %s %s %s",
-                             name, subgroup, err)
+                logger.error("unable to aggregte %s %s %s", name, subgroup, err)
 
         all_data = []
         for v in mapping.itervalues():

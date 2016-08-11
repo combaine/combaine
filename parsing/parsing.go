@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
-
 	"github.com/noxiouz/Combaine/common"
 	"github.com/noxiouz/Combaine/common/logger"
 
@@ -14,13 +12,8 @@ import (
 	"github.com/noxiouz/Combaine/common/tasks"
 )
 
-const (
-	storageServiceName = "elliptics"
-)
-
 var (
-	storage *cocaine.Service     = logger.MustCreateService(storageServiceName)
-	cacher  servicecacher.Cacher = servicecacher.NewCacher()
+	cacher servicecacher.Cacher = servicecacher.NewCacher()
 )
 
 func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
@@ -58,7 +51,7 @@ func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
 	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
 }
 
-func Parsing(task tasks.ParsingTask) error {
+func Parsing(task tasks.ParsingTask) (tasks.Result, error) {
 	logger.Infof("%s start parsing", task.Id)
 
 	var (
@@ -71,7 +64,7 @@ func Parsing(task tasks.ParsingTask) error {
 	blob, err = fetchDataFromTarget(&task)
 	if err != nil {
 		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
-		return err
+		return nil, err
 	}
 
 	if !task.ParsingConfig.SkipParsingStage() {
@@ -79,7 +72,7 @@ func Parsing(task tasks.ParsingTask) error {
 		blob, err = parseData(&task, blob)
 		if err != nil {
 			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
-			return err
+			return nil, err
 		}
 	}
 
@@ -90,18 +83,18 @@ func Parsing(task tasks.ParsingTask) error {
 		datagrid, err := cacher.Get(common.DATABASEAPP)
 		if err != nil {
 			logger.Errf("%s %v", task.Id, err)
-			return err
+			return nil, err
 		}
 
 		res := <-datagrid.Call("enqueue", "put", blob)
 		if err = res.Err(); err != nil {
 			logger.Errf("%s %v", task.Id, err)
-			return err
+			return nil, err
 		}
 		var token string
 		if err = res.Extract(&token); err != nil {
 			logger.Errf("%s %v", task.Id, err)
-			return err
+			return nil, err
 		}
 
 		defer func() {
@@ -112,11 +105,13 @@ func Parsing(task tasks.ParsingTask) error {
 		payload = token
 	}
 
+	result := make(tasks.Result)
+
 	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {
 			aggType, err := v.Type()
 			if err != nil {
-				return err
+				return nil, err
 			}
 			logger.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 
@@ -156,7 +151,7 @@ func Parsing(task tasks.ParsingTask) error {
 					key := fmt.Sprintf("%s;%s;%s;%s;%v",
 						task.Host, task.ParsingConfigName,
 						logName, k, task.CurrTime)
-					<-storage.Call("cache_write", "combaine", key, raw_res)
+					result[key] = raw_res
 					logger.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					logger.Errf("%s Failed task %s", task.Id, deadline)
@@ -167,5 +162,5 @@ func Parsing(task tasks.ParsingTask) error {
 	wg.Wait()
 
 	logger.Infof("%s Done", task.Id)
-	return nil
+	return result, nil
 }
