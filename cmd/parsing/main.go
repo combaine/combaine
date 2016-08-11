@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
@@ -35,7 +34,6 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(10)
 	var err error
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{

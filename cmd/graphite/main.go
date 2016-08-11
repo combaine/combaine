@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
@@ -10,9 +9,20 @@ import (
 	"github.com/noxiouz/Combaine/senders/graphite"
 )
 
-var DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
-
-var logger *cocaine.Logger
+var (
+	DEFAULT_FIELDS = []string{
+		"75_prc",
+		"90_prc",
+		"93_prc",
+		"94_prc",
+		"95_prc",
+		"96_prc",
+		"97_prc",
+		"98_prc",
+		"99_prc",
+	}
+	logger *cocaine.Logger
+)
 
 type Task struct {
 	Id       string
@@ -55,7 +65,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(10)
 	var err error
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{

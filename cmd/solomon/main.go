@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"log"
 	"os"
-	"runtime"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/noxiouz/Combaine/common"
@@ -18,8 +17,18 @@ const (
 )
 
 var (
-	DEFAULT_FIELDS = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
-	logger         *cocaine.Logger
+	DEFAULT_FIELDS = []string{
+		"75_prc",
+		"90_prc",
+		"93_prc",
+		"94_prc",
+		"95_prc",
+		"96_prc",
+		"97_prc",
+		"98_prc",
+		"99_prc",
+	}
+	logger *cocaine.Logger
 )
 
 type Task struct {
@@ -88,7 +97,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(10)
 	var err error
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
