@@ -1,3 +1,10 @@
+combaine (0.7.1.2) precise; urgency=low
+
+  * [Aggregate] Remove the extra loop
+  * [Custom] Close response in finally in aggregate_group
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sat, 13 Aug 2016 00:27:51 +0300
+
 combaine (0.7.1.1) precise; urgency=low
 
   * Handle 'nil' from app.Call
