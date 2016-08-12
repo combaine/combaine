@@ -111,11 +111,12 @@ def aggregate_group(request, response):
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
     except Exception as err:  # pylint: disable=broad-except
-        logger.error("%s", err)
         response.error(100, repr(err))
+        logger.error("Error %s", err)
     else:
         logger.info("Result of group aggregation %s", str(result))
         response.write(result)
+    finally:
         response.close()
 
 
