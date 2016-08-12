@@ -52,7 +52,7 @@ def aggreagate(request, response):
     result = {}
 
     for name, cfg in aggcfg.data.iteritems():
-        mapping = {}
+        all_data = []
 
         logger.info("Send to %s %s" % (name, cfg['type']))
         app = cache.get(cfg['type'])
@@ -80,7 +80,7 @@ def aggreagate(request, response):
                 except Exception as err:
                     logger.error("unable to aggregte %s %s %s", name, host, err)
 
-            mapping[subgroup] = subgroup_data
+            all_data.extend(subgroup_data)
             try:
                 res = yield app.enqueue("aggregate_group",
                                         msgpack.packb((task.Id, cfg, subgroup_data)))
@@ -90,9 +90,6 @@ def aggreagate(request, response):
             except Exception as err:
                 logger.error("unable to aggregte %s %s %s", name, subgroup, err)
 
-        all_data = []
-        for v in mapping.itervalues():
-            all_data.extend(v)
         try:
             res = yield app.enqueue("aggregate_group",
                                     msgpack.packb((task.Id, cfg, all_data)))
