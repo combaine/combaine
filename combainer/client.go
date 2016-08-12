@@ -18,6 +18,7 @@ import (
 var (
 	ErrAppUnavailable = fmt.Errorf("Application is unavailable")
 	ErrHandlerTimeout = fmt.Errorf("Timeout")
+	ErrAppCall        = fmt.Errorf("Application call error")
 )
 
 type sessionParams struct {
@@ -430,6 +431,9 @@ func PerformTask(app *cocaine.Service,
 
 	select {
 	case res := <-app.Call("enqueue", "handleTask", payload):
+		if res == nil {
+			return nil, ErrAppCall
+		}
 		if res.Err() != nil {
 			return nil, res.Err()
 		}

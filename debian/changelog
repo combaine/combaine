@@ -1,3 +1,9 @@
+combaine (0.7.1.1) precise; urgency=low
+
+  * Handle 'nil' from app.Call
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 12 Aug 2016 20:36:09 +0300
+
 combaine (0.7.1.0) precise; urgency=low
 
   * Eliminate elliptics cache for task results (#55)
