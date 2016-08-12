@@ -1,3 +1,9 @@
+combaine (0.7.1.0) precise; urgency=low
+
+  * Eliminate elliptics cache for task results (#55)
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 12 Aug 2016 13:18:50 +0300
+
 combaine (0.7.0.4) precise; urgency=low
 
   * rename main_files/ -> cmd/ and main_<daemon> -> <daemon>
