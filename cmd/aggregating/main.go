@@ -2,12 +2,11 @@ package main
 
 import (
 	"log"
-	"runtime"
 
-	"github.com/noxiouz/Combaine/aggregating"
+	"github.com/Combaine/Combaine/aggregating"
 
-	"github.com/noxiouz/Combaine/common"
-	"github.com/noxiouz/Combaine/common/tasks"
+	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/tasks"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
@@ -30,7 +29,6 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(10)
 	binds := map[string]cocaine.EventHandler{
 		"handleTask": handleTask,
 	}

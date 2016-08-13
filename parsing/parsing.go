@@ -51,7 +51,7 @@ func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
 	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
 }
 
-func Parsing(task tasks.ParsingTask) (tasks.Result, error) {
+func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 	logger.Infof("%s start parsing", task.Id)
 
 	var (
@@ -105,7 +105,7 @@ func Parsing(task tasks.ParsingTask) (tasks.Result, error) {
 		payload = token
 	}
 
-	result := make(tasks.Result)
+	result := make(tasks.ParsingResult)
 
 	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {

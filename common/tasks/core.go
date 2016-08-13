@@ -54,8 +54,6 @@ func (p *ParsingTask) Raw() ([]byte, error) {
 	return common.Pack(p)
 }
 
-type Result map[string]interface{}
-
 type AggregationTask struct {
 	CommonTask
 	// Name of the current aggregation config
@@ -82,4 +80,13 @@ func (a *AggregationTask) Group() string {
 
 func (a *AggregationTask) Raw() ([]byte, error) {
 	return common.Pack(a)
+}
+
+type ParsingResult map[string]interface{}
+type AggregationResult map[string]Result
+
+type SenderPayload struct {
+	CommonTask
+	Config configs.PluginConfig
+	Data   AggregationResult
 }
