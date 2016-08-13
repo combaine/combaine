@@ -18,7 +18,7 @@ ifeq ($(OS), Darwin)
 	export CGO_CFLAGS=-I/usr/local/include/zookeeper
 endif
 
-all: deps combainer_ agave_ parsing_ graphite_ razladki_ cbb_ solomon_
+all: deps combainer_ agave_ aggregating_ parsing_ graphite_ razladki_ cbb_ solomon_
 
 deps:
 	go get gopkg.in/yaml.v2
@@ -33,6 +33,9 @@ deps:
 
 combainer_: deps
 	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go
+
+aggregating_: deps
+	go build -o $(BUILD_DIR)/aggregating-core $(CMD_DIR)/aggregating/main.go
 
 parsing_: deps
 	go build -o $(BUILD_DIR)/parsing-core $(CMD_DIR)/parsing/main.go

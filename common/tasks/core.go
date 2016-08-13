@@ -67,7 +67,7 @@ type AggregationTask struct {
 	// Hosts
 	Hosts hosts.Hosts
 	// ParsingResults
-	ParsingResult Result
+	ParsingResult ParsingResult
 }
 
 // func (a *AggregationTask) Id() string {
@@ -83,7 +83,7 @@ func (a *AggregationTask) Raw() ([]byte, error) {
 }
 
 type ParsingResult map[string]interface{}
-type AggregationResult map[string]Result
+type AggregationResult map[string]ParsingResult
 
 type SenderPayload struct {
 	CommonTask
