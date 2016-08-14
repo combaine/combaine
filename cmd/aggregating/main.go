@@ -20,7 +20,7 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	err = aggregating.Aggregating(task)
+	err = aggregating.Aggregating(&task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 	} else {

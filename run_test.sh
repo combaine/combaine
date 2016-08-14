@@ -15,6 +15,7 @@ function gopackages {
     go test -cover github.com/Combaine/Combaine/senders/...
     go test -cover github.com/Combaine/Combaine/fetchers/...
     go test -cover github.com/Combaine/Combaine/parsing
+    go test -cover github.com/Combaine/Combaine/aggregating
 }
 
 interface

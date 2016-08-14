@@ -9,22 +9,30 @@ import (
 	"github.com/Combaine/Combaine/common/logger"
 	"github.com/Combaine/Combaine/common/servicecacher"
 	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 type list []interface{}
+type item struct {
+	agg  string
+	name string
+	res  []byte
+}
 
 var cacher servicecacher.Cacher = servicecacher.NewCacher()
 
-func Aggregating(task tasks.AggregationTask) error {
+func Aggregating(task *tasks.AggregationTask) error {
 	logger.Infof("%s start aggregating", task.Id)
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
 	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
 
 	result := make(tasks.AggregationResult)
+	ch := make(chan item)
+	var aggWg sync.WaitGroup
 
-	initialCapacity := len(task.AggregationConfig.Data)
+	initCap := len(task.AggregationConfig.Data) * len(task.Hosts)
 	for name, cfg := range task.AggregationConfig.Data {
-		aggParsingResults := make(list, 0, initialCapacity)
+		aggParsingResults := make(list, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
 			logger.Errf("%s unable to detect aggregator type for %s %s",
@@ -38,9 +46,8 @@ func Aggregating(task tasks.AggregationTask) error {
 			continue
 		}
 
-		hostsLen := len(task.Hosts)
 		for subGroup, hosts := range task.Hosts {
-			subGroupParsingResults := make(list, 0, hostsLen)
+			subGroupParsingResults := make(list, 0, initCap)
 			for _, host := range hosts {
 				key := fmt.Sprintf("%s;%s;%s;%s;%v", host,
 					task.ParsingConfigName, task.Config, name, task.CurrTime)
@@ -63,31 +70,58 @@ func Aggregating(task tasks.AggregationTask) error {
 					continue
 				}
 
-				payload, _ := common.Pack(list{task.Id, cfg, list{data}})
+				aggWg.Add(1)
+				go func(an string, rn string, cfg configs.PluginConfig, data *list,
+					app *cocaine.Service, wg *sync.WaitGroup) {
+					defer wg.Done()
+
+					payload, _ := common.Pack(list{task.Id, cfg, *data})
+					res, err := enqueue(app, payload)
+					if err != nil {
+						logger.Errf("%s unable to aggregate '%s' %s %s",
+							task.Id, an, rn, err)
+						return
+					}
+					ch <- item{agg: an, name: rn, res: res}
+				}(name, host, cfg, &list{data}, app, &aggWg)
+			}
+			aggWg.Add(1)
+			go func(an string, rn string, cfg configs.PluginConfig, data *list,
+				app *cocaine.Service, wg *sync.WaitGroup) {
+				defer wg.Done()
+
+				payload, _ := common.Pack(list{task.Id, cfg, *data})
 				res, err := enqueue(app, payload)
 				if err != nil {
 					logger.Errf("%s unable to aggregate '%s' %s %s",
-						task.Id, name, host, err)
-					continue
+						task.Id, an, rn, err)
+					return
 				}
-				result[name][host] = res
-			}
-			payload, _ := common.Pack(list{task.Id, cfg, subGroupParsingResults})
+				ch <- item{agg: an, name: rn, res: res}
+			}(name, subGroup, cfg, &subGroupParsingResults, app, &aggWg)
+		}
+		aggWg.Add(1)
+		go func(an string, rn string, cfg configs.PluginConfig, data *list,
+			app *cocaine.Service, wg *sync.WaitGroup) {
+			defer wg.Done()
+
+			payload, _ := common.Pack(list{task.Id, cfg, *data})
 			res, err := enqueue(app, payload)
 			if err != nil {
-				logger.Errf("%s unable to aggregate '%s' %s %s",
-					task.Id, name, subGroup, err)
-				continue
+				logger.Errf("%s unable to aggregate 'all' %s %s", task.Id, an, err)
+				return
 			}
-			result[name][subGroup] = res
-		}
-		payload, _ := common.Pack(list{task.Id, cfg, aggParsingResults})
-		res, err := enqueue(app, payload)
-		if err != nil {
-			logger.Errf("%s unable to aggregate 'all' %s %s", task.Id, name, err)
-			continue
-		}
-		result[name][task.ParsingConfig.Metahost] = res
+			ch <- item{agg: an, name: rn, res: res}
+		}(name, task.ParsingConfig.Metahost, cfg, &aggParsingResults, app, &aggWg)
+	}
+
+	go func() {
+		aggWg.Wait()
+		close(ch)
+	}()
+
+	for item := range ch {
+		result[item.agg][item.name] = item.res
 	}
 
 	var sendersWg sync.WaitGroup
@@ -103,11 +137,6 @@ func Aggregating(task tasks.AggregationTask) error {
 			}
 			logger.Infof("%s send to sender %s", task.Id, senderType)
 			app, err := cacher.Get(n)
-			defer func() {
-				if app != nil {
-					app.Close()
-				}
-			}()
 			if err != nil {
 				logger.Errf("%s skip sender %s %s %s", task.Id, senderType, n, err)
 				return
