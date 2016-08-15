@@ -419,9 +419,6 @@ func (cl *Client) doAggregationHandler(task tasks.AggregationTask,
 }
 
 func getRandomHost(app string, input []string) string {
-	if app == common.AGGREGATE {
-		return "localhost"
-	}
 	max := len(input)
 	return input[rand.Intn(max)]
 }
