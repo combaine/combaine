@@ -108,7 +108,7 @@ def aggreagate(request, response):
                 continue
 
             logger.info("Send to %s: %s", sender_type, str(result))
-            s = Service(sender_type)
+            s = cache.get(sender_type)
             payload_to_send = {"Config": item,
                                "Data": result,
                                "CurrTime": task.CurrTime,
