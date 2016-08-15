@@ -131,8 +131,7 @@ func Aggregating(task *tasks.AggregationTask) error {
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
-				logger.Errf("%s unable to detect sender type for %s %s",
-					task.Id, n, err)
+				logger.Errf("%s unknown sender type '%s' %s", task.Id, n, err)
 				return
 			}
 			logger.Infof("%s send to sender %s", task.Id, senderType)
@@ -155,10 +154,9 @@ func Aggregating(task *tasks.AggregationTask) error {
 			payload, _ := common.Pack(senderPayload)
 			res, err := enqueue(app, payload)
 			if err != nil {
-				logger.Errf("%s unable to send to '%s' %s %s",
-					task.Id, n, err)
+				logger.Errf("%s unable to send %s %s", task.Id, n, err)
 			}
-			logger.Infof("%s Sender response %v", task.Id, res)
+			logger.Infof("%s Sender response %s %v", task.Id, n, res)
 		}(&sendersWg, name, item)
 	}
 	sendersWg.Wait()
