@@ -55,9 +55,11 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
 	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
 
+	var aggWg sync.WaitGroup
+
+	meta := task.ParsingConfig.Metahost
 	result := make(tasks.AggregationResult)
 	ch := make(chan item)
-	var aggWg sync.WaitGroup
 
 	initCap := len(task.AggregationConfig.Data) * len(task.Hosts)
 	for name, cfg := range task.AggregationConfig.Data {
@@ -105,7 +107,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				}
 
 				aggWg.Add(1)
-				go aggregating(task.Id, ch, name, host,
+				go aggregating(task.Id, ch, name, meta+"-"+host,
 					cfg, []interface{}{data}, app, &aggWg)
 			}
 			if len(subGroupParsingResults) == 0 {
@@ -113,7 +115,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				continue
 			}
 			aggWg.Add(1)
-			go aggregating(task.Id, ch, name, subGroup,
+			go aggregating(task.Id, ch, name, meta+"-"+subGroup,
 				cfg, subGroupParsingResults, app, &aggWg)
 		}
 		if len(aggParsingResults) == 0 {
@@ -122,7 +124,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 		}
 
 		aggWg.Add(1)
-		go aggregating(task.Id, ch, name, task.ParsingConfig.Metahost,
+		go aggregating(task.Id, ch, name, meta,
 			cfg, aggParsingResults, app, &aggWg)
 	}
 
