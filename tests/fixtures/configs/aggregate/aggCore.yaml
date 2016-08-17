@@ -1,0 +1,19 @@
+data:
+  appsName:
+    type: custom
+    class: Multimetrics
+    rps: "no"
+    perHost: YES
+senders:
+  joy_picture:
+    type: graphite
+    cluster: combaine.test
+  monitoring:
+    type: juggler
+    Host: "combaine-test"
+    Aggregator: timed_more_than_limit_is_problem
+    Method: SMS
+    description: "Some very important check"
+    checkname: "checkname"
+    OK: ["${appsName}.get('5xx', 0)<1"]
+    CRIT: ["${appsName}.get('5xx', 0)>1"]

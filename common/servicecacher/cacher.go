@@ -8,10 +8,15 @@ import (
 )
 
 type Cacher interface {
-	Get(name string) (*cocaine.Service, error)
+	Get(name string) (Service, error)
 }
 
-type cache map[string]*cocaine.Service
+type Service interface {
+	Call(name string, args ...interface{}) chan cocaine.ServiceResult
+	Close()
+}
+
+type cache map[string]Service
 
 type cacher struct {
 	mutex sync.Mutex
@@ -25,7 +30,7 @@ func NewCacher() Cacher {
 	return c
 }
 
-func (c *cacher) Get(name string) (s *cocaine.Service, err error) {
+func (c *cacher) Get(name string) (s Service, err error) {
 	s, ok := c.get(name)
 	if ok {
 		return
@@ -35,12 +40,12 @@ func (c *cacher) Get(name string) (s *cocaine.Service, err error) {
 	return
 }
 
-func (c *cacher) get(name string) (s *cocaine.Service, ok bool) {
+func (c *cacher) get(name string) (s Service, ok bool) {
 	s, ok = c.data.Load().(cache)[name]
 	return
 }
 
-func (c *cacher) create(name string) (*cocaine.Service, error) {
+func (c *cacher) create(name string) (Service, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	s, ok := c.get(name)

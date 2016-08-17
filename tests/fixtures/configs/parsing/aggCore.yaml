@@ -1,0 +1,7 @@
+groups: [test-combainer]
+metahost: test-combainer
+agg_configs: [aggCore]
+parser: NullParser
+raw: true
+DataFetcher:
+  timetail_url: "/timetail?pattern=app_resources&log_ts="

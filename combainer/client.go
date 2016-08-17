@@ -231,7 +231,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	// Parsing phase
 	totalTasksAmount := len(sessionParameters.PTasks)
 	tokens := make(chan struct{}, sessionParameters.ParallelParsings)
-	parsingResult := make(tasks.Result)
+	parsingResult := make(tasks.ParsingResult)
 	var mu sync.Mutex
 
 	for i, task := range sessionParameters.PTasks {
@@ -384,7 +384,7 @@ func (cl *Client) doGeneralTask(appName string, task tasks.Task,
 
 func (cl *Client) doParsingTask(task tasks.ParsingTask,
 	wg *sync.WaitGroup, m *sync.Mutex, tokens <-chan struct{},
-	deadline time.Time, hosts []string, r tasks.Result) {
+	deadline time.Time, hosts []string, r tasks.ParsingResult) {
 	defer func() { <-tokens }() // release
 
 	i, err := cl.doGeneralTask(common.PARSING, &task, wg, deadline, hosts)
@@ -392,7 +392,7 @@ func (cl *Client) doParsingTask(task tasks.ParsingTask,
 		cl.clientStats.AddFailedParsing()
 		return
 	}
-	var res tasks.Result
+	var res tasks.ParsingResult
 	if err := common.Unpack(i.([]byte), &res); err != nil {
 		cl.clientStats.AddFailedParsing()
 		return
@@ -407,7 +407,7 @@ func (cl *Client) doParsingTask(task tasks.ParsingTask,
 }
 
 func (cl *Client) doAggregationHandler(task tasks.AggregationTask,
-	wg *sync.WaitGroup, deadline time.Time, hosts []string, r tasks.Result) {
+	wg *sync.WaitGroup, deadline time.Time, hosts []string, r tasks.ParsingResult) {
 
 	task.ParsingResult = r
 	_, err := cl.doGeneralTask(common.AGGREGATE, &task, wg, deadline, hosts)

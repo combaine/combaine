@@ -2,6 +2,7 @@
 
 #go test github.com/Combaine/Combaine/common/httpclient
 #go test -v github.com/Combaine/Combaine/combainer/
+go get github.com/stretchr/testify/assert
 
 function interface {
     echo "Running interface tests between go and python..."
@@ -15,6 +16,7 @@ function gopackages {
     go test -cover github.com/Combaine/Combaine/senders/...
     go test -cover github.com/Combaine/Combaine/fetchers/...
     go test -cover github.com/Combaine/Combaine/parsing
+    go test -cover github.com/Combaine/Combaine/aggregating
 }
 
 interface

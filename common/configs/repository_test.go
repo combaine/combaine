@@ -18,8 +18,8 @@ func TestRepository(t *testing.T) {
 	)
 
 	var (
-		expectedPcfg      = []string{"img_status"}
-		expectedAggcfg    = []string{"http_ok"}
+		expectedPcfg      = []string{"aggCore", "img_status"}
+		expectedAggcfg    = []string{"aggCore", "http_ok"}
 		expectedLockHosts = []string{"localhost:2181"}
 	)
 
