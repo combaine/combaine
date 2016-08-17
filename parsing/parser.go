@@ -1,9 +1,8 @@
 package parsing
 
 import (
-	"github.com/cocaine/cocaine-framework-go/cocaine"
-
 	"github.com/Combaine/Combaine/common"
+	"github.com/Combaine/Combaine/common/servicecacher"
 )
 
 type Parser interface {
@@ -11,7 +10,7 @@ type Parser interface {
 }
 
 type parser struct {
-	app *cocaine.Service
+	app servicecacher.Service
 }
 
 func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, err error) {
