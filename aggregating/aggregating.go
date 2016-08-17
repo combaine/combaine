@@ -9,7 +9,6 @@ import (
 	"github.com/Combaine/Combaine/common/logger"
 	"github.com/Combaine/Combaine/common/servicecacher"
 	"github.com/Combaine/Combaine/common/tasks"
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 type list []interface{}
@@ -19,9 +18,7 @@ type item struct {
 	res  []byte
 }
 
-var cacher servicecacher.Cacher = servicecacher.NewCacher()
-
-func Aggregating(task *tasks.AggregationTask) error {
+func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error {
 	logger.Infof("%s start aggregating", task.Id)
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
 	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
@@ -54,7 +51,7 @@ func Aggregating(task *tasks.AggregationTask) error {
 
 				data, ok := task.ParsingResult[key]
 				if !ok {
-					logger.Errf("%s unable to aggregte %s %s, no key '%s'",
+					logger.Errf("%s unable to aggregte %s %s, missing result for '%s'",
 						task.Id, name, host, key)
 					continue
 				}
@@ -72,11 +69,11 @@ func Aggregating(task *tasks.AggregationTask) error {
 
 				aggWg.Add(1)
 				go func(an string, rn string, cfg configs.PluginConfig, data *list,
-					app *cocaine.Service, wg *sync.WaitGroup) {
+					app servicecacher.Service, wg *sync.WaitGroup) {
 					defer wg.Done()
 
 					payload, _ := common.Pack(list{task.Id, cfg, *data})
-					res, err := enqueue(app, payload)
+					res, err := enqueue("aggregate_group", app, payload)
 					if err != nil {
 						logger.Errf("%s unable to aggregate '%s' %s %s",
 							task.Id, an, rn, err)
@@ -87,11 +84,11 @@ func Aggregating(task *tasks.AggregationTask) error {
 			}
 			aggWg.Add(1)
 			go func(an string, rn string, cfg configs.PluginConfig, data *list,
-				app *cocaine.Service, wg *sync.WaitGroup) {
+				app servicecacher.Service, wg *sync.WaitGroup) {
 				defer wg.Done()
 
 				payload, _ := common.Pack(list{task.Id, cfg, *data})
-				res, err := enqueue(app, payload)
+				res, err := enqueue("aggregate_group", app, payload)
 				if err != nil {
 					logger.Errf("%s unable to aggregate '%s' %s %s",
 						task.Id, an, rn, err)
@@ -102,11 +99,11 @@ func Aggregating(task *tasks.AggregationTask) error {
 		}
 		aggWg.Add(1)
 		go func(an string, rn string, cfg configs.PluginConfig, data *list,
-			app *cocaine.Service, wg *sync.WaitGroup) {
+			app servicecacher.Service, wg *sync.WaitGroup) {
 			defer wg.Done()
 
 			payload, _ := common.Pack(list{task.Id, cfg, *data})
-			res, err := enqueue(app, payload)
+			res, err := enqueue("aggregate_group", app, payload)
 			if err != nil {
 				logger.Errf("%s unable to aggregate 'all' %s %s", task.Id, an, err)
 				return
@@ -152,7 +149,7 @@ func Aggregating(task *tasks.AggregationTask) error {
 
 			logger.Debugf("%s data to send %v", task.Id, senderPayload)
 			payload, _ := common.Pack(senderPayload)
-			res, err := enqueue(app, payload)
+			res, err := enqueue("send", app, payload)
 			if err != nil {
 				logger.Errf("%s unable to send %s %s", task.Id, n, err)
 			}

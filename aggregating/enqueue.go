@@ -3,15 +3,15 @@ package aggregating
 import (
 	"fmt"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/Combaine/Combaine/common/servicecacher"
 )
 
-func enqueue(app *cocaine.Service, payload []byte) ([]byte, error) {
+func enqueue(method string, app servicecacher.Service, payload []byte) ([]byte, error) {
 	var raw_res []byte
 
-	res := <-app.Call("enqueue", "aggregate_group", payload)
+	res := <-app.Call("enqueue", method, payload)
 	if res == nil {
-		return nil, fmt.Errorf("App aggregate_group unavailable")
+		return nil, fmt.Errorf("Failed to call application method '%s'", method)
 	}
 	if res.Err() != nil {
 		return nil, fmt.Errorf("Task failed  %s", res.Err())
