@@ -2,6 +2,8 @@ package aggregating
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Combaine/Combaine/common"
 	"github.com/Combaine/Combaine/common/configs"
 	"github.com/Combaine/Combaine/common/servicecacher"
 	"github.com/Combaine/Combaine/common/tasks"
@@ -16,25 +19,20 @@ import (
 )
 
 const (
-	cfgName  = "forAggCore"
+	cfgName  = "aggCore"
 	repoPath = "../tests/fixtures/configs"
 )
 
+var results chan []interface{} = make(chan []interface{})
+
 func sniff(name string, args ...interface{}) {
-	solution <- args
+	results <- args
 }
 
-var mind chan []byte = make(chan []byte)
-var solution chan []interface{} = make(chan []interface{})
-
-type dummyResult struct{}
+type dummyResult []byte
 
 func (dr dummyResult) Extract(i interface{}) error {
-	i, ok := <-mind
-	if !ok {
-		i = nil
-		return fmt.Errorf("Ran out of knowable")
-	}
+	common.Unpack(dr, i)
 	return nil
 }
 func (dr dummyResult) Err() error {
@@ -47,7 +45,7 @@ func (ds *dummyService) Call(name string, args ...interface{}) chan cocaine.Serv
 	sniff(name, args...)
 	ch := make(chan cocaine.ServiceResult)
 	go func() {
-		ch <- dummyResult{}
+		ch <- dummyResult(args[1].([]byte))
 	}()
 	return ch
 }
@@ -102,7 +100,7 @@ func (c *cacher) create(name string) (servicecacher.Service, error) {
 }
 
 func TestAggregating(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.InfoLevel)
 
 	repo, err := configs.NewFilesystemRepository(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
@@ -117,26 +115,93 @@ func TestAggregating(t *testing.T) {
 	var aggregationConfig configs.AggregationConfig
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
+	hostsPerDc := map[string][]string{
+		"DC1": []string{"Host1", "Host2"},
+		"DC2": []string{"Host3", "Host4"},
+	}
+
 	aggTask := tasks.AggregationTask{
 		CommonTask:        tasks.CommonTask{Id: "testId", PrevTime: 1, CurrTime: 61},
 		Config:            cfgName,
 		ParsingConfigName: cfgName,
 		ParsingConfig:     parsingConfig,
 		AggregationConfig: aggregationConfig,
-		Hosts: map[string][]string{
-			"DC1": []string{"Host1", "Host2"},
-			"DC2": []string{"Host3", "Host4"},
+		Hosts:             hostsPerDc,
+		ParsingResult: tasks.ParsingResult{
+			"Host1;aggCore;aggCore;appsName;61": "Host1;aggCore;aggCore;appsName;61",
+			"Host2;aggCore;aggCore;appsName;61": "Host2;aggCore;aggCore;appsName;61",
+			"Host3;aggCore;aggCore;appsName;61": "Host3;aggCore;aggCore;appsName;61",
+			"Host4;aggCore;aggCore;appsName;61": "Host4;aggCore;aggCore;appsName;61",
 		},
 	}
 
-	cacher := NewCacher()
-	close(mind)
 	go func() {
-		for r := range solution {
-			var method string = string(r[0].(string))
-			var payload []byte = r[1].([]byte)
-			fmt.Printf("%s: %v\n", method, payload)
+		expectAggregatingGroup := map[string]bool{
+			"Host1":                false,
+			"Host2":                false,
+			"Host3":                false,
+			"Host4":                false,
+			"Host1Host2":           false,
+			"Host3Host4":           false,
+			"Host1Host2Host3Host4": false,
+		}
+		expectSenders := map[string]int{
+			"Host1":          0,
+			"Host2":          0,
+			"Host3":          0,
+			"Host4":          0,
+			"DC1":            0,
+			"DC2":            0,
+			"test-combainer": 0, // metahost
+		}
+
+		shouldSendToSenders := 2
+
+		for r := range results {
+			method := string(r[0].(string))
+			switch method {
+			case "aggregate_group":
+				var akeys []string
+
+				var payload []interface{}
+				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
+
+				tmp := payload[2].([]interface{})
+				for _, v := range tmp {
+					akeys = append(akeys, string(v.([]byte)[:5]))
+				}
+				sort.Strings(akeys)
+				_k := strings.Join(akeys, "")
+				_, ok := expectAggregatingGroup[_k]
+				assert.True(t, ok, "Unexpected aggregate %s", _k)
+				expectAggregatingGroup[_k] = true
+
+			case "send":
+				shouldSendToSenders--
+
+				var payload tasks.SenderPayload
+				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
+				for _, v := range payload.Data {
+					for _k, _ := range v {
+						_, ok := expectSenders[_k]
+						assert.True(t, ok, "Unexpected senders payload %s", _k)
+						expectSenders[_k]++
+					}
+				}
+				if shouldSendToSenders == 0 {
+					close(results)
+				}
+			}
+		}
+		t.Log("Test aggregators")
+		for k, v := range expectAggregatingGroup {
+			assert.True(t, v, fmt.Sprintf("aggregating for %s failed", k))
+		}
+		t.Log("Test senders")
+		for k, v := range expectSenders {
+			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
+	cacher := NewCacher()
 	assert.NoError(t, Aggregating(&aggTask, cacher))
 }

@@ -15,7 +15,26 @@ type list []interface{}
 type item struct {
 	agg  string
 	name string
-	res  []byte
+	res  interface{}
+}
+
+func enqueue(method string, app servicecacher.Service, payload *[]byte,
+	id string) (interface{}, error) {
+
+	var raw_res interface{}
+
+	res := <-app.Call("enqueue", method, *payload)
+	if res == nil {
+		return nil, fmt.Errorf("%s failed to call app method '%s'", id, method)
+	}
+	if res.Err() != nil {
+		return nil, fmt.Errorf("%s task failed  %s", id, res.Err())
+	}
+
+	if err := res.Extract(&raw_res); err != nil {
+		return nil, fmt.Errorf("%s unable to extract result. %s", id, err.Error())
+	}
+	return raw_res, nil
 }
 
 func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error {
@@ -39,7 +58,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 		logger.Infof("%s send %s to aggregate type %s", task.Id, name, aggType)
 		app, err := cacher.Get(name)
 		if err != nil {
-			logger.Errf("%s skip aggregator %s %s %s", task.Id, aggType, name, err)
+			logger.Errf("%s skip %s aggregator %s %s", task.Id, name, aggType, err)
 			continue
 		}
 
@@ -51,7 +70,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 
 				data, ok := task.ParsingResult[key]
 				if !ok {
-					logger.Errf("%s unable to aggregte %s %s, missing result for '%s'",
+					logger.Warnf("%s %s '%s' unable to aggregte, missing result for '%s'",
 						task.Id, name, host, key)
 					continue
 				}
@@ -59,56 +78,70 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				aggParsingResults = append(aggParsingResults, data)
 				subGroupParsingResults = append(subGroupParsingResults, data)
 
-				if perHost, ok := cfg["perHost"]; ok {
-					if v, ok := perHost.(bool); ok && !v {
-						continue
-					}
-				} else {
+				perHost, ok := cfg["perHost"]
+				if !ok {
+					continue
+				}
+				v, ok := perHost.(bool)
+				if !ok {
+					logger.Errf("%s 'perHost' support only bool value", task.Id)
+					continue
+				}
+				if !v {
 					continue
 				}
 
 				aggWg.Add(1)
-				go func(an string, rn string, cfg configs.PluginConfig, data *list,
+				go func(agg string, h string, c configs.PluginConfig, d *list,
 					app servicecacher.Service, wg *sync.WaitGroup) {
 					defer wg.Done()
 
-					payload, _ := common.Pack(list{task.Id, cfg, *data})
-					res, err := enqueue("aggregate_group", app, payload)
+					payload, _ := common.Pack(list{task.Id, c, *d})
+					res, err := enqueue("aggregate_group", app, &payload, task.Id)
 					if err != nil {
-						logger.Errf("%s unable to aggregate '%s' %s %s",
-							task.Id, an, rn, err)
+						logger.Errf("%s %s '%s' unable to aggregate %s",
+							task.Id, h, agg, err)
 						return
 					}
-					ch <- item{agg: an, name: rn, res: res}
+					ch <- item{agg: agg, name: h, res: res}
 				}(name, host, cfg, &list{data}, app, &aggWg)
 			}
+			if len(subGroupParsingResults) == 0 {
+				logger.Infof("%s %s '%s' nothing aggregate", task.Id, name, subGroup)
+				continue
+			}
 			aggWg.Add(1)
-			go func(an string, rn string, cfg configs.PluginConfig, data *list,
+			go func(agg string, h string, c configs.PluginConfig, d *list,
 				app servicecacher.Service, wg *sync.WaitGroup) {
 				defer wg.Done()
 
-				payload, _ := common.Pack(list{task.Id, cfg, *data})
-				res, err := enqueue("aggregate_group", app, payload)
+				payload, _ := common.Pack(list{task.Id, c, *d})
+				res, err := enqueue("aggregate_group", app, &payload, task.Id)
 				if err != nil {
-					logger.Errf("%s unable to aggregate '%s' %s %s",
-						task.Id, an, rn, err)
+					logger.Errf("%s %s '%s' unable to aggregate %s",
+						task.Id, h, agg, err)
 					return
 				}
-				ch <- item{agg: an, name: rn, res: res}
+				ch <- item{agg: agg, name: h, res: res}
 			}(name, subGroup, cfg, &subGroupParsingResults, app, &aggWg)
 		}
+		if len(aggParsingResults) == 0 {
+			logger.Infof("%s %s 'all' nothing aggregate", task.Id, name)
+			continue
+		}
+
 		aggWg.Add(1)
-		go func(an string, rn string, cfg configs.PluginConfig, data *list,
+		go func(agg string, h string, c configs.PluginConfig, d *list,
 			app servicecacher.Service, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			payload, _ := common.Pack(list{task.Id, cfg, *data})
-			res, err := enqueue("aggregate_group", app, payload)
+			payload, _ := common.Pack(list{task.Id, c, *d})
+			res, err := enqueue("aggregate_group", app, &payload, task.Id)
 			if err != nil {
-				logger.Errf("%s unable to aggregate 'all' %s %s", task.Id, an, err)
+				logger.Errf("%s %s 'all' unable to aggregate %s", task.Id, agg, err)
 				return
 			}
-			ch <- item{agg: an, name: rn, res: res}
+			ch <- item{agg: agg, name: h, res: res}
 		}(name, task.ParsingConfig.Metahost, cfg, &aggParsingResults, app, &aggWg)
 	}
 
@@ -118,6 +151,9 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 	}()
 
 	for item := range ch {
+		if _, ok := result[item.agg]; !ok {
+			result[item.agg] = make(tasks.ParsingResult)
+		}
 		result[item.agg][item.name] = item.res
 	}
 
@@ -128,13 +164,13 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
-				logger.Errf("%s unknown sender type '%s' %s", task.Id, n, err)
+				logger.Errf("%s %s unknown sender type %s", task.Id, n, err)
 				return
 			}
 			logger.Infof("%s send to sender %s", task.Id, senderType)
 			app, err := cacher.Get(n)
 			if err != nil {
-				logger.Errf("%s skip sender %s %s %s", task.Id, senderType, n, err)
+				logger.Errf("%s skip sender '%s' %s %s", task.Id, senderType, n, err)
 				return
 			}
 			senderPayload := tasks.SenderPayload{
@@ -147,19 +183,19 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				Data:   result,
 			}
 
-			logger.Debugf("%s data to send %v", task.Id, senderPayload)
+			logger.Debugf("%s %s data to send %s", task.Id, senderType, senderPayload)
 			payload, _ := common.Pack(senderPayload)
-			res, err := enqueue("send", app, payload)
+			res, err := enqueue("send", app, &payload, task.Id)
 			if err != nil {
-				logger.Errf("%s unable to send %s %s", task.Id, n, err)
+				logger.Errf("%s %s '%s' unable to send %s", task.Id, n, senderType, err)
 			}
-			logger.Infof("%s Sender response %s %v", task.Id, n, res)
+			logger.Infof("%s %s '%s' sender response %s", task.Id, n, senderType, res)
 		}(&sendersWg, name, item)
 	}
 	sendersWg.Wait()
 
-	logger.Debugf("%s Result %v", task.Id, result)
-	logger.Infof("%s Done", task.Id)
+	logger.Debugf("%s result %s", task.Id, result)
+	logger.Infof("%s done", task.Id)
 
 	return nil
 }
