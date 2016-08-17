@@ -107,7 +107,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				}
 
 				aggWg.Add(1)
-				go aggregating(task.Id, ch, name, meta+"-"+host,
+				go aggregating(task.Id, ch, name, host,
 					cfg, []interface{}{data}, app, &aggWg)
 			}
 			if len(subGroupParsingResults) == 0 {

@@ -146,13 +146,13 @@ func TestAggregating(t *testing.T) {
 			"Host1Host2Host3Host4": false,
 		}
 		expectSenders := map[string]int{
-			"test-combainer-Host1": 0,
-			"test-combainer-Host2": 0,
-			"test-combainer-Host3": 0,
-			"test-combainer-Host4": 0,
-			"test-combainer-DC1":   0,
-			"test-combainer-DC2":   0,
-			"test-combainer":       0, // metahost
+			"Host1":              0,
+			"Host2":              0,
+			"Host3":              0,
+			"Host4":              0,
+			"test-combainer-DC1": 0,
+			"test-combainer-DC2": 0,
+			"test-combainer":     0, // metahost
 		}
 
 		shouldSendToSenders := 2
