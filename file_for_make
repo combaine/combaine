@@ -35,7 +35,7 @@ combainer_: deps
 	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go
 
 aggregating_: deps
-	go build -o $(BUILD_DIR)/aggregating-core $(CMD_DIR)/aggregating/main.go
+	go build -o $(BUILD_DIR)/aggregate-core $(CMD_DIR)/aggregating/main.go
 
 parsing_: deps
 	go build -o $(BUILD_DIR)/parsing-core $(CMD_DIR)/parsing/main.go

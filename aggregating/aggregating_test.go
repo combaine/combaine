@@ -23,7 +23,7 @@ const (
 	repoPath = "../tests/fixtures/configs"
 )
 
-var results chan []interface{} = make(chan []interface{})
+var results = make(chan []interface{})
 
 func sniff(name string, args ...interface{}) {
 	results <- args

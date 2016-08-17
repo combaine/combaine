@@ -11,7 +11,6 @@ import (
 	"github.com/Combaine/Combaine/common/tasks"
 )
 
-type list []interface{}
 type item struct {
 	agg  string
 	name string
@@ -37,6 +36,20 @@ func enqueue(method string, app servicecacher.Service, payload *[]byte,
 	return raw_res, nil
 }
 
+func aggregating(id string, ch chan item, agg string, h string,
+	c configs.PluginConfig, d []interface{},
+	app servicecacher.Service, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	payload, _ := common.Pack([]interface{}{id, c, d})
+	res, err := enqueue("aggregate_group", app, &payload, id)
+	if err != nil {
+		logger.Errf("%s %s '%s' unable to aggregate %s", id, h, agg, err)
+		return
+	}
+	ch <- item{agg: agg, name: h, res: res}
+}
+
 func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error {
 	logger.Infof("%s start aggregating", task.Id)
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
@@ -48,7 +61,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 
 	initCap := len(task.AggregationConfig.Data) * len(task.Hosts)
 	for name, cfg := range task.AggregationConfig.Data {
-		aggParsingResults := make(list, 0, initCap)
+		aggParsingResults := make([]interface{}, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
 			logger.Errf("%s unable to detect aggregator type for %s %s",
@@ -56,14 +69,14 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			continue
 		}
 		logger.Infof("%s send %s to aggregate type %s", task.Id, name, aggType)
-		app, err := cacher.Get(name)
+		app, err := cacher.Get(aggType)
 		if err != nil {
 			logger.Errf("%s skip %s aggregator %s %s", task.Id, name, aggType, err)
 			continue
 		}
 
 		for subGroup, hosts := range task.Hosts {
-			subGroupParsingResults := make(list, 0, initCap)
+			subGroupParsingResults := make([]interface{}, 0, initCap)
 			for _, host := range hosts {
 				key := fmt.Sprintf("%s;%s;%s;%s;%v", host,
 					task.ParsingConfigName, task.Config, name, task.CurrTime)
@@ -92,38 +105,16 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				}
 
 				aggWg.Add(1)
-				go func(agg string, h string, c configs.PluginConfig, d *list,
-					app servicecacher.Service, wg *sync.WaitGroup) {
-					defer wg.Done()
-
-					payload, _ := common.Pack(list{task.Id, c, *d})
-					res, err := enqueue("aggregate_group", app, &payload, task.Id)
-					if err != nil {
-						logger.Errf("%s %s '%s' unable to aggregate %s",
-							task.Id, h, agg, err)
-						return
-					}
-					ch <- item{agg: agg, name: h, res: res}
-				}(name, host, cfg, &list{data}, app, &aggWg)
+				go aggregating(task.Id, ch, name, host,
+					cfg, []interface{}{data}, app, &aggWg)
 			}
 			if len(subGroupParsingResults) == 0 {
 				logger.Infof("%s %s '%s' nothing aggregate", task.Id, name, subGroup)
 				continue
 			}
 			aggWg.Add(1)
-			go func(agg string, h string, c configs.PluginConfig, d *list,
-				app servicecacher.Service, wg *sync.WaitGroup) {
-				defer wg.Done()
-
-				payload, _ := common.Pack(list{task.Id, c, *d})
-				res, err := enqueue("aggregate_group", app, &payload, task.Id)
-				if err != nil {
-					logger.Errf("%s %s '%s' unable to aggregate %s",
-						task.Id, h, agg, err)
-					return
-				}
-				ch <- item{agg: agg, name: h, res: res}
-			}(name, subGroup, cfg, &subGroupParsingResults, app, &aggWg)
+			go aggregating(task.Id, ch, name, subGroup,
+				cfg, subGroupParsingResults, app, &aggWg)
 		}
 		if len(aggParsingResults) == 0 {
 			logger.Infof("%s %s 'all' nothing aggregate", task.Id, name)
@@ -131,18 +122,8 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 		}
 
 		aggWg.Add(1)
-		go func(agg string, h string, c configs.PluginConfig, d *list,
-			app servicecacher.Service, wg *sync.WaitGroup) {
-			defer wg.Done()
-
-			payload, _ := common.Pack(list{task.Id, c, *d})
-			res, err := enqueue("aggregate_group", app, &payload, task.Id)
-			if err != nil {
-				logger.Errf("%s %s 'all' unable to aggregate %s", task.Id, agg, err)
-				return
-			}
-			ch <- item{agg: agg, name: h, res: res}
-		}(name, task.ParsingConfig.Metahost, cfg, &aggParsingResults, app, &aggWg)
+		go aggregating(task.Id, ch, name, task.ParsingConfig.Metahost,
+			cfg, aggParsingResults, app, &aggWg)
 	}
 
 	go func() {
@@ -168,7 +149,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				return
 			}
 			logger.Infof("%s send to sender %s", task.Id, senderType)
-			app, err := cacher.Get(n)
+			app, err := cacher.Get(senderType)
 			if err != nil {
 				logger.Errf("%s skip sender '%s' %s %s", task.Id, senderType, n, err)
 				return
