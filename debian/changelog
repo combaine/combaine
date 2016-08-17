@@ -1,3 +1,10 @@
+combaine (0.7.2) trusty; urgency=medium
+
+  * [Aggregate] rewrite in go
+  * trusty build
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 18 Aug 2016 00:54:52 +0300
+
 combaine (0.7.1.4) precise; urgency=low
 
   * [Aggregate] fix connection leaks
