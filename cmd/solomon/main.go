@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/Combaine/Combaine/common"
 	"github.com/Combaine/Combaine/common/tasks"
 	"github.com/Combaine/Combaine/senders/solomon"
+	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 const (
@@ -28,7 +28,9 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	logger *cocaine.Logger
+	CONNECTION_TIMEOUT = 3000 // ms
+	RW_TIMEOUT         = 5000 // ms
+	logger             *cocaine.Logger
 )
 
 type Task struct {
@@ -70,6 +72,12 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
+	}
+	if task.Config.Connection_timeout == 0 {
+		task.Config.Connection_timeout = CONNECTION_TIMEOUT
+	}
+	if task.Config.Rw_timeout == 0 {
+		task.Config.Rw_timeout = RW_TIMEOUT
 	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()

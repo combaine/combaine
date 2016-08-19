@@ -18,35 +18,28 @@ import (
 	"github.com/Combaine/Combaine/common/tasks"
 )
 
-const (
-	CONNECTION_TIMEOUT = 3000 // ms
-	RW_TIMEOUT         = 5000 // ms
-)
-
-var (
-	SolomonHTTPClient = httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
-)
-
 type SolomonSender interface {
 	Send(tasks.DataType, uint64) error
 }
 
 type solomonClient struct {
-	id      string
-	api     string
-	prefix  string
-	project string
-	cluster string
-	fields  []string
+	id                 string
+	api                string
+	prefix             string
+	project            string
+	cluster            string
+	connection_timeout int
+	rw_timeout         int
+	fields             []string
 }
 
 type SolomonCfg struct {
-	Api     string   `codec:"api"`
-	Project string   `codec:"project"`
-	Cluster string   `codec:"cluster"`
-	Fields  []string `codec:"Fields"`
+	Api                string   `codec:"api"`
+	Project            string   `codec:"project"`
+	Cluster            string   `codec:"cluster"`
+	Connection_timeout int      `codec:"connection_timeout"`
+	Rw_timeout         int      `codec:"rw_timeout"`
+	Fields             []string `codec:"Fields"`
 }
 
 type comLabels struct {
@@ -210,6 +203,11 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 }
 
 func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
+	var (
+		SolomonHTTPClient = httpclient.NewClientWithTimeout(
+			time.Millisecond*(time.Duration(s.connection_timeout)),
+			time.Millisecond*(time.Duration(s.rw_timeout)))
+	)
 	if len(task) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send.", s.id)
 	}
@@ -252,11 +250,13 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 
 func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) {
 	ss = &solomonClient{
-		id:      id,
-		api:     cfg.Api,
-		cluster: cfg.Cluster,
-		project: cfg.Project,
-		fields:  cfg.Fields,
+		id:                 id,
+		api:                cfg.Api,
+		cluster:            cfg.Cluster,
+		project:            cfg.Project,
+		fields:             cfg.Fields,
+		connection_timeout: cfg.Connection_timeout,
+		rw_timeout:         cfg.Rw_timeout,
 	}
 
 	return
