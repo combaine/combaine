@@ -23,9 +23,11 @@ export GOPATH=$(CURDIR)
 %:
 	dh $@ --with python2
 
-override_dh_install:
-	make -f file_for_make
 
+override_dh_autobuild:
+	make build
+
+override_dh_install:
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
 
@@ -91,8 +93,6 @@ override_dh_install:
 	dh_install
 
 clean::
-	#rm -rf src/ || true
-	#rm -rf pkg/ || true
 	dh_clean
 	rm -rf $(PACKAGE_PATH)
 	rm -rf $(BUILD_DIR)
