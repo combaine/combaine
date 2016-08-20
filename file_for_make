@@ -18,6 +18,9 @@ ifeq ($(OS), Darwin)
 	export CGO_CFLAGS=-I/usr/local/include/zookeeper
 endif
 
+
+PKGS := $(shell go list ./... | grep -v ^github.com/Combaine/Combaine/vendor/)
+
 all: deps combainer_ agave_ aggregating_ parsing_ graphite_ razladki_ cbb_ solomon_
 
 deps:
@@ -63,9 +66,10 @@ clean::
 	rm -rf $(BUILD_DIR) || true
 
 test:
-	go get github.com/stretchr/testify/assert
-	go test -v ./senders/...
-	go test -v ./fetchers/...
-	go test -v ./combainer/...
-
+	@echo "+ $@"
+	@echo "" > coverage.txt
+	@set -e; for pkg in $(PKGS); do go test -coverprofile=profile.out -covermode=atomic $$pkg; \
+	if [ -f profile.out ]; then \
+		cat profile.out >> coverage.txt; rm  profile.out; \
+	fi done; \
 # vim: ft=make
