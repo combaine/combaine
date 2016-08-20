@@ -18,7 +18,7 @@ endif
 
 PKGS := $(shell go list ./... | grep -v ^github.com/Combaine/Combaine/vendor/)
 
-.PHONY: clean combainer
+.PHONY: clean combainer parsing aggregating
 
 build: combainer agave aggregating parsing graphite razladki cbb solomon
 
