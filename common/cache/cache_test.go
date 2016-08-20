@@ -8,13 +8,13 @@ func TestInMemory(t *testing.T) {
 	data := []byte{100, 102}
 	m, _ := NewInMemoryCache(nil)
 	if err := m.Put("A", "A", data); err != nil {
-		t.Fatal("unable to put to InMemory cache: %s", err)
+		t.Fatalf("unable to put to InMemory cache: %s", err)
 	}
 
 	if d2, err := m.Get("A", "A"); err != nil {
-		t.Fatal("unable to get to InMemory cache: %s", err)
+		t.Fatalf("unable to get to InMemory cache: %s", err)
 	} else if len(d2) != len(data) || d2[0] != data[0] {
-		t.Fatal("Corrupted data: %s %s", d2, data)
+		t.Fatalf("Corrupted data: %s %s", d2, data)
 	}
 
 	if _, err := m.Get("A", "B"); err == nil {

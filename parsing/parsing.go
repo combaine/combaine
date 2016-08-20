@@ -79,30 +79,8 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 	payload = blob
 
 	if !task.ParsingConfig.Raw {
-		logger.Debugf("%s Use %s for handle data", task.Id, common.DATABASEAPP)
-		datagrid, err := cacher.Get(common.DATABASEAPP)
-		if err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return nil, err
-		}
-
-		res := <-datagrid.Call("enqueue", "put", blob)
-		if err = res.Err(); err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return nil, err
-		}
-		var token string
-		if err = res.Extract(&token); err != nil {
-			logger.Errf("%s %v", task.Id, err)
-			return nil, err
-		}
-
-		defer func() {
-			taskToDatagrid, _ := common.Pack([]interface{}{token})
-			<-datagrid.Call("enqueue", "drop", taskToDatagrid)
-			logger.Debugf("%s Drop table", task.Id)
-		}()
-		payload = token
+		logger.Infof("%s Raw data is not supported anymore", task.Id)
+		return nil, fmt.Errorf("Raw data is not supported anymore")
 	}
 
 	result := make(tasks.ParsingResult)

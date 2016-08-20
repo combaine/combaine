@@ -46,13 +46,13 @@ func TestMain(t *testing.T) {
 	expected := &RazladkiResult{
 		Timestamp: 123,
 		Params: map[string]Param{
-			"host1_20x": Param{
+			"host1_20x": {
 				Value: "2000",
 				Meta: Meta{
 					Title: "testvalue",
 				},
 			},
-			"host4_MP2": Param{
+			"host4_MP2": {
 				Value: "1002",
 				Meta: Meta{
 					Title: "testvalue",
@@ -60,12 +60,12 @@ func TestMain(t *testing.T) {
 			},
 		},
 		Alarms: map[string]Alarm{
-			"host1_20x": Alarm{
+			"host1_20x": {
 				Meta: Meta{
 					Title: "testvalue",
 				},
 			},
-			"host4_MP2": Alarm{
+			"host4_MP2": {
 				Meta: Meta{
 					Title: "testvalue",
 				},

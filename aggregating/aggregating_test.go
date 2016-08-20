@@ -116,8 +116,8 @@ func TestAggregating(t *testing.T) {
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
 	hostsPerDc := map[string][]string{
-		"DC1": []string{"Host1", "Host2"},
-		"DC2": []string{"Host3", "Host4"},
+		"DC1": {"Host1", "Host2"},
+		"DC2": {"Host3", "Host4"},
 	}
 
 	aggTask := tasks.AggregationTask{
@@ -182,7 +182,7 @@ func TestAggregating(t *testing.T) {
 				var payload tasks.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
-					for _k, _ := range v {
+					for _k := range v {
 						_, ok := expectSenders[_k]
 						assert.True(t, ok, "Unexpected senders payload %s", _k)
 						expectSenders[_k]++

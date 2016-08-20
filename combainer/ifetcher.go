@@ -10,10 +10,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/Combaine/Combaine/common/configs"
 	"github.com/Combaine/Combaine/common/hosts"
 	"github.com/Combaine/Combaine/common/httpclient"
+	"github.com/mitchellh/mapstructure"
 )
 
 func init() {
