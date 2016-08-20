@@ -1,10 +1,5 @@
 PREFIX?=$(shell pwd)
 
-OS := $(shell uname)
-ifeq ($(OS), Darwin)
-	export CGO_CFLAGS=-I/usr/local/include/zookeeper
-endif
-
 PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
 
 .PHONY: clean all fmt vet lint build test

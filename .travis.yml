@@ -6,7 +6,7 @@ go:
  - 1.7
 
 before_install:
- - sudo apt-get update -qq && sudo apt-get install zookeeper zookeeperd libzookeeper-mt-dev -y
+ - sudo apt-get update -qq && sudo apt-get install zookeeper zookeeperd -y
 
 install:
  - go env
