@@ -23,43 +23,31 @@ PKGS := $(shell go list ./... | grep -v ^github.com/Combaine/Combaine/vendor/)
 
 all: deps combainer_ agave_ aggregating_ parsing_ graphite_ razladki_ cbb_ solomon_
 
-deps:
-	go get gopkg.in/yaml.v2
-	go get github.com/cocaine/cocaine-framework-go/cocaine
-	go get github.com/Sirupsen/logrus
-	go get github.com/gorilla/mux
-	go get github.com/mitchellh/mapstructure
-	go get github.com/kr/pretty
-	mkdir -vp $(PACKAGE_PATH)
-	if [ ! -d $(CURDIR)/src/github.com/Combaine/Combaine ];then\
-		ln -vs $(CURDIR) $(CURDIR)/src/github.com/Combaine/Combaine; fi;
-
-combainer_: deps
+combainer_:
 	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go
 
-aggregating_: deps
+aggregating_:
 	go build -o $(BUILD_DIR)/aggregate-core $(CMD_DIR)/aggregating/main.go
 
-parsing_: deps
+parsing_:
 	go build -o $(BUILD_DIR)/parsing-core $(CMD_DIR)/parsing/main.go
 
-agave_: deps
+agave_:
 	go build -o $(BUILD_DIR)/agave $(CMD_DIR)/agave/main.go
 
-graphite_: deps
+graphite_:
 	go build -o $(BUILD_DIR)/graphite $(CMD_DIR)/graphite/main.go
 
-razladki_: deps
+razladki_:
 	go build -o $(BUILD_DIR)/razladki $(CMD_DIR)/razladki/main.go
 
-cbb_: deps
+cbb_:
 	go build -o $(BUILD_DIR)/cbb $(CMD_DIR)/cbb/main.go
 
-solomon_: deps
+solomon_:
 	go build -o $(BUILD_DIR)/solomon $(CMD_DIR)/solomon/main.go
 
-
-fixture: deps
+fixture:
 	go run tests/fixtures/gen_fixtures.go
 
 clean::
