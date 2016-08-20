@@ -61,6 +61,10 @@ fmt:
 	@test -z "$$(gofmt -s -l . 2>&1 | grep -v ^vendor/ | tee /dev/stderr)" || \
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
+lint:
+	@echo "+ $@"
+	@test -z "$$(golint ./... 2>&1 | grep -v ^vendor/ | tee /dev/stderr)"
+
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
