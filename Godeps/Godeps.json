@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/Combaine/Combaine",
+	"ImportPath": "github.com/combaine/combaine",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
