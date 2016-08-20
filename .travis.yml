@@ -1,0 +1,19 @@
+language: go
+
+sudo: required
+
+go:
+ - 1.7
+
+before_install:
+ - sudo apt-get update -qq && sudo apt-get install libzookeeper-mt-dev
+
+install:
+ - go env
+
+script:
+ - make test
+ - make build
+
+after_success:
+ - bash <(curl -s https://codecov.io/bash)
