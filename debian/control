@@ -3,7 +3,8 @@ Section: misc
 Priority: extra
 Maintainer: Anton Tyurin <noxiouz@yandex.ru>
 Build-Depends: debhelper (>= 7.0.50~), libzookeeper-mt-dev, python
-Standards-Version: 3.9.3
+Standards-Version: 3.9.5
+X-Python-Version: >= 2.7
 Homepage: https://github.com/Combaine/Combaine
 
 Package: combaine-presetting

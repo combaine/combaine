@@ -7,38 +7,44 @@
 # This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
-#export DEB_VERBOSE_ALL=1
 
-PACKAGE_PATH=$(CURDIR)/src/github.com/Combaine/Combaine
-BUILD_DIR=$(CURDIR)/build
+export DH_ALWAYS_EXCLUDE=.git
+export DH_VERBOSE=1
+export DEB_VERBOSE_ALL=1
+
+CPWD=$(shell pwd)
+PACKAGE_PATH=$(CPWD)/src/github.com/combaine/combaine
+BUILD_DIR=$(CPWD)/build
 
 COMBAINE_LIB_PATH=/usr/lib/yandex/combaine
 CORE_APPS_PATH=$(COMBAINE_LIB_PATH)/core-apps
-DEB_DESTDIR=$(CURDIR)/debian/tmp/
+DEB_DESTDIR=$(CPWD)/debian/tmp/
 
-
-export GOPATH=$(CURDIR)
 
 %:
 	dh $@ --with python2
 
+override_dh_auto_build:
+	mkdir -p ${CPWD}/debian/tmp/go/src/github.com/combaine
+	ln -s ${CPWD} ${CPWD}/debian/tmp/go/src/github.com/combaine/combaine
+	cd ${CPWD}/debian/tmp/go/src/github.com/combaine/combaine && GOPATH=${CPWD}/debian/tmp/go make build && cd -
 
-override_dh_autobuild:
-	make build
+	python setup.py build --force
 
 override_dh_install:
+	python setup.py install --force --root=/home/vagrant/Go/src/github.com/combaine/combaine/debian/tmp --no-compile -O0 --install-layout=deb
+
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
 
 	# core-parsing
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m755 $(BUILD_DIR)/parsing-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
+	install -m755 $(BUILD_DIR)/parsing  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m664 deploy/manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
 	install -m755 deploy/scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
 	# core-aggregate
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m755 $(BUILD_DIR)/aggregate-core  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
+	install -m755 $(BUILD_DIR)/aggregating  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m664 deploy/manifests/manifest_aggregate-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
 	install -m755 deploy/scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
 	# parsingApp
@@ -88,9 +94,11 @@ override_dh_install:
 	install -m664 deploy/presetting/profile.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m664 deploy/presetting/runlist.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m755 deploy/presetting/presetting.py $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
-
 	dh_auto_install
 	dh_install
+
+override_dh_auto_test:
+	@echo "No tests"
 
 clean::
 	dh_clean
