@@ -44,16 +44,6 @@ override_dh_install:
 	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m664 deploy/manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 deploy/scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
-	# average
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
-	install -m755 plugins/aggregators/average.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
-	install -m664 deploy/manifests/manifest_aggregate-average.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average
-	install -m755 deploy/scripts/deploy_aggregate-average.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-average/deploy.sh
-	# quant
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
-	install -m755 plugins/aggregators/quant.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
-	install -m664 deploy/manifests/manifest_aggregate-quant.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant
-	install -m755 deploy/scripts/deploy_aggregate-quant.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-quant/deploy.sh
 	# custom
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
 	install -m755 plugins/aggregators/custom.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
@@ -97,16 +87,8 @@ override_dh_install:
 	install -m664 deploy/presetting/runlist.json $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 	install -m755 deploy/presetting/presetting.py $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
 
-	# mysql plugin
-	install -d $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
-	install -m755 plugins/datagrid/mysqldg.py $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
-	install -m664 deploy/manifests/manifest_mysqldg.json $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg/
-
 	dh_auto_install
 	dh_install
-
-# cleanbuilddir/combaine-plugin-mysql::
-# 	rm -rf $(DEB_DESTDIR)/usr/lib/yandex/combaine/plugins/mysqldg
 
 clean::
 	#rm -rf src/ || true
@@ -115,4 +97,3 @@ clean::
 	rm -rf $(PACKAGE_PATH)
 	rm -rf $(BUILD_DIR)
 	find . -type l | xargs rm -v $1 || true
-
