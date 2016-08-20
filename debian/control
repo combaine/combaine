@@ -36,14 +36,3 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
  python-tokenparser (>= 0.2)
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
-
-Package: combaine-plugin-mysql
-Architecture: amd64
-Depends: ${misc:Depends},
- python (>= 2.6),
- cocaine-tools,
- python-mysqldb,
- combaine-presetting,
- cocaine-framework-python (>= 0.11)
-Description: Plugin which allows to use MySQL queries.
- Cloud app for puting/getting data from parser to Mysql
