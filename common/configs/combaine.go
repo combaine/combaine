@@ -2,7 +2,7 @@ package configs
 
 // Describes Main section in combaine.yaml
 type MainSection struct {
-	ParallelParsings int `yaml:ParallelParsings`
+	ParallelParsings int `yaml:"ParallelParsings"`
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
 	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
