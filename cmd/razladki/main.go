@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/Combaine/Combaine/common"
 	"github.com/Combaine/Combaine/common/tasks"
 	"github.com/Combaine/Combaine/senders/razladki"
+	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
 const (
