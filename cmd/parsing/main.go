@@ -5,13 +5,13 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/tasks"
-	"github.com/Combaine/Combaine/parsing"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/parsing"
 
-	_ "github.com/Combaine/Combaine/fetchers/httpfetcher"
-	_ "github.com/Combaine/Combaine/fetchers/rawsocket"
-	_ "github.com/Combaine/Combaine/fetchers/timetail"
+	_ "github.com/combaine/combaine/fetchers/httpfetcher"
+	_ "github.com/combaine/combaine/fetchers/rawsocket"
+	_ "github.com/combaine/combaine/fetchers/timetail"
 )
 
 var logger *cocaine.Logger

@@ -12,10 +12,10 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/httpclient"
-	"github.com/Combaine/Combaine/common/logger"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 const (

@@ -13,8 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
 )
 
 type StatInfo struct {

@@ -13,8 +13,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/Combaine/Combaine/combainer/server"
-	"github.com/Combaine/Combaine/common/formatter"
+	"github.com/combaine/combaine/combainer/server"
+	"github.com/combaine/combaine/common/formatter"
 )
 
 const (

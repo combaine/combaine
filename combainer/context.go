@@ -1,7 +1,7 @@
 package combainer
 
 import (
-	"github.com/Combaine/Combaine/common/cache"
+	"github.com/combaine/combaine/common/cache"
 
 	"github.com/Sirupsen/logrus"
 )

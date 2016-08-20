@@ -10,9 +10,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/hosts"
-	"github.com/Combaine/Combaine/common/httpclient"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/hosts"
+	"github.com/combaine/combaine/common/httpclient"
 	"github.com/mitchellh/mapstructure"
 )
 

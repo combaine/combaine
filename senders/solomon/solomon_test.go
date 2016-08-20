@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Combaine/Combaine/common/logger"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 

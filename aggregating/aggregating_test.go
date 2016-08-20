@@ -11,11 +11,11 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/servicecacher"
-	"github.com/Combaine/Combaine/common/tasks"
 	"github.com/Sirupsen/logrus"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 func TestGraphiteSend(t *testing.T) {

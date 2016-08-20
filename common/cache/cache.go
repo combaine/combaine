@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Combaine/Combaine/common/configs"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/combaine/combaine/common/configs"
 )
 
 func init() {

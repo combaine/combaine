@@ -9,8 +9,8 @@ import (
 
 	"github.com/ugorji/go/codec"
 
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 var (

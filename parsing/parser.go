@@ -1,8 +1,8 @@
 package parsing
 
 import (
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/servicecacher"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/servicecacher"
 )
 
 type Parser interface {

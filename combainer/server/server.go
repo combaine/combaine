@@ -10,10 +10,10 @@ import (
 
 	"launchpad.net/gozk/zookeeper"
 
-	"github.com/Combaine/Combaine/combainer"
-	"github.com/Combaine/Combaine/combainer/lockserver"
-	"github.com/Combaine/Combaine/common/cache"
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/combainer"
+	"github.com/combaine/combaine/combainer/lockserver"
+	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/configs"
 )
 
 var (

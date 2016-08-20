@@ -3,20 +3,15 @@ CURDIR:=$(shell pwd)
 
 CMD_DIR=$(CURDIR)/cmd
 
-# packages for go
-PACKAGE_PATH=$(CURDIR)/src/github.com/Combaine
-
 # build dir
 BUILD_DIR=$(CURDIR)/build
-
-#export GOPATH=$(CURDIR)
 
 OS := $(shell uname)
 ifeq ($(OS), Darwin)
 	export CGO_CFLAGS=-I/usr/local/include/zookeeper
 endif
 
-PKGS := $(shell go list ./... | grep -v ^github.com/Combaine/Combaine/vendor/)
+PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
 
 .PHONY: clean combainer parsing aggregating
 

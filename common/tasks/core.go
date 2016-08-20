@@ -1,9 +1,9 @@
 package tasks
 
 import (
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/hosts"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/hosts"
 )
 
 type Task interface {

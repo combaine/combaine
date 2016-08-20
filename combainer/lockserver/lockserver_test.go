@@ -3,7 +3,7 @@ package lockserver
 import (
 	"testing"
 
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/common/configs"
 )
 
 func TestMain(t *testing.T) {

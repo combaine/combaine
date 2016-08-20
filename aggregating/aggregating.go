@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/logger"
-	"github.com/Combaine/Combaine/common/servicecacher"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 type item struct {

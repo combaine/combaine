@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"github.com/Combaine/Combaine/aggregating"
+	"github.com/combaine/combaine/aggregating"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/servicecacher"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/tasks"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
