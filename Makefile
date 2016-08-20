@@ -1,10 +1,4 @@
-# pwd
-CURDIR:=$(shell pwd)
-
-CMD_DIR=$(CURDIR)/cmd
-
-# build dir
-BUILD_DIR=$(CURDIR)/build
+PREFIX?=$(shell pwd)
 
 OS := $(shell uname)
 ifeq ($(OS), Darwin)
@@ -13,39 +7,48 @@ endif
 
 PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
 
-.PHONY: clean combainer parsing aggregating
+.PHONY: clean all fmt vet lint build test
 
-build: combainer agave aggregating parsing graphite razladki cbb solomon
+build: ${PREFIX}/build/combainer ${PREFIX}/build/agave ${PREFIX}/build/aggregating ${PREFIX}/build/parsing ${PREFIX}/build/graphite ${PREFIX}/build/razladki ${PREFIX}/build/cbb ${PREFIX}/build/solomon
 
-combainer:
-	go build -o $(BUILD_DIR)/combainer $(CMD_DIR)/combainer/main.go
+${PREFIX}/build/combainer: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/combainer/main.go
 
-aggregating:
-	go build -o $(BUILD_DIR)/aggregate-core $(CMD_DIR)/aggregating/main.go
+${PREFIX}/build/aggregating: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/aggregating/main.go
 
-parsing:
-	go build -o $(BUILD_DIR)/parsing-core $(CMD_DIR)/parsing/main.go
+${PREFIX}/build/parsing: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/parsing/main.go
 
-agave:
-	go build -o $(BUILD_DIR)/agave $(CMD_DIR)/agave/main.go
+${PREFIX}/build/agave: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/agave/main.go
 
-graphite:
-	go build -o $(BUILD_DIR)/graphite $(CMD_DIR)/graphite/main.go
+${PREFIX}/build/graphite: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/graphite/main.go
 
-razladki:
-	go build -o $(BUILD_DIR)/razladki $(CMD_DIR)/razladki/main.go
+${PREFIX}/build/razladki: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/razladki/main.go
 
-cbb:
-	go build -o $(BUILD_DIR)/cbb $(CMD_DIR)/cbb/main.go
+${PREFIX}/build/cbb: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/cbb/main.go
 
-solomon:
-	go build -o $(BUILD_DIR)/solomon $(CMD_DIR)/solomon/main.go
+${PREFIX}/build/solomon: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/solomon/main.go
 
 fixture:
 	go run tests/fixtures/gen_fixtures.go
 
-clean::
-	rm -rf $(BUILD_DIR) || true
+clean:
+	@echo "+ $@"
+	rm -rf ${PREFIX}/build/ || true
 
 vet:
 	@echo "+ $@"
