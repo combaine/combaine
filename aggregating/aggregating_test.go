@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/stretchr/testify/assert"
 
@@ -203,5 +205,5 @@ func TestAggregating(t *testing.T) {
 		}
 	}()
 	cacher := NewCacher()
-	assert.NoError(t, Aggregating(&aggTask, cacher))
+	assert.NoError(t, Do(context.Background(), &aggTask, cacher))
 }
