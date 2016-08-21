@@ -1,3 +1,9 @@
+combaine (0.7.3) trusty; urgency=medium
+
+  * [Client] refactoring of timeouts
+
+ -- Anton Tiurin <noxiouz@yandex.ru>  Sun, 21 Aug 2016 17:00:24 +0300
+
 combaine (0.7.2) trusty; urgency=medium
 
   * [Aggregate] rewrite in go
