@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+message TimeFrame {
+    int64 previous = 1;
+    int64 current = 2;
+}
+
+service Worker {
+    rpc DoParsing(ParsingTask) returns (ParsingResult) {}
+    rpc DoAggregating(AggregatingTask) returns (AggregatingResult) {}
+}
+
+message ParsingTask {
+    string id = 1;
+    TimeFrame frame = 2;
+    // Hostname of target
+    string host = 3;
+    // Name of handled parsing config
+    string parsing_config_name = 4;
+    // msgpacked content of the current parsing config
+    bytes parsing_config = 5;
+    // msgpacked content of aggregation configs
+	// related to the current parsing config
+    map <string, bytes> aggregation_configs = 6;
+}
+
+message ParsingResult {
+    map <string, bytes> data = 1;
+}
+
+
+message AggregatingTask {
+    string id = 1;
+    TimeFrame frame = 2;
+    // Name of the current aggregation config
+    string config = 3;
+    // Name of handled parsing config
+    string parsing_config_name = 4;
+    // Content of the current parsing config
+    bytes parsing_config = 5;
+    // Current aggregation config
+    bytes aggregation_config = 6;
+    // hosts
+    bytes hosts = 7;
+    // parsing results
+    ParsingResult ParsingResult = 8;
+}
+
+message AggregatingResult {
+}
