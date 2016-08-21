@@ -3,24 +3,15 @@ package combainer
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/tasks"
-)
-
-var (
-	// ErrAppUnavailable is an application for parsing/aggregating is not found
-	ErrAppUnavailable = fmt.Errorf("Application is unavailable")
-	// ErrAppCall means that Call returns nil result
-	ErrAppCall = fmt.Errorf("Application call error")
 )
 
 type sessionParams struct {
@@ -261,73 +252,30 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	return nil
 }
 
-type resolveInfo struct {
-	App *cocaine.Service
-	Err error
-}
-
-func resolve(appname, endpoint string) <-chan resolveInfo {
-	res := make(chan resolveInfo)
-	go func() {
-		app, err := cocaine.NewService(appname, endpoint)
-		select {
-		case res <- resolveInfo{
-			App: app,
-			Err: err,
-		}:
-		default:
-			if err == nil {
-				app.Close()
-			}
-		}
-	}()
-	return res
-}
-
 func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.Task, hosts []string) (interface{}, error) {
-	var (
-		err  error
-		app  *cocaine.Service
-		host string
-	)
-
-FOR:
-	for {
-		host = fmt.Sprintf("%s:10053", getRandomHost(appName, hosts))
-		select {
-		case r := <-resolve(appName, host):
-			err, app = r.Err, r.App
-			if err == nil {
-				defer app.Close()
-				cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "host": host, "appname": appName}).Debug("application successfully connected")
-				break FOR
-			}
-		case <-time.After(1 * time.Second):
-			err = fmt.Errorf("service resolvation was timeouted %s %s %s", task.Tid(), host, appName)
-		case <-ctx.Done():
-			cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": ErrAppUnavailable, "appname": appName}).Error("unable to send task")
-			return nil, ErrAppUnavailable
-		}
-
-		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err,
-			"appname": appName, "host": host}).Warning("unable to connect to application")
-		time.Sleep(200 * time.Microsecond)
+	worker, err := cl.Resolver.Resolve(ctx, appName, hosts)
+	if err != nil {
+		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err, "appname": appName}).Error("unable to send task")
+		return nil, err
 	}
+	defer worker.Close()
 
 	raw, err := task.Raw()
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err,
-			"appname": appName, "host": host}).Errorf("failed to unpack task's data for group %s", task.Group())
+			"appname": appName, "host": worker.Footprint()}).Errorf("failed to unpack task's data for group %s", task.Group())
 		return nil, err
 	}
 
-	res, err := performTask(ctx, app, raw)
-	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err, "appname": appName, "host": host}).Errorf("task for group %s failed", task.Group())
+	var res interface{}
+	if err = worker.Do(ctx, "handleTask", raw).Wait(ctx, &res); err != nil {
+		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err,
+			"appname": appName, "host": worker.Footprint()}).Errorf("task for group %s failed", task.Group())
 		return nil, err
 	}
 
-	cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "appname": appName, "host": host}).Infof("task for group %s done", task.Group())
+	cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "appname": appName,
+		"host": worker.Footprint()}).Infof("task for group %s done", task.Group())
 	return res, nil
 }
 
@@ -361,26 +309,4 @@ func (cl *Client) doAggregationHandler(ctx context.Context, task tasks.Aggregati
 		return
 	}
 	cl.clientStats.AddSuccessAggregate()
-}
-
-func getRandomHost(app string, input []string) string {
-	max := len(input)
-	return input[rand.Intn(max)]
-}
-
-func performTask(ctx context.Context, app *cocaine.Service, payload []byte) (interface{}, error) {
-	select {
-	case res := <-app.Call("enqueue", "handleTask", payload):
-		if res == nil {
-			return nil, ErrAppCall
-		}
-		if res.Err() != nil {
-			return nil, res.Err()
-		}
-		var i interface{}
-		err := res.Extract(&i)
-		return i, err
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
 }
