@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Sirupsen/logrus"
@@ -130,5 +132,6 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	assert.NoError(t, Aggregating(&aggTask, cacher))
+	cacher := NewCacher()
+	assert.NoError(t, Do(context.Background(), &aggTask, cacher))
 }

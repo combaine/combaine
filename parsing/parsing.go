@@ -58,9 +58,10 @@ func parseData(id string, name string, data []byte) ([]byte, error) {
 	return parser.Parse(id, name, data)
 }
 
-func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func Do(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
 	logger.Infof("%s start parsing", task.Id)
 
+	// TODO: unpack from the task
 	var parsingConfig configs.ParsingConfig
 
 	blob, err := fetchDataFromTarget(task, &parsingConfig)
@@ -94,6 +95,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 	}
 	ch := make(chan item)
 
+	// TODO: unpack from the task
 	var aggregationConfigs map[string]configs.AggregationConfig
 	var wg sync.WaitGroup
 	for aggLogName, aggCfg := range aggregationConfigs {
