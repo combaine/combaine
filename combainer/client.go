@@ -174,16 +174,13 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		"session": uniqueID,
 		"config":  parsingConfigName}
 
-	var startTime time.Time
-	var wg sync.WaitGroup
-
 	sessionParameters, err := cl.updateSessionParams(parsingConfigName)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"session": uniqueID, "config": parsingConfigName, "error": err}).Error("unable to update session parametrs")
 		return err
 	}
 
-	startTime = time.Now()
+	startTime := time.Now()
 	// Context for the whole dispath.
 	// It includes parsing, aggregation and wait stages
 	wctx, cancelFunc := context.WithDeadline(context.TODO(), startTime.Add(sessionParameters.ParsingTime))
@@ -204,6 +201,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	pctx, cancelFunc := context.WithDeadline(wctx, startTime.Add(sessionParameters.ParsingTime))
 	defer cancelFunc()
 
+	var wg sync.WaitGroup
 	for i, task := range sessionParameters.PTasks {
 		// Description of task
 		task.PrevTime = startTime.Unix()
@@ -216,7 +214,8 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		tokens <- struct{}{} // acqure
 		go func(t tasks.ParsingTask) {
 			defer wg.Done()
-			cl.doParsingTask(pctx, t, &mu, tokens, hosts, parsingResult)
+			defer func() { <-tokens }() // release
+			cl.doParsingTask(pctx, t, &mu, hosts, parsingResult)
 		}(task)
 	}
 	wg.Wait()
@@ -279,10 +278,7 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 	return res, nil
 }
 
-func (cl *Client) doParsingTask(ctx context.Context, task tasks.ParsingTask, m *sync.Mutex, tokens <-chan struct{},
-	hosts []string, r tasks.ParsingResult) {
-	defer func() { <-tokens }() // release
-
+func (cl *Client) doParsingTask(ctx context.Context, task tasks.ParsingTask, m *sync.Mutex, hosts []string, r tasks.ParsingResult) {
 	i, err := cl.doGeneralTask(ctx, common.PARSING, &task, hosts)
 	if err != nil {
 		cl.clientStats.AddFailedParsing()
