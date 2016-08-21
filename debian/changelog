@@ -1,3 +1,9 @@
+сombaine (0.7.3.2) trusty; urgency=medium
+
+  * [Client] bugfix: set WholeTime as deadline to wctx
+
+ -- Anton Tiurin <noxiouz@yandex.ru>  Sun, 21 Aug 2016 18:08:24 +0300
+
 combaine (0.7.3.1) trusty; urgency=medium
 
   * [Client] bugfix: add forgotten enqueue
