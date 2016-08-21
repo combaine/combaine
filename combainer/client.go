@@ -183,7 +183,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	startTime := time.Now()
 	// Context for the whole dispath.
 	// It includes parsing, aggregation and wait stages
-	wctx, cancelFunc := context.WithDeadline(context.TODO(), startTime.Add(sessionParameters.ParsingTime))
+	wctx, cancelFunc := context.WithDeadline(context.TODO(), startTime.Add(sessionParameters.WholeTime))
 	defer cancelFunc()
 
 	cl.Log.WithFields(contextFields).Info("Start new iteration")
