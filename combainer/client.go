@@ -17,9 +17,10 @@ import (
 )
 
 var (
+	// ErrAppUnavailable is an application for parsing/aggregating is not found
 	ErrAppUnavailable = fmt.Errorf("Application is unavailable")
-	ErrHandlerTimeout = fmt.Errorf("Timeout")
-	ErrAppCall        = fmt.Errorf("Application call error")
+	// ErrAppCall means that Call returns nil result
+	ErrAppCall = fmt.Errorf("Application call error")
 )
 
 type sessionParams struct {
@@ -30,14 +31,16 @@ type sessionParams struct {
 	AggTasks         []tasks.AggregationTask
 }
 
+// Client is a distributor of tasks across the computation grid
 type Client struct {
-	Id         string
+	ID         string
 	Repository configs.Repository
 	*Context
 	Log *logrus.Entry
 	clientStats
 }
 
+// NewClient returns new client
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	if context.Hosts == nil {
 		err := fmt.Errorf("Hosts delegate must be specified")
@@ -49,7 +52,7 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 
 	id := GenerateSessionId()
 	cl := &Client{
-		Id:         id,
+		ID:         id,
 		Repository: repo,
 		Context:    context,
 		Log:        context.Logger.WithField("client", id),
@@ -57,7 +60,7 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	return cl, nil
 }
 
-func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err error) {
+func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{
 		"config": config,
 	}).Info("updating session parametrs")
@@ -82,7 +85,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	var parsingConfig configs.ParsingConfig
-	if err := encodedParsingConfig.Decode(&parsingConfig); err != nil {
+	if err = encodedParsingConfig.Decode(&parsingConfig); err != nil {
 		cl.Log.WithFields(logrus.Fields{
 			"config": config,
 			"error":  err,
@@ -115,7 +118,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 
 	allHosts := make(hosts.Hosts)
 	for _, item := range parsingConfig.Groups {
-		hosts_for_group, err := hostFetcher.Fetch(item)
+		hostsForGroup, err := hostFetcher.Fetch(item)
 		if err != nil {
 			cl.Log.WithFields(logrus.Fields{
 				"config": config,
@@ -125,7 +128,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 			continue
 		}
 
-		allHosts.Merge(&hosts_for_group)
+		allHosts.Merge(&hostsForGroup)
 	}
 
 	listOfHosts := allHosts.AllHosts()
@@ -188,6 +191,7 @@ func (cl *Client) UpdateSessionParams(config string) (sp *sessionParams, err err
 	return sp, nil
 }
 
+// Dispatch does one iteration of tasks dispatching
 func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait bool) error {
 	GlobalObserver.RegisterClient(cl, parsingConfigName)
 	defer GlobalObserver.UnregisterClient(parsingConfigName)
@@ -203,7 +207,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	var startTime time.Time
 	var wg sync.WaitGroup
 
-	sessionParameters, err := cl.UpdateSessionParams(parsingConfigName)
+	sessionParameters, err := cl.updateSessionParams(parsingConfigName)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{
 			"session": uniqueID,
@@ -418,6 +422,6 @@ func performTask(ctx context.Context, app *cocaine.Service, payload []byte) (int
 		err := res.Extract(&i)
 		return i, err
 	case <-ctx.Done():
-		return nil, ErrHandlerTimeout
+		return nil, ctx.Err()
 	}
 }

@@ -159,7 +159,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sp, err := cl.UpdateSessionParams(name)
+	sp, err := cl.updateSessionParams(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
