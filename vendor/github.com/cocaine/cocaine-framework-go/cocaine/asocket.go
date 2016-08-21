@@ -187,7 +187,10 @@ func (sock *asyncRWSocket) readloop() {
 			if count > 0 {
 				bufferToSend := make([]byte, count)
 				copy(bufferToSend[:], buf[:count])
-				sock.socketToClient.in <- bufferToSend
+				select {
+				case sock.socketToClient.in <- bufferToSend:
+				case <-time.After(5 * time.Minute):
+				}
 			}
 
 			if err != nil {

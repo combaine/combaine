@@ -1,4 +1,4 @@
-сombaine (0.7.3.2) trusty; urgency=medium
+combaine (0.7.3.2) trusty; urgency=medium
 
   * [Client] bugfix: set WholeTime as deadline to wctx
 
