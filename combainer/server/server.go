@@ -11,13 +11,14 @@ import (
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
+	"github.com/combaine/combaine/combainer/worker"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
 
 var (
-	SHOULD_WAIT   = true
-	GEN_UNIQUE_ID = ""
+	shouldWait  = true
+	genUniqueID = ""
 )
 
 func trap() {
@@ -56,7 +57,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 
 	combainerConfig := repository.GetCombainerConfig()
-	if err := configs.VerifyCombainerConfig(&combainerConfig); err != nil {
+	if err = configs.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
 
@@ -72,11 +73,12 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 
 	// Get Combaine hosts
-	cloud_group := combainerConfig.MainSection.CloudGroup
+	cloudGroup := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
-		Cache:  cacher,
-		Hosts:  nil,
-		Logger: logrus.StandardLogger(),
+		Cache:    cacher,
+		Hosts:    nil,
+		Logger:   logrus.StandardLogger(),
+		Resolver: worker.NewResolverV11(),
 	}
 
 	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
@@ -85,7 +87,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 
 	context.Hosts = func() ([]string, error) {
-		h, err := s.Fetch(cloud_group)
+		h, err := s.Fetch(cloudGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +206,7 @@ LOCKSERVER_LOOP:
 							}
 
 							for {
-								if err = cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
+								if err = cl.Dispatch(lockname, genUniqueID, shouldWait); err != nil {
 									c.log.WithFields(logrus.Fields{
 										"error":    err,
 										"lockname": lockname,
