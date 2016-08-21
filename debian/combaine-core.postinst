@@ -12,13 +12,6 @@ case $1 in
 		cd /usr/lib/yandex/combaine/core-apps/parsing-app/
 		./deploy.sh
 
-		echo "Deploy average"
-		cd /usr/lib/yandex/combaine/core-apps/aggregate-average/
-		./deploy.sh
-
-		cd /usr/lib/yandex/combaine/core-apps/aggregate-quant/
-		./deploy.sh
-
 		echo "Deploy custom"
 		cd /usr/lib/yandex/combaine/core-apps/aggregate-custom/
 		./deploy.sh

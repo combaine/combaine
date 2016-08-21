@@ -32,7 +32,7 @@ override_dh_auto_build:
 	python setup.py build --force
 
 override_dh_install:
-	python setup.py install --force --root=/home/vagrant/Go/src/github.com/combaine/combaine/debian/tmp --no-compile -O0 --install-layout=deb
+	python setup.py install --force --root=${CPWD}/debian/tmp --no-compile -O0 --install-layout=deb
 
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
