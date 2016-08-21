@@ -185,7 +185,7 @@ LOCKSERVER_LOOP:
 								return
 							}
 
-							c.log.Info("creating new client", lockname)
+							c.log.Infof("creating new client %s", lockname)
 							cl, err := combainer.NewClient(c.Context, c.Repository)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
