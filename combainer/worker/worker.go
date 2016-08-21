@@ -37,7 +37,7 @@ func (f futureV11) Wait(ctx context.Context, result interface{}) error {
 
 // Worker is an interface on top of Cocaine Workers
 type Worker interface {
-	Do(_ context.Context, name string, args ...interface{}) Future
+	Do(_ context.Context, name string, payload interface{}) Future
 	Footprint() string
 	Close()
 }
@@ -56,9 +56,9 @@ func (s *workerV11) Close() {
 	s.Service.Close()
 }
 
-func (s *workerV11) Do(todo context.Context, name string, args ...interface{}) Future {
+func (s *workerV11) Do(todo context.Context, name string, payload interface{}) Future {
 	return futureV11{
-		ch: s.Service.Call(name, args...),
+		ch: s.Service.Call("enqueue", name, payload),
 	}
 }
 
