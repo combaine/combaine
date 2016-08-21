@@ -264,12 +264,13 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.PrevTime = startTime.Unix()
 		task.CurrTime = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.CommonTask.Id = uniqueID
+		task.ParsingResult = parsingResult
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate %v", i+1, totalTasksAmount, task)
 		wg.Add(1)
 		go func(t tasks.AggregationTask) {
 			defer wg.Done()
-			cl.doAggregationHandler(wctx, t, hosts, parsingResult)
+			cl.doAggregationHandler(wctx, t, hosts)
 		}(task)
 	}
 	wg.Wait()
@@ -390,8 +391,7 @@ func (cl *Client) doParsingTask(ctx context.Context, task tasks.ParsingTask, m *
 
 }
 
-func (cl *Client) doAggregationHandler(ctx context.Context, task tasks.AggregationTask, hosts []string, r tasks.ParsingResult) {
-	task.ParsingResult = r
+func (cl *Client) doAggregationHandler(ctx context.Context, task tasks.AggregationTask, hosts []string) {
 	_, err := cl.doGeneralTask(ctx, common.AGGREGATE, &task, hosts)
 	if err != nil {
 		cl.clientStats.AddFailedAggregate()
