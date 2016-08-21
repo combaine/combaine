@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
-	"launchpad.net/gozk/zookeeper"
+	"github.com/talbright/go-zookeeper/zk"
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
@@ -17,11 +16,11 @@ import (
 )
 
 var (
-	SHOULD_WAIT   bool = true
-	GEN_UNIQUE_ID      = ""
+	SHOULD_WAIT   = true
+	GEN_UNIQUE_ID = ""
 )
 
-func Trap() {
+func trap() {
 	if r := recover(); r != nil {
 		logrus.Printf("Recovered: %s", r)
 	}
@@ -178,7 +177,7 @@ LOCKSERVER_LOOP:
 						// Inline function to use defers
 						func(lockname string) {
 							defer DLS.Unlock(lockname)
-							defer Trap()
+							defer trap()
 
 							if !c.Repository.ParsingConfigIsExists(cfg) {
 								c.log.WithField("error", "config doesn't exist").Error(cfg)
@@ -195,8 +194,7 @@ LOCKSERVER_LOOP:
 								return
 							}
 
-							var watcher <-chan zookeeper.Event
-							watcher, err = DLS.Watch(lockname)
+							watcher, err := DLS.Watch(lockname)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
 									"error":    err,
@@ -206,7 +204,7 @@ LOCKSERVER_LOOP:
 							}
 
 							for {
-								if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
+								if err = cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
 									c.log.WithFields(logrus.Fields{
 										"error":    err,
 										"lockname": lockname,
@@ -215,7 +213,7 @@ LOCKSERVER_LOOP:
 								}
 								select {
 								case event := <-watcher:
-									if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
+									if event.Err != nil || event.Type == zk.EventNodeDeleted {
 										c.log.Errorf("lock has been lost: %s", event)
 										return
 									}
@@ -234,14 +232,13 @@ LOCKSERVER_LOOP:
 					}
 				}(configs)
 			case event := <-DLS.Session:
-				if event.Type == zookeeper.STATE_CONNECTING {
-					// https://godoc.org/launchpad.net/gozk/zookeeper#Event
+				if event.State == zk.StateConnecting {
 					c.log.Warn("reconnecting event from Zookeeper session")
 					continue
 				}
 
-				if !event.Ok() {
-					c.log.Errorf("not OK event from Zookeeper: %s", event)
+				if event.Err != nil {
+					c.log.Errorf("event with error from Zookeeper: %v", event.Err)
 					DLS.Close()
 					break DISPATCH_LOOP
 				}

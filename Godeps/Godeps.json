@@ -55,17 +55,17 @@
 			"Rev": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d"
 		},
 		{
+			"ImportPath": "github.com/talbright/go-zookeeper/zk",
+			"Comment": "v0.1.0-2-g1f884c2",
+			"Rev": "1f884c29d5bf0cc3dd2a8d7623058b5e276d8bda"
+		},
+		{
 			"ImportPath": "github.com/ugorji/go/codec",
 			"Rev": "1d5269ed4e89d423d40362a0914e1c99adb13cc8"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "bef53efd0c76e49e6de55ead051f886bea7e9420"
-		},
-		{
-			"ImportPath": "launchpad.net/gozk/zookeeper",
-			"Comment": "35",
-			"Rev": "gustavo@niemeyer.net-20120604234227-zlx9632c564eke86"
 		}
 	]
 }
