@@ -132,6 +132,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	// Tasks for parsing
 	for _, host := range listOfHosts {
 		pTasks = append(pTasks, rpc.ParsingTask{
+			Frame:                     new(rpc.TimeFrame),
 			Host:                      host,
 			ParsingConfigName:         config,
 			EncodedParsingConfig:      packedParsingConfig,
@@ -142,6 +143,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	for _, name := range parsingConfig.AggConfigs {
 		packedAggregationConfig, _ := common.Pack((*aggregationConfigs)[name])
 		aggTasks = append(aggTasks, rpc.AggregatingTask{
+			Frame:                    new(rpc.TimeFrame),
 			Config:                   name,
 			ParsingConfigName:        config,
 			EncodedParsingConfig:     packedParsingConfig,
