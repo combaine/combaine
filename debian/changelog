@@ -1,3 +1,9 @@
+combaine (0.7.3.3) trusty; urgency=medium
+
+  * [Aggregating] more logging
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 22 Aug 2016 13:07:57 +0300
+
 combaine (0.7.3.2) trusty; urgency=medium
 
   * [Client] bugfix: set WholeTime as deadline to wctx
