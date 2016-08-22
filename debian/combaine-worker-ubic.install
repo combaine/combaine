@@ -1,0 +1,2 @@
+contrib/ubic/combaine-worker /etc/ubic/service
+contrib/init.d/combaine-worker /etc/init.d/combaine-worker/

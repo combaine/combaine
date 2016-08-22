@@ -1,0 +1,11 @@
+use Ubic::Service::SimpleDaemon;
+my $service = Ubic::Service::SimpleDaemon->new(
+    name => 'combaine-worker',
+    daemon_user => 'cocaine',
+    auto_start => 1,
+    ubic_log => '/var/log/ubic/combaine-worker/ubic.log',
+    stdout => '/var/log/ubic/combaine-worker/stdout.log',
+    stderr => '/var/log/ubic/combaine-worker/stderr.log',
+    bin => '/usr/bin/combaine-worker',
+    ulimit => { RLIMIT_NOFILE => 65535 },
+);
