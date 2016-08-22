@@ -37,3 +37,9 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
  python-tokenparser (>= 0.2)
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
+
+Package: combaine-worker-ubic
+Architecture: amd64
+Depends: combaine-core,
+         lsb-base (>= 3.2-14),
+         ubic
