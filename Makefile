@@ -3,22 +3,18 @@ DIR := ${PREFIX}/build
 
 PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
 
-.PHONY: clean all fmt vet lint build test
+.PHONY: clean all fmt vet lint build test proto
 
-build: ${DIR}/combainer ${DIR}/agave ${DIR}/aggregating ${DIR}/parsing ${DIR}/graphite \
+build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/combainer/main.go
 
-${DIR}/aggregating: $(wildcard **/*.go)
+${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/aggregating/main.go
-
-${DIR}/parsing: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/parsing/main.go
+	go build -o $@ ./cmd/worker/main.go
 
 ${DIR}/agave: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -40,6 +36,12 @@ ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/solomon/main.go
 
+proto: ${PREFIX}/rpc/rpc.pb.go
+
+${PREFIX}/rpc/rpc.pb.go: $(wildcard **/*.proto)
+	@echo "+ $@"
+	protoc -I rpc/ rpc/rpc.proto --go_out=plugins=grpc:rpc
+
 fixture:
 	go run tests/fixtures/gen_fixtures.go
 
@@ -59,6 +61,7 @@ fmt:
 lint:
 	@echo "+ $@"
 	@test -z "$$(golint ./... 2>&1 | grep -v ^vendor/ | tee /dev/stderr)"
+
 
 test: vet fmt
 	@echo "+ $@"

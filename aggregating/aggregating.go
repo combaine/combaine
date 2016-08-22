@@ -5,11 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/rpc"
 )
 
 type item struct {
@@ -51,20 +54,24 @@ func aggregating(id string, ch chan item, agg string, h string,
 	ch <- item{agg: agg, name: h, res: res}
 }
 
-func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error {
+func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cacher) error {
 	startTm := time.Now()
+	var parsingConfig = task.GetParsingConfig()
+	var aggregationConfig = task.GetAggregationConfig()
+	var Hosts = task.GetHosts()
+
 	logger.Infof("%s start aggregating", task.Id)
-	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
-	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
+	logger.Debugf("%s aggregation config: %s", task.Id, aggregationConfig)
+	logger.Debugf("%s aggregation hosts: %v", task.Id, Hosts)
 
 	var aggWg sync.WaitGroup
 
-	meta := task.ParsingConfig.Metahost
+	meta := parsingConfig.Metahost
 	result := make(tasks.AggregationResult)
 	ch := make(chan item)
 
-	initCap := len(task.AggregationConfig.Data) * len(task.Hosts)
-	for name, cfg := range task.AggregationConfig.Data {
+	initCap := len(aggregationConfig.Data) * len(Hosts)
+	for name, cfg := range aggregationConfig.Data {
 		aggParsingResults := make([]interface{}, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
@@ -79,13 +86,11 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			continue
 		}
 
-		for subGroup, hosts := range task.Hosts {
+		for subGroup, hosts := range Hosts {
 			subGroupParsingResults := make([]interface{}, 0, initCap)
 			for _, host := range hosts {
-				key := fmt.Sprintf("%s;%s;%s;%s;%v", host,
-					task.ParsingConfigName, task.Config, name, task.CurrTime)
-
-				data, ok := task.ParsingResult[key]
+				key := fmt.Sprintf("%s;%s;%s;%s;%v", host, task.ParsingConfigName, task.Config, name, task.Frame.Current)
+				data, ok := task.ParsingResult.Data[key]
 				if !ok {
 					logger.Warnf("%s %s '%s' unable to aggregte, missing result for '%s'",
 						task.Id, name, host, key)
@@ -152,7 +157,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 	logger.Infof("%s send data to senders", task.Id)
 
 	var sendersWg sync.WaitGroup
-	for name, item := range task.AggregationConfig.Senders {
+	for name, item := range aggregationConfig.Senders {
 		sendersWg.Add(1)
 		go func(g *sync.WaitGroup, n string, i configs.PluginConfig) {
 			defer g.Done()
@@ -169,8 +174,8 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			}
 			senderPayload := tasks.SenderPayload{
 				CommonTask: tasks.CommonTask{
-					CurrTime: task.CurrTime,
-					PrevTime: task.PrevTime,
+					CurrTime: task.Frame.Current,
+					PrevTime: task.Frame.Previous,
 					Id:       task.Id,
 				},
 				Config: i,
