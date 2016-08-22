@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
 
@@ -19,9 +20,12 @@ import (
 
 var cacher = servicecacher.NewCacher()
 
-const (
-	port = ":10052"
-)
+var endpoint string
+
+func init() {
+	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
+	flag.Parse()
+}
 
 type server struct{}
 
@@ -37,7 +41,7 @@ func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (
 }
 
 func main() {
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
