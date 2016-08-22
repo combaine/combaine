@@ -271,6 +271,8 @@ func dialContext(ctx context.Context, hosts []string) (*grpc.ClientConn, error) 
 		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
 		conn, err := grpc.DialContext(ctx, address,
 			grpc.WithInsecure(),
+			grpc.WithBlock(),
+			grpc.WithTimeout(time.Millisecond*100),
 			grpc.WithCompressor(grpc.NewGZIPCompressor()),
 			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
 		)
