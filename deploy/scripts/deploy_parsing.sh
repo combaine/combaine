@@ -1,8 +1,8 @@
 #!/bin/bash
 
-APPNAME=aggregate
-MANIFEST=manifest_aggregate-core.json
-PACKAGE=aggregate.tar.gz
+APPNAME=parsing
+MANIFEST=manifest_parsing.json
+PACKAGE=parsing.tar.gz
 
 rm ./$PACKAGE || true
 tar -czf ./$PACKAGE ./*

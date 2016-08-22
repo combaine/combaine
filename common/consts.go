@@ -2,6 +2,6 @@ package common
 
 const (
 	PARSING    = "parsing"
-	AGGREGATE  = "aggregate"
+	AGGREGATE  = "aggregating"
 	PARSINGAPP = "parsingApp"
 )

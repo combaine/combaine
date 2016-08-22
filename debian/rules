@@ -38,15 +38,15 @@ override_dh_install:
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
 
 	# core-parsing
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m755 $(BUILD_DIR)/parsing  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m664 deploy/manifests/manifest_parsing-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core
-	install -m755 deploy/scripts/deploy_parsing-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-core/deploy.sh
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
+	install -m755 $(BUILD_DIR)/parsing  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
+	install -m664 deploy/manifests/manifest_parsing.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
+	install -m755 deploy/scripts/deploy_parsing.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing/deploy.sh
 	# core-aggregate
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m755 $(BUILD_DIR)/aggregating  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m664 deploy/manifests/manifest_aggregate-core.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core
-	install -m755 deploy/scripts/deploy_aggregate-core.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-core/deploy.sh
+	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
+	install -m755 $(BUILD_DIR)/aggregating  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
+	install -m664 deploy/manifests/manifest_aggregating.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
+	install -m755 deploy/scripts/deploy_aggregating.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app

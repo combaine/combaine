@@ -3,6 +3,7 @@ package aggregating
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
@@ -51,6 +52,7 @@ func aggregating(id string, ch chan item, agg string, h string,
 }
 
 func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error {
+	startTm := time.Now()
 	logger.Infof("%s start aggregating", task.Id)
 	logger.Debugf("%s aggregation config: %s", task.Id, task.AggregationConfig)
 	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
@@ -106,6 +108,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 					continue
 				}
 
+				logger.Debugf("%s %s data to aggregate host %s: %s", task.Id, name, host, data)
 				aggWg.Add(1)
 				go aggregating(task.Id, ch, name, host,
 					cfg, []interface{}{data}, app, &aggWg)
@@ -114,6 +117,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				logger.Infof("%s %s '%s' nothing aggregate", task.Id, name, subGroup)
 				continue
 			}
+			logger.Debugf("%s %s data to aggregate group %s: %s", task.Id, name, subGroup, subGroupParsingResults)
 			aggWg.Add(1)
 			go aggregating(task.Id, ch, name, meta+"-"+subGroup,
 				cfg, subGroupParsingResults, app, &aggWg)
@@ -123,6 +127,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			continue
 		}
 
+		logger.Debugf("%s %s data to aggregate metahost %s: %s", task.Id, name, meta, aggParsingResults)
 		aggWg.Add(1)
 		go aggregating(task.Id, ch, name, meta,
 			cfg, aggParsingResults, app, &aggWg)
@@ -139,6 +144,12 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 		}
 		result[item.agg][item.name] = item.res
 	}
+
+	completeTm := time.Now().Sub(startTm)
+	logger.Infof("%s aggregation completed (took %.3f)", task.Id, completeTm.Seconds())
+
+	startTm = time.Now()
+	logger.Infof("%s send data to senders", task.Id)
 
 	var sendersWg sync.WaitGroup
 	for name, item := range task.AggregationConfig.Senders {
@@ -176,6 +187,9 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 		}(&sendersWg, name, item)
 	}
 	sendersWg.Wait()
+
+	completeTm = time.Now().Sub(startTm)
+	logger.Infof("%s senders completed (took %.3f)", task.Id, completeTm.Seconds())
 
 	logger.Debugf("%s result %s", task.Id, result)
 	logger.Infof("%s done", task.Id)

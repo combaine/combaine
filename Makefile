@@ -1,40 +1,42 @@
 PREFIX?=$(shell pwd)
+DIR := ${PREFIX}/build
 
 PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
 
 .PHONY: clean all fmt vet lint build test
 
-build: ${PREFIX}/build/combainer ${PREFIX}/build/agave ${PREFIX}/build/aggregating ${PREFIX}/build/parsing ${PREFIX}/build/graphite ${PREFIX}/build/razladki ${PREFIX}/build/cbb ${PREFIX}/build/solomon
+build: ${DIR}/combainer ${DIR}/agave ${DIR}/aggregating ${DIR}/parsing ${DIR}/graphite \
+	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon
 
-${PREFIX}/build/combainer: $(wildcard **/*.go)
+${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/combainer/main.go
 
-${PREFIX}/build/aggregating: $(wildcard **/*.go)
+${DIR}/aggregating: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/aggregating/main.go
 
-${PREFIX}/build/parsing: $(wildcard **/*.go)
+${DIR}/parsing: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/parsing/main.go
 
-${PREFIX}/build/agave: $(wildcard **/*.go)
+${DIR}/agave: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/agave/main.go
 
-${PREFIX}/build/graphite: $(wildcard **/*.go)
+${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/graphite/main.go
 
-${PREFIX}/build/razladki: $(wildcard **/*.go)
+${DIR}/razladki: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/razladki/main.go
 
-${PREFIX}/build/cbb: $(wildcard **/*.go)
+${DIR}/cbb: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/cbb/main.go
 
-${PREFIX}/build/solomon: $(wildcard **/*.go)
+${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/solomon/main.go
 
@@ -43,7 +45,7 @@ fixture:
 
 clean:
 	@echo "+ $@"
-	rm -rf ${PREFIX}/build/ || true
+	rm -rf ${DIR}/ || true
 
 vet:
 	@echo "+ $@"

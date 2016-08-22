@@ -5,7 +5,7 @@ set -e
 case $1 in
     configure)
 		echo "Deploy parsing-core"
-		cd /usr/lib/yandex/combaine/core-apps/parsing-core/
+		cd /usr/lib/yandex/combaine/core-apps/parsing/
 		./deploy.sh
 
 		echo "Deploy parsing-app"
@@ -17,7 +17,7 @@ case $1 in
 		./deploy.sh
 
 		echo "Deploy aggregate"
-		cd /usr/lib/yandex/combaine/core-apps/aggregate-core/
+		cd /usr/lib/yandex/combaine/core-apps/aggregating/
 		./deploy.sh
 
 		echo "Deploy agave"
