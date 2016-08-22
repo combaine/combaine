@@ -20,7 +20,7 @@ import (
 var cacher = servicecacher.NewCacher()
 
 const (
-	port = ":10000"
+	port = ":10052"
 )
 
 type server struct{}
@@ -41,7 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 	rpc.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)
 }
