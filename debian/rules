@@ -36,7 +36,7 @@ override_dh_install:
 
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
-	install -m755 $(BUILD_DIR)/worker  $(DEB_DESTDIR)usr/bin/combainer-worker
+	install -m755 $(BUILD_DIR)/worker  $(DEB_DESTDIR)usr/bin/combaine-worker
 
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
