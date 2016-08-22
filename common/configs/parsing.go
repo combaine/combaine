@@ -1,8 +1,7 @@
 package configs
 
 const (
-	// Special parser name that allows to avoid
-	// parser call
+	//ParserSkipValue is a special parser name that allows to avoid a parser
 	ParserSkipValue = "NullParser"
 )
 
