@@ -9,7 +9,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
-	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
@@ -55,14 +54,13 @@ func aggregating(id string, ch chan item, agg string, h string, c configs.Plugin
 
 func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cacher) error {
 	startTm := time.Now()
-	// TODO: unpack from the task
-	var parsingConfig configs.ParsingConfig
-	var aggregationConfig configs.AggregationConfig
-	var Hosts hosts.Hosts
+	var parsingConfig = task.GetParsingConfig()
+	var aggregationConfig = task.GetAggregationConfig()
+	var Hosts = task.GetHosts()
 
 	logger.Infof("%s start aggregating %s", task.Id, task.Config)
 	logger.Debugf("%s aggregation config: %s", task.Id, aggregationConfig)
-	logger.Debugf("%s aggregation hosts: %v", task.Id, task.Hosts)
+	logger.Debugf("%s aggregation hosts: %v", task.Id, Hosts)
 
 	var aggWg sync.WaitGroup
 

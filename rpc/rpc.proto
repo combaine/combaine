@@ -18,10 +18,10 @@ message ParsingTask {
     // Name of handled parsing config
     string parsing_config_name = 4;
     // msgpacked content of the current parsing config
-    bytes parsing_config = 5;
+    bytes encoded_parsing_config = 5;
     // msgpacked content of aggregation configs
 	// related to the current parsing config
-    map <string, bytes> aggregation_configs = 6;
+    bytes encoded_aggregation_configs = 6;
 }
 
 message ParsingResult {
@@ -37,13 +37,13 @@ message AggregatingTask {
     // Name of handled parsing config
     string parsing_config_name = 4;
     // Content of the current parsing config
-    bytes parsing_config = 5;
+    bytes encoded_parsing_config = 5;
     // Current aggregation config
-    bytes aggregation_config = 6;
+    bytes encoded_aggregation_config = 6;
     // hosts
-    bytes hosts = 7;
+    bytes encoded_hosts = 7;
     // parsing results
-    ParsingResult ParsingResult = 8;
+    ParsingResult parsing_result = 8;
 }
 
 message AggregatingResult {
