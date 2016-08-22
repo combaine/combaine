@@ -15,6 +15,7 @@ import (
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 )
 
@@ -50,18 +51,25 @@ func TestAggregating(t *testing.T) {
 		"DC2": {"Host3", "Host4"},
 	}
 
-	aggTask := tasks.AggregationTask{
-		CommonTask:        tasks.CommonTask{Id: "testId", PrevTime: 1, CurrTime: 61},
-		Config:            cfgName,
-		ParsingConfigName: cfgName,
-		ParsingConfig:     parsingConfig,
-		AggregationConfig: aggregationConfig,
-		Hosts:             hostsPerDc,
-		ParsingResult: tasks.ParsingResult{
-			"Host1;appsName": "Host1;appsName",
-			"Host2;appsName": "Host2;appsName",
-			"Host3;appsName": "Host3;appsName",
-			"Host4;appsName": "Host4;appsName",
+	encHosts, _ := common.Pack(hostsPerDc)
+	encParsingConfig, _ := common.Pack(parsingConfig)
+	encAggregationConfig, _ := common.Pack(aggregationConfig)
+
+	aggTask := rpc.AggregatingTask{
+		Id:                       "testId",
+		Frame:                    &rpc.TimeFrame{Current: 61, Previous: 1},
+		Config:                   cfgName,
+		ParsingConfigName:        cfgName,
+		EncodedParsingConfig:     encParsingConfig,
+		EncodedAggregationConfig: encAggregationConfig,
+		EncodedHosts:             encHosts,
+		ParsingResult: &rpc.ParsingResult{
+			Data: map[string][]byte{
+				"Host1;appsName": []byte("Host1;appsName"),
+				"Host2;appsName": []byte("Host2;appsName"),
+				"Host3;appsName": []byte("Host3;appsName"),
+				"Host4;appsName": []byte("Host4;appsName"),
+			},
 		},
 	}
 
