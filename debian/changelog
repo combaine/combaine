@@ -1,3 +1,9 @@
+combaine (0.8.0-alpha2) trusty; urgency=medium
+
+  * Packaging and other bugfixes
+
+ -- Anton Tiurin <noxiouz@yandex.ru>  Mon, 22 Aug 2016 11:39:16 +0000
+
 combaine (0.8.0-alpha1) trusty; urgency=medium
 
   * Migrate to gRPC
