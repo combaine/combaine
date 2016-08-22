@@ -11,7 +11,6 @@ import (
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
-	"github.com/combaine/combaine/combainer/worker"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
@@ -75,10 +74,9 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	// Get Combaine hosts
 	cloudGroup := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
-		Cache:    cacher,
-		Hosts:    nil,
-		Logger:   logrus.StandardLogger(),
-		Resolver: worker.NewResolverV11(),
+		Cache:  cacher,
+		Hosts:  nil,
+		Logger: logrus.StandardLogger(),
 	}
 
 	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
