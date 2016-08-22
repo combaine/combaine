@@ -1,3 +1,9 @@
+combaine (0.7.3.4) trusty; urgency=medium
+
+  * [Client] Log task content only with debug level
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 22 Aug 2016 13:56:42 +0300
+
 combaine (0.7.3.3) trusty; urgency=medium
 
   * [Aggregating] more logging
