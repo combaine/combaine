@@ -1,6 +1,7 @@
 package lockserver
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -65,6 +66,12 @@ func (ls *LockServer) Lock(node string) error {
 	if err != nil {
 		return err
 	}
+
+	// check for node exists before create save many io on zk leader
+	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
+		return fmt.Errorf("Node %s alredy exists", path)
+	}
+
 	_, err = ls.Conn.Create(path, []byte(content), zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
 	return err
 }
