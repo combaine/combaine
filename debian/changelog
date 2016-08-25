@@ -1,3 +1,9 @@
+combaine (0.7.3.5) trusty; urgency=medium
+
+  * [Lockserver] prevent 'NodeExists' errors on zk leader
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 25 Aug 2016 14:01:36 +0300
+
 combaine (0.7.3.4) trusty; urgency=medium
 
   * [Client] Log task content only with debug level
