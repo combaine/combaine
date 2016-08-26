@@ -114,9 +114,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	cl.Log.WithFields(logrus.Fields{
-		"config": config,
-	}).Infof("hosts: %s", listOfHosts)
+	cl.Log.WithFields(logrus.Fields{"config": config}).Infof("hosts: %s", listOfHosts)
 
 	parallelParsings := len(listOfHosts)
 	if parsingConfig.ParallelParsings > 0 && parallelParsings > parsingConfig.ParallelParsings {

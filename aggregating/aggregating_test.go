@@ -68,7 +68,7 @@ func NewCacher() servicecacher.Cacher {
 	return c
 }
 
-func (c *cacher) Get(name string) (s servicecacher.Service, err error) {
+func (c *cacher) Get(name string, args ...interface{}) (s servicecacher.Service, err error) {
 	s, ok := c.get(name)
 	if ok {
 		return
@@ -128,10 +128,10 @@ func TestAggregating(t *testing.T) {
 		AggregationConfig: aggregationConfig,
 		Hosts:             hostsPerDc,
 		ParsingResult: tasks.ParsingResult{
-			"Host1;aggCore;aggCore;appsName;61": "Host1;aggCore;aggCore;appsName;61",
-			"Host2;aggCore;aggCore;appsName;61": "Host2;aggCore;aggCore;appsName;61",
-			"Host3;aggCore;aggCore;appsName;61": "Host3;aggCore;aggCore;appsName;61",
-			"Host4;aggCore;aggCore;appsName;61": "Host4;aggCore;aggCore;appsName;61",
+			"Host1;appsName": "Host1;appsName",
+			"Host2;appsName": "Host2;appsName",
+			"Host3;appsName": "Host3;appsName",
+			"Host4;appsName": "Host4;appsName",
 		},
 	}
 
