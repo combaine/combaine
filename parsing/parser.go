@@ -20,6 +20,9 @@ func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, er
 	}
 
 	res := <-p.app.Call("enqueue", "parse", taskToParser)
+	if res == nil {
+		return nil, common.ErrAppCall
+	}
 	if err = res.Err(); err != nil {
 		return
 	}

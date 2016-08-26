@@ -8,7 +8,7 @@ import (
 )
 
 type Cacher interface {
-	Get(name string) (Service, error)
+	Get(name string, args ...interface{}) (Service, error)
 }
 
 type Service interface {
@@ -30,13 +30,18 @@ func NewCacher() Cacher {
 	return c
 }
 
-func (c *cacher) Get(name string) (s Service, err error) {
-	s, ok := c.get(name)
+func (c *cacher) Get(name string, args ...interface{}) (s Service, err error) {
+	var endpoint string
+	if len(args) == 1 {
+		endpoint, _ = args[0].(string)
+	}
+
+	s, ok := c.get(name + endpoint)
 	if ok {
 		return
 	}
 
-	s, err = c.create(name)
+	s, err = c.create(name, args...)
 	return
 }
 
@@ -45,21 +50,24 @@ func (c *cacher) get(name string) (s Service, ok bool) {
 	return
 }
 
-func (c *cacher) create(name string) (Service, error) {
+func (c *cacher) create(name string, args ...interface{}) (Service, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+
+	var endpoint string
+	if len(args) == 1 {
+		endpoint, _ = args[0].(string)
+	}
 	s, ok := c.get(name)
 	if ok {
 		return s, nil
 	}
-
-	s, err := cocaine.NewService(name)
+	s, err := cocaine.NewService(name, args...)
 	if err != nil {
 		return nil, err
 	}
-
 	data := c.data.Load().(cache)
-	data[name] = s
+	data[name+endpoint] = s
 	c.data.Store(data)
 
 	return s, nil

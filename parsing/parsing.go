@@ -12,9 +12,7 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-var (
-	cacher servicecacher.Cacher = servicecacher.NewCacher()
-)
+var cacher = servicecacher.NewCacher()
 
 func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
@@ -33,7 +31,9 @@ func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 		CommonTask: task.CommonTask,
 	}
 
+	startTm := time.Now()
 	blob, err := fetcher.Fetch(&fetcherTask)
+	logger.Infof("%s fetching completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,11 @@ func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
 }
 
 func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
-	logger.Infof("%s start parsing", task.Id)
+	logger.Infof("%s start parsing %s", task.Id, task.ParsingConfigName)
+	defer func(t time.Time) {
+		logger.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
+		logger.Infof("%s %s Done", task.Id, task.ParsingConfigName)
+	}(time.Now())
 
 	var (
 		blob    []byte
@@ -115,20 +119,22 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):
+					if res == nil {
+						logger.Errf("%s Task failed: %s", task.Id, common.ErrAppCall)
+						return
+					}
 					if res.Err() != nil {
-						logger.Errf("%s Task failed  %s", task.Id, res.Err())
+						logger.Errf("%s Task failed: %s", task.Id, res.Err())
 						return
 					}
 
 					var raw_res []byte
 					if err := res.Extract(&raw_res); err != nil {
-						logger.Errf("%s Unable to extract result. %s", task.Id, err.Error())
+						logger.Errf("%s Unable to extract result: %s", task.Id, err.Error())
 						return
 					}
 
-					key := fmt.Sprintf("%s;%s;%s;%s;%v",
-						task.Host, task.ParsingConfigName,
-						logName, k, task.CurrTime)
+					key := fmt.Sprintf("%s;%s", task.Host, k)
 					result[key] = raw_res
 					logger.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
@@ -138,7 +144,5 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 		}
 	}
 	wg.Wait()
-
-	logger.Infof("%s Done", task.Id)
 	return result, nil
 }
