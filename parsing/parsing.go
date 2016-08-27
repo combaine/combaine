@@ -99,18 +99,16 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 			}
 			logger.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 
+			app, err := cacher.Get(aggType)
+			if err != nil {
+				logger.Errf("%s %s %s", task.Id, aggType, err)
+				continue
+			}
 			wg.Add(1)
-			go func(name string, k string, v interface{}, deadline time.Duration) {
+			go func(app servicecacher.Service, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
-				app, err := cacher.Get(name)
-				if err != nil {
-					logger.Errf("%s %s %s", task.Id, name, err)
-					return
-				}
 
-				/*
-					Task structure
-				*/
+				/* Task structure */
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
 					"token":    payload,
@@ -142,7 +140,7 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 				case <-time.After(deadline):
 					logger.Errf("%s Failed task %s", task.Id, deadline)
 				}
-			}(aggType, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
+			}(app, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
 		}
 	}
 	go func() {
