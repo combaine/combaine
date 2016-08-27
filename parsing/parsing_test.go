@@ -3,7 +3,6 @@ package parsing
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
@@ -21,7 +20,7 @@ const (
 )
 
 var cacher = tests.NewCacher()
-var fch = make(chan string)
+var fch = make(chan string, 2) // do not block fetcher
 
 func NewDummy(cfg map[string]interface{}) (Fetcher, error) {
 	return &fether{c: cfg}, nil
@@ -40,6 +39,7 @@ func TestParsing(t *testing.T) {
 	logrus.SetLevel(logrus.InfoLevel)
 
 	Register("dummy", NewDummy)
+	t.Log("dummy fetcher registered")
 
 	repo, err := configs.NewFilesystemRepository(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
@@ -79,23 +79,25 @@ func TestParsing(t *testing.T) {
 	}
 
 	go func() {
-		defer func() { done <- struct{}{} }()
+		defer func() {
+			close(done)
+			close(fch)
+			close(tests.Results)
+		}()
 
-		remain := expectedResultLen
-
-		for {
-			if url, ok := <-fch; ok {
-				urls[url]++
+		for remain := expectedResultLen; remain != 0; remain -= 1 {
+			t.Logf("iteration %d", expectedResultLen-remain+1)
+			select {
+			case url, ok := <-fch:
+				if ok {
+					urls[url]++
+				}
+			default:
 			}
-			if remain == 4 { // only first time
-				close(fch)
-			}
-
 			k, ok := <-tests.Results
 			if !ok {
-				break
+				return
 			}
-			remain--
 
 			var r map[string]interface{}
 			assert.NoError(t, common.Unpack(k[1].([]byte), &r))
@@ -118,13 +120,12 @@ func TestParsing(t *testing.T) {
 			_, ok = expectParsingResult[key]
 			assert.True(t, ok, "Unexpected parsing result %s", key)
 			expectParsingResult[key] = true
-			if remain == 0 {
-				close(tests.Results)
-			}
 		}
 	}()
 
+	t.Log("start parsing")
 	res, err := Parsing(&parsingTask, cacher)
+	t.Log("parsing completed")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResultLen, len(res))
 	for _, v := range res {
@@ -133,19 +134,14 @@ func TestParsing(t *testing.T) {
 		assert.Equal(t, parsingTask.CurrTime, i["currtime"].(int64))
 		assert.Equal(t, parsingTask.Id, string(i["id"].([]byte)))
 	}
-	select {
-	case <-done:
 
-		for parsing, test := range expectParsingResult {
-			assert.True(t, test, fmt.Sprintf("parsing for %s failed", parsing))
-		}
-		assert.Equal(t, len(urls), 1) // only one url will be used
-		// all parsings processed by one url
-		assert.Equal(t, urls[parsingTask.ParsingConfig.DataFetcher["timetail_url"].(string)], 1)
-		t.Log("Test done")
+	<-done // wait parsing complete
 
-	case <-time.After(5 * time.Second):
-		close(tests.Results)
-		t.Error("Test timeout")
+	for parsing, test := range expectParsingResult {
+		assert.True(t, test, fmt.Sprintf("parsing for %s failed", parsing))
 	}
+	assert.Equal(t, len(urls), 1) // only one url will be used
+	// all parsings processed by one url
+	assert.Equal(t, urls[parsingTask.ParsingConfig.DataFetcher["timetail_url"].(string)], 1)
+	t.Log("Test done")
 }
