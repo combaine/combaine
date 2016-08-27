@@ -29,8 +29,8 @@ func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (
 			if err == nil {
 				return &workerV11{app.(*cocaine.Service)}, nil
 			}
-			time.Sleep(50 * time.Millisecond)
-		case <-time.After(1 * time.Second):
+			time.Sleep(250 * time.Millisecond)
+		case <-time.After(2 * time.Second):
 			// pass
 		case <-ctx.Done():
 			return nil, common.ErrAppUnavailable
@@ -63,9 +63,7 @@ func resolve(appname, endpoint string) <-chan resolveInfo {
 			Err: err,
 		}:
 		default:
-			if err == nil {
-				app.Close()
-			}
+			// servicecacher will manage all connections, and reconnect if need
 		}
 	}()
 	return res

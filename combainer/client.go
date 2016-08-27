@@ -257,7 +257,6 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err, "appname": appName}).Error("unable to send task")
 		return nil, err
 	}
-	defer worker.Close()
 
 	raw, err := task.Raw()
 	if err != nil {

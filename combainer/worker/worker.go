@@ -49,7 +49,7 @@ func NewSlave(app *cocaine.Service) Worker {
 }
 
 func (s *workerV11) Close() {
-	// pass
+	// worker connection managed by servercacher and it does not need to close
 }
 
 func (s *workerV11) Do(todo context.Context, name string, payload interface{}) Future {
