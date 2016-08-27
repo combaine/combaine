@@ -6,6 +6,7 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/parsing"
 
@@ -14,7 +15,7 @@ import (
 	_ "github.com/combaine/combaine/fetchers/timetail"
 )
 
-var logger *cocaine.Logger
+var cacher = servicecacher.NewCacher()
 
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
@@ -25,7 +26,7 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	result, err := parsing.Parsing(task)
+	result, err := parsing.Parsing(&task, cacher)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
@@ -35,8 +36,6 @@ func handleTask(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	var err error
-	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"handleTask": handleTask,
 	}

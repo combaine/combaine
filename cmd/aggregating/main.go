@@ -12,7 +12,7 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
-var cacher servicecacher.Cacher = servicecacher.NewCacher()
+var cacher = servicecacher.NewCacher()
 
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()

@@ -12,8 +12,6 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-var cacher = servicecacher.NewCacher()
-
 func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
 	if err != nil {
@@ -42,8 +40,8 @@ func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	return blob, nil
 }
 
-func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
-	parser, err := GetParser()
+func parseData(task *tasks.ParsingTask, cacher servicecacher.Cacher, data []byte) ([]byte, error) {
+	parser, err := GetParser(cacher)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +49,7 @@ func parseData(task *tasks.ParsingTask, data []byte) ([]byte, error) {
 	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
 }
 
-func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
+func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.ParsingResult, error) {
 	logger.Infof("%s start parsing %s", task.Id, task.ParsingConfigName)
 	defer func(t time.Time) {
 		logger.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
@@ -65,7 +63,7 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 		wg      sync.WaitGroup
 	)
 
-	blob, err = fetchDataFromTarget(&task)
+	blob, err = fetchDataFromTarget(task)
 	if err != nil {
 		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
 		return nil, err
@@ -73,7 +71,7 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 
 	if !task.ParsingConfig.SkipParsingStage() {
 		logger.Infof("%s Send data to parsing", task.Id)
-		blob, err = parseData(&task, blob)
+		blob, err = parseData(task, cacher, blob)
 		if err != nil {
 			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
 			return nil, err
@@ -87,7 +85,11 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 		return nil, fmt.Errorf("Raw data is not supported anymore")
 	}
 
-	result := make(tasks.ParsingResult)
+	type item struct {
+		key string
+		res []byte
+	}
+	ch := make(chan item)
 
 	for aggLogName, aggCfg := range task.AggregationConfigs {
 		for k, v := range aggCfg.Data {
@@ -98,7 +100,7 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 			logger.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
 
 			wg.Add(1)
-			go func(name string, k string, v interface{}, logName string, deadline time.Duration) {
+			go func(name string, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
 				app, err := cacher.Get(name)
 				if err != nil {
@@ -135,14 +137,23 @@ func Parsing(task tasks.ParsingTask) (tasks.ParsingResult, error) {
 					}
 
 					key := fmt.Sprintf("%s;%s", task.Host, k)
-					result[key] = raw_res
+					ch <- item{key: key, res: raw_res}
 					logger.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					logger.Errf("%s Failed task %s", task.Id, deadline)
 				}
-			}(aggType, k, v, aggLogName, time.Second*time.Duration(task.CurrTime-task.PrevTime))
+			}(aggType, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
 		}
 	}
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	result := make(tasks.ParsingResult)
+	for res := range ch {
+		result[res.key] = res.res
+	}
+
 	return result, nil
 }

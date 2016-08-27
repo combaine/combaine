@@ -33,7 +33,7 @@ func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, er
 	return
 }
 
-func GetParser() (p Parser, err error) {
+func GetParser(cacher servicecacher.Cacher) (p Parser, err error) {
 	app, err := cacher.Get(common.PARSINGAPP)
 	if err != nil {
 		return
