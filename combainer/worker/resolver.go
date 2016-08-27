@@ -11,7 +11,7 @@ import (
 	"github.com/combaine/combaine/common/servicecacher"
 )
 
-var cacher = servicecacher.NewCacher()
+var cacher = servicecacher.NewCacher(servicecacher.NewService)
 
 // Resolver resolves worker by name
 type Resolver interface {

@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/tests"
 )
@@ -19,6 +20,12 @@ const (
 	cfgName  = "aggCore"
 	repoPath = "../tests/fixtures/configs"
 )
+
+func NewService(n string, a ...interface{}) (servicecacher.Service, error) {
+	return tests.NewService(n, a...)
+}
+
+var cacher = servicecacher.NewCacher(NewService)
 
 func TestAggregating(t *testing.T) {
 	logrus.SetLevel(logrus.InfoLevel)
@@ -78,7 +85,7 @@ func TestAggregating(t *testing.T) {
 
 		shouldSendToSenders := 2
 
-		for r := range tests.Results {
+		for r := range tests.Spy {
 			method := string(r[0].(string))
 			switch method {
 			case "aggregate_group":
@@ -110,7 +117,7 @@ func TestAggregating(t *testing.T) {
 					}
 				}
 				if shouldSendToSenders == 0 {
-					close(tests.Results)
+					close(tests.Spy)
 				}
 			}
 		}
@@ -123,6 +130,5 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	cacher := tests.NewCacher()
 	assert.NoError(t, Aggregating(&aggTask, cacher))
 }

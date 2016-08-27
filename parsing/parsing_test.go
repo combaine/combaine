@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,11 @@ const (
 	expectedResultLen = 4 // below defined 4 test data
 )
 
-var cacher = tests.NewCacher()
+var cacher = servicecacher.NewCacher(
+	func(n string, a ...interface{}) (servicecacher.Service, error) {
+		return tests.NewService(n, a...)
+	})
+
 var fch = make(chan string, 2) // do not block fetcher
 
 func NewDummy(cfg map[string]interface{}) (Fetcher, error) {
@@ -82,7 +87,7 @@ func TestParsing(t *testing.T) {
 		defer func() {
 			close(done)
 			close(fch)
-			close(tests.Results)
+			close(tests.Spy)
 		}()
 
 		for remain := expectedResultLen; remain != 0; remain -= 1 {
@@ -94,7 +99,7 @@ func TestParsing(t *testing.T) {
 				}
 			default:
 			}
-			k, ok := <-tests.Results
+			k, ok := <-tests.Spy
 			if !ok {
 				return
 			}

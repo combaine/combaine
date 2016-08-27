@@ -15,7 +15,7 @@ import (
 	_ "github.com/combaine/combaine/fetchers/timetail"
 )
 
-var cacher = servicecacher.NewCacher()
+var cacher = servicecacher.NewCacher(servicecacher.NewService)
 
 func handleTask(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()

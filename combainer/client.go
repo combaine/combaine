@@ -207,7 +207,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CommonTask.Id = uniqueID
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to parsing", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Parsing task content %s", task)
+		cl.Log.WithFields(contextFields).Debugf("Parsing task content %v", task)
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
@@ -229,7 +229,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.ParsingResult = parsingResult
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %s", task)
+		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %v", task)
 		wg.Add(1)
 		go func(t tasks.AggregationTask) {
 			defer wg.Done()

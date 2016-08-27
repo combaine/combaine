@@ -103,7 +103,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 					continue
 				}
 
-				logger.Debugf("%s %s data to aggregate host %s: %s", task.Id, task.Config, host, data)
+				logger.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
 				aggWg.Add(1)
 				go aggregating(task.Id, ch, name, host, cfg, []interface{}{data}, app, &aggWg)
 			}
@@ -113,7 +113,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 				continue
 			}
 
-			logger.Debugf("%s %s data to aggregate group %s: %s", task.Id, task.Config, subGroup, subGroupParsingResults)
+			logger.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
 			aggWg.Add(1)
 			go aggregating(task.Id, ch, name, meta+"-"+subGroup, cfg, subGroupParsingResults, app, &aggWg)
 		}
@@ -123,7 +123,7 @@ func Aggregating(task *tasks.AggregationTask, cacher servicecacher.Cacher) error
 			continue
 		}
 
-		logger.Debugf("%s %s data to aggregate metahost %s: %s", task.Id, task.Config, meta, aggParsingResults)
+		logger.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
 		aggWg.Add(1)
 		go aggregating(task.Id, ch, name, meta, cfg, aggParsingResults, app, &aggWg)
 	}
