@@ -40,18 +40,23 @@ type entry struct {
 
 func (c *cacher) Get(name string, args ...interface{}) (Service, error) {
 	var endpoint string
-	if len(args) == 1 {
+	if len(args) > 1 {
 		endpoint, _ = args[0].(string)
 	}
 	key := name + endpoint
 
 	c.mutex.Lock()
 	e := c.cache[key]
-	if e == nil || e.err != nil { // first request or service error
+	if e == nil { // first request or service error
 		e = &entry{ready: make(chan struct{})}
 		c.cache[key] = e
 		c.mutex.Unlock()
 		e.service, e.err = c.fun(name, args...)
+		if e.err != nil {
+			c.mutex.Lock()
+			delete(c.cache, key)
+			c.mutex.Unlock()
+		}
 		close(e.ready) // broadcast ready condition
 	} else {
 		c.mutex.Unlock()
