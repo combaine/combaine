@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test(t *testing.T) {
+func TestServicecacher(t *testing.T) {
 	t.Log("Start")
 	c := NewCacher(func(n string, a ...interface{}) (Service, error) {
 		return tests.NewService(n, a...)
@@ -24,7 +24,7 @@ func Test(t *testing.T) {
 
 	_, err = c.Get("magicservice")
 	assert.NoError(t, err)
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 300; i++ {
 		go func(i int) {
 			_, err := c.Get(fmt.Sprintf("service_%d", i%3))
 			assert.NoError(t, err)

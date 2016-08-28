@@ -40,7 +40,7 @@ type entry struct {
 
 func (c *cacher) Get(name string, args ...interface{}) (Service, error) {
 	var endpoint string
-	if len(args) > 1 {
+	if len(args) > 0 {
 		endpoint, _ = args[0].(string)
 	}
 	key := name + endpoint
