@@ -114,9 +114,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	cl.Log.WithFields(logrus.Fields{
-		"config": config,
-	}).Infof("hosts: %s", listOfHosts)
+	cl.Log.WithFields(logrus.Fields{"config": config}).Infof("hosts: %s", listOfHosts)
 
 	parallelParsings := len(listOfHosts)
 	if parsingConfig.ParallelParsings > 0 && parallelParsings > parsingConfig.ParallelParsings {
@@ -209,7 +207,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.CommonTask.Id = uniqueID
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to parsing", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Parsing task content %s", task)
+		cl.Log.WithFields(contextFields).Debugf("Parsing task content %v", task)
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
@@ -231,7 +229,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.ParsingResult = parsingResult
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %s", task)
+		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %v", task)
 		wg.Add(1)
 		go func(t tasks.AggregationTask) {
 			defer wg.Done()
@@ -259,7 +257,6 @@ func (cl *Client) doGeneralTask(ctx context.Context, appName string, task tasks.
 		cl.Log.WithFields(logrus.Fields{"session": task.Tid(), "error": err, "appname": appName}).Error("unable to send task")
 		return nil, err
 	}
-	defer worker.Close()
 
 	raw, err := task.Raw()
 	if err != nil {

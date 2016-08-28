@@ -1,7 +1,7 @@
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell go list ./... | grep -v ^github.com/combaine/combaine/vendor/)
+PKGS := $(shell go list ./... | grep -v '^github.com/combaine/combaine/\(tests\|vendor/\)')
 
 .PHONY: clean all fmt vet lint build test
 

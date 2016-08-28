@@ -2,13 +2,9 @@ package worker
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-)
-
-var (
-	ErrAppCall = fmt.Errorf("Application call error")
+	"github.com/combaine/combaine/common"
 )
 
 // Future represents asynchronous resutl of a work
@@ -24,7 +20,7 @@ func (f futureV11) Wait(ctx context.Context, result interface{}) error {
 	select {
 	case res := <-f.ch:
 		if res == nil {
-			return ErrAppCall
+			return common.ErrAppCall
 		}
 		if res.Err() != nil {
 			return res.Err()
@@ -53,7 +49,7 @@ func NewSlave(app *cocaine.Service) Worker {
 }
 
 func (s *workerV11) Close() {
-	s.Service.Close()
+	// worker connection managed by servercacher and it does not need to close
 }
 
 func (s *workerV11) Do(todo context.Context, name string, payload interface{}) Future {
