@@ -51,10 +51,6 @@ func parseData(task *tasks.ParsingTask, cacher servicecacher.Cacher, data []byte
 
 func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.ParsingResult, error) {
 	logger.Infof("%s start parsing %s", task.Id, task.ParsingConfigName)
-	defer func(t time.Time) {
-		logger.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
-		logger.Infof("%s %s Done", task.Id, task.ParsingConfigName)
-	}(time.Now())
 
 	var (
 		blob    []byte
@@ -64,6 +60,13 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 	)
 
 	blob, err = fetchDataFromTarget(task)
+
+	// parsing timings without fetcher time
+	defer func(t time.Time) {
+		logger.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
+		logger.Infof("%s %s Done", task.Id, task.ParsingConfigName)
+	}(time.Now())
+
 	if err != nil {
 		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
 		return nil, err
