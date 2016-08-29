@@ -8,10 +8,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/servicecacher"
 )
-
-var cacher = servicecacher.NewCacher(servicecacher.NewService)
 
 // Resolver resolves worker by name
 type Resolver interface {
@@ -27,10 +24,10 @@ func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (
 		case r := <-resolve(name, host):
 			err, app := r.Err, r.App
 			if err == nil {
-				return &workerV11{app.(*cocaine.Service)}, nil
+				return &workerV11{app}, nil
 			}
-			time.Sleep(250 * time.Millisecond)
-		case <-time.After(2 * time.Second):
+			time.Sleep(50 * time.Millisecond)
+		case <-time.After(1 * time.Second):
 			// pass
 		case <-ctx.Done():
 			return nil, common.ErrAppUnavailable
@@ -49,21 +46,23 @@ func getRandomHost(app string, input []string) string {
 }
 
 type resolveInfo struct {
-	App servicecacher.Service
+	App *cocaine.Service
 	Err error
 }
 
 func resolve(appname, endpoint string) <-chan resolveInfo {
 	res := make(chan resolveInfo)
 	go func() {
-		app, err := cacher.Get(appname, endpoint)
+		app, err := cocaine.NewService(appname, endpoint)
 		select {
 		case res <- resolveInfo{
 			App: app,
 			Err: err,
 		}:
 		default:
-			// servicecacher will manage all connections, and reconnect if need
+			if err == nil {
+				app.Close()
+			}
 		}
 	}()
 	return res
