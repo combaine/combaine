@@ -18,7 +18,7 @@ import (
 	_ "github.com/combaine/combaine/fetchers/timetail"
 )
 
-var cacher = servicecacher.NewCacher()
+var cacher = servicecacher.NewCacher(servicecacher.NewService)
 
 var endpoint string
 
@@ -30,7 +30,7 @@ func init() {
 type server struct{}
 
 func (s *server) DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
-	return parsing.Do(ctx, task)
+	return parsing.Do(ctx, task, cacher)
 }
 
 func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (*rpc.AggregatingResult, error) {

@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	cacher = servicecacher.NewCacher()
+	cacher = servicecacher.NewCacher(servicecacher.NewService)
 )
 
 func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingConfig) ([]byte, error) {
@@ -58,7 +58,7 @@ func parseData(id string, name string, data []byte) ([]byte, error) {
 	return parser.Parse(id, name, data)
 }
 
-func Do(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher) (*rpc.ParsingResult, error) {
 	logger.Infof("%s start parsing", task.Id)
 
 	var parsingConfig = task.GetParsingConfig()
@@ -141,7 +141,7 @@ func Do(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) 
 					}
 
 					key := fmt.Sprintf("%s;%s", task.Host, k)
-					ch <- item{key: key, res: raw_res}
+					ch <- item{key: key, res: rawRes}
 					logger.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					logger.Errf("%s Failed task %s", task.Id, deadline)
@@ -156,7 +156,7 @@ func Do(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) 
 
 	result := rpc.ParsingResult{Data: make(map[string][]byte)}
 	for res := range ch {
-		result[res.key] = res.res
+		result.Data[res.key] = res.res
 	}
 
 	return &result, nil

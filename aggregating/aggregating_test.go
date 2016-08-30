@@ -140,6 +140,9 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	cacher := NewCacher()
+	cacher := servicecacher.NewCacher(
+		func(n string, a ...interface{}) (servicecacher.Service, error) {
+			return tests.NewService(n, a...)
+		})
 	assert.NoError(t, Do(context.Background(), &aggTask, cacher))
 }
