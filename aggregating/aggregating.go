@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
