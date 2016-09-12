@@ -46,6 +46,7 @@ func getServiceChanPair(stop <-chan bool) (In chan ServiceResult, Out chan Servi
 	finished := false
 	go func() {
 		var pending []ServiceResult
+		defer close(Out)
 		for {
 			var out chan ServiceResult
 			var first ServiceResult
@@ -54,8 +55,7 @@ func getServiceChanPair(stop <-chan bool) (In chan ServiceResult, Out chan Servi
 				first = pending[0]
 				out = Out
 			} else if finished {
-				close(Out)
-				break
+				return
 			}
 
 			select {
@@ -71,7 +71,6 @@ func getServiceChanPair(stop <-chan bool) (In chan ServiceResult, Out chan Servi
 				pending = pending[1:]
 
 			case <-stop: // Notification from Close()
-				close(Out)
 				return
 			}
 		}
@@ -172,7 +171,10 @@ func (service *Service) loop() {
 	}
 	for _, id := range service.sessions.Keys() {
 		if ch, ok := service.sessions.Get(id); ok {
-			//ch <- &serviceRes{nil, &ServiceError{-1, "Disconnected"}}
+			select {
+			case ch <- &serviceRes{nil, &ServiceError{-1, "Disconnected"}}:
+			default:
+			}
 			close(ch)
 			service.sessions.Detach(id)
 		}
@@ -198,12 +200,13 @@ func (service *Service) Reconnect(force bool) error {
 		}
 		// Send error to all open sessions
 		for _, key := range service.sessions.Keys() {
-			service.sessions.RLock()
-			fmt.Println(key)
 			if ch, ok := service.sessions.Get(key); ok {
-				ch <- &serviceRes{nil, &ServiceError{-100, "Disconnected"}}
+				select {
+				case ch <- &serviceRes{nil, &ServiceError{-100, "Disconnected"}}:
+				default:
+				}
+				close(ch)
 			}
-			service.sessions.RUnlock()
 			service.sessions.Detach(key)
 		}
 
@@ -272,6 +275,7 @@ func (service *Service) getServiceChanPair() (In chan ServiceResult, Out chan Se
 		defer service.wg.Done()
 		finished := false
 		var pending []ServiceResult
+		defer close(Out)
 		for {
 			var out chan ServiceResult
 			var first ServiceResult
@@ -280,8 +284,7 @@ func (service *Service) getServiceChanPair() (In chan ServiceResult, Out chan Se
 				first = pending[0]
 				out = Out
 			} else if finished {
-				close(Out)
-				break
+				return
 			}
 
 			select {
@@ -297,7 +300,6 @@ func (service *Service) getServiceChanPair() (In chan ServiceResult, Out chan Se
 				pending = pending[1:]
 
 			case <-service.stop: // Notification from Close()
-				close(Out)
 				return
 			}
 		}

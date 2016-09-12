@@ -189,7 +189,7 @@ func (sock *asyncRWSocket) readloop() {
 				copy(bufferToSend[:], buf[:count])
 				select {
 				case sock.socketToClient.in <- bufferToSend:
-				case <-time.After(5 * time.Minute):
+				case <-time.After(61 * time.Second):
 				}
 			}
 
