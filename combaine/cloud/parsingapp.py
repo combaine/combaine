@@ -51,10 +51,11 @@ def apply_parse(task, plugins, log):
 
 
 def parse(request, response):
-    inc = yield request.read()
-    task = ParserTask(inc)
-    logger = get_logger_adapter(task.tid)
     try:
+        inc = yield request.read()
+        task = ParserTask(inc)
+        logger = get_logger_adapter(task.tid)
+
         result = yield apply_parse(task, PLUGINS, logger)
         response.write(msgpack.packb(result))
         logger.info("%d items have been parsed by %s",

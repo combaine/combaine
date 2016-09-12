@@ -359,23 +359,24 @@ class JConfig(object):
 
 
 def send(request, response):
-    raw = yield request.read()
-    task = msgpack.unpackb(raw)
-    log.info("%s" % str(task))
-    ID = task.get("Id", "MissingID")
-    hosts = JConfig.get_config()
-    juggler_config = task['Config']
-    juggler_config.update(hosts)
-    juggler_config['id'] = ID
-    jc = Juggler(**juggler_config)
-
     try:
+        raw = yield request.read()
+        task = msgpack.unpackb(raw)
+        log.info("%s" % str(task))
+        ID = task.get("Id", "MissingID")
+        hosts = JConfig.get_config()
+        juggler_config = task['Config']
+        juggler_config.update(hosts)
+        juggler_config['id'] = ID
+        jc = Juggler(**juggler_config)
+
         jc.Do(task["Data"])
     except Exception as err:
         log.error("%s %s" % (ID, str(err)))
-    finally:
-        response.write("ok")
+    else:
+        response.write("Jugler done")
         log.info("%s Done" % ID)
+    finally:
         response.close()
 
 if __name__ == "__main__":

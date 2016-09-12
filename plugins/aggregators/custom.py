@@ -119,9 +119,9 @@ def aggregate_group(request, response):
     else:
         logger.info("Result of group aggregation %s", str(result))
         response.write(result)
+        logger.info("Custom done")
     finally:
         response.close()
-        logger.info("Done")
 
 
 def _aggregate_host(klass_name, payload, config, task):
