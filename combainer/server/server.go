@@ -36,7 +36,8 @@ type CombaineServer struct {
 	// serfEventCh is used to receive events from the serf cluster
 	serfEventCh chan serf.Event
 	// instance of Serf
-	Serf *serf.Serf
+	Serf       *serf.Serf
+	shutdownCh chan struct{}
 
 	cache.Cache
 	*combainer.Context
@@ -79,7 +80,6 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 
 	// Get Combaine hosts
-	cloudGroup := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
 		Cache:  cacher,
 		Hosts:  nil,
@@ -92,7 +92,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 
 	context.Hosts = func() ([]string, error) {
-		h, err := s.Fetch(cloudGroup)
+		h, err := s.Fetch(combainerConfig.MainSection.CloudGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -104,14 +104,15 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
 		serfEventCh:     make(chan serf.Event, 256),
+		shutdownCh:      make(chan struct{}),
 		Cache:           cacher,
 		Context:         context,
 		log:             log,
 	}
 	server.Serf, err = server.setupSerf()
 	if err != nil {
-		if s.serf != nil {
-			s.serf.Shutdown()
+		if server.Serf != nil {
+			server.Serf.Shutdown()
 		}
 		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
@@ -138,7 +139,8 @@ func (c *CombaineServer) Serve() error {
 	}()
 
 	c.log.Info("Join to Serf cluster")
-	go c.Serf.Join(c.Context.Hosts(), true)
+	hosts, nil := c.Context.Hosts()
+	go c.Serf.Join(hosts, true)
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
@@ -147,8 +149,9 @@ func (c *CombaineServer) Serve() error {
 
 	sigWatcher := make(chan os.Signal, 1)
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
-	s := <-sigWatcher
-	c.log.Info("Got signal:", s)
+	sig := <-sigWatcher
+	c.log.Info("Got signal:", sig)
+	close(c.shutdownCh)
 	return nil
 }
 

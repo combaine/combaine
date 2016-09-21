@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/combaine/combaine/common"
+	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -41,7 +42,7 @@ func (s *CombaineServer) nodeJoin(me serf.MemberEvent) {
 }
 
 // nodeFailed is used to handle fail events on the serf cluster
-func (s *Server) nodeFailed(me serf.MemberEvent) {
+func (s *CombaineServer) nodeFailed(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		s.log.WithField("source", "Serf").Infof("Failed combainer %s", m.Name)
 	}
@@ -53,16 +54,17 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	// all combainer build one cross dc cluster
 	conf.MemberlistConfig = memberlist.DefaultWANConfig()
 	// TODO (sakateka) move in configs
-	conf.MemberlistConfig.BindPort = "7946"
+	conf.MemberlistConfig.BindPort = 7946
 
 	conf.Init() // initialize tag map
 	// set tags here
 	// conf.Tags[<tagname>] = <tagValue>
 
-	conf.MemberlistConfig.LogOutput = s.log
-	conf.LogOutput = s.log
-	conf.EventCh = ch
-	conf.SnapshotPath = s.Serf.SnapshotPath
+	// TODO (skacheev) add some logger
+	//conf.MemberlistConfig.LogOutput = s.log
+	//conf.LogOutput = s.log
+	conf.EventCh = s.serfEventCh
+	conf.SnapshotPath = s.CombainerConfig.SerfConfig.SnapshotPath
 	if conf.SnapshotPath == "" {
 		conf.SnapshotPath = "/var/lib/combainer/serf.snapshot"
 	}
@@ -70,7 +72,6 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 		return nil, err
 	}
 	conf.RejoinAfterLeave = true
-	conf.Merge = &serfMergeDelegate{}
 
 	return serf.Create(conf)
 }

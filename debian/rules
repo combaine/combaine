@@ -95,4 +95,4 @@ clean::
 	dh_clean
 	rm -rf $(PACKAGE_PATH)
 	rm -rf $(BUILD_DIR)
-	find . -type l | xargs rm -v $1 || true
+	find . -type l -exec rm -f {} + || true
