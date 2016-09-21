@@ -1,12 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/serf/serf"
 	"github.com/talbright/go-zookeeper/zk"
 
 	"github.com/combaine/combaine/combainer"
@@ -29,8 +31,11 @@ func trap() {
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
-
 	configs.Repository
+
+	// serfEventCh is used to receive events from the serf cluster
+	serfEventCh chan serf.Event
+
 	cache.Cache
 	*combainer.Context
 	log *logrus.Entry
@@ -96,9 +101,17 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
+		serfEventCh:     make(chan serf.Event, 256),
 		Cache:           cacher,
 		Context:         context,
 		log:             log,
+	}
+	server.Serf, err = server.setupSerf()
+	if err != nil {
+		if s.serf != nil {
+			s.serf.Shutdown()
+		}
+		return nil, fmt.Errorf("Failed to start serf: %v", err)
 	}
 
 	return server, nil
