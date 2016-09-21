@@ -35,6 +35,8 @@ type CombaineServer struct {
 
 	// serfEventCh is used to receive events from the serf cluster
 	serfEventCh chan serf.Event
+	// instance of Serf
+	Serf *serf.Serf
 
 	cache.Cache
 	*combainer.Context
@@ -134,6 +136,9 @@ func (c *CombaineServer) Serve() error {
 			c.log.Fatal("ListenAndServe: ", err)
 		}
 	}()
+
+	c.log.Info("Join to Serf cluster")
+	go c.Serf.Join(c.Context.Hosts(), true)
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")

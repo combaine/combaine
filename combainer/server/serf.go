@@ -24,7 +24,7 @@ func (s *CombaineServer) serfEventHandler() {
 			case serf.EventMemberUpdate, serf.EventMemberReap,
 				serf.EventUser, serf.EventQuery: // Ignore
 			default:
-				s.logger.Printf("[WARN] nomad: unhandled serf event: %#v", e)
+				s.log.WithField("source", "Serf").Warnf("unhandled event: %#v", e)
 			}
 
 		case <-s.shutdownCh:
