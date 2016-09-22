@@ -78,11 +78,18 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
+	server.Serf, err = server.setupSerf()
+	if err != nil {
+		if server.Serf != nil {
+			server.Serf.Shutdown()
+		}
+		return nil, fmt.Errorf("Failed to start serf: %v", err)
+	}
 
 	// Get Combaine hosts
 	context := &combainer.Context{
 		Cache:  cacher,
-		Hosts:  nil,
+		Serf:   nil,
 		Logger: logrus.StandardLogger(),
 	}
 
@@ -106,22 +113,14 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		serfEventCh:     make(chan serf.Event, 256),
 		shutdownCh:      make(chan struct{}),
 		Cache:           cacher,
-		Context:         context,
+		context:         context,
 		log:             log,
 	}
-	server.Serf, err = server.setupSerf()
-	if err != nil {
-		if server.Serf != nil {
-			server.Serf.Shutdown()
-		}
-		return nil, fmt.Errorf("Failed to start serf: %v", err)
-	}
-
 	return server, nil
 }
 
 func (c *CombaineServer) GetContext() *combainer.Context {
-	return c.Context
+	return c.context
 }
 
 func (c *CombaineServer) GetRepository() configs.Repository {
@@ -138,12 +137,9 @@ func (c *CombaineServer) Serve() error {
 		}
 	}()
 
-	c.log.Info("Join to Serf cluster")
-	h, err := s.Fetch(combainerConfig.MainSection.CloudGroup)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch cloud group: %s", err)
-	}
-	go c.Serf.Join(h.RemoteHosts(), true)
+	// run Serf instance and monitor for this events
+	c.connectSerf()
+	go c.serfEventHandler()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
@@ -209,7 +205,7 @@ LOCKSERVER_LOOP:
 							}
 
 							c.log.Infof("creating new client %s", lockname)
-							cl, err := combainer.NewClient(c.Context, c.Repository)
+							cl, err := combainer.NewClient(c.context, c.Repository)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
 									"error":    err,

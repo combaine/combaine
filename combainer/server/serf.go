@@ -1,6 +1,8 @@
 package server
 
 import (
+	"os"
+
 	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
@@ -35,6 +37,32 @@ func (s *CombaineServer) serfEventHandler() {
 }
 
 // nodeJoin is used to handle join events on the serf cluster
+func (s *CombaineServer) connectSerf() {
+	hosts := make([]string, 0)
+	if myname, err := os.Hostname(); err != nil {
+		panic(err)
+	} else {
+		if hostsByDc, err := s.Context.Hosts(); err != nil {
+			s.log.Errorf("Failed to fetch cloud group: %s", err)
+		} else {
+			for _, host := range hostsByDc {
+				if myname != host {
+					hosts = append(hosts, host)
+				}
+			}
+		}
+	}
+	s.log.Infof("Connect to Serf cluster: %s", hosts)
+	n, err := s.Serf.Join(hosts, true)
+	if n > 0 {
+		s.log.Infof("Combainer joined to Serf cluster: %d nodes", n)
+	}
+	if err != nil {
+		s.log.Errorf("Combainer error joining to Serf cluster: %d nodes", n)
+	}
+}
+
+// nodeJoin is used to handle join events on the serf cluster
 func (s *CombaineServer) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		s.log.WithField("source", "Serf").Infof("Join new combainer %s", m.Name)
@@ -51,21 +79,21 @@ func (s *CombaineServer) nodeFailed(me serf.MemberEvent) {
 // setupSerf create and initialize Serf instance
 func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	conf := serf.DefaultConfig()
-	// all combainer build one cross dc cluster
-	conf.MemberlistConfig = memberlist.DefaultWANConfig()
-	// TODO (sakateka) move to configs
-	conf.MemberlistConfig.BindPort = 7946
-	logFile := "/var/log/combaine/serf.log"
-	if s.CombainerConfig.SerfConfig.LogFile != "" {
-		logFile = s.CombainerConfig.SerfConfig.LogFile
-	}
-	conf.MemberlistConfig.LogOutput = logFile
-	conf.LogOutput = logFile
-
 	conf.Init() // initialize tag map
 	// set tags here
 	// conf.Tags[<tagname>] = <tagValue>
+
+	// all combainer build one cross dc cluster
+	conf.MemberlistConfig = memberlist.DefaultWANConfig()
+
+	// TODO (sakateka) move to configs
+	conf.MemberlistConfig.BindPort = 7946
+	conf.MemberlistConfig.LogOutput = s.log.Logger.Writer()
+	conf.LogOutput = s.log.Logger.Writer()
+
 	conf.EventCh = s.serfEventCh
+	conf.RejoinAfterLeave = true
+
 	conf.SnapshotPath = s.CombainerConfig.SerfConfig.SnapshotPath
 	if conf.SnapshotPath == "" {
 		conf.SnapshotPath = "/var/lib/combainer/serf.snapshot"
@@ -73,7 +101,6 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	if err := common.EnsurePath(conf.SnapshotPath, false); err != nil {
 		return nil, err
 	}
-	conf.RejoinAfterLeave = true
 
 	return serf.Create(conf)
 }

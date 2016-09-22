@@ -4,12 +4,15 @@ import (
 	"flag"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
 
@@ -129,5 +132,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	go func() {
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
 	cmb.Serve()
 }
