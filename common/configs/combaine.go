@@ -15,6 +15,7 @@ type MainSection struct {
 
 type SerfConfigSection struct {
 	SnapshotPath string `yaml:"SnapshotPath"`
+	LogFile      string `yaml:"LogFile"`
 }
 
 type LockServerSection struct {

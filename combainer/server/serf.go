@@ -53,16 +53,18 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	conf := serf.DefaultConfig()
 	// all combainer build one cross dc cluster
 	conf.MemberlistConfig = memberlist.DefaultWANConfig()
-	// TODO (sakateka) move in configs
+	// TODO (sakateka) move to configs
 	conf.MemberlistConfig.BindPort = 7946
+	logFile := "/var/log/combaine/serf.log"
+	if s.CombainerConfig.SerfConfig.LogFile != "" {
+		logFile = s.CombainerConfig.SerfConfig.LogFile
+	}
+	conf.MemberlistConfig.LogOutput = logFile
+	conf.LogOutput = logFile
 
 	conf.Init() // initialize tag map
 	// set tags here
 	// conf.Tags[<tagname>] = <tagValue>
-
-	// TODO (skacheev) add some logger
-	//conf.MemberlistConfig.LogOutput = s.log
-	//conf.LogOutput = s.log
 	conf.EventCh = s.serfEventCh
 	conf.SnapshotPath = s.CombainerConfig.SerfConfig.SnapshotPath
 	if conf.SnapshotPath == "" {

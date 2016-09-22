@@ -139,8 +139,11 @@ func (c *CombaineServer) Serve() error {
 	}()
 
 	c.log.Info("Join to Serf cluster")
-	hosts, nil := c.Context.Hosts()
-	go c.Serf.Join(hosts, true)
+	h, err := s.Fetch(combainerConfig.MainSection.CloudGroup)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch cloud group: %s", err)
+	}
+	go c.Serf.Join(h.RemoteHosts(), true)
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
