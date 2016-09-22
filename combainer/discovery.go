@@ -154,6 +154,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 				body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
 				if err != nil {
 					log.Errorf("Unable to read data from the cache: %s", err)
+					return nil, err
 				}
 				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
 			} else {

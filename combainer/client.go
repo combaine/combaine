@@ -187,8 +187,8 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(contextFields).Info("Start new iteration")
-	var hosts []string
 	serfMembers := cl.Context.Serf.Members()
+	hosts := make([]string, 0, len(serfMembers))
 	for _, m := range serfMembers {
 		hosts = append(hosts, m.Name)
 	}
