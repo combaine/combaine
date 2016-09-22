@@ -64,14 +64,14 @@ func (s *CombaineServer) connectSerf() error {
 // nodeJoin is used to handle join events on the serf cluster
 func (s *CombaineServer) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		s.log.WithField("source", "Serf").Infof("Join new combainer %s", m.Name)
+		s.log.WithField("source", "Serf").Infof("Serf join event, new combainer %s", m.Name)
 	}
 }
 
 // nodeFailed is used to handle fail events on the serf cluster
 func (s *CombaineServer) nodeFailed(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		s.log.WithField("source", "Serf").Infof("Failed combainer %s", m.Name)
+		s.log.WithField("source", "Serf").Infof("Serf failed event, combainer %s", m.Name)
 	}
 }
 

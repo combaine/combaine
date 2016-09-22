@@ -198,6 +198,9 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		).Error("unable to get (or empty) the list of the cloud hosts")
 		return err
 	}
+	cl.Log.WithFields(
+		logrus.Fields{"session": uniqueID, "config": parsingConfigName},
+	).Debugf("Dispatch task to cloud hosts: %s", hosts)
 
 	// Parsing phase
 	totalTasksAmount := len(sessionParameters.PTasks)
