@@ -37,7 +37,7 @@ func (s *CombaineServer) serfEventHandler() {
 	}
 }
 
-// nodeJoin is used to handle join events on the serf cluster
+// connectSerf is used to attempt join to existing serf cluster.
 func (s *CombaineServer) connectSerf() error {
 	f, err := combainer.LoadHostFetcher(s.GetContext(), s.CombainerConfig.CloudSection.HostFetcher)
 	if err != nil {
