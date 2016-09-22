@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,7 +30,7 @@ func trap() {
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
-	configs.Repository
+	context         *combainer.Context
 
 	// serfEventCh is used to receive events from the serf cluster
 	serfEventCh chan serf.Event
@@ -39,8 +38,8 @@ type CombaineServer struct {
 	Serf       *serf.Serf
 	shutdownCh chan struct{}
 
+	configs.Repository
 	cache.Cache
-	*combainer.Context
 	log *logrus.Entry
 }
 
@@ -62,11 +61,13 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
+	log.Info("filesystemRepository initialized")
 
 	combainerConfig := repository.GetCombainerConfig()
 	if err = configs.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
+	log.Info("Combainer configs is valid: OK")
 
 	cacheCfg := &combainerConfig.MainSection.Cache
 	cacheType, err := cacheCfg.Type()
@@ -78,32 +79,13 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
-	server.Serf, err = server.setupSerf()
-	if err != nil {
-		if server.Serf != nil {
-			server.Serf.Shutdown()
-		}
-		return nil, fmt.Errorf("Failed to start serf: %v", err)
-	}
+	log.Infof("Initialized combainer cache type: %s", cacheType)
 
 	// Get Combaine hosts
 	context := &combainer.Context{
 		Cache:  cacher,
 		Serf:   nil,
 		Logger: logrus.StandardLogger(),
-	}
-
-	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
-	if err != nil {
-		return nil, err
-	}
-
-	context.Hosts = func() ([]string, error) {
-		h, err := s.Fetch(combainerConfig.MainSection.CloudGroup)
-		if err != nil {
-			return nil, err
-		}
-		return h.AllHosts(), nil
 	}
 
 	server := &CombaineServer{
@@ -116,6 +98,16 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		context:         context,
 		log:             log,
 	}
+
+	server.Serf, err = server.setupSerf()
+	if err != nil {
+		if server.Serf != nil {
+			server.Serf.Shutdown()
+		}
+		log.Fatalf("Failed to start serf: %s", err)
+	}
+	server.context.Serf = server.Serf
+
 	return server, nil
 }
 
@@ -138,7 +130,9 @@ func (c *CombaineServer) Serve() error {
 	}()
 
 	// run Serf instance and monitor for this events
-	c.connectSerf()
+	if err := c.connectSerf(); err != nil {
+		c.log.Errorf("Failed to connectSerf: %s", err)
+	}
 	go c.serfEventHandler()
 
 	if c.Configuration.Active {

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log"
 	"net"
-	"net/http"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -13,8 +12,6 @@ import (
 	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/parsing"
 	"github.com/combaine/combaine/rpc"
-
-	_ "net/http/pprof"
 
 	_ "github.com/combaine/combaine/fetchers/httpfetcher"
 	_ "github.com/combaine/combaine/fetchers/rawsocket"
@@ -44,10 +41,6 @@ func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (
 }
 
 func main() {
-	go func() {
-		log.Println(http.ListenAndServe("0.0.0.0:6061", nil))
-	}()
-
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

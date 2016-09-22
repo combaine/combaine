@@ -1,8 +1,9 @@
 package server
 
 import (
-	"os"
+	"fmt"
 
+	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
@@ -37,21 +38,17 @@ func (s *CombaineServer) serfEventHandler() {
 }
 
 // nodeJoin is used to handle join events on the serf cluster
-func (s *CombaineServer) connectSerf() {
-	hosts := make([]string, 0)
-	if myname, err := os.Hostname(); err != nil {
-		panic(err)
-	} else {
-		if hostsByDc, err := s.Context.Hosts(); err != nil {
-			s.log.Errorf("Failed to fetch cloud group: %s", err)
-		} else {
-			for _, host := range hostsByDc {
-				if myname != host {
-					hosts = append(hosts, host)
-				}
-			}
-		}
+func (s *CombaineServer) connectSerf() error {
+	f, err := combainer.LoadHostFetcher(s.GetContext(), s.CombainerConfig.CloudSection.HostFetcher)
+	if err != nil {
+		return err
 	}
+	hostsByDc, err := f.Fetch(s.CombainerConfig.MainSection.CloudGroup)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch cloud group: %s", err)
+	}
+
+	hosts := hostsByDc.RemoteHosts()
 	s.log.Infof("Connect to Serf cluster: %s", hosts)
 	n, err := s.Serf.Join(hosts, true)
 	if n > 0 {
@@ -59,7 +56,9 @@ func (s *CombaineServer) connectSerf() {
 	}
 	if err != nil {
 		s.log.Errorf("Combainer error joining to Serf cluster: %d nodes", n)
+		return err
 	}
+	return nil
 }
 
 // nodeJoin is used to handle join events on the serf cluster
