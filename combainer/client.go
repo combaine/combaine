@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/serf/serf"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
@@ -190,7 +191,11 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	serfMembers := cl.Context.Serf.Members()
 	hosts := make([]string, 0, len(serfMembers))
 	for _, m := range serfMembers {
-		hosts = append(hosts, m.Name)
+		// TODO (sakateka): make Serf wrapper, and define method
+		// that return only alive nodes
+		if m.Status == serf.StatusAlive {
+			hosts = append(hosts, m.Name)
+		}
 	}
 	if err != nil || len(hosts) == 0 {
 		cl.Log.WithFields(
