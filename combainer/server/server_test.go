@@ -9,6 +9,6 @@ import (
 
 func TestTrap(t *testing.T) {
 	defer trap()
-	panic(fmt.Errorf("test"))
 	assert.Equal(t, true, true)
+	panic(fmt.Errorf("test"))
 }
