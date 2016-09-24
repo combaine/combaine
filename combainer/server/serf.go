@@ -2,6 +2,8 @@ package server
 
 import (
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common"
@@ -85,10 +87,30 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	// all combainer build one cross dc cluster
 	conf.MemberlistConfig = memberlist.DefaultWANConfig()
 
+	ips, err := net.LookupIP(conf.MemberlistConfig.Name)
+	if err != nil {
+		if len(ips) < 1 {
+			return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
+		}
+		return nil, fmt.Errorf("failed to setup Serf: %s", err)
+	}
+	for _, ip := range ips {
+		if ip.IsGlobalUnicast() {
+			ipStr := ip.String()
+			if strings.Contains(ipStr, ":") {
+				// pick first non local ipv6 address
+				// TODO (sakateka) neeed make pick deterministic way
+				s.log.Infof("Advertise Serf address: %s", ips[0].String())
+				conf.MemberlistConfig.AdvertiseAddr = ips[0].String()
+				break
+			}
+		}
+	}
+
 	// TODO (sakateka) move to configs
-	conf.MemberlistConfig.BindPort = 7946
-	conf.MemberlistConfig.LogOutput = s.log.Logger.Writer()
+	conf.MemberlistConfig.BindAddr = "::"
 	conf.LogOutput = s.log.Logger.Writer()
+	conf.MemberlistConfig.LogOutput = conf.LogOutput
 
 	conf.EventCh = s.serfEventCh
 	conf.RejoinAfterLeave = true
