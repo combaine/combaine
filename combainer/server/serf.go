@@ -6,15 +6,8 @@ import (
 	"strings"
 
 	"github.com/combaine/combaine/combainer"
-	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
-)
-
-const (
-	// StatusReap is used to update the status of a node if we
-	// are handling a EventMemberReap
-	StatusReap = serf.MemberStatus(-1)
 )
 
 // serfEventHandler is used to handle events from the serf cluster
@@ -116,12 +109,5 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	conf.RejoinAfterLeave = true
 
 	conf.SnapshotPath = s.CombainerConfig.SerfConfig.SnapshotPath
-	if conf.SnapshotPath == "" {
-		conf.SnapshotPath = "/var/lib/combainer/serf.snapshot"
-	}
-	if err := common.EnsurePath(conf.SnapshotPath, false); err != nil {
-		return nil, err
-	}
-
 	return serf.Create(conf)
 }

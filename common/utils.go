@@ -3,8 +3,6 @@ package common
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/ugorji/go/codec"
 
@@ -62,12 +60,4 @@ func InterfaceToString(v interface{}) (s string) {
 		s = fmt.Sprintf("%v", v)
 	}
 	return
-}
-
-// EnsurePath is used to make sure a path exists
-func EnsurePath(path string, dir bool) error {
-	if !dir {
-		path = filepath.Dir(path)
-	}
-	return os.MkdirAll(path, 0755)
 }

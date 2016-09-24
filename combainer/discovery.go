@@ -158,7 +158,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 				}
 				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
 			} else {
-				log.Debugf("Put in cache %s: %s", groupname, body)
+				log.Debugf("Put in cache %s: %q", groupname, body)
 				if put_err := s.Cache.Put(fetcherCacheNamespace, groupname, body); put_err != nil {
 					log.Warnf("Put error: %s", put_err)
 				}
