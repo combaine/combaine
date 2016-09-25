@@ -82,10 +82,10 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 
 	ips, err := net.LookupIP(conf.MemberlistConfig.Name)
 	if err != nil {
-		if len(ips) < 1 {
-			return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
-		}
 		return nil, fmt.Errorf("failed to setup Serf: %s", err)
+	}
+	if len(ips) < 1 {
+		return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
 	for _, ip := range ips {
 		if ip.IsGlobalUnicast() {
