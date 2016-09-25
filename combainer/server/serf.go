@@ -84,7 +84,7 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup Serf: %s", err)
 	}
-	if len(ips) < 1 {
+	if len(ips) == 0 {
 		return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
 	for _, ip := range ips {
