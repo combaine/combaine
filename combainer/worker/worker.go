@@ -42,6 +42,8 @@ type workerV11 struct {
 	*cocaine.Service
 }
 
+// NewSlave create and return new Worker type instance
+// it take cocaine.Service and wrap it with Worker interface
 func NewSlave(app *cocaine.Service) Worker {
 	return &workerV11{
 		Service: app,

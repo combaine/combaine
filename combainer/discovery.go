@@ -83,6 +83,9 @@ type PredefineFetcherConfig struct {
 	Clusters map[string]hosts.Hosts
 }
 
+// newPredefineFetcher return list of hosts defined
+// in user or server level combainer's config,
+// context parameter ignored because cache not need this
 func newPredefineFetcher(_ *Context, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig PredefineFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
@@ -105,6 +108,9 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	return hosts, nil
 }
 
+// newHttpFetcher return list of hosts
+// fethed from http discovery service
+// context used for provide combainer Cache
 func newHttpFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
@@ -142,9 +148,20 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 				return nil, err
 			}
 		} else {
-			body, _ = ioutil.ReadAll(resp.Body)
-			if put_err := s.Cache.Put(fetcherCacheNamespace, groupname, body); put_err != nil {
-				log.Infof("Put error: %s", put_err)
+			body, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Errorf("Failed to read response: %s", err)
+				body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
+				if err != nil {
+					log.Errorf("Unable to read data from the cache: %s", err)
+					return nil, err
+				}
+				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
+			} else {
+				log.Debugf("Put in cache %s: %q", groupname, body)
+				if put_err := s.Cache.Put(fetcherCacheNamespace, groupname, body); put_err != nil {
+					log.Warnf("Put error: %s", put_err)
+				}
 			}
 		}
 	}

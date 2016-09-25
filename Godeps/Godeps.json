@@ -12,6 +12,10 @@
 			"Rev": "55eb11d21d2a31a3cc93838241d04800f52e823d"
 		},
 		{
+			"ImportPath": "github.com/armon/go-metrics",
+			"Rev": "3df31a1ada83e310c2e24b267c8e8b68836547b4"
+		},
+		{
 			"ImportPath": "github.com/cocaine/cocaine-framework-go/cocaine",
 			"Comment": "0.11-2-228-ga071d9b",
 			"Rev": "a071d9bf57bbee4f56d41b299588f1259832bc06"
@@ -33,6 +37,32 @@
 			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/errwrap",
+			"Rev": "7554cd9344cec97297fa6649b055a8c98c2a1e55"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
+			"Rev": "fa3f63826f7c23912c15263591e65d54d080b458"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-multierror",
+			"Rev": "8c5f0ad9360406a3807ce7de6bc73269a91a6e51"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/memberlist",
+			"Rev": "7ad712f5f34ec40aebe6ca47756d07898486a8d2"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/coordinate",
+			"Comment": "v0.8.0-8-g2934772",
+			"Rev": "2934772dd0d2be826c9e4a2ec67fd24797d197fb"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/serf",
+			"Comment": "v0.8.0-8-g2934772",
+			"Rev": "2934772dd0d2be826c9e4a2ec67fd24797d197fb"
+		},
+		{
 			"ImportPath": "github.com/kr/pretty",
 			"Comment": "go.weekly.2011-12-22-27-ge6ac2fc",
 			"Rev": "e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb"
@@ -40,6 +70,10 @@
 		{
 			"ImportPath": "github.com/kr/text",
 			"Rev": "bb797dc4fb8320488f47bf11de07a733d7233e1f"
+		},
+		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "db96a2b759cdef4f11a34506a42eb8d1290c598e"
 		},
 		{
 			"ImportPath": "github.com/mitchellh/mapstructure",

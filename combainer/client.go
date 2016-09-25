@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/serf/serf"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
@@ -37,14 +38,6 @@ type Client struct {
 
 // NewClient returns new client
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
-	if context.Hosts == nil {
-		err := fmt.Errorf("Hosts delegate must be specified")
-		context.Logger.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("Unable to create Client")
-		return nil, err
-	}
-
 	id := GenerateSessionId()
 	cl := &Client{
 		ID:         id,
@@ -195,11 +188,24 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(contextFields).Info("Start new iteration")
-	hosts, err := cl.Context.Hosts()
+	serfMembers := cl.Context.Serf.Members()
+	hosts := make([]string, 0, len(serfMembers))
+	for _, m := range serfMembers {
+		// TODO (sakateka): make Serf wrapper, and define method
+		// that return only alive nodes
+		if m.Status == serf.StatusAlive {
+			hosts = append(hosts, m.Name)
+		}
+	}
 	if err != nil || len(hosts) == 0 {
-		cl.Log.WithFields(logrus.Fields{"session": uniqueID, "config": parsingConfigName, "error": err}).Error("unable to get (or empty) the list of the cloud hosts")
+		cl.Log.WithFields(
+			logrus.Fields{"session": uniqueID, "config": parsingConfigName, "error": err},
+		).Error("unable to get (or empty) the list of the cloud hosts")
 		return err
 	}
+	cl.Log.WithFields(
+		logrus.Fields{"session": uniqueID, "config": parsingConfigName},
+	).Debugf("Dispatch task to cloud hosts: %s", hosts)
 
 	// Parsing phase
 	totalTasksAmount := len(sessionParameters.PTasks)

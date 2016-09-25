@@ -1,3 +1,9 @@
+combaine (0.8.0.alpha5) trusty; urgency=medium
+
+  * Serf added
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 22 Sep 2016 10:36:18 +0300
+
 combaine (0.8.0-alpha4) trusty; urgency=medium
 
   * use old context  for gRPC
