@@ -106,6 +106,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 func main() {
 	var err error
+
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
@@ -114,5 +115,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dispatcher := solomon.NewDispatcher(solomon.MaxWorker)
+	go dispatcher.Run()
+
 	Worker.Loop(binds)
 }
