@@ -18,6 +18,11 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
+var (
+	MaxWorker = 5
+	MaxQueue = 5
+    JobQueue = make(chan Job, MaxQueue)
+)
 
 type SolomonSender interface {
 	Send(tasks.DataType, uint64) error
@@ -59,6 +64,21 @@ type sensor struct {
 type solomonPush struct {
 	CommonLabels comLabels `json:"commonLabels"`
 	Sensors      []sensor  `json:"sensors"`
+}
+
+type Job struct {
+	Request *http.Request
+	SolCli	*solomonClient
+}
+
+type Worker struct {
+	Id int
+	WorkerPool chan chan Job
+	JobChannel chan Job
+}
+
+type Dispatcher struct {
+	WorkerPool chan chan Job
 }
 
 func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
@@ -203,105 +223,6 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 	return groups, err
 }
 
-var (
-	MaxWorker = 5
-	MaxQueue = 5
-    JobQueue = make(chan Job, MaxQueue)
-)
-
-
-type Job struct {
-	Request *http.Request
-	SolCli	*solomonClient
-}
-
-
-type Worker struct {
-	Id int
-	WorkerPool chan chan Job
-	JobChannel chan Job
-}
-
-func (w Worker) Start() {
-	go func() {
-		for {
-			w.WorkerPool <- w.JobChannel
-			select {
-			case job := <- w.JobChannel:
-				if err := SendToSolomon(job); err != nil {
-					logger.Errf("%s", err)
-
-				}
-			}
-		}
-	}()
-}
-	
-
-func NewWorker(workerPool chan chan Job, id int) Worker {
-	return Worker{
-		Id:	id,
-		WorkerPool: workerPool,
-		JobChannel: make(chan Job)}
-	}
-
-func SendToSolomon(job Job) error {
-	logger.Debugf("%s Attempting to send", job.SolCli.id)
-	SolomonHTTPClient := httpclient.NewClientWithTimeout(
-		time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
-		time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
-	resp, err := SolomonHTTPClient.Do(job.Request)
-
-	if err != nil {
-		return fmt.Errorf("%s %s", job.SolCli.id, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
-		}
-		return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
-	}
-	return nil
-
-	}
-
-type Dispatcher struct {
-	WorkerPool chan chan Job
-}
-
-func NewDispatcher(maxWorkers int) *Dispatcher {
-	pool := make(chan chan Job, maxWorkers)
-	return &Dispatcher{WorkerPool: pool}
-}
-
-func (d *Dispatcher) Run() {
-	for i := 0; i < MaxWorker; i++ {
-		logger.Debugf("Creating worker %d", i)
-		worker := NewWorker(d.WorkerPool, i)
-		worker.Start()
-	}
-
-	go d.dispatch()
-}
-
-func (d *Dispatcher) dispatch() {
-	logger.Debugf("Starting dispatcher")
-	for {
-		select {
-		case job := <-JobQueue:
-			logger.Debugf("Recieved a job")
-			go func(job Job) {
-				jobChannel := <-d.WorkerPool
-				jobChannel <- job
-			}(job)
-		}
-	}
-}
-
-
 func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 	if len(task) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send.", s.id)
@@ -345,5 +266,82 @@ func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) 
 	}
 
 	return
+}
+
+func (w Worker) Start() {
+	go func() {
+		for {
+			w.WorkerPool <- w.JobChannel
+			select {
+			case job := <- w.JobChannel:
+				logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
+				if err := SendToSolomon(job); err != nil {
+					logger.Errf("%s", err)
+
+				}
+			}
+		}
+	}()
+}
+	
+
+func NewWorker(workerPool chan chan Job, id int) Worker {
+	return Worker{
+		Id:	id,
+		WorkerPool: workerPool,
+		JobChannel: make(chan Job)}
+	}
+
+func SendToSolomon(job Job) error {
+	logger.Debugf("%s Attempting to send", job.SolCli.id)
+	SolomonHTTPClient := httpclient.NewClientWithTimeout(
+		time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
+		time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
+	resp, err := SolomonHTTPClient.Do(job.Request)
+
+	if err != nil {
+		return fmt.Errorf("%s %s", job.SolCli.id, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
+		}
+		return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+	}
+	return nil
+
+	}
+
+
+func NewDispatcher(maxWorkers int) *Dispatcher {
+	pool := make(chan chan Job, maxWorkers)
+	return &Dispatcher{WorkerPool: pool}
+}
+
+func (d *Dispatcher) Run() {
+	for i := 0; i < MaxWorker; i++ {
+		logger.Debugf("Creating worker %d", i)
+		worker := NewWorker(d.WorkerPool, i)
+		worker.Start()
+	}
+
+	go d.dispatch()
+}
+
+func (d *Dispatcher) dispatch() {
+	logger.Debugf("Starting dispatcher")
+	for {
+		select {
+		case job := <-JobQueue:
+			logger.Debugf("Recieved a job")
+			go func(job Job) {
+				jobChannel := <-d.WorkerPool
+				jobChannel <- job
+			}(job)
+		}
+	}
 }
 
