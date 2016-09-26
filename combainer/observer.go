@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
-	"github.com/combaine/combaine/combainer/worker"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 )
@@ -182,10 +181,9 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	logger.Out = w
 
 	ctx := &Context{
-		Logger:   logger,
-		Cache:    s.GetContext().Cache,
-		Hosts:    s.GetContext().Hosts,
-		Resolver: worker.NewResolverV11(),
+		Logger: logger,
+		Cache:  s.GetContext().Cache,
+		Serf:   s.GetContext().Serf,
 	}
 
 	cl, err := NewClient(ctx, s.GetRepository())

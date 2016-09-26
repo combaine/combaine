@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"context"
+	"golang.org/x/net/context"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
@@ -42,6 +42,8 @@ type workerV11 struct {
 	*cocaine.Service
 }
 
+// NewSlave create and return new Worker type instance
+// it take cocaine.Service and wrap it with Worker interface
 func NewSlave(app *cocaine.Service) Worker {
 	return &workerV11{
 		Service: app,

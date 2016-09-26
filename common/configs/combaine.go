@@ -2,7 +2,8 @@ package configs
 
 // Describes Main section in combaine.yaml
 type MainSection struct {
-	ParallelParsings int `yaml:"ParallelParsings"`
+	SerfConfig       SerfConfigSection `yaml:"Serf"`
+	ParallelParsings int               `yaml:"ParallelParsings"`
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
 	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
@@ -10,6 +11,10 @@ type MainSection struct {
 	CloudGroup string `yaml:"cloud"`
 	// Cache options
 	Cache PluginConfig `yaml:"Cache,omitempty"`
+}
+
+type SerfConfigSection struct {
+	SnapshotPath string `yaml:"SnapshotPath"`
 }
 
 type LockServerSection struct {

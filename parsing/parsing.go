@@ -5,28 +5,37 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/tasks"
 
 	"github.com/combaine/combaine/common/servicecacher"
-	"github.com/combaine/combaine/common/tasks"
+
+	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
-	fetcherType, err := task.ParsingConfig.DataFetcher.Type()
+var (
+	cacher = servicecacher.NewCacher(servicecacher.NewService)
+)
+
+func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingConfig) ([]byte, error) {
+	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Debugf("%s use %s for fetching data", task.Id, fetcherType)
-	fetcher, err := NewFetcher(fetcherType, task.ParsingConfig.DataFetcher)
+	fetcher, err := NewFetcher(fetcherType, parsingConfig.DataFetcher)
 	if err != nil {
 		return nil, err
 	}
 
 	fetcherTask := tasks.FetcherTask{
 		Target:     task.Host,
-		CommonTask: task.CommonTask,
+		CommonTask: tasks.CommonTask{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
 	}
 
 	startTm := time.Now()
@@ -40,50 +49,41 @@ func fetchDataFromTarget(task *tasks.ParsingTask) ([]byte, error) {
 	return blob, nil
 }
 
-func parseData(task *tasks.ParsingTask, cacher servicecacher.Cacher, data []byte) ([]byte, error) {
+func parseData(id string, name string, data []byte) ([]byte, error) {
 	parser, err := GetParser(cacher)
 	if err != nil {
 		return nil, err
 	}
 
-	return parser.Parse(task.Id, task.ParsingConfig.Parser, data)
+	return parser.Parse(id, name, data)
 }
 
-func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.ParsingResult, error) {
-	logger.Infof("%s start parsing %s", task.Id, task.ParsingConfigName)
+func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher) (*rpc.ParsingResult, error) {
+	logger.Infof("%s start parsing", task.Id)
 
-	var (
-		blob    []byte
-		err     error
-		payload interface{}
-		wg      sync.WaitGroup
-	)
+	var parsingConfig = task.GetParsingConfig()
 
-	blob, err = fetchDataFromTarget(task)
-
+	blob, err := fetchDataFromTarget(task, &parsingConfig)
 	// parsing timings without fetcher time
 	defer func(t time.Time) {
 		logger.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
 		logger.Infof("%s %s Done", task.Id, task.ParsingConfigName)
 	}(time.Now())
-
 	if err != nil {
 		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
 		return nil, err
 	}
 
-	if !task.ParsingConfig.SkipParsingStage() {
+	if !parsingConfig.SkipParsingStage() {
 		logger.Infof("%s Send data to parsing", task.Id)
-		blob, err = parseData(task, cacher, blob)
+		blob, err = parseData(task.Id, parsingConfig.Parser, blob)
 		if err != nil {
 			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
 			return nil, err
 		}
 	}
 
-	payload = blob
-
-	if !task.ParsingConfig.Raw {
+	if !parsingConfig.Raw {
 		logger.Infof("%s Raw data is not supported anymore", task.Id)
 		return nil, fmt.Errorf("Raw data is not supported anymore")
 	}
@@ -94,7 +94,9 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 	}
 	ch := make(chan item)
 
-	for aggLogName, aggCfg := range task.AggregationConfigs {
+	var aggregationConfigs = task.GetAggregationConfigs()
+	var wg sync.WaitGroup
+	for aggLogName, aggCfg := range aggregationConfigs {
 		for k, v := range aggCfg.Data {
 			aggType, err := v.Type()
 			if err != nil {
@@ -108,15 +110,16 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 				continue
 			}
 			wg.Add(1)
+			// TODO: use Context instead of deadline
 			go func(app servicecacher.Service, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
 
 				/* Task structure */
 				t, _ := common.Pack(map[string]interface{}{
 					"config":   v,
-					"token":    payload,
-					"prevtime": task.PrevTime,
-					"currtime": task.CurrTime,
+					"token":    blob,
+					"prevtime": task.Frame.Previous,
+					"currtime": task.Frame.Current,
 					"id":       task.Id,
 				})
 
@@ -131,19 +134,19 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 						return
 					}
 
-					var raw_res []byte
-					if err := res.Extract(&raw_res); err != nil {
+					var rawRes []byte
+					if err := res.Extract(&rawRes); err != nil {
 						logger.Errf("%s Unable to extract result: %s", task.Id, err.Error())
 						return
 					}
 
 					key := fmt.Sprintf("%s;%s", task.Host, k)
-					ch <- item{key: key, res: raw_res}
+					ch <- item{key: key, res: rawRes}
 					logger.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
 					logger.Errf("%s Failed task %s", task.Id, deadline)
 				}
-			}(app, k, v, time.Second*time.Duration(task.CurrTime-task.PrevTime))
+			}(app, k, v, time.Second*time.Duration(task.Frame.Current-task.Frame.Previous))
 		}
 	}
 	go func() {
@@ -151,10 +154,10 @@ func Parsing(task *tasks.ParsingTask, cacher servicecacher.Cacher) (tasks.Parsin
 		close(ch)
 	}()
 
-	result := make(tasks.ParsingResult)
+	result := rpc.ParsingResult{Data: make(map[string][]byte)}
 	for res := range ch {
-		result[res.key] = res.res
+		result.Data[res.key] = res.res
 	}
 
-	return result, nil
+	return &result, nil
 }

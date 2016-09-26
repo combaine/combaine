@@ -1,3 +1,33 @@
+combaine (0.8.0.alpha5) trusty; urgency=medium
+
+  * Serf added
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 22 Sep 2016 10:36:18 +0300
+
+combaine (0.8.0-alpha4) trusty; urgency=medium
+
+  * use old context  for gRPC
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 15 Sep 2016 11:01:59 +0300
+
+combaine (0.8.0-alpha3) trusty; urgency=medium
+
+  * Rebase to mater
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 15 Sep 2016 03:04:59 +0300
+
+combaine (0.8.0-alpha2) trusty; urgency=medium
+
+  * Packaging and other bugfixes
+
+ -- Anton Tiurin <noxiouz@yandex.ru>  Mon, 22 Aug 2016 11:39:16 +0000
+
+combaine (0.8.0-alpha1) trusty; urgency=medium
+
+  * Migrate to gRPC
+
+ -- Anton Tiurin <noxiouz@yandex.ru>  Mon, 22 Aug 2016 11:39:16 +0000
+
 combaine (0.7.4.1) trusty; urgency=medium
 
   * [Worker] Revert usage servicecacher for remote app

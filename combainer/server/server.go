@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/serf/serf"
 	"github.com/talbright/go-zookeeper/zk"
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
-	"github.com/combaine/combaine/combainer/worker"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
@@ -30,10 +30,16 @@ func trap() {
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
+	context         *combainer.Context
+
+	// serfEventCh is used to receive events from the serf cluster
+	serfEventCh chan serf.Event
+	// instance of Serf
+	Serf       *serf.Serf
+	shutdownCh chan struct{}
 
 	configs.Repository
 	cache.Cache
-	*combainer.Context
 	log *logrus.Entry
 }
 
@@ -55,11 +61,13 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
+	log.Info("filesystemRepository initialized")
 
 	combainerConfig := repository.GetCombainerConfig()
 	if err = configs.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
+	log.Info("Combainer configs is valid: OK")
 
 	cacheCfg := &combainerConfig.MainSection.Cache
 	cacheType, err := cacheCfg.Type()
@@ -71,43 +79,40 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
+	log.Infof("Initialized combainer cache type: %s", cacheType)
 
 	// Get Combaine hosts
-	cloudGroup := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
-		Cache:    cacher,
-		Hosts:    nil,
-		Logger:   logrus.StandardLogger(),
-		Resolver: worker.NewResolverV11(),
-	}
-
-	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
-	if err != nil {
-		return nil, err
-	}
-
-	context.Hosts = func() ([]string, error) {
-		h, err := s.Fetch(cloudGroup)
-		if err != nil {
-			return nil, err
-		}
-		return h.AllHosts(), nil
+		Cache:  cacher,
+		Serf:   nil,
+		Logger: logrus.StandardLogger(),
 	}
 
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
+		serfEventCh:     make(chan serf.Event, 256),
+		shutdownCh:      make(chan struct{}),
 		Cache:           cacher,
-		Context:         context,
+		context:         context,
 		log:             log,
 	}
+
+	server.Serf, err = server.setupSerf()
+	if err != nil {
+		if server.Serf != nil {
+			server.Serf.Shutdown()
+		}
+		log.Fatalf("Failed to start serf: %s", err)
+	}
+	server.context.Serf = server.Serf
 
 	return server, nil
 }
 
 func (c *CombaineServer) GetContext() *combainer.Context {
-	return c.Context
+	return c.context
 }
 
 func (c *CombaineServer) GetRepository() configs.Repository {
@@ -124,6 +129,12 @@ func (c *CombaineServer) Serve() error {
 		}
 	}()
 
+	// run Serf instance and monitor for this events
+	if err := c.connectSerf(); err != nil {
+		c.log.Errorf("Failed to connectSerf: %s", err)
+	}
+	go c.serfEventHandler()
+
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
 		go c.distributeTasks()
@@ -131,8 +142,9 @@ func (c *CombaineServer) Serve() error {
 
 	sigWatcher := make(chan os.Signal, 1)
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
-	s := <-sigWatcher
-	c.log.Info("Got signal:", s)
+	sig := <-sigWatcher
+	c.log.Info("Got signal:", sig)
+	close(c.shutdownCh)
 	return nil
 }
 
@@ -187,7 +199,7 @@ LOCKSERVER_LOOP:
 							}
 
 							c.log.Infof("creating new client %s", lockname)
-							cl, err := combainer.NewClient(c.Context, c.Repository)
+							cl, err := combainer.NewClient(c.context, c.Repository)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
 									"error":    err,

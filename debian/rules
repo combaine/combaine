@@ -36,17 +36,8 @@ override_dh_install:
 
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
+	install -m755 $(BUILD_DIR)/worker  $(DEB_DESTDIR)usr/bin/combaine-worker
 
-	# core-parsing
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
-	install -m755 $(BUILD_DIR)/parsing  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
-	install -m664 deploy/manifests/manifest_parsing.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing
-	install -m755 deploy/scripts/deploy_parsing.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing/deploy.sh
-	# core-aggregate
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
-	install -m755 $(BUILD_DIR)/aggregating  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
-	install -m664 deploy/manifests/manifest_aggregating.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating
-	install -m755 deploy/scripts/deploy_aggregating.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregating/deploy.sh
 	# parsingApp
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
 	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
@@ -104,4 +95,4 @@ clean::
 	dh_clean
 	rm -rf $(PACKAGE_PATH)
 	rm -rf $(BUILD_DIR)
-	find . -type l | xargs rm -v $1 || true
+	find . -type l -exec rm -f {} + || true

@@ -1,10 +1,11 @@
 package worker
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
