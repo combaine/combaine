@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/serf/serf"
+	"github.com/talbright/go-zookeeper/zk"
 
-	"launchpad.net/gozk/zookeeper"
-
-	"github.com/Combaine/Combaine/combainer"
-	"github.com/Combaine/Combaine/combainer/lockserver"
-	"github.com/Combaine/Combaine/common/cache"
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/combainer"
+	"github.com/combaine/combaine/combainer/lockserver"
+	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/configs"
 )
 
 var (
-	SHOULD_WAIT   bool = true
-	GEN_UNIQUE_ID      = ""
+	shouldWait  = true
+	genUniqueID = ""
 )
 
-func Trap() {
+func trap() {
 	if r := recover(); r != nil {
 		logrus.Printf("Recovered: %s", r)
 	}
@@ -30,10 +30,16 @@ func Trap() {
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
+	context         *combainer.Context
+
+	// serfEventCh is used to receive events from the serf cluster
+	serfEventCh chan serf.Event
+	// instance of Serf
+	Serf       *serf.Serf
+	shutdownCh chan struct{}
 
 	configs.Repository
 	cache.Cache
-	*combainer.Context
 	log *logrus.Entry
 }
 
@@ -55,11 +61,13 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
+	log.Info("filesystemRepository initialized")
 
 	combainerConfig := repository.GetCombainerConfig()
-	if err := configs.VerifyCombainerConfig(&combainerConfig); err != nil {
+	if err = configs.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
+	log.Info("Combainer configs is valid: OK")
 
 	cacheCfg := &combainerConfig.MainSection.Cache
 	cacheType, err := cacheCfg.Type()
@@ -71,42 +79,40 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
+	log.Infof("Initialized combainer cache type: %s", cacheType)
 
 	// Get Combaine hosts
-	cloud_group := combainerConfig.MainSection.CloudGroup
 	context := &combainer.Context{
 		Cache:  cacher,
-		Hosts:  nil,
+		Serf:   nil,
 		Logger: logrus.StandardLogger(),
-	}
-
-	s, err := combainer.LoadHostFetcher(context, combainerConfig.CloudSection.HostFetcher)
-	if err != nil {
-		return nil, err
-	}
-
-	context.Hosts = func() ([]string, error) {
-		h, err := s.Fetch(cloud_group)
-		if err != nil {
-			return nil, err
-		}
-		return h.AllHosts(), nil
 	}
 
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
 		Repository:      repository,
+		serfEventCh:     make(chan serf.Event, 256),
+		shutdownCh:      make(chan struct{}),
 		Cache:           cacher,
-		Context:         context,
+		context:         context,
 		log:             log,
 	}
+
+	server.Serf, err = server.setupSerf()
+	if err != nil {
+		if server.Serf != nil {
+			server.Serf.Shutdown()
+		}
+		log.Fatalf("Failed to start serf: %s", err)
+	}
+	server.context.Serf = server.Serf
 
 	return server, nil
 }
 
 func (c *CombaineServer) GetContext() *combainer.Context {
-	return c.Context
+	return c.context
 }
 
 func (c *CombaineServer) GetRepository() configs.Repository {
@@ -123,6 +129,12 @@ func (c *CombaineServer) Serve() error {
 		}
 	}()
 
+	// run Serf instance and monitor for this events
+	if err := c.connectSerf(); err != nil {
+		c.log.Errorf("Failed to connectSerf: %s", err)
+	}
+	go c.serfEventHandler()
+
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
 		go c.distributeTasks()
@@ -130,8 +142,9 @@ func (c *CombaineServer) Serve() error {
 
 	sigWatcher := make(chan os.Signal, 1)
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
-	s := <-sigWatcher
-	c.log.Info("Got signal:", s)
+	sig := <-sigWatcher
+	c.log.Info("Got signal:", sig)
+	close(c.shutdownCh)
 	return nil
 }
 
@@ -178,15 +191,15 @@ LOCKSERVER_LOOP:
 						// Inline function to use defers
 						func(lockname string) {
 							defer DLS.Unlock(lockname)
-							defer Trap()
+							defer trap()
 
 							if !c.Repository.ParsingConfigIsExists(cfg) {
 								c.log.WithField("error", "config doesn't exist").Error(cfg)
 								return
 							}
 
-							c.log.Info("creating new client", lockname)
-							cl, err := combainer.NewClient(c.Context, c.Repository)
+							c.log.Infof("creating new client %s", lockname)
+							cl, err := combainer.NewClient(c.context, c.Repository)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
 									"error":    err,
@@ -195,8 +208,7 @@ LOCKSERVER_LOOP:
 								return
 							}
 
-							var watcher <-chan zookeeper.Event
-							watcher, err = DLS.Watch(lockname)
+							watcher, err := DLS.Watch(lockname)
 							if err != nil {
 								c.log.WithFields(logrus.Fields{
 									"error":    err,
@@ -206,7 +218,7 @@ LOCKSERVER_LOOP:
 							}
 
 							for {
-								if err := cl.Dispatch(lockname, GEN_UNIQUE_ID, SHOULD_WAIT); err != nil {
+								if err = cl.Dispatch(lockname, genUniqueID, shouldWait); err != nil {
 									c.log.WithFields(logrus.Fields{
 										"error":    err,
 										"lockname": lockname,
@@ -215,7 +227,7 @@ LOCKSERVER_LOOP:
 								}
 								select {
 								case event := <-watcher:
-									if !event.Ok() || event.Type == zookeeper.EVENT_DELETED {
+									if event.Err != nil || event.Type == zk.EventNodeDeleted {
 										c.log.Errorf("lock has been lost: %s", event)
 										return
 									}
@@ -234,14 +246,13 @@ LOCKSERVER_LOOP:
 					}
 				}(configs)
 			case event := <-DLS.Session:
-				if event.Type == zookeeper.STATE_CONNECTING {
-					// https://godoc.org/launchpad.net/gozk/zookeeper#Event
+				if event.State == zk.StateConnecting {
 					c.log.Warn("reconnecting event from Zookeeper session")
 					continue
 				}
 
-				if !event.Ok() {
-					c.log.Errorf("not OK event from Zookeeper: %s", event)
+				if event.Err != nil {
+					c.log.Errorf("event with error from Zookeeper: %v", event.Err)
 					DLS.Close()
 					break DISPATCH_LOOP
 				}

@@ -24,8 +24,8 @@ func TestRepository(t *testing.T) {
 	)
 
 	repo, err := NewFilesystemRepository(repopath)
-	if !assert.Nil(t, err, "Unable to create repo %s", err) {
-		t.Fatal()
+	if !assert.Nil(t, err) {
+		t.Fatalf("Unable to create repo %s", err)
 	}
 
 	lp, _ := repo.ListParsingConfigs()
@@ -42,20 +42,21 @@ func TestRepository(t *testing.T) {
 
 	for _, name := range lp {
 		pcfg, err := repo.GetParsingConfig(name)
-		if !assert.Nil(t, err, "unable to read %s: %s", name, err) {
-			t.Fatal()
+		if !assert.Nil(t, err) {
+			t.Fatalf("unable to read %s: %s", name, err)
 		}
 
 		if !repo.ParsingConfigIsExists(name) {
-			t.Fatal()
+			t.Fatalf("Parsing config %s don't exists", name)
 		}
 
-		if repo.ParsingConfigIsExists("balbla") {
-			t.Fatal()
+		not_existing := "balbla"
+		if repo.ParsingConfigIsExists(not_existing) {
+			t.Fatalf("No existing config %s mistakenly identified as there", not_existing)
 		}
 
-		if !assert.NotNil(t, pcfg, "ooops") {
-			t.Fatal()
+		if !assert.NotNil(t, pcfg) {
+			t.Fatal("ooops")
 		}
 
 		var decodedCfg ParsingConfig
@@ -64,12 +65,12 @@ func TestRepository(t *testing.T) {
 
 	for _, name := range la {
 		pcfg, err := repo.GetAggregationConfig(name)
-		if !assert.Nil(t, err, "unable to read %s: %s", name, err) {
-			t.Fatal()
+		if !assert.Nil(t, err) {
+			t.Fatalf("unable to read %s: %s", name, err)
 		}
 
-		if !assert.NotNil(t, pcfg, "ooops") {
-			t.Fatal()
+		if !assert.NotNil(t, pcfg) {
+			t.Fatal("ooops")
 		}
 
 		var decodedCfg AggregationConfig

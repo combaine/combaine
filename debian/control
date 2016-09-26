@@ -2,9 +2,10 @@ Source: combaine
 Section: misc
 Priority: extra
 Maintainer: Anton Tyurin <noxiouz@yandex.ru>
-Build-Depends: debhelper (>= 7.0.50~), libzookeeper-mt-dev, python
-Standards-Version: 3.9.3
-Homepage: https://github.com/Combaine/Combaine
+Build-Depends: debhelper (>= 8~), python
+Standards-Version: 3.9.5
+X-Python-Version: >= 2.7
+Homepage: https://github.com/combaine/combaine
 
 Package: combaine-presetting
 Architecture: amd64
@@ -37,13 +38,10 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
 
-Package: combaine-plugin-mysql
+Package: combaine-worker-ubic
 Architecture: amd64
-Depends: ${misc:Depends},
- python (>= 2.6),
- cocaine-tools,
- python-mysqldb,
- combaine-presetting,
- cocaine-framework-python (>= 0.11)
-Description: Plugin which allows to use MySQL queries.
- Cloud app for puting/getting data from parser to Mysql
+Depends: combaine-core,
+         lsb-base (>= 3.2-14),
+         ubic
+Description: gRPC based worker
+ gRPC based worker that handle aggregation and parsing requests

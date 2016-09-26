@@ -2,13 +2,12 @@ package servicecacher
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
 
-type Cacher interface {
-	Get(name string) (Service, error)
+func NewService(n string, a ...interface{}) (Service, error) {
+	return cocaine.NewService(n, a...)
 }
 
 type Service interface {
@@ -16,51 +15,46 @@ type Service interface {
 	Close()
 }
 
-type cache map[string]Service
+type ServiceBurner func(string, ...interface{}) (Service, error)
+
+// cacher
+type Cacher interface {
+	Get(string, ...interface{}) (Service, error)
+}
 
 type cacher struct {
 	mutex sync.Mutex
-	data  atomic.Value
+	fun   ServiceBurner
+	cache map[string]*entry
 }
 
-func NewCacher() Cacher {
-	c := &cacher{}
-	c.data.Store(make(cache))
-
-	return c
+func NewCacher(f ServiceBurner) Cacher {
+	return &cacher{fun: f, cache: make(map[string]*entry)}
 }
 
-func (c *cacher) Get(name string) (s Service, err error) {
-	s, ok := c.get(name)
-	if ok {
-		return
-	}
-
-	s, err = c.create(name)
-	return
+type entry struct {
+	service Service
+	err     error
+	ready   chan struct{} // closed when res is ready
 }
 
-func (c *cacher) get(name string) (s Service, ok bool) {
-	s, ok = c.data.Load().(cache)[name]
-	return
-}
-
-func (c *cacher) create(name string) (Service, error) {
+func (c *cacher) Get(name string, args ...interface{}) (Service, error) {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	s, ok := c.get(name)
-	if ok {
-		return s, nil
+	e := c.cache[name]
+	if e == nil { // first request or service error
+		e = &entry{ready: make(chan struct{})}
+		c.cache[name] = e
+		c.mutex.Unlock()
+		e.service, e.err = c.fun(name, args...)
+		if e.err != nil {
+			c.mutex.Lock()
+			delete(c.cache, name)
+			c.mutex.Unlock()
+		}
+		close(e.ready) // broadcast ready condition
+	} else {
+		c.mutex.Unlock()
+		<-e.ready // wait for ready condition
 	}
-
-	s, err := cocaine.NewService(name)
-	if err != nil {
-		return nil, err
-	}
-
-	data := c.data.Load().(cache)
-	data[name] = s
-	c.data.Store(data)
-
-	return s, nil
+	return e.service, e.err
 }

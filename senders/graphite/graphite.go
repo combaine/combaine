@@ -8,22 +8,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/logger"
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 func formatSubgroup(input string) string {
-	return strings.Replace(
-		strings.Replace(input, ".", "_", -1),
-		"-", "_", -1)
+	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
 }
 
 const (
 	onePointFormat = "%s.combaine.%s.%s %s %d\n"
 
-	connectionTimeout  = 900      //msec
-	connectionEndpoint = ":42000" //msec
+	connectionTimeout  = 1500 //msec
+	connectionEndpoint = ":42000"
 )
 
 type GraphiteSender interface {
@@ -187,11 +185,15 @@ func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) (err error)
 	}
 
 	sock, err := net.DialTimeout("tcp", connectionEndpoint, time.Microsecond*connectionTimeout)
+	defer func() {
+		if sock != nil {
+			sock.Close()
+		}
+	}()
 	if err != nil {
 		logger.Errf("Unable to connect to daemon %s: %s", connectionEndpoint, err)
 		return
 	}
-	defer sock.Close()
 	return g.sendInternal(&data, timestamp, sock)
 }
 

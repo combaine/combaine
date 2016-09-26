@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"golang.org/x/net/context"
+
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
-	"github.com/Combaine/Combaine/common/servicecacher"
-	"github.com/Combaine/Combaine/common/tasks"
 	"github.com/Sirupsen/logrus"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/rpc"
+	"github.com/combaine/combaine/tests"
 )
 
 const (
@@ -23,81 +24,11 @@ const (
 	repoPath = "../tests/fixtures/configs"
 )
 
-var results = make(chan []interface{})
-
-func sniff(name string, args ...interface{}) {
-	results <- args
+func NewService(n string, a ...interface{}) (servicecacher.Service, error) {
+	return tests.NewService(n, a...)
 }
 
-type dummyResult []byte
-
-func (dr dummyResult) Extract(i interface{}) error {
-	common.Unpack(dr, i)
-	return nil
-}
-func (dr dummyResult) Err() error {
-	return nil
-}
-
-type dummyService struct{}
-
-func (ds *dummyService) Call(name string, args ...interface{}) chan cocaine.ServiceResult {
-	sniff(name, args...)
-	ch := make(chan cocaine.ServiceResult)
-	go func() {
-		ch <- dummyResult(args[1].([]byte))
-	}()
-	return ch
-}
-func (ds *dummyService) Close() { /* pass */ }
-func NewService() servicecacher.Service {
-	return &dummyService{}
-}
-
-type cache map[string]servicecacher.Service
-
-type cacher struct {
-	mutex sync.Mutex
-	data  atomic.Value
-}
-
-func NewCacher() servicecacher.Cacher {
-	c := &cacher{}
-	c.data.Store(make(cache))
-
-	return c
-}
-
-func (c *cacher) Get(name string) (s servicecacher.Service, err error) {
-	s, ok := c.get(name)
-	if ok {
-		return
-	}
-
-	s, err = c.create(name)
-	return
-}
-
-func (c *cacher) get(name string) (s servicecacher.Service, ok bool) {
-	s, ok = c.data.Load().(cache)[name]
-	return
-}
-
-func (c *cacher) create(name string) (servicecacher.Service, error) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	s, ok := c.get(name)
-	if ok {
-		return s, nil
-	}
-
-	s = NewService()
-	data := c.data.Load().(cache)
-	data[name] = s.(servicecacher.Service)
-	c.data.Store(data)
-
-	return s, nil
-}
+var cacher = servicecacher.NewCacher(NewService)
 
 func TestAggregating(t *testing.T) {
 	logrus.SetLevel(logrus.InfoLevel)
@@ -116,22 +47,29 @@ func TestAggregating(t *testing.T) {
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
 	hostsPerDc := map[string][]string{
-		"DC1": []string{"Host1", "Host2"},
-		"DC2": []string{"Host3", "Host4"},
+		"DC1": {"Host1", "Host2"},
+		"DC2": {"Host3", "Host4"},
 	}
 
-	aggTask := tasks.AggregationTask{
-		CommonTask:        tasks.CommonTask{Id: "testId", PrevTime: 1, CurrTime: 61},
-		Config:            cfgName,
-		ParsingConfigName: cfgName,
-		ParsingConfig:     parsingConfig,
-		AggregationConfig: aggregationConfig,
-		Hosts:             hostsPerDc,
-		ParsingResult: tasks.ParsingResult{
-			"Host1;aggCore;aggCore;appsName;61": "Host1;aggCore;aggCore;appsName;61",
-			"Host2;aggCore;aggCore;appsName;61": "Host2;aggCore;aggCore;appsName;61",
-			"Host3;aggCore;aggCore;appsName;61": "Host3;aggCore;aggCore;appsName;61",
-			"Host4;aggCore;aggCore;appsName;61": "Host4;aggCore;aggCore;appsName;61",
+	encHosts, _ := common.Pack(hostsPerDc)
+	encParsingConfig, _ := common.Pack(parsingConfig)
+	encAggregationConfig, _ := common.Pack(aggregationConfig)
+
+	aggTask := rpc.AggregatingTask{
+		Id:                       "testId",
+		Frame:                    &rpc.TimeFrame{Current: 61, Previous: 1},
+		Config:                   cfgName,
+		ParsingConfigName:        cfgName,
+		EncodedParsingConfig:     encParsingConfig,
+		EncodedAggregationConfig: encAggregationConfig,
+		EncodedHosts:             encHosts,
+		ParsingResult: &rpc.ParsingResult{
+			Data: map[string][]byte{
+				"Host1;appsName": []byte("Host1;appsName"),
+				"Host2;appsName": []byte("Host2;appsName"),
+				"Host3;appsName": []byte("Host3;appsName"),
+				"Host4;appsName": []byte("Host4;appsName"),
+			},
 		},
 	}
 
@@ -157,7 +95,7 @@ func TestAggregating(t *testing.T) {
 
 		shouldSendToSenders := 2
 
-		for r := range results {
+		for r := range tests.Spy {
 			method := string(r[0].(string))
 			switch method {
 			case "aggregate_group":
@@ -182,14 +120,14 @@ func TestAggregating(t *testing.T) {
 				var payload tasks.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
-					for _k, _ := range v {
+					for _k := range v {
 						_, ok := expectSenders[_k]
 						assert.True(t, ok, "Unexpected senders payload %s", _k)
 						expectSenders[_k]++
 					}
 				}
 				if shouldSendToSenders == 0 {
-					close(results)
+					close(tests.Spy)
 				}
 			}
 		}
@@ -202,6 +140,9 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	cacher := NewCacher()
-	assert.NoError(t, Aggregating(&aggTask, cacher))
+	cacher := servicecacher.NewCacher(
+		func(n string, a ...interface{}) (servicecacher.Service, error) {
+			return tests.NewService(n, a...)
+		})
+	assert.NoError(t, Do(context.Background(), &aggTask, cacher))
 }

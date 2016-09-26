@@ -1,3 +1,13 @@
+data:
+  back.graph:
+    type: plugin
+    someOpts: value
+  front.graph:
+    type: custom
+    class: FrontAggregator
+  app:
+    type: custom
+    class: GeneralAggregator
 senders:
   A:
     type: agave
@@ -22,14 +32,3 @@ senders:
     CRIT: ["${50and20x}>10", "{50and20x}<0"]
     description: "Some very important check"
     checkname: "checkname"
-data:
-  20x:
-    query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 200 AND {{ .Field }} < 300 AND TIME=%%
-    perHost: 1
-    type: summa
-  30x:
-    query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 300 AND {{ .Field }} < 400
-    type: summa
-  50x:
-    query: SELECT COUNT(*) FROM %TABLENAME% WHERE http_status >= 500 AND TIME = %%
-    type: summa

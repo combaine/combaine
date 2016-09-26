@@ -12,6 +12,8 @@ Combainer:
     MAX_RESP_WAIT_TIME: 50
     MINIMUM_PERIOD: 20
     cloud: combaine-cloud
+    Serf:
+        SnapshotPath: /var/lib/combainer/serf.snapshot
     Cache:
       type: "InMemory"
 cloud_config:

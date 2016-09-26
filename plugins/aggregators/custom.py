@@ -69,28 +69,31 @@ def aggregate_host(request, response):
     Gets the result of a single host,
     performs parsing and their aggregation
     """
-    raw = yield request.read()
-    task = msgpack.unpackb(raw)
-    tid = task['id']
-    logger = get_logger_adapter(tid)
-    logger.info("Handle task")
-    cfg = task['config']
-    klass_name = cfg['class']
-    cfg['logger'] = logger
-    # Replace this name
-    payload = task['token']
     try:
+        raw = yield request.read()
+        task = msgpack.unpackb(raw)
+        tid = task['id']
+        logger = get_logger_adapter(tid)
+        logger.info("Handle task")
+        cfg = task['config']
+        klass_name = cfg['class']
+        cfg['logger'] = logger
+
+        # Replace this name
+        payload = task['token']
+
         result = _aggregate_host(klass_name, payload, cfg, task)
-        response.write(msgpack.packb(result))
-        logger.info("Done")
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
     except Exception as err:  # pylint: disable=broad-except
         response.error(-3, "Exception during handling %s" % repr(err))
         logger.error("Error %s", err)
+    else:
+        response.write(msgpack.packb(result))
     finally:
         response.close()
+        logger.info("Done")
 
 
 def aggregate_group(request, response):
@@ -98,14 +101,14 @@ def aggregate_group(request, response):
     Receives a list of results from the aggregate_host,
     and performs aggregation by group
     """
-    raw = yield request.read()
-    tid, cfg, data = msgpack.unpackb(raw)
-    logger = get_logger_adapter(tid)
-    logger.debug("Unpack raw data successfully")
-    payload = map(msgpack.unpackb, data)
-    klass_name = cfg['class']
-    cfg['logger'] = logger
     try:
+        raw = yield request.read()
+        tid, cfg, data = msgpack.unpackb(raw)
+        logger = get_logger_adapter(tid)
+        logger.debug("Unpack raw data successfully")
+        payload = map(msgpack.unpackb, data)
+        klass_name = cfg['class']
+        cfg['logger'] = logger
         result = _aggregate_group(klass_name, payload, cfg)
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
@@ -116,6 +119,7 @@ def aggregate_group(request, response):
     else:
         logger.info("Result of group aggregation %s", str(result))
         response.write(result)
+        logger.info("Custom done")
     finally:
         response.close()
 

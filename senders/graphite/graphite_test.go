@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 func TestGraphiteSend(t *testing.T) {
@@ -19,21 +19,21 @@ func TestGraphiteSend(t *testing.T) {
 	tms := fmt.Sprintf("%d", 100)
 	var (
 		expected = map[string]struct{}{
-			"TESTCOMBAINE.combaine.simple.20x 2000 " + tms:                   struct{}{},
-			"TESTCOMBAINE.combaine.array.20x.A 20 " + tms:                    struct{}{},
-			"TESTCOMBAINE.combaine.array.20x.B 30 " + tms:                    struct{}{},
-			"TESTCOMBAINE.combaine.array.20x.C 40 " + tms:                    struct{}{},
-			"TESTCOMBAINE.combaine.map_of_simple.20x.MP1 1000 " + tms:        struct{}{},
-			"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002 " + tms:        struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.A 201 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.B 301 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.C 401 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.A 202 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.B 302 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.C 402 " + tms:       struct{}{},
-			"TESTCOMBAINE.combaine.simple.30x 2000 " + tms:                   struct{}{},
-			"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP1 1000 " + tms: struct{}{},
-			"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP2 1002 " + tms: struct{}{},
+			"TESTCOMBAINE.combaine.simple.20x 2000 " + tms:                   {},
+			"TESTCOMBAINE.combaine.array.20x.A 20 " + tms:                    {},
+			"TESTCOMBAINE.combaine.array.20x.B 30 " + tms:                    {},
+			"TESTCOMBAINE.combaine.array.20x.C 40 " + tms:                    {},
+			"TESTCOMBAINE.combaine.map_of_simple.20x.MP1 1000 " + tms:        {},
+			"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002 " + tms:        {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.A 201 " + tms:       {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.B 301 " + tms:       {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.C 401 " + tms:       {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.A 202 " + tms:       {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.B 302 " + tms:       {},
+			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.C 402 " + tms:       {},
+			"TESTCOMBAINE.combaine.simple.30x 2000 " + tms:                   {},
+			"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP1 1000 " + tms: {},
+			"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP2 1002 " + tms: {},
 		}
 	)
 

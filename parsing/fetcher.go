@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/tasks"
 )
 
 var fLock sync.Mutex

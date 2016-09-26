@@ -1,8 +1,8 @@
 package parsing
 
 import (
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/servicecacher"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/servicecacher"
 )
 
 type Parser interface {
@@ -20,6 +20,9 @@ func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, er
 	}
 
 	res := <-p.app.Call("enqueue", "parse", taskToParser)
+	if res == nil {
+		return nil, common.ErrAppCall
+	}
 	if err = res.Err(); err != nil {
 		return
 	}
@@ -30,7 +33,7 @@ func (p *parser) Parse(tid string, parsername string, data []byte) (z []byte, er
 	return
 }
 
-func GetParser() (p Parser, err error) {
+func GetParser(cacher servicecacher.Cacher) (p Parser, err error) {
 	app, err := cacher.Get(common.PARSINGAPP)
 	if err != nil {
 		return

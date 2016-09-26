@@ -13,8 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/configs"
 )
 
 type StatInfo struct {
@@ -159,7 +159,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sp, err := cl.UpdateSessionParams(name)
+	sp, err := cl.updateSessionParams(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -183,7 +183,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	ctx := &Context{
 		Logger: logger,
 		Cache:  s.GetContext().Cache,
-		Hosts:  s.GetContext().Hosts,
+		Serf:   s.GetContext().Serf,
 	}
 
 	cl, err := NewClient(ctx, s.GetRepository())

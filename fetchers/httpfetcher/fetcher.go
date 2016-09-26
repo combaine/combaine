@@ -8,10 +8,10 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/Combaine/Combaine/common/httpclient"
-	"github.com/Combaine/Combaine/common/logger"
-	"github.com/Combaine/Combaine/common/tasks"
-	"github.com/Combaine/Combaine/parsing"
+	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/parsing"
 )
 
 func init() {

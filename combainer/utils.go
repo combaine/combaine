@@ -9,7 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/Combaine/Combaine/common/configs"
+	"github.com/combaine/combaine/common/configs"
 )
 
 const (

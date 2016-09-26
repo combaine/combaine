@@ -3,7 +3,7 @@ package agave
 import (
 	"testing"
 
-	"github.com/Combaine/Combaine/common/tasks"
+	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,10 +41,10 @@ func TestMain(t *testing.T) {
 	}
 
 	expected := map[string][]string{
-		"host1": []string{"20x:2000"},
-		"host3": []string{"A:201+B:301+C:401"},
-		"host4": []string{"MP2:1002"},
-		"host2": []string{"A:20+B:30+C:40"},
+		"host1": {"20x:2000"},
+		"host3": {"A:201+B:301+C:401"},
+		"host4": {"MP2:1002"},
+		"host2": {"A:20+B:30+C:40"},
 	}
 
 	actual, err := s.send(data)

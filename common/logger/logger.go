@@ -1,8 +1,6 @@
 package logger
 
 import (
-	"fmt"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 )
@@ -33,14 +31,6 @@ func mustCreateLogger() Logger {
 		return &loggerLogrus{Logger: logrus.StandardLogger()}
 	}
 	return log
-}
-
-func MustCreateService(name string) *cocaine.Service {
-	service, err := cocaine.NewService(name)
-	if err != nil {
-		panic(fmt.Sprintf("Unable to create Cocaine service %s, but must %v", name, err))
-	}
-	return service
 }
 
 func Debugf(format string, data ...interface{}) {

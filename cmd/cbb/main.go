@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/Combaine/Combaine/common"
-	"github.com/Combaine/Combaine/common/tasks"
-	"github.com/Combaine/Combaine/senders/cbb"
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/senders/cbb"
 )
 
 const (
