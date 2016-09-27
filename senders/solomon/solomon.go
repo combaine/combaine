@@ -277,7 +277,7 @@ func (w Worker) SendToSolomon(job Job) error {
 		SolomonHTTPClient := httpclient.NewClientWithTimeout(
 			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
 			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
-		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewBuffer(job.PushData))
+		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewReader(job.PushData))
 		if err != nil {
 			return fmt.Errorf("%s %s", job.SolCli.id, err)
 		}
