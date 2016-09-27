@@ -116,8 +116,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dispatcher := solomon.NewDispatcher(solomon.MaxWorkers)
-	go dispatcher.Run()
+	go solomon.StartWorkers()
 
 	Worker.Loop(binds)
 }

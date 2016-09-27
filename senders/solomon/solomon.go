@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	MaxWorkers = 5
-	JobQueue   = make(chan Job, MaxWorkers)
+	MaxWorkers  = 5
+	PostRetries = 3
+	JobQueue    = make(chan Job, MaxWorkers)
 )
 
 type SolomonSender interface {
@@ -262,20 +263,11 @@ func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) 
 	return
 }
 
-func (w Worker) Start(d *Dispatcher) {
-	for {
-		// add current worker to the WorkerPool on first iteration
-		// after finishing select statement worker will add
-		// itself back to the pool again
-		d.WorkerPool <- w.JobChannel
-		select {
-		// wait for a job in workers JobChannel
-		case job := <-w.JobChannel:
-			logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
-			if err := w.SendToSolomon(job); err != nil {
-				logger.Errf("%s", err)
-
-			}
+func (w Worker) Start() {
+	for job := range JobQueue {
+		logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
+		if err := w.SendToSolomon(job); err != nil {
+			logger.Errf("%s", err)
 		}
 	}
 }
@@ -299,7 +291,7 @@ func (w Worker) SendToSolomon(job Job) error {
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusRequestTimeout {
-			if i == (w.Retry) {
+			if i == w.Retry {
 				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
 
 			}
@@ -315,10 +307,9 @@ func (w Worker) SendToSolomon(job Job) error {
 				return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
 			}
 			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
-		} else {
-			logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
-			break
 		}
+		logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
+		break
 	}
 	return nil
 
@@ -326,37 +317,44 @@ func (w Worker) SendToSolomon(job Job) error {
 
 func NewWorker(id int, retry int) Worker {
 	return Worker{
-		Id:         id,
-		Retry:      retry,
-		JobChannel: make(chan Job)}
+		Id:    id,
+		Retry: retry}
 }
 
-func NewDispatcher(maxWorkers int) *Dispatcher {
-	return &Dispatcher{WorkerPool: make(chan chan Job, maxWorkers), Retry: 3}
-}
-
-func (d *Dispatcher) Run() {
-	for i := 0; i < cap(d.WorkerPool); i++ {
+func StartWorkers() {
+	for i := 0; i < cap(JobQueue); i++ {
 		logger.Debugf("Creating worker %d", i)
-		worker := NewWorker(i, d.Retry)
-		go worker.Start(d)
-	}
-
-	go d.dispatch()
-}
-
-func (d *Dispatcher) dispatch() {
-	logger.Debugf("Starting dispatcher")
-	for {
-		select {
-		case job := <-JobQueue:
-			logger.Debugf("Recieved a job")
-			go func(job Job) {
-				// get a free worker from pool
-				jobChannel := <-d.WorkerPool
-				// send job to worker
-				jobChannel <- job
-			}(job)
-		}
+		worker := NewWorker(i, PostRetries)
+		go worker.Start()
 	}
 }
+
+//func NewDispatcher(maxWorkers int) *Dispatcher {
+//	return &Dispatcher{WorkerPool: make(chan chan Job, maxWorkers), Retry: 3}
+//}
+//
+//func (d *Dispatcher) Run() {
+//	for i := 0; i < cap(d.WorkerPool); i++ {
+//		logger.Debugf("Creating worker %d", i)
+//		worker := NewWorker(i, d.Retry)
+//		go worker.Start(d)
+//	}
+//
+//	d.dispatch()
+//}
+//
+//func (d *Dispatcher) dispatch() {
+//	logger.Debugf("Starting dispatcher")
+//	for {
+//		select {
+//		case job := <-JobQueue:
+//			logger.Debugf("Recieved a job")
+//			go func(job Job) {
+//				// get a free worker from pool
+//				jobChannel := <-d.WorkerPool
+//				// send job to worker
+//				jobChannel <- job
+//			}(job)
+//		}
+//	}
+//}
