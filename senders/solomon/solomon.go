@@ -328,33 +328,3 @@ func StartWorkers() {
 		go worker.Start()
 	}
 }
-
-//func NewDispatcher(maxWorkers int) *Dispatcher {
-//	return &Dispatcher{WorkerPool: make(chan chan Job, maxWorkers), Retry: 3}
-//}
-//
-//func (d *Dispatcher) Run() {
-//	for i := 0; i < cap(d.WorkerPool); i++ {
-//		logger.Debugf("Creating worker %d", i)
-//		worker := NewWorker(i, d.Retry)
-//		go worker.Start(d)
-//	}
-//
-//	d.dispatch()
-//}
-//
-//func (d *Dispatcher) dispatch() {
-//	logger.Debugf("Starting dispatcher")
-//	for {
-//		select {
-//		case job := <-JobQueue:
-//			logger.Debugf("Recieved a job")
-//			go func(job Job) {
-//				// get a free worker from pool
-//				jobChannel := <-d.WorkerPool
-//				// send job to worker
-//				jobChannel <- job
-//			}(job)
-//		}
-//	}
-//}
