@@ -264,7 +264,9 @@ func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) 
 
 func (w Worker) Start(d *Dispatcher) {
 	for {
-		// add current worker to worker pool
+		// add current worker to the WorkerPool on first iteration
+		// after finishing select statement worker will add
+		// itself back to the pool again
 		d.WorkerPool <- w.JobChannel
 		select {
 		// wait for a job in workers JobChannel
@@ -279,7 +281,7 @@ func (w Worker) Start(d *Dispatcher) {
 }
 
 func (w Worker) SendToSolomon(job Job) error {
-	for i := 0; i < w.Retry; i++ {
+	for i := 1; i <= w.Retry; i++ {
 		SolomonHTTPClient := httpclient.NewClientWithTimeout(
 			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
 			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
@@ -288,7 +290,7 @@ func (w Worker) SendToSolomon(job Job) error {
 			return fmt.Errorf("%s %s", job.SolCli.id, err)
 		}
 		req.Header.Add("Content-Type", "application/json")
-		logger.Debugf("%s Attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, i+1)
+		logger.Debugf("%s Attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, i)
 		resp, err := SolomonHTTPClient.Do(req)
 
 		if err != nil {
@@ -297,8 +299,8 @@ func (w Worker) SendToSolomon(job Job) error {
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusRequestTimeout {
-			if i == (w.Retry - 1) {
-				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i+1, w.Id)
+			if i == (w.Retry) {
+				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
 
 			}
 			logger.Debugf("%s timed out. Worker %s. Retrying.", job.SolCli.id, w.Id)
@@ -314,7 +316,7 @@ func (w Worker) SendToSolomon(job Job) error {
 			}
 			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
 		} else {
-			logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i+1)
+			logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
 			break
 		}
 	}
