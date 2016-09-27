@@ -19,9 +19,8 @@ import (
 )
 
 var (
-	MaxWorker = 5
-	MaxQueue = 5
-    JobQueue = make(chan Job, MaxQueue)
+	MaxWorkers = 5
+	JobQueue   = make(chan Job, MaxWorkers)
 )
 
 type SolomonSender interface {
@@ -67,18 +66,19 @@ type solomonPush struct {
 }
 
 type Job struct {
-	Request *http.Request
-	SolCli	*solomonClient
+	PushData []byte
+	SolCli   *solomonClient
 }
 
 type Worker struct {
-	Id int
-	WorkerPool chan chan Job
+	Id         int
+	Retry      int
 	JobChannel chan Job
 }
 
 type Dispatcher struct {
 	WorkerPool chan chan Job
+	Retry      int
 }
 
 func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
@@ -240,14 +240,8 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 		}
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
-		req, err := http.NewRequest("POST", s.api, bytes.NewBuffer(push))
-		if err != nil {
-			return fmt.Errorf("%s %s", s.id, err)
-		}
-		req.Header.Add("Content-Type", "application/json")
-		work := Job{Request: req, SolCli: s}
 		logger.Debugf("%s Sending work to JobQueue", s.id)
-		JobQueue <- work
+		JobQueue <- Job{PushData: push, SolCli: s}
 
 	}
 
@@ -268,64 +262,82 @@ func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) 
 	return
 }
 
-func (w Worker) Start() {
-	go func() {
-		for {
-			w.WorkerPool <- w.JobChannel
-			select {
-			case job := <- w.JobChannel:
-				logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
-				if err := SendToSolomon(job); err != nil {
-					logger.Errf("%s", err)
+func (w Worker) Start(d *Dispatcher) {
+	for {
+		// add current worker to worker pool
+		d.WorkerPool <- w.JobChannel
+		select {
+		// wait for a job in workers JobChannel
+		case job := <-w.JobChannel:
+			logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
+			if err := w.SendToSolomon(job); err != nil {
+				logger.Errf("%s", err)
 
-				}
 			}
 		}
-	}()
+	}
 }
-	
 
-func NewWorker(workerPool chan chan Job, id int) Worker {
-	return Worker{
-		Id:	id,
-		WorkerPool: workerPool,
-		JobChannel: make(chan Job)}
-	}
-
-func SendToSolomon(job Job) error {
-	logger.Debugf("%s Attempting to send", job.SolCli.id)
-	SolomonHTTPClient := httpclient.NewClientWithTimeout(
-		time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
-		time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
-	resp, err := SolomonHTTPClient.Do(job.Request)
-
-	if err != nil {
-		return fmt.Errorf("%s %s", job.SolCli.id, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, err := ioutil.ReadAll(resp.Body)
+func (w Worker) SendToSolomon(job Job) error {
+	for i := 0; i < w.Retry; i++ {
+		SolomonHTTPClient := httpclient.NewClientWithTimeout(
+			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
+			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
+		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewBuffer(job.PushData))
 		if err != nil {
-			return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
+			return fmt.Errorf("%s %s", job.SolCli.id, err)
 		}
-		return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+		req.Header.Add("Content-Type", "application/json")
+		logger.Debugf("%s Attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, i+1)
+		resp, err := SolomonHTTPClient.Do(req)
+
+		if err != nil {
+			return fmt.Errorf("%s %s", job.SolCli.id, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusRequestTimeout {
+			if i == (w.Retry - 1) {
+				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i+1, w.Id)
+
+			}
+			logger.Debugf("%s timed out. Worker %s. Retrying.", job.SolCli.id, w.Id)
+			time.Sleep(time.Second * 1)
+			continue
+
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
+			}
+			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+		} else {
+			logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i+1)
+			break
+		}
 	}
 	return nil
 
-	}
+}
 
+func NewWorker(id int, retry int) Worker {
+	return Worker{
+		Id:         id,
+		Retry:      retry,
+		JobChannel: make(chan Job)}
+}
 
 func NewDispatcher(maxWorkers int) *Dispatcher {
-	pool := make(chan chan Job, maxWorkers)
-	return &Dispatcher{WorkerPool: pool}
+	return &Dispatcher{WorkerPool: make(chan chan Job, maxWorkers), Retry: 3}
 }
 
 func (d *Dispatcher) Run() {
-	for i := 0; i < MaxWorker; i++ {
+	for i := 0; i < cap(d.WorkerPool); i++ {
 		logger.Debugf("Creating worker %d", i)
-		worker := NewWorker(d.WorkerPool, i)
-		worker.Start()
+		worker := NewWorker(i, d.Retry)
+		go worker.Start(d)
 	}
 
 	go d.dispatch()
@@ -338,10 +350,11 @@ func (d *Dispatcher) dispatch() {
 		case job := <-JobQueue:
 			logger.Debugf("Recieved a job")
 			go func(job Job) {
+				// get a free worker from pool
 				jobChannel := <-d.WorkerPool
+				// send job to worker
 				jobChannel <- job
 			}(job)
 		}
 	}
 }
-
