@@ -290,13 +290,13 @@ func (w Worker) SendToSolomon(job Job) error {
 
 		if err != nil {
 			netErr, hasNetErr = err.(net.Error)
-			if hasNetErr == false {
+			if !hasNetErr {
 				return fmt.Errorf("%s %s", job.SolCli.id, err)
 			}
 		}
 
 		if err == nil {
-			defer resp.Body.Close()
+			resp.Body.Close()
 		}
 
 		if hasNetErr && netErr.Timeout() || resp.StatusCode == http.StatusRequestTimeout {
