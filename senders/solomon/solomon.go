@@ -275,6 +275,8 @@ func (w Worker) Start() {
 
 func (w Worker) SendToSolomon(job Job) error {
 	for i := 1; i <= w.Retry; i++ {
+		var netErr net.Error
+		var hasNetErr bool
 		SolomonHTTPClient := httpclient.NewClientWithTimeout(
 			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
 			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
@@ -287,27 +289,25 @@ func (w Worker) SendToSolomon(job Job) error {
 		resp, err := SolomonHTTPClient.Do(req)
 
 		if err != nil {
-			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-				if i == w.Retry {
-					return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
-				}
-				logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
-				time.Sleep(time.Millisecond * 300)
-				continue
-			} else {
+			netErr, hasNetErr = err.(net.Error)
+			if hasNetErr == false {
 				return fmt.Errorf("%s %s", job.SolCli.id, err)
 			}
 		}
 
-		defer resp.Body.Close()
+		if err == nil {
+			defer resp.Body.Close()
+		}
 
-		if resp.StatusCode == http.StatusRequestTimeout {
+		if hasNetErr && netErr.Timeout() || resp.StatusCode == http.StatusRequestTimeout {
 			if i == w.Retry {
 				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
 			}
 			logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
 			time.Sleep(time.Millisecond * 300)
-			resp.Body.Close()
+			if err == nil {
+				resp.Body.Close()
+			}
 			continue
 		}
 
