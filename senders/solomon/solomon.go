@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -18,15 +19,10 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-const (
-	CONNECTION_TIMEOUT = 3000 // ms
-	RW_TIMEOUT         = 5000 // ms
-)
-
 var (
-	SolomonHTTPClient = httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
+	MaxWorkers  = 5
+	PostRetries = 3
+	JobQueue    = make(chan Job, MaxWorkers)
 )
 
 type SolomonSender interface {
@@ -34,19 +30,23 @@ type SolomonSender interface {
 }
 
 type solomonClient struct {
-	id      string
-	api     string
-	prefix  string
-	project string
-	cluster string
-	fields  []string
+	id                 string
+	api                string
+	prefix             string
+	project            string
+	cluster            string
+	connection_timeout int
+	rw_timeout         int
+	fields             []string
 }
 
 type SolomonCfg struct {
-	Api     string   `codec:"api"`
-	Project string   `codec:"project"`
-	Cluster string   `codec:"cluster"`
-	Fields  []string `codec:"Fields"`
+	Api                string   `codec:"api"`
+	Project            string   `codec:"project"`
+	Cluster            string   `codec:"cluster"`
+	Connection_timeout int      `codec:"connection_timeout"`
+	Rw_timeout         int      `codec:"rw_timeout"`
+	Fields             []string `codec:"Fields"`
 }
 
 type comLabels struct {
@@ -65,6 +65,22 @@ type sensor struct {
 type solomonPush struct {
 	CommonLabels comLabels `json:"commonLabels"`
 	Sensors      []sensor  `json:"sensors"`
+}
+
+type Job struct {
+	PushData []byte
+	SolCli   *solomonClient
+}
+
+type Worker struct {
+	Id         int
+	Retry      int
+	JobChannel chan Job
+}
+
+type Dispatcher struct {
+	WorkerPool chan chan Job
+	Retry      int
 }
 
 func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
@@ -226,25 +242,9 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 		}
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
-		req, err := http.NewRequest("POST", s.api, bytes.NewBuffer(push))
-		if err != nil {
-			return fmt.Errorf("%s %s", s.id, err)
-		}
-		req.Header.Add("Content-Type", "application/json")
+		logger.Debugf("%s Sending work to JobQueue", s.id)
+		JobQueue <- Job{PushData: push, SolCli: s}
 
-		resp, err := SolomonHTTPClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("%s %s", s.id, err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			b, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return fmt.Errorf("%s bad response code '%d': %s", s.id, resp.StatusCode, resp.Status)
-			}
-			return fmt.Errorf("%s bad response code '%d' '%s': %s", s.id, resp.StatusCode, resp.Status, b)
-		}
 	}
 
 	return nil
@@ -252,12 +252,88 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 
 func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) {
 	ss = &solomonClient{
-		id:      id,
-		api:     cfg.Api,
-		cluster: cfg.Cluster,
-		project: cfg.Project,
-		fields:  cfg.Fields,
+		id:                 id,
+		api:                cfg.Api,
+		cluster:            cfg.Cluster,
+		project:            cfg.Project,
+		fields:             cfg.Fields,
+		connection_timeout: cfg.Connection_timeout,
+		rw_timeout:         cfg.Rw_timeout,
 	}
 
 	return
+}
+
+func (w Worker) Start() {
+	for job := range JobQueue {
+		logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
+		if err := w.SendToSolomon(job); err != nil {
+			logger.Errf("%s", err)
+		}
+	}
+}
+
+func (w Worker) SendToSolomon(job Job) error {
+	for i := 1; i <= w.Retry; i++ {
+		var netErr net.Error
+		var hasNetErr bool
+		SolomonHTTPClient := httpclient.NewClientWithTimeout(
+			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
+			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
+		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewReader(job.PushData))
+		if err != nil {
+			return fmt.Errorf("%s %s", job.SolCli.id, err)
+		}
+		req.Header.Add("Content-Type", "application/json")
+		logger.Debugf("%s Attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, i)
+		resp, err := SolomonHTTPClient.Do(req)
+
+		if err != nil {
+			netErr, hasNetErr = err.(net.Error)
+			if !hasNetErr {
+				return fmt.Errorf("%s %s", job.SolCli.id, err)
+			}
+		}
+
+		if err == nil {
+			resp.Body.Close()
+		}
+
+		if hasNetErr && netErr.Timeout() || resp.StatusCode == http.StatusRequestTimeout {
+			if i == w.Retry {
+				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
+			}
+			logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
+			time.Sleep(time.Millisecond * 300)
+			if err == nil {
+				resp.Body.Close()
+			}
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
+			}
+			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+		}
+		logger.Infof("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
+		break
+	}
+	return nil
+}
+
+func NewWorker(id int, retry int) Worker {
+	return Worker{
+		Id:    id,
+		Retry: retry}
+}
+
+func StartWorkers() {
+	for i := 0; i < cap(JobQueue); i++ {
+		logger.Debugf("Creating worker %d", i)
+		worker := NewWorker(i, PostRetries)
+		go worker.Start()
+	}
 }

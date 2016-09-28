@@ -28,7 +28,9 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	logger *cocaine.Logger
+	CONNECTION_TIMEOUT = 3000 // ms
+	RW_TIMEOUT         = 5000 // ms
+	logger             *cocaine.Logger
 )
 
 type Task struct {
@@ -71,6 +73,12 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
 	}
+	if task.Config.Connection_timeout == 0 {
+		task.Config.Connection_timeout = CONNECTION_TIMEOUT
+	}
+	if task.Config.Rw_timeout == 0 {
+		task.Config.Rw_timeout = RW_TIMEOUT
+	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()
 		if err != nil {
@@ -98,6 +106,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 func main() {
 	var err error
+
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
@@ -106,5 +115,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go solomon.StartWorkers()
+
 	Worker.Loop(binds)
 }
