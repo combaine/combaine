@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -286,19 +287,28 @@ func (w Worker) SendToSolomon(job Job) error {
 		resp, err := SolomonHTTPClient.Do(req)
 
 		if err != nil {
-			return fmt.Errorf("%s %s", job.SolCli.id, err)
+			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+				if i == w.Retry {
+					return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
+				}
+				logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
+				time.Sleep(time.Millisecond * 300)
+				continue
+			} else {
+				return fmt.Errorf("%s %s", job.SolCli.id, err)
+			}
 		}
+
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusRequestTimeout {
 			if i == w.Retry {
 				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
-
 			}
-			logger.Debugf("%s timed out. Worker %s. Retrying.", job.SolCli.id, w.Id)
-			time.Sleep(time.Second * 1)
+			logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
+			time.Sleep(time.Millisecond * 300)
+			resp.Body.Close()
 			continue
-
 		}
 
 		if resp.StatusCode != http.StatusOK {
@@ -308,11 +318,10 @@ func (w Worker) SendToSolomon(job Job) error {
 			}
 			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
 		}
-		logger.Debugf("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
+		logger.Infof("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
 		break
 	}
 	return nil
-
 }
 
 func NewWorker(id int, retry int) Worker {
