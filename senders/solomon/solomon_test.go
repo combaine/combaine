@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"testing"
-	"time"
 
-	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
@@ -22,20 +20,17 @@ func TestNewWorker(t *testing.T) {
 }
 
 func TestNewSolomonClient(t *testing.T) {
-	cfg := &SolomonCfg{Api: "api.addr"}
-	cli, err := NewSolomonClient(cfg, "id")
-	assert.Equal(t, err, nil)
-
+	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr"}, "id")
 	scl := cli.(*solomonClient)
 	assert.Equal(t, scl.id, "id")
-	assert.Equal(t, scl.api, "api.addr")
+	assert.Equal(t, scl.Api, "api.addr")
 }
 
 func TestStartWorkers(t *testing.T) {
 	j := make(chan Job, 1)
 	StartWorkers(j)
 
-	j <- Job{PushData: []byte{}, SolCli: &solomonClient{api: "bad://proto", httpCli: &http.Client{}}}
+	j <- Job{PushData: []byte{}, SolCli: &solomonClient{SolomonCfg: SolomonCfg{Api: "bad://proto"}}}
 	for i := 3; i > 0; i-- {
 		if len(j) == 0 {
 			close(j)
@@ -56,19 +51,21 @@ func TestRequest(t *testing.T) {
 	}{
 		{Job{PushData: []byte{}, SolCli: &solomonClient{}},
 			"worker 0 failed to send after 0 attempts, dropping job", 0, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "://bad_url", httpCli: &http.Client{}}},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: "://bad_url", Timeout: 10}}},
 			"parse ://bad_url: missing protocol scheme", 1, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://127.0.8.1:35333", httpCli: &http.Client{}}},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: "http://127.0.8.1:35333", Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
-		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + httpAddr + "/200",
-			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: "http://" + httpAddr + "/200", Timeout: 50}}},
 			"worker 3 failed to send after 2 attempts, dropping job", 2, false},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + netAddr + "/404",
-			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/404", Timeout: 50}}},
 			"worker 4 failed to send after 2 attempts, dropping job", 2, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + netAddr + "/408",
-			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/408", Timeout: 50}}},
 			"worker 5 failed to send after 1 attempts, dropping job", 1, true},
 	}
 
@@ -100,8 +97,7 @@ func TestRequest(t *testing.T) {
 
 func TestSolomonClientSendNil(t *testing.T) {
 	dropJobs(JobQueue)
-	cfg := &SolomonCfg{Api: "api.addr"}
-	cli, _ := NewSolomonClient(cfg, "id")
+	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr"}, "id")
 
 	// empty task
 	task := tasks.DataType{"app": {"grp": nil}}
@@ -116,7 +112,7 @@ func TestSolomonClientSendNil(t *testing.T) {
 
 func TestSolomonClientSendArray(t *testing.T) {
 	dropJobs(JobQueue)
-	cli, _ := NewSolomonClient(&SolomonCfg{}, "_id")
+	cli, _ := NewSolomonClient(SolomonCfg{}, "_id")
 
 	task := tasks.DataType{
 		"app": {"grp": map[string]interface{}{"ArrOv": []interface{}{20, 30.0}}},
@@ -125,7 +121,7 @@ func TestSolomonClientSendArray(t *testing.T) {
 	assert.Contains(t, err.Error(), "Unable to send a slice. Fields len 0")
 	assert.Equal(t, 0, len(JobQueue))
 
-	cli, _ = NewSolomonClient(&SolomonCfg{Fields: []string{"1f", "2f"}}, "_id")
+	cli, _ = NewSolomonClient(SolomonCfg{Fields: []string{"1f", "2f"}}, "_id")
 	err = cli.Send(task, 111)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(JobQueue))
@@ -156,7 +152,7 @@ func TestSolomonClientSendNotANumber(t *testing.T) {
 		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: nil}}},
 			"Not a Number"},
 	}
-	cli, _ := NewSolomonClient(&SolomonCfg{Api: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
+	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
 
 	for _, c := range cases {
 		assert.NotPanics(t, func() {
@@ -174,9 +170,8 @@ func TestSolomonInternalSend(t *testing.T) {
 	)
 
 	solCfg := solomonClient{
-		id:      "testId",
-		project: "combaine",
-		cluster: "backend",
+		SolomonCfg: SolomonCfg{Project: "combaine", Cluster: "backend"},
+		id:         "testId",
 	}
 
 	simpleOneItemData := tasks.DataType{
@@ -218,10 +213,12 @@ func TestSolomonInternalSend(t *testing.T) {
 
 	// Complex test
 	solCfg = solomonClient{
-		id:      "TESTID",
-		project: "TEST",
-		cluster: "TESTCOMBAINE",
-		fields:  []string{"25_prc", "50_prc", "99_prc"},
+		SolomonCfg: SolomonCfg{
+			Project: "TEST",
+			Cluster: "TESTCOMBAINE",
+			Fields:  []string{"25_prc", "50_prc", "99_prc"},
+		},
+		id: "TESTID",
 	}
 	app1Data := tasks.DataType{
 		"app1": {

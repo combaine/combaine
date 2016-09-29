@@ -2,19 +2,20 @@ package solomon
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"golang.org/x/net/context/ctxhttp"
+
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 )
@@ -23,30 +24,24 @@ var (
 	MaxWorkers  = 5
 	PostRetries = 3
 	JobQueue    = make(chan Job, MaxWorkers)
-	httpCli     *http.Client
 )
 
 type SolomonSender interface {
 	Send(tasks.DataType, uint64) error
 }
 
-type solomonClient struct {
-	id      string
-	api     string
-	prefix  string
-	project string
-	cluster string
-	fields  []string
-	httpCli *http.Client
+type SolomonCfg struct {
+	Api     string   `codec:"api"`
+	Project string   `codec:"project"`
+	Cluster string   `codec:"cluster"`
+	Timeout int      `codec:"rw_timeout"`
+	Fields  []string `codec:"Fields"`
 }
 
-type SolomonCfg struct {
-	Api               string   `codec:"api"`
-	Project           string   `codec:"project"`
-	Cluster           string   `codec:"cluster"`
-	ConnectionTimeout int      `codec:"connection_timeout"`
-	RwTimeout         int      `codec:"rw_timeout"`
-	Fields            []string `codec:"Fields"`
+type solomonClient struct {
+	SolomonCfg
+	id     string
+	prefix string
 }
 
 type comLabels struct {
@@ -115,15 +110,15 @@ func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
 func (s *solomonClient) dumpSlice(sensors *[]sensor, name string,
 	rv reflect.Value, timestamp uint64) error {
 
-	if len(s.fields) == 0 || len(s.fields) != rv.Len() {
+	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
 		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d",
-			s.id, len(s.fields), rv.Len())
+			s.id, len(s.Fields), rv.Len())
 		logger.Errf("%s", msg)
 		return errors.New(msg)
 	}
 
 	for i := 0; i < rv.Len(); i++ {
-		sensorName := fmt.Sprintf("%s.%s", name, s.fields[i])
+		sensorName := fmt.Sprintf("%s.%s", name, s.Fields[i])
 		item := reflect.ValueOf(rv.Index(i).Interface())
 		err := s.dumpSensor(sensors, sensorName, item, timestamp)
 		if err != nil {
@@ -195,8 +190,8 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 				CommonLabels: comLabels{
 					Host:    host,
 					Service: service,
-					Cluster: s.cluster,
-					Project: s.project,
+					Cluster: s.Cluster,
+					Project: s.Project,
 				},
 			}
 
@@ -245,33 +240,8 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 	return nil
 }
 
-func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) {
-	// Clients and Transports are safe for concurrent use by multiple goroutines
-	// and for efficiency should only be created once and re-used.
-	if httpCli == nil {
-		httpCli = httpclient.NewClientWithTimeout(
-			time.Millisecond*(time.Duration(cfg.ConnectionTimeout)),
-			time.Millisecond*(time.Duration(cfg.RwTimeout)),
-		)
-	}
-	ss = &solomonClient{
-		id:      id,
-		api:     cfg.Api,
-		cluster: cfg.Cluster,
-		project: cfg.Project,
-		fields:  cfg.Fields,
-		httpCli: httpCli,
-	}
-	return
-}
-
-func (w Worker) Start(j chan Job) {
-	for job := range j {
-		logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
-		if err := w.SendToSolomon(job); err != nil {
-			logger.Errf("%s", err)
-		}
-	}
+func NewSolomonClient(cfg SolomonCfg, id string) (SolomonSender, error) {
+	return &solomonClient{SolomonCfg: cfg, id: id}, nil
 }
 
 func (w Worker) SendToSolomon(job Job) error {
@@ -285,25 +255,25 @@ func (w Worker) SendToSolomon(job Job) error {
 		}
 		attempt++
 
-		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewReader(job.PushData))
+		req, err := http.NewRequest("POST", job.SolCli.Api, bytes.NewReader(job.PushData))
 		if err != nil {
 			sendErr = fmt.Errorf("%s request error: %s", job.SolCli.id, err)
 			break
 		}
 		req.Header.Add("Content-Type", "application/json")
+
 		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, attempt)
-		resp, err := job.SolCli.httpCli.Do(req)
+		ctx, cancelFunc := context.WithDeadline(context.TODO(),
+			time.Now().Add(time.Duration(job.SolCli.Timeout)*time.Millisecond))
+		defer cancelFunc()
+		resp, err := ctxhttp.Do(ctx, nil, req)
 
 		var isTimeout bool
-		if err != nil {
-			if netErr, isNetErr := err.(net.Error); isNetErr {
-				isTimeout = netErr.Timeout()
-			}
-			// if is not net err or is not net timeout
-			if !isTimeout {
-				sendErr = fmt.Errorf("%s send error: %s", job.SolCli.id, err)
-			}
-		} else {
+		if err == nil {
+		}
+
+		switch err {
+		case nil:
 			// err is nil and there may occure some http errors includeing timeout
 			if resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
@@ -315,7 +285,12 @@ func (w Worker) SendToSolomon(job Job) error {
 			resp.Body.Close()
 			sendErr = fmt.Errorf("%s bad status='%d %s', response: %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
 			isTimeout = resp.StatusCode == http.StatusRequestTimeout
+		case context.Canceled, context.DeadlineExceeded:
+			isTimeout = true
+		default:
+			sendErr = fmt.Errorf("%s send error: %s", job.SolCli.id, err)
 		}
+
 		// do not retry on net or http non timeout errors
 		if !isTimeout {
 			break
@@ -329,10 +304,17 @@ func (w Worker) SendToSolomon(job Job) error {
 	return sendErr
 }
 
+func (w Worker) Start(j chan Job) {
+	for job := range j {
+		logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
+		if err := w.SendToSolomon(job); err != nil {
+			logger.Errf("%s", err)
+		}
+	}
+}
+
 func NewWorker(id int, retry int) Worker {
-	return Worker{
-		Id:    id,
-		Retry: retry}
+	return Worker{Id: id, Retry: retry}
 }
 
 func StartWorkers(j chan Job) {

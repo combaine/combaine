@@ -88,13 +88,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		}
 	}
 
-	solCli, err := solomon.NewSolomonClient(&task.Config, task.Id)
-	if err != nil {
-		logger.Errf("Unexpected error from NewSolomonClient %s", err)
-		response.ErrorMsg(-100, err.Error())
-		return
-	}
-
+	solCli, _ := solomon.NewSolomonClient(task.Config, task.Id)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
 		logger.Errf("Sending error %s", err)
