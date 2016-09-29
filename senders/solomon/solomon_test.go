@@ -63,10 +63,10 @@ func TestRequest(t *testing.T) {
 			"worker 3 failed to send after 2 attempts, dropping job", 2, false},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
 			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/404", Timeout: 50}}},
-			"worker 4 failed to send after 2 attempts, dropping job", 2, true},
+			"404", 2, true},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
 			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/408", Timeout: 50}}},
-			"worker 5 failed to send after 1 attempts, dropping job", 1, true},
+			"408", 1, true},
 	}
 
 	http.HandleFunc("/200", func(w http.ResponseWriter, r *http.Request) {
