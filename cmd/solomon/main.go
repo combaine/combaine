@@ -73,11 +73,11 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
 	}
-	if task.Config.Connection_timeout == 0 {
-		task.Config.Connection_timeout = CONNECTION_TIMEOUT
+	if task.Config.ConnectionTimeout == 0 {
+		task.Config.ConnectionTimeout = CONNECTION_TIMEOUT
 	}
-	if task.Config.Rw_timeout == 0 {
-		task.Config.Rw_timeout = RW_TIMEOUT
+	if task.Config.RwTimeout == 0 {
+		task.Config.RwTimeout = RW_TIMEOUT
 	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()
@@ -116,7 +116,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go solomon.StartWorkers()
+	go solomon.StartWorkers(solomon.JobQueue)
 
 	Worker.Loop(binds)
 }
