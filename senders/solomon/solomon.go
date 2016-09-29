@@ -244,6 +244,7 @@ func NewSolomonClient(cfg SolomonCfg, id string) (SolomonSender, error) {
 func (w Worker) SendToSolomon(job Job) error {
 	var sendErr error
 	var attempt = 0
+	var isTimeout bool
 
 	for {
 		if attempt >= w.Retry {
@@ -263,11 +264,6 @@ func (w Worker) SendToSolomon(job Job) error {
 		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
 		defer cancelFunc()
 		resp, err := ctxhttp.Do(ctx, nil, req)
-
-		var isTimeout bool
-		if err == nil {
-		}
-
 		switch err {
 		case nil:
 			// err is nil and there may occure some http errors includeing timeout
@@ -287,11 +283,11 @@ func (w Worker) SendToSolomon(job Job) error {
 			sendErr = fmt.Errorf("%s send error: %s", job.SolCli.id, err)
 		}
 
-		// do not retry on net or http non timeout errors
 		if !isTimeout {
+			// do not retry on net or http non timeout errors
 			break
 		}
-		// at last if we have http timeout or network timeout retry send
+
 		logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
 		if attempt < w.Retry {
 			time.Sleep(time.Millisecond * 300)
