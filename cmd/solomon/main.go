@@ -73,11 +73,8 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
 	}
-	if task.Config.ConnectionTimeout == 0 {
-		task.Config.ConnectionTimeout = CONNECTION_TIMEOUT
-	}
-	if task.Config.RwTimeout == 0 {
-		task.Config.RwTimeout = RW_TIMEOUT
+	if task.Config.Timeout == 0 {
+		task.Config.Timeout = CONNECTION_TIMEOUT
 	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()
