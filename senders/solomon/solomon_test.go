@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"runtime"
 	"testing"
 
@@ -41,8 +42,26 @@ func TestStartWorkers(t *testing.T) {
 	assert.Equal(t, 0, len(j))
 }
 func TestRequest(t *testing.T) {
-	netAddr := "127.0.8.2:35313"
-	httpAddr := "127.0.8.3:12303"
+	netAddr := "127.0.0.1:35313"
+
+	// for network timeout test
+	l, _ := net.Listen("tcp", netAddr)
+	defer l.Close()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/200":
+			fmt.Fprintln(w, "200")
+		case "/408":
+			w.WriteHeader(408)
+			fmt.Fprintln(w, "408")
+		case "/404":
+			w.WriteHeader(404)
+			fmt.Fprintln(w, "404")
+		}
+	}))
+	defer ts.Close()
+
 	cases := []struct {
 		job      Job
 		expected string
@@ -55,31 +74,19 @@ func TestRequest(t *testing.T) {
 			SolomonCfg: SolomonCfg{Api: "://bad_url", Timeout: 10}}},
 			"parse ://bad_url: missing protocol scheme", 1, true},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://127.0.8.1:35333", Timeout: 10}}},
+			SolomonCfg: SolomonCfg{Api: "http://127.0.0.1:35333", Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://" + httpAddr + "/200", Timeout: 50}}},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/200", Timeout: 50}}},
 			"worker 3 failed to send after 2 attempts, dropping job", 2, false},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/404", Timeout: 50}}},
-			"404", 2, true},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/404", Timeout: 50}}},
+			"404 Not Found", 3, true},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://" + netAddr + "/408", Timeout: 50}}},
-			"408", 1, true},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/408", Timeout: 20}}},
+			"worker 5 failed to send after 3 attempts, dropping job", 3, true},
 	}
-
-	http.HandleFunc("/200", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("200"))
-	})
-	http.HandleFunc("/404", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
-	})
-	http.HandleFunc("/408", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(408)
-	})
-	go net.Listen("tcp", netAddr)
-	go http.ListenAndServe(httpAddr, nil)
 
 	for i, c := range cases {
 		w := NewWorker(i, c.attempt)

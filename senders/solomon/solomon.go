@@ -227,10 +227,7 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 	}
 	logger.Infof("%s Send %d items", s.id, len(data))
 	for _, v := range data {
-		push, err := json.Marshal(v)
-		if err != nil {
-			return fmt.Errorf("%s %s", s.id, err)
-		}
+		push, _ := json.Marshal(v)
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
 		logger.Debugf("%s Sending work to JobQueue", s.id)
@@ -263,8 +260,7 @@ func (w Worker) SendToSolomon(job Job) error {
 		req.Header.Add("Content-Type", "application/json")
 
 		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, attempt)
-		ctx, cancelFunc := context.WithDeadline(context.TODO(),
-			time.Now().Add(time.Duration(job.SolCli.Timeout)*time.Millisecond))
+		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
 		defer cancelFunc()
 		resp, err := ctxhttp.Do(ctx, nil, req)
 
