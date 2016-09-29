@@ -3,14 +3,170 @@ package solomon
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"runtime"
 	"testing"
+	"time"
 
+	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSolomonSend(t *testing.T) {
+func TestNewWorker(t *testing.T) {
+	w := NewWorker(0, 0)
+	assert.Equal(t, 0, w.Id)
+	assert.Equal(t, 0, w.Retry)
+}
+
+func TestNewSolomonClient(t *testing.T) {
+	cfg := &SolomonCfg{Api: "api.addr"}
+	cli, err := NewSolomonClient(cfg, "id")
+	assert.Equal(t, err, nil)
+
+	scl := cli.(*solomonClient)
+	assert.Equal(t, scl.id, "id")
+	assert.Equal(t, scl.api, "api.addr")
+}
+
+func TestStartWorkers(t *testing.T) {
+	j := make(chan Job, 1)
+	StartWorkers(j)
+
+	j <- Job{PushData: []byte{}, SolCli: &solomonClient{api: "bad://proto", httpCli: &http.Client{}}}
+	for i := 3; i > 0; i-- {
+		if len(j) == 0 {
+			close(j)
+			break
+		}
+		runtime.Gosched()
+	}
+	assert.Equal(t, 0, len(j))
+}
+func TestRequest(t *testing.T) {
+	netAddr := "127.0.8.2:35313"
+	httpAddr := "127.0.8.3:12303"
+	cases := []struct {
+		job      Job
+		expected string
+		attempt  int
+		err      bool
+	}{
+		{Job{PushData: []byte{}, SolCli: &solomonClient{}},
+			"worker 0 failed to send after 0 attempts, dropping job", 0, true},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "://bad_url", httpCli: &http.Client{}}},
+			"parse ://bad_url: missing protocol scheme", 1, true},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://127.0.8.1:35333", httpCli: &http.Client{}}},
+			"getsockopt: connection refused", 1, true},
+
+		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + httpAddr + "/200",
+			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+			"worker 3 failed to send after 2 attempts, dropping job", 2, false},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + netAddr + "/404",
+			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+			"worker 4 failed to send after 2 attempts, dropping job", 2, true},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{api: "http://" + netAddr + "/408",
+			httpCli: httpclient.NewClientWithTimeout(10*time.Millisecond, 10*time.Millisecond)}},
+			"worker 5 failed to send after 1 attempts, dropping job", 1, true},
+	}
+
+	http.HandleFunc("/200", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("200"))
+	})
+	http.HandleFunc("/404", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	})
+	http.HandleFunc("/408", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(408)
+	})
+	go net.Listen("tcp", netAddr)
+	go http.ListenAndServe(httpAddr, nil)
+
+	for i, c := range cases {
+		w := NewWorker(i, c.attempt)
+		err := w.SendToSolomon(c.job)
+		t.Log(err)
+		if err != nil {
+			assert.Contains(t, err.Error(), c.expected)
+		} else {
+			if c.err {
+				t.Fatal("expect error")
+			}
+		}
+	}
+}
+
+func TestSolomonClientSendNil(t *testing.T) {
+	dropJobs(JobQueue)
+	cfg := &SolomonCfg{Api: "api.addr"}
+	cli, _ := NewSolomonClient(cfg, "id")
+
+	// empty task
+	task := tasks.DataType{"app": {"grp": nil}}
+	err := cli.Send(task, 111)
+	assert.Contains(t, err.Error(), "Value of group should be dict")
+
+	err = cli.Send(nil, 111)
+	assert.Contains(t, err.Error(), "Nothing to send")
+
+	assert.Equal(t, 0, len(JobQueue))
+}
+
+func TestSolomonClientSendArray(t *testing.T) {
+	dropJobs(JobQueue)
+	cli, _ := NewSolomonClient(&SolomonCfg{}, "_id")
+
+	task := tasks.DataType{
+		"app": {"grp": map[string]interface{}{"ArrOv": []interface{}{20, 30.0}}},
+	}
+	err := cli.Send(task, 111)
+	assert.Contains(t, err.Error(), "Unable to send a slice. Fields len 0")
+	assert.Equal(t, 0, len(JobQueue))
+
+	cli, _ = NewSolomonClient(&SolomonCfg{Fields: []string{"1f", "2f"}}, "_id")
+	err = cli.Send(task, 111)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(JobQueue))
+
+	task = tasks.DataType{
+		"app": {"grp": map[string]interface{}{"ArrOv": []interface{}{"20", uint(30)}}},
+	}
+	// client expect number as string
+	err = cli.Send(task, 111)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(JobQueue))
+}
+
+func TestSolomonClientSendNotANumber(t *testing.T) {
+	dropJobs(JobQueue)
+	cases := []struct {
+		task     tasks.DataType
+		expected string
+	}{
+		// hmm, actually sender cannot parse not common types of numbers
+		{tasks.DataType{"app": {"grp": map[string]interface{}{
+			"map": map[string]interface{}{"MAPMAP1": map[string]interface{}{"MoMv1": true}}}}},
+			"Not a Number"},
+		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: []string{"test", "test"}}}},
+			`strconv.ParseFloat: parsing "test": invalid syntax: test`},
+		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: map[string]bool{"test": false}}}},
+			"Not a Number"},
+		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: nil}}},
+			"Not a Number"},
+	}
+	cli, _ := NewSolomonClient(&SolomonCfg{Api: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
+
+	for _, c := range cases {
+		assert.NotPanics(t, func() {
+			assert.Contains(t, cli.Send(c.task, 111).Error(), c.expected)
+		})
+	}
+	assert.Equal(t, 0, len(JobQueue))
+}
+
+func TestSolomonInternalSend(t *testing.T) {
 
 	var (
 		ts           uint64
@@ -24,11 +180,7 @@ func TestSolomonSend(t *testing.T) {
 	}
 
 	simpleOneItemData := tasks.DataType{
-		"serviceName.With.Dot": {
-			"hostName": map[string]interface{}{
-				"sensorName": 17,
-			},
-		},
+		"serviceName.With.Dot": {"hostName": map[string]interface{}{"sensorName": 17}},
 	}
 
 	simpleOneItemJSON := `{
@@ -83,21 +235,12 @@ func TestSolomonSend(t *testing.T) {
 				},
 			},
 			"host4": map[string]interface{}{
-				"map_of_simple": map[string]interface{}{
-					"MoSv1": 1001,
-					"MoSv2": 1002,
-				},
+				"mapOfSimple": map[string]interface{}{"MoSv1": 1001, "MoSv2": 1002},
 			},
 			"host5": map[string]interface{}{
 				"map_of_map": map[string]interface{}{
-					"MAPMAP1": map[string]interface{}{
-						"MoMv1": 76,
-						"MoMv2": 77,
-					},
-					"MAPMAP2": map[string]interface{}{
-						"MoMv1": 87,
-						"MoMv2": 88,
-					},
+					"MAPMAP1": map[string]interface{}{"MoMv1": 76, "MoMv2": 77},
+					"MAPMAP2": map[string]interface{}{"MoMv1": 87, "MoMv2": 88},
 				},
 			},
 		},
@@ -137,8 +280,8 @@ func TestSolomonSend(t *testing.T) {
 			"service": "app1"
 		},
 		"sensors": [
-			{"labels": {"sensor": "map_of_simple.MoSv1"}, "ts": 200, "value": 1001},
-			{"labels": {"sensor": "map_of_simple.MoSv2"}, "ts": 200, "value": 1002}
+			{"labels": {"sensor": "mapOfSimple.MoSv1"}, "ts": 200, "value": 1001},
+			{"labels": {"sensor": "mapOfSimple.MoSv2"}, "ts": 200, "value": 1002}
 		]
 	},
 	"host5":{"commonLabels": {
@@ -185,6 +328,20 @@ func TestSolomonSend(t *testing.T) {
 			if !found {
 				t.Fatal(fmt.Sprintf("Unexpected result %s != %s", string(exp), string(got)))
 			}
+		}
+	}
+}
+
+func dropJobs(j chan Job) {
+END:
+	for {
+		select {
+		case _, ok := <-j:
+			if !ok {
+				break END
+			}
+		default:
+			break END
 		}
 	}
 }
