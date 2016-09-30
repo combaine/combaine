@@ -3,16 +3,100 @@ package graphite
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"net"
 	"testing"
 
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 
-type ioWriteFailed struct{}
+type ioWriteFailerCloser struct {
+	counter int
+}
 
-func (*ioWriteFailed) Write([]byte) (int, error) {
+func (*ioWriteFailerCloser) Write(s []byte) (int, error) {
 	return -1, fmt.Errorf("testingErr")
+}
+func (*ioWriteFailerCloser) Close() error {
+	return nil
+}
+
+func testtcp(t *testing.T) net.Listener {
+	l, err := net.Listen("tcp", "")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	go func() {
+		for {
+			_, err := l.Accept()
+			if err != nil {
+				return
+			}
+		}
+	}()
+	return l
+}
+
+func TestNewConn(t *testing.T) {
+	cases := []struct {
+		args        []interface{}
+		expected    string
+		withServer  bool
+		shouldError bool
+	}{
+		{[]interface{}{}, "Not enought arguments", false, true},
+		{[]interface{}{"one"}, "Not enought arguments", false, true},
+		{[]interface{}{"one", "two"}, "Failed to parse arguments retry or timeout", false, true},
+		{[]interface{}{1, 20}, "successfully connected", true, false},
+	}
+
+	for _, c := range cases {
+		var err error
+		var l net.Listener
+		if c.withServer {
+			l = testtcp(t)
+			_, err = NewConn(l.Addr().String(), c.args...)
+		} else {
+			_, err = NewConn("", c.args...)
+		}
+
+		if c.shouldError {
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), c.expected)
+		} else {
+			assert.NoError(t, err)
+		}
+
+		if c.withServer {
+			l.Close()
+		}
+	}
+}
+
+func TestCacheGetEvict(t *testing.T) {
+	var counter int
+	c := NewCacher(func(s string, a ...interface{}) (io.WriteCloser, error) {
+		counter++
+		return &ioWriteFailerCloser{counter}, nil
+	})
+
+	f1, _ := c.Get("name")
+	_, _ = c.Get("name")
+	assert.Equal(t, 1, len(c.(*cacher).cache))
+	c.Evict(f1)
+	assert.Equal(t, 0, len(c.(*cacher).cache))
+
+	s1, _ := c.Get("name")
+	s2, _ := c.Get("name")
+	assert.Equal(t, s1.(*ioWriteFailerCloser).counter, s2.(*ioWriteFailerCloser).counter)
+	assert.Equal(t, 1, len(c.(*cacher).cache))
+	c.Evict(s2)
+	assert.Equal(t, 0, len(c.(*cacher).cache))
+
+	s3, _ := c.Get("name")
+	assert.NotEqual(t, s2.(*ioWriteFailerCloser).counter, s3.(*ioWriteFailerCloser).counter)
+
 }
 
 func TestNewGraphiteClient(t *testing.T) {
@@ -81,7 +165,7 @@ func TestGraphiteSend(t *testing.T) {
 
 func TestGraphiteSendError(t *testing.T) {
 	grCfg := graphiteClient{}
-	ioWErr := &ioWriteFailed{}
+	ioWErr := new(ioWriteFailerCloser)
 
 	cases := []struct {
 		data     tasks.DataType

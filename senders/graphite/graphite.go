@@ -3,10 +3,8 @@ package graphite
 import (
 	"fmt"
 	"io"
-	"net"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
@@ -15,12 +13,11 @@ import (
 
 const (
 	onePointFormat    = "%s.combaine.%s.%s %s %d\n"
-	connectionTimeout = 1500 //msec
+	connectionTimeout = 100 //msec
 )
 
-var ( // var for testing purposes
-	connectionEndpoint = ":42000"
-)
+// var for testing purposes
+var connectionEndpoint = ":42000"
 
 type GraphiteSender interface {
 	Send(tasks.DataType, uint64) error
@@ -39,10 +36,6 @@ type GraphiteCfg struct {
 
 type pointFormat func(common.NameStack, interface{}, uint64) string
 
-func formatSubgroup(input string) string {
-	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
-}
-
 func makePoint(format, cluster, subgroup string) pointFormat {
 	return func(metric common.NameStack, value interface{}, timestamp uint64) string {
 		return fmt.Sprintf(
@@ -56,10 +49,15 @@ func makePoint(format, cluster, subgroup string) pointFormat {
 	}
 }
 
+func formatSubgroup(input string) string {
+	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
+}
+
 func (g *graphiteClient) send(output io.Writer, data string) error {
 	logger.Debugf("%s Send %s", g.id, data)
 	if _, err := fmt.Fprint(output, data); err != nil {
 		logger.Errf("%s Sending error: %s", g.id, err)
+		connPool.Evict(output)
 		return err
 	}
 	return nil
@@ -151,21 +149,16 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 	return
 }
 
-func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) (err error) {
+func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
 	if len(data) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
 
-	sock, err := net.DialTimeout("tcp", connectionEndpoint, time.Microsecond*connectionTimeout)
-	defer func() {
-		if sock != nil {
-			sock.Close()
-		}
-	}()
+	sock, err := connPool.Get(connectionEndpoint, 3, connectionTimeout)
 	if err != nil {
-		logger.Errf("Unable to connect to daemon %s: %s", connectionEndpoint, err)
-		return
+		return err
 	}
+
 	return g.sendInternal(&data, timestamp, sock)
 }
 
