@@ -13,10 +13,6 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-func formatSubgroup(input string) string {
-	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
-}
-
 const (
 	onePointFormat    = "%s.combaine.%s.%s %s %d\n"
 	connectionTimeout = 1500 //msec
@@ -41,21 +37,14 @@ type GraphiteCfg struct {
 	Fields  []string `codec:"Fields"`
 }
 
-type NameStack []string
+type pointFormat func(common.NameStack, interface{}, uint64) string
 
-func (n *NameStack) Push(item string) {
-	*n = append(*n, item)
+func formatSubgroup(input string) string {
+	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
 }
-
-func (n *NameStack) Pop() (item string) {
-	item, *n = (*n)[len(*n)-1], (*n)[:len(*n)-1]
-	return item
-}
-
-type pointFormat func(NameStack, interface{}, uint64) string
 
 func makePoint(format, cluster, subgroup string) pointFormat {
-	return func(metric NameStack, value interface{}, timestamp uint64) string {
+	return func(metric common.NameStack, value interface{}, timestamp uint64) string {
 		return fmt.Sprintf(
 			format,
 			cluster,
@@ -76,13 +65,13 @@ func (g *graphiteClient) send(output io.Writer, data string) error {
 	return nil
 }
 
-func (g *graphiteClient) sendInterface(output io.Writer, metricName NameStack,
+func (g *graphiteClient) sendInterface(output io.Writer, metricName common.NameStack,
 	f pointFormat, value interface{}, timestamp uint64) error {
 	data := f(metricName, value, timestamp)
 	return g.send(output, data)
 }
 
-func (g *graphiteClient) sendSlice(output io.Writer, metricName NameStack, f pointFormat,
+func (g *graphiteClient) sendSlice(output io.Writer, metricName common.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) error {
 
 	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
@@ -101,11 +90,10 @@ func (g *graphiteClient) sendSlice(output io.Writer, metricName NameStack, f poi
 
 		metricName.Pop()
 	}
-
 	return nil
 }
 
-func (g *graphiteClient) sendMap(output io.Writer, metricName NameStack, f pointFormat,
+func (g *graphiteClient) sendMap(output io.Writer, metricName common.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) (err error) {
 
 	keys := rv.MapKeys()
@@ -135,7 +123,7 @@ func (g *graphiteClient) sendMap(output io.Writer, metricName NameStack, f point
 }
 
 func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
-	metricName := make(NameStack, 0, 3)
+	metricName := make(common.NameStack, 0, 3)
 
 	for aggname, subgroupsAndValues := range *data {
 		logger.Infof("%s Handle aggregate named %s", g.id, aggname)
@@ -187,6 +175,5 @@ func NewGraphiteClient(cfg *GraphiteCfg, id string) (gs GraphiteSender, err erro
 		cluster: cfg.Cluster,
 		fields:  cfg.Fields,
 	}
-
 	return
 }
