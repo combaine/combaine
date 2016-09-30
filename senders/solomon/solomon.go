@@ -3,15 +3,15 @@ package solomon
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
@@ -29,24 +29,18 @@ type SolomonSender interface {
 	Send(tasks.DataType, uint64) error
 }
 
-type solomonClient struct {
-	id                 string
-	api                string
-	prefix             string
-	project            string
-	cluster            string
-	connection_timeout int
-	rw_timeout         int
-	fields             []string
+type SolomonCfg struct {
+	Api     string   `codec:"api"`
+	Project string   `codec:"project"`
+	Cluster string   `codec:"cluster"`
+	Timeout int      `codec:"rw_timeout"`
+	Fields  []string `codec:"Fields"`
 }
 
-type SolomonCfg struct {
-	Api                string   `codec:"api"`
-	Project            string   `codec:"project"`
-	Cluster            string   `codec:"cluster"`
-	Connection_timeout int      `codec:"connection_timeout"`
-	Rw_timeout         int      `codec:"rw_timeout"`
-	Fields             []string `codec:"Fields"`
+type solomonClient struct {
+	SolomonCfg
+	id     string
+	prefix string
 }
 
 type comLabels struct {
@@ -73,14 +67,9 @@ type Job struct {
 }
 
 type Worker struct {
-	Id         int
-	Retry      int
-	JobChannel chan Job
-}
-
-type Dispatcher struct {
-	WorkerPool chan chan Job
-	Retry      int
+	Id            int
+	Retry         int           // count
+	RetryInterval time.Duration // ms
 }
 
 func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
@@ -93,17 +82,20 @@ func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
 	switch value.Kind() {
 	case reflect.Float32, reflect.Float64:
 		sensorValue = value.Float()
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16,
+		reflect.Int32, reflect.Int64:
 		sensorValue = float64(value.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16,
+		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		sensorValue = float64(value.Uint())
 	case reflect.String:
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
 		logger.Errf("Default case:, %t, %s:%s", value, value.Kind(), value)
-		err = errors.New("Sensor is Not a Number")
+		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
-		return errors.New(fmt.Sprintf(
-			"%s %s: %s", s.id, err, common.InterfaceToString(value)))
+		return fmt.Errorf("%s %s: %s", s.id, err, common.InterfaceToString(value))
 	}
 
 	*sensors = append(*sensors, sensor{
@@ -117,22 +109,21 @@ func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
 func (s *solomonClient) dumpSlice(sensors *[]sensor, name string,
 	rv reflect.Value, timestamp uint64) error {
 
-	if len(s.fields) == 0 || len(s.fields) != rv.Len() {
+	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
 		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d",
-			s.id, len(s.fields), rv.Len())
+			s.id, len(s.Fields), rv.Len())
 		logger.Errf("%s", msg)
-		return errors.New(msg)
+		return fmt.Errorf(msg)
 	}
 
 	for i := 0; i < rv.Len(); i++ {
-		sensorName := fmt.Sprintf("%s.%s", name, s.fields[i])
+		sensorName := fmt.Sprintf("%s.%s", name, s.Fields[i])
 		item := reflect.ValueOf(rv.Index(i).Interface())
 		err := s.dumpSensor(sensors, sensorName, item, timestamp)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -153,25 +144,17 @@ func (s *solomonClient) dumpMap(sensors *[]sensor, name string,
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
 			err = s.dumpSlice(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		case reflect.Map:
 			err = s.dumpMap(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		default:
 			err = s.dumpSensor(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
+		}
+
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return
 }
 
 func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]solomonPush, error) {
@@ -199,8 +182,8 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 				CommonLabels: comLabels{
 					Host:    host,
 					Service: service,
-					Cluster: s.cluster,
-					Project: s.project,
+					Cluster: s.Cluster,
+					Project: s.Project,
 				},
 			}
 
@@ -214,11 +197,10 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 					groups = append(groups, pushData)
 				}
 			} else {
-				err = errors.New(fmt.Sprintf("%s Value of group should be dict", s.id))
+				err = fmt.Errorf("%s Value of group should be dict", s.id)
 			}
 			if err != nil {
-				logger.Warnf("%s bad value for %s: %s",
-					s.id, aggname, common.InterfaceToString(value))
+				logger.Warnf("%s bad value for %s: %s", s.id, aggname, common.InterfaceToString(value))
 			}
 		}
 	}
@@ -236,36 +218,77 @@ func (s *solomonClient) Send(task tasks.DataType, timestamp uint64) error {
 	}
 	logger.Infof("%s Send %d items", s.id, len(data))
 	for _, v := range data {
-		push, err := json.Marshal(v)
-		if err != nil {
-			return fmt.Errorf("%s %s", s.id, err)
-		}
+		push, _ := json.Marshal(v)
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
 		logger.Debugf("%s Sending work to JobQueue", s.id)
 		JobQueue <- Job{PushData: push, SolCli: s}
 
 	}
-
 	return nil
 }
 
-func NewSolomonClient(cfg *SolomonCfg, id string) (ss SolomonSender, err error) {
-	ss = &solomonClient{
-		id:                 id,
-		api:                cfg.Api,
-		cluster:            cfg.Cluster,
-		project:            cfg.Project,
-		fields:             cfg.Fields,
-		connection_timeout: cfg.Connection_timeout,
-		rw_timeout:         cfg.Rw_timeout,
-	}
-
-	return
+func NewSolomonClient(cfg SolomonCfg, id string) (SolomonSender, error) {
+	return &solomonClient{SolomonCfg: cfg, id: id}, nil
 }
 
-func (w Worker) Start() {
-	for job := range JobQueue {
+func (w Worker) SendToSolomon(job Job) error {
+	var sendErr error
+	var attempt = 0
+	var isTimeout bool
+
+	for {
+		if attempt >= w.Retry {
+			sendErr = fmt.Errorf("%s worker %d failed to send after %d attempts, dropping job", job.SolCli.id, w.Id, attempt)
+			break
+		}
+		attempt++
+
+		req, err := http.NewRequest("POST", job.SolCli.Api, bytes.NewReader(job.PushData))
+		if err != nil {
+			sendErr = fmt.Errorf("%s request error: %s", job.SolCli.id, err)
+			break
+		}
+		req.Header.Add("Content-Type", "application/json")
+
+		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, attempt)
+		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
+		defer cancelFunc()
+		resp, err := httpclient.Do(ctx, req)
+		switch err {
+		case nil:
+			// err is nil and there may occure some http errors includeing timeout
+			if resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				sendErr = nil
+				logger.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, attempt)
+				break
+			}
+			b, _ := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
+			sendErr = fmt.Errorf("%s bad status='%d %s', response: %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+			isTimeout = resp.StatusCode == http.StatusRequestTimeout
+		case context.Canceled, context.DeadlineExceeded:
+			isTimeout = true
+		default:
+			sendErr = fmt.Errorf("%s send error: %s", job.SolCli.id, err)
+		}
+
+		if !isTimeout {
+			// do not retry on net or http non timeout errors
+			break
+		}
+
+		logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
+		if attempt < w.Retry {
+			time.Sleep(time.Millisecond * w.RetryInterval)
+		}
+	}
+	return sendErr
+}
+
+func (w Worker) Start(j chan Job) {
+	for job := range j {
 		logger.Debugf("%s worker %d received job", job.SolCli.id, w.Id)
 		if err := w.SendToSolomon(job); err != nil {
 			logger.Errf("%s", err)
@@ -273,67 +296,14 @@ func (w Worker) Start() {
 	}
 }
 
-func (w Worker) SendToSolomon(job Job) error {
-	for i := 1; i <= w.Retry; i++ {
-		var netErr net.Error
-		var hasNetErr bool
-		SolomonHTTPClient := httpclient.NewClientWithTimeout(
-			time.Millisecond*(time.Duration(job.SolCli.connection_timeout)),
-			time.Millisecond*(time.Duration(job.SolCli.rw_timeout)))
-		req, err := http.NewRequest("POST", job.SolCli.api, bytes.NewReader(job.PushData))
-		if err != nil {
-			return fmt.Errorf("%s %s", job.SolCli.id, err)
-		}
-		req.Header.Add("Content-Type", "application/json")
-		logger.Debugf("%s Attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, i)
-		resp, err := SolomonHTTPClient.Do(req)
-
-		if err != nil {
-			netErr, hasNetErr = err.(net.Error)
-			if !hasNetErr {
-				return fmt.Errorf("%s %s", job.SolCli.id, err)
-			}
-		}
-
-		if err == nil {
-			resp.Body.Close()
-		}
-
-		if hasNetErr && netErr.Timeout() || resp.StatusCode == http.StatusRequestTimeout {
-			if i == w.Retry {
-				return fmt.Errorf("%s failed to send after %d attemps. Worker %d. Dropping", job.SolCli.id, i, w.Id)
-			}
-			logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
-			time.Sleep(time.Millisecond * 300)
-			if err == nil {
-				resp.Body.Close()
-			}
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			b, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return fmt.Errorf("%s bad response code '%d': %s", job.SolCli.id, resp.StatusCode, resp.Status)
-			}
-			return fmt.Errorf("%s bad response code '%d' '%s': %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
-		}
-		logger.Infof("%s Worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, i)
-		break
-	}
-	return nil
+func NewWorker(id int, retry int, interval int) Worker {
+	return Worker{Id: id, Retry: retry, RetryInterval: time.Duration(interval)}
 }
 
-func NewWorker(id int, retry int) Worker {
-	return Worker{
-		Id:    id,
-		Retry: retry}
-}
-
-func StartWorkers() {
-	for i := 0; i < cap(JobQueue); i++ {
-		logger.Debugf("Creating worker %d", i)
-		worker := NewWorker(i, PostRetries)
-		go worker.Start()
+func StartWorkers(j chan Job, retryInterval int) {
+	for i := 0; i < cap(j); i++ {
+		logger.Debugf("creating worker %d", i)
+		worker := NewWorker(i, PostRetries, retryInterval)
+		go worker.Start(j)
 	}
 }

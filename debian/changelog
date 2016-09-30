@@ -1,3 +1,11 @@
+combaine (0.8.1) trusty; urgency=medium
+
+  * [Sender] solomon worker pools with push retry (by @OmAsana)
+  * [Sender] solomon use ctxhttp
+  * [Sender] more tests for solomon and httpclient
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 30 Sep 2016 10:56:01 +0300
+
 combaine (0.8.0.alpha5) trusty; urgency=medium
 
   * Serf added

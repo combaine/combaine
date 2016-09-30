@@ -28,9 +28,9 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	CONNECTION_TIMEOUT = 3000 // ms
-	RW_TIMEOUT         = 5000 // ms
-	logger             *cocaine.Logger
+	SEND_TIMEOUT   = 5000 // send timeout ms
+	SLEEP_INTERVAL = 300  // sleep after timeouts ms
+	logger         *cocaine.Logger
 )
 
 type Task struct {
@@ -73,11 +73,8 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
 	}
-	if task.Config.Connection_timeout == 0 {
-		task.Config.Connection_timeout = CONNECTION_TIMEOUT
-	}
-	if task.Config.Rw_timeout == 0 {
-		task.Config.Rw_timeout = RW_TIMEOUT
+	if task.Config.Timeout == 0 {
+		task.Config.Timeout = SEND_TIMEOUT
 	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()
@@ -88,13 +85,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		}
 	}
 
-	solCli, err := solomon.NewSolomonClient(&task.Config, task.Id)
-	if err != nil {
-		logger.Errf("Unexpected error from NewSolomonClient %s", err)
-		response.ErrorMsg(-100, err.Error())
-		return
-	}
-
+	solCli, _ := solomon.NewSolomonClient(task.Config, task.Id)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
 		logger.Errf("Sending error %s", err)
@@ -116,7 +107,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go solomon.StartWorkers()
+	go solomon.StartWorkers(solomon.JobQueue, SLEEP_INTERVAL)
 
 	Worker.Loop(binds)
 }
