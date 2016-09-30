@@ -220,4 +220,12 @@ func TestNetSend(t *testing.T) {
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
 
+	gc = graphiteClient{fields: []string{"A", "B", "C"}}
+	l := testtcp(t)
+	defer l.Close()
+	t.Logf("work with addr %s", l.Addr().String())
+	connectionEndpoint = l.Addr().String()
+	err = gc.Send(cases[1].data, 1)
+	assert.NoError(t, err)
+
 }
