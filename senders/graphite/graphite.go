@@ -18,9 +18,11 @@ func formatSubgroup(input string) string {
 }
 
 const (
-	onePointFormat = "%s.combaine.%s.%s %s %d\n"
+	onePointFormat    = "%s.combaine.%s.%s %s %d\n"
+	connectionTimeout = 1500 //msec
+)
 
-	connectionTimeout  = 1500 //msec
+var ( // var for testing purposes
 	connectionEndpoint = ":42000"
 )
 
@@ -84,12 +86,8 @@ func (g *graphiteClient) sendSlice(output io.Writer, metricName NameStack, f poi
 	rv reflect.Value, timestamp uint64) error {
 
 	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
-		logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", g.id, len(g.fields), rv.Len())
-		val := make([]int, len(g.fields))
-		for i := range g.fields {
-			val[i] = 1
-		}
-		rv = reflect.ValueOf(val)
+		return fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
+			g.id, len(g.fields), rv.Len())
 	}
 
 	for i := 0; i < rv.Len(); i++ {
@@ -121,33 +119,22 @@ func (g *graphiteClient) sendMap(output io.Writer, metricName NameStack, f point
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
 			err = g.sendSlice(output, metricName, f, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		case reflect.Map:
 			err = g.sendMap(output, metricName, f, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		default:
 			err = g.sendInterface(output, metricName, f,
 				common.InterfaceToString(itemInterface.Interface()), timestamp)
-			if err != nil {
-				return err
-			}
 		}
-
+		if err != nil {
+			break
+		}
 		// Pop key of map
 		metricName.Pop()
 	}
-
-	return nil
+	return
 }
 
-func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) error {
-	var err error
+func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(NameStack, 0, 3)
 
 	for aggname, subgroupsAndValues := range *data {
@@ -162,21 +149,18 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 			switch rv.Kind() {
 			case reflect.Slice, reflect.Array:
 				err = g.sendSlice(output, metricName, pointFormatter, rv, timestamp)
-
 			case reflect.Map:
 				err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
-
 			default:
 				err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(value), timestamp)
-
 			}
 			if err != nil {
-				return err
+				break
 			}
 		}
 		metricName.Pop()
 	}
-	return nil
+	return
 }
 
 func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) (err error) {
