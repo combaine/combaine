@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
@@ -15,9 +16,10 @@ import (
 )
 
 func TestNewWorker(t *testing.T) {
-	w := NewWorker(0, 0)
+	w := NewWorker(0, 0, 0)
 	assert.Equal(t, 0, w.Id)
 	assert.Equal(t, 0, w.Retry)
+	assert.Equal(t, time.Duration(0), w.RetryInterval)
 }
 
 func TestNewSolomonClient(t *testing.T) {
@@ -29,7 +31,7 @@ func TestNewSolomonClient(t *testing.T) {
 
 func TestStartWorkers(t *testing.T) {
 	j := make(chan Job, 1)
-	StartWorkers(j)
+	StartWorkers(j, 10)
 
 	j <- Job{PushData: []byte{}, SolCli: &solomonClient{SolomonCfg: SolomonCfg{Api: "bad://proto"}}}
 	for i := 3; i > 0; i-- {
@@ -42,10 +44,8 @@ func TestStartWorkers(t *testing.T) {
 	assert.Equal(t, 0, len(j))
 }
 func TestRequest(t *testing.T) {
-	netAddr := "127.0.0.1:35313"
-
 	// for network timeout test
-	l, _ := net.Listen("tcp", netAddr)
+	l, _ := net.Listen("tcp", "")
 	defer l.Close()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,19 +77,24 @@ func TestRequest(t *testing.T) {
 			SolomonCfg: SolomonCfg{Api: "http://127.0.0.1:35333", Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
+		// net dial timeout 'l' is blackhole for all incoming connections
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/200", Timeout: 50}}},
-			"worker 3 failed to send after 2 attempts, dropping job", 2, false},
+			SolomonCfg: SolomonCfg{Api: "http://" + l.Addr().String() + "/200", Timeout: 3}}},
+			"worker 3 failed to send after 8 attempts, dropping job", 8, false},
+
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/404", Timeout: 50}}},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/200", Timeout: 10}}},
+			"worker 4 failed to send after 2 attempts, dropping job", 2, false},
+		{Job{PushData: []byte{}, SolCli: &solomonClient{
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/404", Timeout: 10}}},
 			"404 Not Found", 3, true},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/408", Timeout: 20}}},
-			"worker 5 failed to send after 3 attempts, dropping job", 3, true},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/408", Timeout: 10}}},
+			"worker 6 failed to send after 3 attempts, dropping job", 3, true},
 	}
 
 	for i, c := range cases {
-		w := NewWorker(i, c.attempt)
+		w := NewWorker(i, c.attempt, 3)
 		err := w.SendToSolomon(c.job)
 		t.Log(err)
 		if err != nil {

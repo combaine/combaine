@@ -68,8 +68,9 @@ type Job struct {
 }
 
 type Worker struct {
-	Id    int
-	Retry int
+	Id            int
+	Retry         int           // count
+	RetryInterval time.Duration // ms
 }
 
 func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
@@ -290,7 +291,7 @@ func (w Worker) SendToSolomon(job Job) error {
 
 		logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.Id)
 		if attempt < w.Retry {
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * w.RetryInterval)
 		}
 	}
 	return sendErr
@@ -305,14 +306,14 @@ func (w Worker) Start(j chan Job) {
 	}
 }
 
-func NewWorker(id int, retry int) Worker {
-	return Worker{Id: id, Retry: retry}
+func NewWorker(id int, retry int, interval int) Worker {
+	return Worker{Id: id, Retry: retry, RetryInterval: time.Duration(interval)}
 }
 
-func StartWorkers(j chan Job) {
+func StartWorkers(j chan Job, retryInterval int) {
 	for i := 0; i < cap(j); i++ {
 		logger.Debugf("creating worker %d", i)
-		worker := NewWorker(i, PostRetries)
+		worker := NewWorker(i, PostRetries, retryInterval)
 		go worker.Start(j)
 	}
 }

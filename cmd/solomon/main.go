@@ -28,9 +28,9 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	CONNECTION_TIMEOUT = 3000 // ms
-	RW_TIMEOUT         = 5000 // ms
-	logger             *cocaine.Logger
+	SEND_TIMEOUT   = 5000 // send timeout ms
+	SLEEP_INTERVAL = 300  // sleep after timeouts ms
+	logger         *cocaine.Logger
 )
 
 type Task struct {
@@ -74,7 +74,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		task.Config.Fields = DEFAULT_FIELDS
 	}
 	if task.Config.Timeout == 0 {
-		task.Config.Timeout = CONNECTION_TIMEOUT
+		task.Config.Timeout = SEND_TIMEOUT
 	}
 	if task.Config.Api == "" {
 		task.Config.Api, err = getApiUrl()
@@ -107,7 +107,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go solomon.StartWorkers(solomon.JobQueue)
+	go solomon.StartWorkers(solomon.JobQueue, SLEEP_INTERVAL)
 
 	Worker.Loop(binds)
 }
