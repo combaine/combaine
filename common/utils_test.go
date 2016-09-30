@@ -16,7 +16,7 @@ func TestDecodeEncode(t *testing.T) {
 	}{
 		{map[string]int{"key": 1}, new(map[string]int)},
 		{map[string]string{"key": "okay"}, new(map[string]string)},
-		{map[string]struct{}{"key": struct{}{}}, new(map[string]struct{})},
+		{map[string]struct{}{"key": {}}, new(map[string]struct{})},
 		{[]string{"A", "B"}, new([]string)},
 		{[]byte{'A', 'B', 0x0, '\t', '\n'}, new([]byte)},
 	}
@@ -39,7 +39,7 @@ func TestPackUnpack(t *testing.T) {
 	}{
 		{map[string]int{"key": 1}, new(map[string]int)},
 		{map[string]string{"key": "okay"}, new(map[string]string)},
-		{map[string]struct{}{"key": struct{}{}}, new(map[string]struct{})},
+		{map[string]struct{}{"key": {}}, new(map[string]struct{})},
 		{[]string{"A", "B"}, new([]string)},
 		{[]byte{'A', 'B', 0x0, '\t', '\n'}, new([]byte)},
 	}
