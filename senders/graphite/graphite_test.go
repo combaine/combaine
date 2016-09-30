@@ -213,13 +213,11 @@ func TestNetSend(t *testing.T) {
 		err := gc.Send(c.data, 1)
 		if c.withErr {
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), c.expected)
 		}
 	}
 
 	connectionEndpoint = "bad:port"
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Servname not supported")
 
 }
