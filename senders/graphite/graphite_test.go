@@ -23,7 +23,7 @@ func (*ioWriteFailerCloser) Close() error {
 }
 
 func testtcp(t *testing.T) net.Listener {
-	l, err := net.Listen("tcp", "")
+	l, err := net.Listen("tcp4", "")
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -42,20 +42,20 @@ func TestNewConn(t *testing.T) {
 	cases := []struct {
 		args        []interface{}
 		expected    string
-		withServer  bool
 		shouldError bool
 	}{
-		{[]interface{}{}, "Not enought arguments", false, true},
-		{[]interface{}{"one"}, "Not enought arguments", false, true},
-		{[]interface{}{"one", "two"}, "Failed to parse arguments retry or timeout", false, true},
-		{[]interface{}{1, 20}, "successfully connected", true, false},
+		{[]interface{}{}, "Not enought arguments", true},
+		{[]interface{}{"one"}, "Not enought arguments", true},
+		{[]interface{}{"one", "two"}, "Failed to parse arguments retry or timeout", true},
+		{[]interface{}{1, 20}, "successfully connected", false},
 	}
 
 	for _, c := range cases {
 		var err error
 		var l net.Listener
-		if c.withServer {
+		if !c.shouldError {
 			l = testtcp(t)
+			t.Logf("work with addr %s", l.Addr().String())
 			_, err = NewConn(l.Addr().String(), c.args...)
 		} else {
 			_, err = NewConn("", c.args...)
@@ -68,7 +68,7 @@ func TestNewConn(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		if c.withServer {
+		if l != nil {
 			l.Close()
 		}
 	}
