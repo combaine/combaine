@@ -3,7 +3,6 @@ package solomon
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -47,12 +46,13 @@ func TestRequest(t *testing.T) {
 	// for network timeout test
 	uriWithoutListener := "http://127.0.9.1:35333"
 
-	l, _ := net.Listen("tcp", "")
-	defer l.Close()
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/200":
+			fmt.Fprintln(w, "200")
+		case "/timeout":
+			w.WriteHeader(200)
+			time.Sleep(10 * time.Millisecond)
 			fmt.Fprintln(w, "200")
 		case "/408":
 			w.WriteHeader(408)
@@ -79,9 +79,8 @@ func TestRequest(t *testing.T) {
 			SolomonCfg: SolomonCfg{Api: uriWithoutListener, Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
-		// net dial timeout 'l' is blackhole for all incoming connections
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://" + l.Addr().String() + "/200", Timeout: 3}}},
+			SolomonCfg: SolomonCfg{Api: ts.URL + "/timeout", Timeout: 5}}},
 			"worker 3 failed to send after 8 attempts, dropping job", 8, false},
 
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
