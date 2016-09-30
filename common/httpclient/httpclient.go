@@ -1,11 +1,11 @@
 package httpclient
 
 import (
-	"context"
 	"net"
 	"net/http"
 	"time"
 
+	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 )
 

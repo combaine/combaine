@@ -2,7 +2,6 @@ package solomon
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"

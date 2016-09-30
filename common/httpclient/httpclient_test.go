@@ -1,7 +1,6 @@
 package httpclient
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 func TestClientPresent(t *testing.T) {
