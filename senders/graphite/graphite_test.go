@@ -197,6 +197,11 @@ func TestGraphiteSendError(t *testing.T) {
 }
 
 func TestNetSend(t *testing.T) {
+	l := testtcp(t)
+	defer l.Close()
+	connectionEndpoint = l.Addr().String()
+	t.Logf("work with addr %s", l.Addr().String())
+
 	gc := graphiteClient{id: "TESTID"}
 
 	cases := []struct {
@@ -213,18 +218,17 @@ func TestNetSend(t *testing.T) {
 		err := gc.Send(c.data, 1)
 		if c.withErr {
 			assert.Error(t, err)
+			assert.Contains(t, err.Error(), c.expected)
 		}
 	}
 
-	connectionEndpoint = "bad:port"
+	connectionEndpoint = ":::port"
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too many colons in address")
 
-	gc = graphiteClient{fields: []string{"A", "B", "C"}}
-	l := testtcp(t)
-	defer l.Close()
-	t.Logf("work with addr %s", l.Addr().String())
 	connectionEndpoint = l.Addr().String()
+	gc = graphiteClient{fields: []string{"A", "B", "C"}}
 	err = gc.Send(cases[1].data, 1)
 	assert.NoError(t, err)
 

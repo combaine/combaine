@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common/logger"
+	"golang.org/x/net/context"
 )
 
 var connPool Cacher
@@ -28,12 +29,15 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 	}
 
 	for i := 0; i < retry; i++ {
-		conn, err = net.DialTimeout("tcp", endpoint, time.Duration(timeout)*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(timeout)*time.Millisecond)
+		defer cancel()
+		dialer := net.Dialer{DualStack: true}
+		conn, err = dialer.DialContext(ctx, "tcp", endpoint)
 		if err == nil {
 			break
 		}
 		logger.Debugf("Failed to connect endpoint %s: %s", endpoint, err)
-		time.Sleep(time.Duration(timeout))
+		time.Sleep(time.Duration(RECONNECT_INTERVAL) * time.Millisecond)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, retry)

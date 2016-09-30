@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	onePointFormat    = "%s.combaine.%s.%s %s %d\n"
-	connectionTimeout = 100 //msec
+	ONE_POINT_FORMAT   = "%s.combaine.%s.%s %s %d\n"
+	CONNECTION_TIMEOUT = 300 //msec
+	RECONNECT_INTERVAL = 100 //msec
 )
 
 // var for testing purposes
@@ -128,7 +129,7 @@ func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, ou
 
 		metricName.Push(aggname)
 		for subgroup, value := range subgroupsAndValues {
-			pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
+			pointFormatter := makePoint(ONE_POINT_FORMAT, g.cluster, subgroup)
 			rv := reflect.ValueOf(value)
 			logger.Debugf("%s %s", g.id, rv.Kind())
 
@@ -154,7 +155,7 @@ func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
 		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
 
-	sock, err := connPool.Get(connectionEndpoint, 3, connectionTimeout)
+	sock, err := connPool.Get(connectionEndpoint, 3, CONNECTION_TIMEOUT)
 	if err != nil {
 		return err
 	}
