@@ -45,6 +45,8 @@ func TestStartWorkers(t *testing.T) {
 }
 func TestRequest(t *testing.T) {
 	// for network timeout test
+	uriWithoutListener := "http://127.0.9.1:35333"
+
 	l, _ := net.Listen("tcp", "")
 	defer l.Close()
 
@@ -74,7 +76,7 @@ func TestRequest(t *testing.T) {
 			SolomonCfg: SolomonCfg{Api: "://bad_url", Timeout: 10}}},
 			"parse ://bad_url: missing protocol scheme", 1, true},
 		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "http://127.0.0.1:35333", Timeout: 10}}},
+			SolomonCfg: SolomonCfg{Api: uriWithoutListener, Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
 		// net dial timeout 'l' is blackhole for all incoming connections

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,9 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context/ctxhttp"
-
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 )
@@ -93,11 +91,10 @@ func (s *solomonClient) dumpSensor(sensors *[]sensor, name string,
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
 		logger.Errf("Default case:, %t, %s:%s", value, value.Kind(), value)
-		err = errors.New("Sensor is Not a Number")
+		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
-		return errors.New(fmt.Sprintf(
-			"%s %s: %s", s.id, err, common.InterfaceToString(value)))
+		return fmt.Errorf("%s %s: %s", s.id, err, common.InterfaceToString(value))
 	}
 
 	*sensors = append(*sensors, sensor{
@@ -115,7 +112,7 @@ func (s *solomonClient) dumpSlice(sensors *[]sensor, name string,
 		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d",
 			s.id, len(s.Fields), rv.Len())
 		logger.Errf("%s", msg)
-		return errors.New(msg)
+		return fmt.Errorf(msg)
 	}
 
 	for i := 0; i < rv.Len(); i++ {
@@ -146,24 +143,17 @@ func (s *solomonClient) dumpMap(sensors *[]sensor, name string,
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
 			err = s.dumpSlice(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		case reflect.Map:
 			err = s.dumpMap(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
-
 		default:
 			err = s.dumpSensor(sensors, sensorName, itemInterface, timestamp)
-			if err != nil {
-				return err
-			}
+		}
+
+		if err != nil {
+			break
 		}
 	}
-	return nil
+	return
 }
 
 func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]solomonPush, error) {
@@ -206,11 +196,10 @@ func (s *solomonClient) sendInternal(data *tasks.DataType, timestamp uint64) ([]
 					groups = append(groups, pushData)
 				}
 			} else {
-				err = errors.New(fmt.Sprintf("%s Value of group should be dict", s.id))
+				err = fmt.Errorf("%s Value of group should be dict", s.id)
 			}
 			if err != nil {
-				logger.Warnf("%s bad value for %s: %s",
-					s.id, aggname, common.InterfaceToString(value))
+				logger.Warnf("%s bad value for %s: %s", s.id, aggname, common.InterfaceToString(value))
 			}
 		}
 	}
@@ -264,7 +253,7 @@ func (w Worker) SendToSolomon(job Job) error {
 		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.Id, attempt)
 		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
 		defer cancelFunc()
-		resp, err := ctxhttp.Do(ctx, nil, req)
+		resp, err := httpclient.Do(ctx, req)
 		switch err {
 		case nil:
 			// err is nil and there may occure some http errors includeing timeout
