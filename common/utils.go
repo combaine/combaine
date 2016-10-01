@@ -44,20 +44,33 @@ func GetType(cfg map[string]interface{}) (string, error) {
 	}
 }
 
-func MapUpdate(source *map[string]interface{}, update *map[string]interface{}) {
-	for k, v := range *update {
-		(*source)[k] = v
+func MapUpdate(source map[string]interface{}, target map[string]interface{}) {
+	for k, v := range source {
+		target[k] = v
 	}
 }
 
 func InterfaceToString(v interface{}) (s string) {
 	switch v := v.(type) {
-	case int:
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr:
 		s = fmt.Sprintf("%d", v)
 	case float32, float64:
 		s = fmt.Sprintf("%f", v)
+	case []byte:
+		s = fmt.Sprintf("%q", v)
 	default:
 		s = fmt.Sprintf("%v", v)
 	}
 	return
+}
+
+type NameStack []string
+
+func (n *NameStack) Push(item string) {
+	*n = append(*n, item)
+}
+
+func (n *NameStack) Pop() (item string) {
+	item, *n = (*n)[len(*n)-1], (*n)[:len(*n)-1]
+	return item
 }
