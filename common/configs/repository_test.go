@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,14 +20,15 @@ func TestRepository(t *testing.T) {
 
 	var (
 		expectedPcfg      = []string{"aggCore", "img_status"}
-		expectedAggcfg    = []string{"aggCore", "http_ok"}
+		expectedAggcfg    = []string{"aggCore", "badaggCore", "http_ok", "notPerHostaggCore"}
 		expectedLockHosts = []string{"localhost:2181"}
 	)
 
+	_, err := NewFilesystemRepository("/not_existing/dir/")
+	assert.Error(t, err)
+
 	repo, err := NewFilesystemRepository(repopath)
-	if !assert.Nil(t, err) {
-		t.Fatalf("Unable to create repo %s", err)
-	}
+	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
 
 	lp, _ := repo.ListParsingConfigs()
 	assert.Equal(t, expectedPcfg, lp, "")
@@ -42,9 +44,7 @@ func TestRepository(t *testing.T) {
 
 	for _, name := range lp {
 		pcfg, err := repo.GetParsingConfig(name)
-		if !assert.Nil(t, err) {
-			t.Fatalf("unable to read %s: %s", name, err)
-		}
+		assert.Nil(t, err, fmt.Sprintf("unable to read %s: %s", name, err))
 
 		if !repo.ParsingConfigIsExists(name) {
 			t.Fatalf("Parsing config %s don't exists", name)
@@ -55,9 +55,7 @@ func TestRepository(t *testing.T) {
 			t.Fatalf("No existing config %s mistakenly identified as there", not_existing)
 		}
 
-		if !assert.NotNil(t, pcfg) {
-			t.Fatal("ooops")
-		}
+		assert.NotNil(t, pcfg, "ooops")
 
 		var decodedCfg ParsingConfig
 		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode parsing config")
@@ -65,13 +63,8 @@ func TestRepository(t *testing.T) {
 
 	for _, name := range la {
 		pcfg, err := repo.GetAggregationConfig(name)
-		if !assert.Nil(t, err) {
-			t.Fatalf("unable to read %s: %s", name, err)
-		}
-
-		if !assert.NotNil(t, pcfg) {
-			t.Fatal("ooops")
-		}
+		assert.Nil(t, err, fmt.Sprintf("unable to read %s: %s", name, err))
+		assert.NotNil(t, pcfg, "oops")
 
 		var decodedCfg AggregationConfig
 		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode aggregation config")

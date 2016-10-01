@@ -24,27 +24,34 @@ const (
 	repoPath = "../tests/fixtures/configs"
 )
 
+var (
+	cacher            = servicecacher.NewCacher(NewService)
+	repo              configs.Repository
+	pcfg              configs.EncodedConfig
+	acfg              configs.EncodedConfig
+	parsingConfig     configs.ParsingConfig
+	aggregationConfig configs.AggregationConfig
+)
+
 func NewService(n string, a ...interface{}) (servicecacher.Service, error) {
 	return tests.NewService(n, a...)
 }
 
-var cacher = servicecacher.NewCacher(NewService)
-
-func TestAggregating(t *testing.T) {
-	logrus.SetLevel(logrus.InfoLevel)
-
-	repo, err := configs.NewFilesystemRepository(repoPath)
+func TestInit(t *testing.T) {
+	var err error
+	repo, err = configs.NewFilesystemRepository(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
-	pcfg, err := repo.GetParsingConfig(cfgName)
+	pcfg, err = repo.GetParsingConfig(cfgName)
 	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)
-	acfg, err := repo.GetAggregationConfig(cfgName)
+	acfg, err = repo.GetAggregationConfig(cfgName)
 	assert.NoError(t, err, "unable to read aggCfg %s: %s", cfgName, err)
 
-	var parsingConfig configs.ParsingConfig
 	assert.NoError(t, pcfg.Decode(&parsingConfig))
-
-	var aggregationConfig configs.AggregationConfig
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
+}
+
+func TestAggregating(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 
 	hostsPerDc := map[string][]string{
 		"DC1": {"Host1", "Host2"},
@@ -97,6 +104,9 @@ func TestAggregating(t *testing.T) {
 
 		for r := range tests.Spy {
 			method := string(r[0].(string))
+			if method == "stop" {
+				break
+			}
 			switch method {
 			case "aggregate_group":
 				var akeys []string
@@ -127,7 +137,7 @@ func TestAggregating(t *testing.T) {
 					}
 				}
 				if shouldSendToSenders == 0 {
-					close(tests.Spy)
+					tests.Spy <- []interface{}{"stop", ""}
 				}
 			}
 		}
@@ -140,9 +150,66 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	cacher := servicecacher.NewCacher(
-		func(n string, a ...interface{}) (servicecacher.Service, error) {
-			return tests.NewService(n, a...)
-		})
-	assert.NoError(t, Do(context.Background(), &aggTask, cacher))
+	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+}
+
+func TestEnqueue(t *testing.T) {
+	go func() {
+		for r := range tests.Spy {
+			method := string(r[0].(string))
+			if method == "stop" {
+				break
+			}
+		}
+	}()
+
+	tests.Rake <- fmt.Errorf("test")
+
+	app, _ := cacher.Get("respErr")
+	resp, err := enqueue("respErr", app, &[]byte{})
+	assert.Nil(t, resp)
+	assert.Error(t, err)
+
+	specialData := []byte("returnError")
+	resp, _ = enqueue("respErr", app, &specialData)
+	assert.Nil(t, resp)
+	assert.Error(t, err)
+
+	// just coverage hit
+	// TODO(sakateka): make real testing
+	tests.Rake <- fmt.Errorf("test")
+	hostsPerDc := map[string][]string{"DC1": {"H1", "H2"}, "DC2": {"H3", "H4"}}
+	encHosts, _ := common.Pack(hostsPerDc)
+	encParsingConfig, _ := common.Pack(parsingConfig)
+
+	acfg, err = repo.GetAggregationConfig("bad" + cfgName)
+	assert.NoError(t, acfg.Decode(&aggregationConfig))
+	encAggregationConfig, _ := common.Pack(aggregationConfig)
+
+	aggTask := rpc.AggregatingTask{
+		Id:                       "testId",
+		Frame:                    &rpc.TimeFrame{Current: 61, Previous: 1},
+		Config:                   cfgName,
+		ParsingConfigName:        cfgName,
+		EncodedParsingConfig:     encParsingConfig,
+		EncodedAggregationConfig: encAggregationConfig,
+		EncodedHosts:             encHosts,
+		ParsingResult: &rpc.ParsingResult{
+			Data: map[string][]byte{"Host1;appsName": []byte("Host1;appsName")},
+		}}
+	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+
+	acfg, err = repo.GetAggregationConfig("notPerHost" + cfgName)
+	assert.NoError(t, acfg.Decode(&aggregationConfig))
+
+	encAggregationConfig, _ = common.Pack(aggregationConfig)
+	aggTask.EncodedAggregationConfig = encAggregationConfig
+	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+
+	aggTask.ParsingResult = &rpc.ParsingResult{
+		Data: map[string][]byte{"H1;appsName": []byte("H1;appsName")},
+	}
+	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+
+	tests.Spy <- []interface{}{"stop", ""}
 }

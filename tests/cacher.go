@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"fmt"
+
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
 )
@@ -19,7 +21,11 @@ type serviceResult struct {
 }
 
 func (sr serviceResult) Extract(i interface{}) error {
-	return common.Unpack(sr.data, i) // unpack double packed payload
+	b, _ := common.Pack([]byte("returnError"))
+	if string(sr.data) == string(b) {
+		return fmt.Errorf("extract error")
+	}
+	return common.Unpack(sr.data, i)
 }
 
 func (sr serviceResult) Err() error {

@@ -1,0 +1,4 @@
+data:
+  appsName:
+    # missing type
+    class: Multimetrics
