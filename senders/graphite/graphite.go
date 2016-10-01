@@ -17,9 +17,8 @@ const (
 
 // var for testing purposes
 var (
-	connectionEndpoint = ":42000"
-	connectionTimeout  = 300 //msec
-	reconnectInterval  = 50  //msec
+	connectionTimeout = 300 //msec
+	reconnectInterval = 50  //msec
 )
 
 type GraphiteSender interface {
@@ -27,14 +26,16 @@ type GraphiteSender interface {
 }
 
 type graphiteClient struct {
-	id      string
-	cluster string
-	fields  []string
+	id       string
+	cluster  string
+	endpoint string
+	fields   []string
 }
 
 type GraphiteCfg struct {
-	Cluster string   `codec:"cluster"`
-	Fields  []string `codec:"Fields"`
+	Cluster  string   `codec:"cluster"`
+	Endpoint string   `codec:"endpoint"`
+	Fields   []string `codec:"Fields"`
 }
 
 type pointFormat func(common.NameStack, interface{}, uint64) string
@@ -157,7 +158,7 @@ func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
 		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
 
-	sock, err := connPool.Get(connectionEndpoint, 3, connectionTimeout)
+	sock, err := connPool.Get(g.endpoint, 3, connectionTimeout)
 	if err != nil {
 		return err
 	}
@@ -167,9 +168,10 @@ func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
 
 func NewGraphiteClient(cfg *GraphiteCfg, id string) (gs GraphiteSender, err error) {
 	gs = &graphiteClient{
-		id:      id,
-		cluster: cfg.Cluster,
-		fields:  cfg.Fields,
+		id:       id,
+		cluster:  cfg.Cluster,
+		fields:   cfg.Fields,
+		endpoint: cfg.Endpoint,
 	}
 	return
 }

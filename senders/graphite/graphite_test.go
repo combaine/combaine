@@ -199,10 +199,9 @@ func TestGraphiteSendError(t *testing.T) {
 func TestNetSend(t *testing.T) {
 	l := testtcp(t)
 	defer l.Close()
-	connectionEndpoint = l.Addr().String()
 	t.Logf("work with addr %s", l.Addr().String())
 
-	gc := graphiteClient{id: "TESTID"}
+	gc := graphiteClient{id: "TESTID", endpoint: l.Addr().String()}
 
 	cases := []struct {
 		data     tasks.DataType
@@ -224,21 +223,19 @@ func TestNetSend(t *testing.T) {
 		}
 	}
 
-	connectionEndpoint = ":::port"
+	gc = graphiteClient{endpoint: ":::port"}
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "too many colons in address")
 
-	connectionEndpoint = ":10101"
+	gc = graphiteClient{endpoint: ":10101"}
 	connectionTimeout = -1
 	reconnectInterval = 5
 	err = gc.Send(cases[1].data, 3)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded after 3 attempts")
 
-	connectionEndpoint = l.Addr().String()
-	gc = graphiteClient{fields: []string{"A", "B", "C"}}
+	gc = graphiteClient{fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
 	err = gc.Send(cases[1].data, 1)
 	assert.NoError(t, err)
-
 }

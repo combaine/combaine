@@ -1,3 +1,11 @@
+combaine (0.8.2) trusty; urgency=medium
+
+  * [Senders] graphite tests
+  * [Senders] graphite connection pool
+  * [Senders] configurable graphite endpoint
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sat, 01 Oct 2016 11:14:24 +0300
+
 combaine (0.8.1) trusty; urgency=medium
 
   * [Sender] solomon worker pools with push retry (by @OmAsana)

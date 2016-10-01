@@ -21,7 +21,8 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	logger *cocaine.Logger
+	DEFAULT_CONNECTION_ENDPOINT = ":42000"
+	logger                      *cocaine.Logger
 )
 
 type Task struct {
@@ -46,6 +47,9 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = DEFAULT_FIELDS
+	}
+	if task.Config.Endpoint == "" {
+		task.Config.Endpoint = DEFAULT_CONNECTION_ENDPOINT
 	}
 
 	gCli, err := graphite.NewGraphiteClient(&task.Config, task.Id)
