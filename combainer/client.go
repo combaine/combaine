@@ -157,7 +157,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	cl.Log.Info("Session parametrs have been updated successfully")
-	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("Current session parametrs. %v", sp)
+	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("Current session parametrs. %q", sp)
 
 	return sp, nil
 }
@@ -223,7 +223,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.Id = uniqueID
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to parsing", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Parsing task content %v", task)
+		cl.Log.WithFields(contextFields).Debugf("Parsing task content %q", task)
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
@@ -245,7 +245,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.ParsingResult = &parsingResult
 
 		cl.Log.WithFields(contextFields).Infof("Send task number %d/%d to aggregate", i+1, totalTasksAmount)
-		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %v", task)
+		cl.Log.WithFields(contextFields).Debugf("Aggregate task content %q", task)
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
