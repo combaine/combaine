@@ -219,6 +219,8 @@ func TestNetSend(t *testing.T) {
 		if c.withErr {
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), c.expected)
+		} else {
+			assert.Nil(t, err)
 		}
 	}
 
@@ -226,6 +228,13 @@ func TestNetSend(t *testing.T) {
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "too many colons in address")
+
+	connectionEndpoint = ":10101"
+	connectionTimeout = -1
+	reconnectInterval = 5
+	err = gc.Send(cases[1].data, 3)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context deadline exceeded after 3 attempts")
 
 	connectionEndpoint = l.Addr().String()
 	gc = graphiteClient{fields: []string{"A", "B", "C"}}

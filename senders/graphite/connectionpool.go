@@ -28,21 +28,22 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 		return nil, fmt.Errorf("Failed to parse arguments retry or timeout")
 	}
 
-	for i := 0; i < retry; i++ {
+	for i := 1; i <= retry; i++ {
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(timeout)*time.Millisecond)
 		defer cancel()
 		dialer := net.Dialer{DualStack: true}
 		conn, err = dialer.DialContext(ctx, "tcp", endpoint)
 		if err == nil {
 			break
+		} else {
+			err = fmt.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, i)
 		}
 		logger.Debugf("Failed to connect endpoint %s: %s", endpoint, err)
-		time.Sleep(time.Duration(RECONNECT_INTERVAL) * time.Millisecond)
+		if i < retry {
+			time.Sleep(time.Duration(reconnectInterval) * time.Millisecond)
+		}
 	}
-	if err != nil {
-		return nil, fmt.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, retry)
-	}
-	return conn, err
+	return
 }
 
 type ServiceBurner func(string, ...interface{}) (io.WriteCloser, error)

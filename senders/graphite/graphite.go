@@ -12,13 +12,15 @@ import (
 )
 
 const (
-	ONE_POINT_FORMAT   = "%s.combaine.%s.%s %s %d\n"
-	CONNECTION_TIMEOUT = 300 //msec
-	RECONNECT_INTERVAL = 100 //msec
+	ONE_POINT_FORMAT = "%s.combaine.%s.%s %s %d\n"
 )
 
 // var for testing purposes
-var connectionEndpoint = ":42000"
+var (
+	connectionEndpoint = ":42000"
+	connectionTimeout  = 300 //msec
+	reconnectInterval  = 50  //msec
+)
 
 type GraphiteSender interface {
 	Send(tasks.DataType, uint64) error
@@ -155,7 +157,7 @@ func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
 		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
 	}
 
-	sock, err := connPool.Get(connectionEndpoint, 3, CONNECTION_TIMEOUT)
+	sock, err := connPool.Get(connectionEndpoint, 3, connectionTimeout)
 	if err != nil {
 		return err
 	}
