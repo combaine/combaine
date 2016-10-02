@@ -257,15 +257,17 @@ func (w Worker) SendToSolomon(job Job) error {
 		resp, err := httpclient.Do(ctx, req)
 		switch err {
 		case nil:
+			// The default HTTP client's Transport does not attempt to
+			// reuse HTTP/1.0 or HTTP/1.1 TCP connections ("keep-alive")
+			// unless the Body is read to completion and is closed.
+			b, _ := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			// err is nil and there may occure some http errors includeing timeout
 			if resp.StatusCode == http.StatusOK {
-				resp.Body.Close()
 				sendErr = nil
 				logger.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.Id, attempt)
 				break
 			}
-			b, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
 			sendErr = fmt.Errorf("%s bad status='%d %s', response: %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
 			isTimeout = resp.StatusCode == http.StatusRequestTimeout
 		case context.Canceled, context.DeadlineExceeded:
