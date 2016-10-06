@@ -62,6 +62,9 @@ func (ts *tService) Close() {
 	close(ts.r)
 }
 
-func NewService(string, ...interface{}) (Service, error) {
+func NewService(name string, args ...interface{}) (Service, error) {
+	if name == "errorService" {
+		return nil, fmt.Errorf("ask error service")
+	}
 	return &tService{r: make(chan cocaine.ServiceResult)}, nil
 }

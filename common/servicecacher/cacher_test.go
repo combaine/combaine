@@ -22,14 +22,18 @@ func TestServicecacher(t *testing.T) {
 
 	assert.Equal(t, s1, s2, "Unexpected copying")
 
-	_, err = c.Get("magicservice")
-	assert.NoError(t, err)
+	_, err = c.Get("errorService")
+	assert.Error(t, err)
+
 	for i := 0; i < 300; i++ {
 		go func(i int) {
-			_, err := c.Get(fmt.Sprintf("service_%d", i%3))
+			_, err := c.Get(fmt.Sprintf("service_%d", i%10))
 			assert.NoError(t, err)
 		}(i)
 	}
 
 	t.Log("End")
+
+	_, err = NewService("_NonExistingServicetestNewService_")
+	assert.Error(t, err)
 }
