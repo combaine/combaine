@@ -193,50 +193,43 @@ LOCKSERVER_LOOP:
 							defer DLS.Unlock(lockname)
 							defer trap()
 
-							if !c.Repository.ParsingConfigIsExists(cfg) {
-								c.log.WithField("error", "config doesn't exist").Error(cfg)
+							clog := c.log.WithFields(logrus.Fields{"lockname": lockname})
+
+							if !c.Repository.ParsingConfigIsExists(lockname) {
+								clog.Error("config doesn't exist")
 								return
 							}
 
-							c.log.Infof("creating new client %s", lockname)
+							clog.Info("creating new client")
 							cl, err := combainer.NewClient(c.context, c.Repository)
 							if err != nil {
-								c.log.WithFields(logrus.Fields{
-									"error":    err,
-									"lockname": lockname,
-								}).Error("can't create client")
+								clog.Errorf("can't create client %s", err)
 								return
 							}
 
 							watcher, err := DLS.Watch(lockname)
 							if err != nil {
-								c.log.WithFields(logrus.Fields{
-									"error":    err,
-									"lockname": lockname,
-								}).Error("can't create watch")
+								clog.Errorf("can't create watch %s", err)
 								return
 							}
 
 							for {
 								if err = cl.Dispatch(lockname, genUniqueID, shouldWait); err != nil {
-									c.log.WithFields(logrus.Fields{
-										"error":    err,
-										"lockname": lockname,
-									}).Error("Dispatch error")
+									clog.Errorf("Dispatch error %s", err)
 									return
 								}
 								select {
 								case event := <-watcher:
-									if event.Err != nil || event.Type == zk.EventNodeDeleted {
-										c.log.Errorf("lock has been lost: %s", event)
+									// stop Dispatching if lock has been force deleted
+									if event.Type == zk.EventNodeDeleted {
+										clog.Errorf("lock has been deleted: %s", event)
 										return
 									}
+									// retry watch on any error from zk
 									watcher, err = DLS.Watch(lockname)
 									if err != nil {
-										c.log.WithFields(logrus.Fields{
-											"error":    err,
-											"lockname": lockname,
-										}).Error("can't continue watching")
+										// Dispatching will be stop here
+										clog.Errorf("lock has been lost %s, can't continue watching %s", event.Err, err)
 										return
 									}
 								default:

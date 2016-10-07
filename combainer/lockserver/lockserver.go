@@ -79,7 +79,19 @@ func (ls *LockServer) Lock(node string) error {
 func (ls *LockServer) Unlock(node string) error {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
 	ls.log.Infof("Unlocking %s", path)
-	return ls.Conn.Delete(path, -1)
+	content, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
+		if data, _, err := ls.Conn.Get(path); err != nil || string(data) == string(content) {
+			// trying delete node only if current host is owner
+			// in other case another cluster member probably grab lock
+			return ls.Conn.Delete(path, -1)
+		}
+	}
+	return nil
 }
 
 func (ls *LockServer) Watch(node string) (<-chan zk.Event, error) {
