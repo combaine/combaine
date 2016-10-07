@@ -215,6 +215,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	pctx, cancelFunc := context.WithDeadline(wctx, startTime.Add(sessionParameters.ParsingTime))
 	defer cancelFunc()
 
+	cl.Log.WithFields(contextFields).Infof("Send %d tasks to parsing", totalTasksAmount)
 	var wg sync.WaitGroup
 	for i, task := range sessionParameters.PTasks {
 		// Description of task
@@ -222,7 +223,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.Id = uniqueID
 
-		cl.Log.WithFields(contextFields).Infof("Send %d tasks to parsing", totalTasksAmount)
 		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to parsing, content: %q", i+1, totalTasksAmount, task)
 
 		wg.Add(1)
@@ -234,17 +234,17 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		}(task)
 	}
 	wg.Wait()
-
 	cl.Log.WithFields(contextFields).Infof("Parsing finished for %d hosts", len(parsingResult.Data))
+
 	// Aggregation phase
 	totalTasksAmount = len(sessionParameters.AggTasks)
+	cl.Log.WithFields(contextFields).Infof("Send %d tasks to aggregate", totalTasksAmount)
 	for i, task := range sessionParameters.AggTasks {
 		task.Frame.Previous = startTime.Unix()
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.Id = uniqueID
 		task.ParsingResult = &parsingResult
 
-		cl.Log.WithFields(contextFields).Infof("Send %d tasks to aggregate", totalTasksAmount)
 		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to aggregate, content: %q", i+1, totalTasksAmount, task)
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
