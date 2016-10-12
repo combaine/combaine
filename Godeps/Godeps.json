@@ -127,48 +127,48 @@
 		},
 		{
 			"ImportPath": "google.golang.org/grpc",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/codes",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/credentials",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/grpclog",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/internal",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/metadata",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/naming",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/peer",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "google.golang.org/grpc/transport",
-			"Comment": "v1.0.1-GA",
-			"Rev": "0032a855ba5c8a3c8e0d71c2deef354b70af1584"
+			"Comment": "v1.0.2-30-g9eaed1a",
+			"Rev": "9eaed1a74af580b44448989c8ed830bc210bddf4"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
