@@ -276,10 +276,10 @@ func dialContext(ctx context.Context, hosts []string) (*grpc.ClientConn, error) 
 	for {
 		// TODO: port must be got from autodiscovery
 		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
-		conn, err := grpc.DialContext(ctx, address,
+		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
+		conn, err := grpc.DialContext(tctx, address,
 			grpc.WithInsecure(),
 			grpc.WithBlock(),
-			grpc.WithTimeout(time.Millisecond*100),
 			grpc.WithCompressor(grpc.NewGZIPCompressor()),
 			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
 		)
@@ -287,8 +287,10 @@ func dialContext(ctx context.Context, hosts []string) (*grpc.ClientConn, error) 
 		case nil:
 			return conn, err
 		case context.Canceled, context.DeadlineExceeded:
+			tcancel()
 			return nil, err
 		default:
+			tcancel()
 			// NOTE: to be sure that DialContext returns context's errors
 			if err = ctx.Err(); err != nil {
 				return nil, err
