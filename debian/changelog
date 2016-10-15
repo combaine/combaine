@@ -1,3 +1,9 @@
+combaine (0.8.4) trusty; urgency=medium
+
+  * [client] fix dial context to gRPC worker
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sat, 15 Oct 2016 17:40:43 +0300
+
 combaine (0.8.3) trusty; urgency=medium
 
   * [gRPC] update to 1.0.2.x
