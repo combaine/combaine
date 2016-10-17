@@ -271,7 +271,7 @@ func getRandomHost(input []string) string {
 }
 
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
-	for _ = range hosts {
+	for range hosts {
 		// TODO: port must be got from autodiscovery
 		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
 		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
