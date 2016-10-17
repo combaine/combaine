@@ -271,6 +271,7 @@ func getRandomHost(input []string) string {
 }
 
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
+RETURN:
 	for range hosts {
 		// TODO: port must be got from autodiscovery
 		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
@@ -287,20 +288,20 @@ func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, er
 		case <-ctx.Done():
 			err = ctx.Err()
 			tcancel()
-			break
+			break RETURN
 		default:
 		}
 
 		switch err {
 		case nil:
-			break
+			break RETURN
 		case context.Canceled, context.DeadlineExceeded:
 			tcancel()
 		default:
 			tcancel()
 			// NOTE: to be sure that DialContext returns context's errors
 			if err = ctx.Err(); err != nil {
-				break
+				break RETURN
 			}
 		}
 	}
