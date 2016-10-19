@@ -49,9 +49,7 @@ func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 }
 
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
-	cl.Log.WithFields(logrus.Fields{
-		"config": config,
-	}).Info("updating session parametrs")
+	cl.Log.WithFields(logrus.Fields{"config": config}).Info("updating session parametrs")
 
 	var (
 		// tasks
@@ -269,34 +267,57 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 func getRandomHost(input []string) string {
 	max := len(input)
+	if max == 0 {
+		return ""
+	}
 	return input[rand.Intn(max)]
 }
 
-func dialContext(ctx context.Context, hosts []string) (*grpc.ClientConn, error) {
-	for {
+func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("empty list of hosts")
+	}
+RETURN:
+	for range hosts {
 		// TODO: port must be got from autodiscovery
 		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
 		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
-		conn, err := grpc.DialContext(tctx, address,
+		conn, err = grpc.DialContext(tctx, address,
 			grpc.WithInsecure(),
 			grpc.WithBlock(),
 			grpc.WithCompressor(grpc.NewGZIPCompressor()),
 			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
 		)
+		select {
+		// check that main context is not exceeded
+		// because below we cannot distinguish it from tctx
+		case <-ctx.Done():
+			err = ctx.Err()
+			tcancel()
+			break RETURN
+		default:
+		}
+
 		switch err {
 		case nil:
-			return conn, err
+			break RETURN
 		case context.Canceled, context.DeadlineExceeded:
 			tcancel()
-			return nil, err
 		default:
 			tcancel()
 			// NOTE: to be sure that DialContext returns context's errors
 			if err = ctx.Err(); err != nil {
-				return nil, err
+				break RETURN
 			}
 		}
 	}
+	if err != nil {
+		if conn != nil {
+			conn.Close()
+			conn = nil
+		}
+	}
+	return conn, err
 }
 
 func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, hosts []string, r rpc.ParsingResult) {
@@ -328,7 +349,9 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.AggregatingTask, hosts []string) {
 	conn, err := dialContext(ctx, hosts)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doParsing"}).Error("grpcDial error")
+		cl.Log.WithFields(
+			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
+		).Error("grpcDial error")
 		cl.clientStats.AddFailedParsing()
 		return
 	}
@@ -337,6 +360,9 @@ func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.Aggregatin
 
 	_, err = c.DoAggregating(ctx, task)
 	if err != nil {
+		cl.Log.WithFields(
+			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
+		).Error("reply error")
 		cl.clientStats.AddFailedAggregate()
 		return
 	}

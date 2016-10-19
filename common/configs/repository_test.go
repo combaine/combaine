@@ -14,9 +14,7 @@ func TestUtilityFunctions(t *testing.T) {
 }
 
 func TestRepository(t *testing.T) {
-	const (
-		repopath = "../../tests/fixtures/configs"
-	)
+	const repopath = "../../tests/fixtures/configs"
 
 	var (
 		expectedPcfg      = []string{"aggCore", "img_status"}
