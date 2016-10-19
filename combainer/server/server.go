@@ -81,7 +81,6 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 	log.Infof("Initialized combainer cache type: %s", cacheType)
 
-	// Get Combaine hosts
 	context := &combainer.Context{
 		Cache:  cacher,
 		Serf:   nil,

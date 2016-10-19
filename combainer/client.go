@@ -267,10 +267,16 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 
 func getRandomHost(input []string) string {
 	max := len(input)
+	if max == 0 {
+		return ""
+	}
 	return input[rand.Intn(max)]
 }
 
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("empty list of hosts")
+	}
 RETURN:
 	for range hosts {
 		// TODO: port must be got from autodiscovery
