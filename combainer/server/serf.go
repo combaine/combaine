@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/hashicorp/memberlist"
@@ -88,16 +87,16 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 		return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
 	for _, ip := range ips {
-		if ip.IsGlobalUnicast() {
-			ipStr := ip.String()
-			if strings.Contains(ipStr, ":") {
-				// pick first non local ipv6 address
-				// TODO (sakateka) neeed make pick deterministic way
-				s.log.Infof("Advertise Serf address: %s", ips[0].String())
-				conf.MemberlistConfig.AdvertiseAddr = ips[0].String()
-				break
-			}
+		// pick first non local ipv6 address
+		// TODO (sakateka) neeed make pick deterministic way
+		if ip.IsGlobalUnicast() && ip.To4() == nil {
+			s.log.Infof("Advertise Serf address: %s", ip.String())
+			conf.MemberlistConfig.AdvertiseAddr = ip.String()
+			break
 		}
+	}
+	if conf.MemberlistConfig.AdvertiseAddr == "" {
+		return nil, fmt.Errorf("AdvertiseAddr is not set for Serf")
 	}
 
 	// TODO (sakateka) move to configs
