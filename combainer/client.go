@@ -2,7 +2,6 @@ package combainer
 
 import (
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/hashicorp/serf/serf"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
@@ -34,18 +32,35 @@ type Client struct {
 	*Context
 	Log *logrus.Entry
 	clientStats
+
+	conn *grpc.ClientConn
 }
 
 // NewClient returns new client
 func NewClient(context *Context, repo configs.Repository) (*Client, error) {
 	id := GenerateSessionId()
+	conn, err := grpc.Dial("worker",
+		grpc.WithBalancer(context.Balancer),
+		grpc.WithInsecure(),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	if err != nil {
+		return nil, err
+	}
 	cl := &Client{
 		ID:         id,
 		Repository: repo,
 		Context:    context,
 		Log:        context.Logger.WithField("client", id),
+
+		conn: conn,
 	}
 	return cl, nil
+}
+
+// Close releases grpc.ClientConn
+func (cl *Client) Close() error {
+	return cl.conn.Close()
 }
 
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
@@ -186,25 +201,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(contextFields).Info("Start new iteration")
-	serfMembers := cl.Context.Serf.Members()
-	hosts := make([]string, 0, len(serfMembers))
-	for _, m := range serfMembers {
-		// TODO (sakateka): make Serf wrapper, and define method
-		// that return only alive nodes
-		if m.Status == serf.StatusAlive {
-			hosts = append(hosts, m.Name)
-		}
-	}
-	if err != nil || len(hosts) == 0 {
-		cl.Log.WithFields(
-			logrus.Fields{"session": uniqueID, "config": parsingConfigName, "error": err},
-		).Error("unable to get (or empty) the list of the cloud hosts")
-		return err
-	}
-	cl.Log.WithFields(
-		logrus.Fields{"session": uniqueID, "config": parsingConfigName},
-	).Debugf("Dispatch task to cloud hosts: %s", hosts)
-
 	// Parsing phase
 	totalTasksAmount := len(sessionParameters.PTasks)
 	tokens := make(chan struct{}, sessionParameters.ParallelParsings)
@@ -228,7 +224,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		go func(t rpc.ParsingTask) {
 			defer wg.Done()
 			defer func() { <-tokens }() // release
-			cl.doParsing(pctx, &t, &mu, hosts, parsingResult)
+			cl.doParsing(pctx, &t, &mu, parsingResult)
 		}(task)
 	}
 	wg.Wait()
@@ -247,7 +243,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
-			cl.doAggregationHandler(wctx, &t, hosts)
+			cl.doAggregationHandler(wctx, &t)
 		}(task)
 	}
 	wg.Wait()
@@ -265,71 +261,8 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	return nil
 }
 
-func getRandomHost(input []string) string {
-	max := len(input)
-	if max == 0 {
-		return ""
-	}
-	return input[rand.Intn(max)]
-}
-
-func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
-	if len(hosts) == 0 {
-		return nil, fmt.Errorf("empty list of hosts")
-	}
-RETURN:
-	for range hosts {
-		// TODO: port must be got from autodiscovery
-		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
-		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
-		conn, err = grpc.DialContext(tctx, address,
-			grpc.WithInsecure(),
-			grpc.WithBlock(),
-			grpc.WithCompressor(grpc.NewGZIPCompressor()),
-			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		)
-		select {
-		// check that main context is not exceeded
-		// because below we cannot distinguish it from tctx
-		case <-ctx.Done():
-			err = ctx.Err()
-			tcancel()
-			break RETURN
-		default:
-		}
-
-		switch err {
-		case nil:
-			break RETURN
-		case context.Canceled, context.DeadlineExceeded:
-			tcancel()
-		default:
-			tcancel()
-			// NOTE: to be sure that DialContext returns context's errors
-			if err = ctx.Err(); err != nil {
-				break RETURN
-			}
-		}
-	}
-	if err != nil {
-		if conn != nil {
-			conn.Close()
-			conn = nil
-		}
-	}
-	return conn, err
-}
-
-func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, hosts []string, r rpc.ParsingResult) {
-	conn, err := dialContext(ctx, hosts)
-	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doParsing"}).Error("grpcDial error")
-		cl.clientStats.AddFailedParsing()
-		return
-	}
-	defer conn.Close()
-
-	c := rpc.NewWorkerClient(conn)
+func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, r rpc.ParsingResult) {
+	c := rpc.NewWorkerClient(cl.conn)
 	reply, err := c.DoParsing(ctx, task)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doParsing"}).Error("reply error")
@@ -346,23 +279,11 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 
 }
 
-func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.AggregatingTask, hosts []string) {
-	conn, err := dialContext(ctx, hosts)
+func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.AggregatingTask) {
+	c := rpc.NewWorkerClient(cl.conn)
+	_, err := c.DoAggregating(ctx, task)
 	if err != nil {
-		cl.Log.WithFields(
-			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
-		).Error("grpcDial error")
-		cl.clientStats.AddFailedParsing()
-		return
-	}
-	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
-
-	_, err = c.DoAggregating(ctx, task)
-	if err != nil {
-		cl.Log.WithFields(
-			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
-		).Error("reply error")
+		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"}).Error("reply error")
 		cl.clientStats.AddFailedAggregate()
 		return
 	}

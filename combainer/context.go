@@ -2,7 +2,7 @@ package combainer
 
 import (
 	"github.com/combaine/combaine/common/cache"
-	"github.com/hashicorp/serf/serf"
+	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -11,6 +11,6 @@ type CloudHostsDelegate func() ([]string, error)
 
 type Context struct {
 	*logrus.Logger
-	Cache cache.Cache
-	Serf  *serf.Serf
+	Cache    cache.Cache
+	Balancer grpc.Balancer
 }

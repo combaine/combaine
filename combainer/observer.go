@@ -158,6 +158,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer cl.Close()
 
 	sp, err := cl.updateSessionParams(name)
 	if err != nil {
@@ -181,9 +182,9 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	logger.Out = w
 
 	ctx := &Context{
-		Logger: logger,
-		Cache:  s.GetContext().Cache,
-		Serf:   s.GetContext().Serf,
+		Logger:   logger,
+		Cache:    s.GetContext().Cache,
+		Balancer: s.GetContext().Balancer,
 	}
 
 	cl, err := NewClient(ctx, s.GetRepository())
@@ -191,6 +192,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer cl.Close()
 
 	ID := GenerateSessionId()
 	err = cl.Dispatch(name, ID, false)
