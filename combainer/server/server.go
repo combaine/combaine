@@ -145,7 +145,7 @@ func (c *CombaineServer) Serve() error {
 		c.log.Errorf("Failed to connectSerf: %s", err)
 	}
 
-	c.resolver.handleSerfEvents()
+	go c.resolver.handleSerfEvents()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
