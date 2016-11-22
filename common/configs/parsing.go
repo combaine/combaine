@@ -28,11 +28,11 @@ type ParsingConfig struct {
 	Placeholders map[string]interface{} `yaml:"Placeholders,omitempty"`
 }
 
-func (p *ParsingConfig) GetGroup() string {
-	return p.Groups[0]
-}
-
 func (p *ParsingConfig) GetMetahost() string {
+	if p.Metahost == "" {
+		p.Metahost = p.Groups[0]
+	}
+
 	return p.Metahost
 }
 
@@ -49,10 +49,6 @@ func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) error {
 	p.DataFetcher = config.CloudSection.DataFetcher
 	PluginConfigsUpdate(&config.CloudSection.HostFetcher, &p.HostFetcher)
 	p.HostFetcher = config.CloudSection.HostFetcher
-
-	if p.Metahost == "" {
-		p.Metahost = p.Groups[0]
-	}
 
 	return nil
 }

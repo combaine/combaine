@@ -81,8 +81,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	cl.Log.Infof("updating config: group %s, metahost %s",
-		parsingConfig.GetGroup(), parsingConfig.GetMetahost())
+	cl.Log.Infof("updating config metahost: %s", parsingConfig.GetMetahost())
 
 	hostFetcher, err := LoadHostFetcher(cl.Context, parsingConfig.HostFetcher)
 	if err != nil {
