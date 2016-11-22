@@ -53,6 +53,7 @@ func TestInit(t *testing.T) {
 func TestAggregating(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
+	testDone := make(chan struct{})
 	hostsPerDc := map[string][]string{
 		"DC1": {"Host1", "Host2"},
 		"DC2": {"Host3", "Host4"},
@@ -81,6 +82,8 @@ func TestAggregating(t *testing.T) {
 	}
 
 	go func() {
+		defer close(testDone)
+
 		expectAggregatingGroup := map[string]bool{
 			"Host1":                false,
 			"Host2":                false,
@@ -151,6 +154,7 @@ func TestAggregating(t *testing.T) {
 		}
 	}()
 	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+	<-testDone
 }
 
 func TestEnqueue(t *testing.T) {
