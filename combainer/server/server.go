@@ -6,6 +6,8 @@ import (
 	"os/signal"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/serf/serf"
 	"github.com/talbright/go-zookeeper/zk"
@@ -34,8 +36,11 @@ type CombaineServer struct {
 
 	// serfEventCh is used to receive events from the serf cluster
 	serfEventCh chan serf.Event
+
+	// TODO: move all cluster stuff to a component
 	// instance of Serf
 	Serf       *serf.Serf
+	resolver   *serfResolver
 	shutdownCh chan struct{}
 
 	configs.Repository
@@ -82,9 +87,9 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	log.Infof("Initialized combainer cache type: %s", cacheType)
 
 	context := &combainer.Context{
-		Cache:  cacher,
-		Serf:   nil,
-		Logger: logrus.StandardLogger(),
+		Cache:    cacher,
+		Balancer: nil,
+		Logger:   logrus.StandardLogger(),
 	}
 
 	server := &CombaineServer{
@@ -105,7 +110,14 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		}
 		log.Fatalf("Failed to start serf: %s", err)
 	}
-	server.context.Serf = server.Serf
+
+	server.resolver = &serfResolver{
+		Serf:        server.Serf,
+		serfEventCh: server.serfEventCh,
+		watchers:    make([]watcher, 1),
+	}
+
+	server.context.Balancer = grpc.RoundRobin(server.resolver)
 
 	return server, nil
 }
@@ -132,7 +144,8 @@ func (c *CombaineServer) Serve() error {
 	if err := c.connectSerf(); err != nil {
 		c.log.Errorf("Failed to connectSerf: %s", err)
 	}
-	go c.serfEventHandler()
+
+	go c.resolver.handleSerfEvents()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
@@ -205,6 +218,7 @@ LOCKSERVER_LOOP:
 								clog.Errorf("can't create client %s", err)
 								return
 							}
+							defer cl.Close()
 
 							watcher, err := DLS.Watch(lockname)
 							if err != nil {
