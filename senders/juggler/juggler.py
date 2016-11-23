@@ -148,6 +148,7 @@ class Juggler(object):
                                    % (var, expr, str(err)))
         self.variables.update(helpers_globals)
         self.log.debug("available vars: %s" % str(self.variables))
+        self._cache = {}
 
     def Do(self, data):
         packed = collections.defaultdict(dict)
@@ -170,7 +171,8 @@ class Juggler(object):
                 self.log.debug("Send ok manually")
                 IOLoop.current().add_callback(self.send_point,
                                               "%s-%s" % (self.Host, subgroup),
-                                              REVERSE_STATUSES["OK"])
+                                              REVERSE_STATUSES["OK"],
+                                              "Set ok by default case")
         return True
 
     def on_resp(self, resp):
@@ -270,11 +272,14 @@ class Juggler(object):
                 #Check existnace of service
                 url = CHECK_CHECK.format(**params)
                 self.log.info("Check %s" % url)
-                response = yield HTTP_CLIENT.fetch(url,
-                                                   headers=DEFAULT_HEADERS)
+                if self._cache.get(url, False):
+                    resp = "true"
+                else:
+                    response = yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
+                    resp = response.body
 
                 # check doesn't exist
-                if response.body == "false":
+                if resp == "false":
                     url = ADD_CHECK.format(**params)
                     self.log.info("Add check %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
@@ -287,7 +292,7 @@ class Juggler(object):
                     self.log.info("Add method %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
 
-                elif response.body == "true":
+                elif resp == "true":
                     # check exists, but existance of child must be checked
                     url = LIST_CHILD.format(**params)
                     try:
@@ -338,6 +343,7 @@ class Juggler(object):
             except Exception as err:
                 self.log.error(str(err))
             else:
+                self._cache[url] = True
                 break
 
         yield True
