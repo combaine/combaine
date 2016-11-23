@@ -153,6 +153,11 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 
 	var sendersWg sync.WaitGroup
 	for name, item := range aggregationConfig.Senders {
+		if _, ok := item["Host"]; !ok {
+			// parsing metahost as default value for plugin config
+			item["Host"] = meta
+		}
+
 		sendersWg.Add(1)
 		go func(g *sync.WaitGroup, n string, i configs.PluginConfig) {
 			defer g.Done()

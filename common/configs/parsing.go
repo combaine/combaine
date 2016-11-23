@@ -28,14 +28,6 @@ type ParsingConfig struct {
 	Placeholders map[string]interface{} `yaml:"Placeholders,omitempty"`
 }
 
-func (p *ParsingConfig) GetGroup() string {
-	return p.Groups[0]
-}
-
-func (p *ParsingConfig) GetMetahost() string {
-	return p.Metahost
-}
-
 func (p *ParsingConfig) SkipParsingStage() bool {
 	return p.Parser == ParserSkipValue || p.Parser == ""
 }
