@@ -50,3 +50,12 @@ src/*
 reports/
 coverage.txt
 profile.out
+
+# debian
+debian/*.debhelper*
+debian/*.substvar*
+debian/files
+debian/combaine-core/
+debian/combaine-presetting/
+debian/combaine-worker-ubic/
+debian/combainer/
