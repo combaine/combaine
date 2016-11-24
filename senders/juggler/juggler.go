@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/combaine/combaine/common/tasks"
+	lua "github.com/yuin/gopher-lua"
 
 	"gopkg.in/yaml.v2"
 )
@@ -19,8 +20,8 @@ type JugglerConfig struct {
 	CheckName     string                 `codec:"checkname"`
 	Description   string                 `codec:"description"`
 	JPluginConfig map[string]interface{} `codec:"config"`
-	JHosts        []string               `yaml:"juggler_hosts"`
-	JFrontend     []string               `yaml:"juggler_frontend"`
+	JHosts        []string               `codec:"juggler_hosts"`
+	JFrontend     []string               `codec:"juggler_frontend"`
 }
 
 type jugglerServers struct {
@@ -29,6 +30,7 @@ type jugglerServers struct {
 }
 
 type JugglerSender struct {
+	state *lua.LState
 }
 
 // GetJugglerConfig read yaml file with two arrays of hosts
@@ -55,5 +57,6 @@ func NewJugglerClient(conf *JugglerConfig, id string) (*JugglerSender, error) {
 }
 
 func (js *JugglerSender) Send(data tasks.DataType) error {
+	js.dataToLuaTable(data)
 	return nil
 }
