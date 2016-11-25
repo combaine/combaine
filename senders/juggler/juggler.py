@@ -7,7 +7,7 @@ import urllib
 
 import msgpack
 
-from tornado.httpclient import AsyncHTTPClient
+from tornado.httpclient import AsyncHTTPClient,HTTPClient
 from tornado.httpclient import HTTPError
 from tornado.httputil import HTTPHeaders
 from tornado.ioloop import IOLoop
@@ -32,6 +32,7 @@ DEFAULT_AGGREGATOR_KWARGS = {"ignore_nodata": 1}
 REVERSE_STATUSES = dict((v, k) for k, v in STATUSES.iteritems())
 
 HTTP_CLIENT = AsyncHTTPClient()
+SYNC_HTTP_CLIENT = HTTPClient()
 
 CHECK_CHECK = "http://{juggler}/api/checks/has_check?host_name={host}&\
 service_name={service}&do=1"
@@ -156,8 +157,11 @@ class Juggler(object):
                 packed[subgroup][aggname] = value
 
         generated = ((k, v) for k, v in packed.iteritems() if not filtered_by_end(k, self.subgroup_notendswith_filters))
+
+        self.root_check_exists = self.check_root_check()
+
         for subgroup, value in generated:
-            self.log.debug("Habdling subgroup %s" % subgroup)
+            self.log.debug("Handling subgroup %s" % subgroup)
             if self.check(value, subgroup, "CRIT"):
                 self.log.debug("CRIT")
             elif self.check(value, subgroup, "WARN"):
@@ -221,6 +225,25 @@ class Juggler(object):
                 self.log.error(repr(err))
         return False
 
+    def check_root_check(self):
+        params = {"host": self.Host,
+                  "service": urllib.quote(self.checkname)}
+
+        for jhost in self.juggler_hosts:
+            try:
+                params["juggler"] = jhost
+
+                url = CHECK_CHECK.format(**params)
+                self.log.info("Check root check: %s" % url)
+                response = SYNC_HTTP_CLIENT.fetch(url)
+                return response.body
+            except HTTPError as e:
+                self.log.error(str(err))
+                continue
+            except Exception as e:
+                self.log.error(str(err))
+
+
     @chain.source
     def send_point(self, name, status, trigger_description=None):
         if trigger_description is None:
@@ -267,14 +290,9 @@ class Juggler(object):
             try:
                 self.log.info("Work with %s" % jhost)
                 params["juggler"] = jhost
-                #Check existnace of service
-                url = CHECK_CHECK.format(**params)
-                self.log.info("Check %s" % url)
-                response = yield HTTP_CLIENT.fetch(url,
-                                                   headers=DEFAULT_HEADERS)
 
                 # check doesn't exist
-                if response.body == "false":
+                if self.root_check_exists == "false":
                     url = ADD_CHECK.format(**params)
                     self.log.info("Add check %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
@@ -287,7 +305,7 @@ class Juggler(object):
                     self.log.info("Add method %s" % url)
                     yield HTTP_CLIENT.fetch(url, headers=DEFAULT_HEADERS)
 
-                elif response.body == "true":
+                elif self.root_check_exists == "true":
                     # check exists, but existance of child must be checked
                     url = LIST_CHILD.format(**params)
                     try:
@@ -317,7 +335,7 @@ class Juggler(object):
                                        " info about childs %s" % str(err))
                         continue
                 else:
-                    self.log.error("unexpected reply from `has_check`: %s" % response.body)
+                    self.log.error("unexpected reply from `has_check`: %s" % self.root_check_exists)
 
                 if self.flap is not None:
                     url = CHECK_FLAP.format(**params)
@@ -362,7 +380,7 @@ def send(request, response):
     try:
         raw = yield request.read()
         task = msgpack.unpackb(raw)
-        log.info("%s" % str(task))
+        log.info("Task data: %s" % str(task))
         ID = task.get("Id", "MissingID")
         hosts = JConfig.get_config()
         juggler_config = task['Config']
