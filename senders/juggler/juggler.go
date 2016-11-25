@@ -56,7 +56,15 @@ func NewJugglerClient(conf *JugglerConfig, id string) (*JugglerSender, error) {
 	return &JugglerSender{}, nil
 }
 
+func (js *JugglerSender) prepareLuaPlugin() error {
+	js.state = lua.NewState()
+	ltable, err := js.dataToLuaTable(data)
+	if err != nil {
+		return err
+	}
+}
+
 func (js *JugglerSender) Send(data tasks.DataType) error {
-	js.dataToLuaTable(data)
+	js.prepareLuaPlugin()
 	return nil
 }
