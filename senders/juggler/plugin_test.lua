@@ -1,16 +1,11 @@
-function printtable()
-    pprint("", table)
-end
-
-function pprint(key, t)
-    for k, v in pairs(t) do
-        if key ~= "" then
-            k = key .. "." .. k
-        end
+function sumTable(t)
+    local result = 0
+    for _, v in pairs(t) do
         if type(v) == "table" then
-            pprint(k, v)
+            result = result + sumTable(v)
         else
-            print(k .. " is " .. string.format("%.3f", v))
+            result = result + v
         end
     end
+    return result
 end

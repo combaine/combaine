@@ -12,11 +12,9 @@ import (
 var logger *cocaine.Logger
 
 type Task struct {
-	Id       string
-	Data     tasks.DataType
-	Config   juggler.JugglerConfig
-	CurrTime uint64
-	PrevTime uint64
+	Id     string
+	Data   tasks.DataType
+	Config juggler.JugglerConfig
 }
 
 func Send(request *cocaine.Request, response *cocaine.Response) {
@@ -59,7 +57,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	logger.Debugf("Task: %v", task)
 
-	jCli, err := juggler.NewJugglerClient(&task.Config, task.Id)
+	jCli, err := juggler.NewJugglerClient(task.Config, task.Id)
 	if err != nil {
 		logger.Errf("Unexpected error %s", err)
 		response.ErrorMsg(-100, err.Error())

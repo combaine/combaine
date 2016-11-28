@@ -5,19 +5,18 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	lua "github.com/yuin/gopher-lua"
 )
 
-func (js *JugglerSender) dataToLuaTable(in tasks.DataType) (*lua.LTable, error) {
-	out := js.state.NewTable()
+func dataToLuaTable(l *lua.LState, in tasks.DataType) (*lua.LTable, error) {
+	out := l.NewTable()
 	for host, item := range in {
-		tableHost := js.state.NewTable()
+		tableHost := l.NewTable()
 		out.RawSetString(host, tableHost)
 		for metric, value := range item {
 			rv := reflect.ValueOf(value)
-			if err := dump(js.state, tableHost, metric, rv); err != nil {
+			if err := dumpToLuaTable(l, tableHost, metric, rv); err != nil {
 				return nil, err
 			}
 		}
@@ -25,15 +24,15 @@ func (js *JugglerSender) dataToLuaTable(in tasks.DataType) (*lua.LTable, error) 
 	return out, nil
 }
 
-func dump(l *lua.LState, t *lua.LTable, key string, rv reflect.Value) (err error) {
+func dumpToLuaTable(l *lua.LState, t *lua.LTable, key string, rv reflect.Value) (err error) {
 
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		err = dumpSlice(l, t, key, rv)
+		err = dumpSliceToLuaTable(l, t, key, rv)
 	case reflect.Map:
-		err = dumpMap(l, t, key, rv)
+		err = dumpMapToLuaTable(l, t, key, rv)
 	default:
-		v, err := dumpPoint(rv)
+		v, err := dumpItemToLuaNumber(rv)
 		if err != nil {
 			return err
 		}
@@ -42,7 +41,7 @@ func dump(l *lua.LState, t *lua.LTable, key string, rv reflect.Value) (err error
 	return
 }
 
-func dumpMap(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) (err error) {
+func dumpMapToLuaTable(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) (err error) {
 	inTable := l.NewTable()
 	t.RawSetString(k, inTable)
 
@@ -51,7 +50,7 @@ func dumpMap(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) (err erro
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
 		//logger.Infof("Item of key %s is: %v", key, itemInterface.Kind())
 
-		err = dump(l, inTable, key.String(), itemInterface)
+		err = dumpToLuaTable(l, inTable, key.String(), itemInterface)
 		if err != nil {
 			return
 		}
@@ -59,18 +58,13 @@ func dumpMap(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) (err erro
 	return nil
 }
 
-func dumpSlice(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) error {
-	if len(js.Fields) == 0 || len(js.Fields) != rv.Len() {
-		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d", js.id, len(js.Fields), rv.Len())
-		logger.Errf(msg)
-		return fmt.Errorf(msg)
-	}
+func dumpSliceToLuaTable(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) error {
 	inTable := l.NewTable()
 	t.RawSetString(k, inTable)
 
 	for i := 0; i < rv.Len(); i++ {
 		item := reflect.ValueOf(rv.Index(i).Interface())
-		v, err := dumpPoint(item)
+		v, err := dumpItemToLuaNumber(item)
 		if err != nil {
 			return err
 		}
@@ -79,7 +73,7 @@ func dumpSlice(l *lua.LState, t *lua.LTable, k string, rv reflect.Value) error {
 	return nil
 }
 
-func dumpPoint(value reflect.Value) (ret lua.LNumber, err error) {
+func dumpItemToLuaNumber(value reflect.Value) (ret lua.LNumber, err error) {
 
 	switch value.Kind() {
 	case reflect.Float32, reflect.Float64:
@@ -95,7 +89,7 @@ func dumpPoint(value reflect.Value) (ret lua.LNumber, err error) {
 			ret = lua.LNumber(num)
 		}
 	default:
-		err = fmt.Errorf("%s value %s is Not a Number: %v", js.id, value.Kind(), value)
+		err = fmt.Errorf("value %s is Not a Number: %v", value.Kind(), value)
 	}
 	return
 }
