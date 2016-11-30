@@ -71,9 +71,9 @@ func NewJugglerClient(conf JugglerConfig, id string) (*jugglerSender, error) {
 	}, nil
 }
 
-func (js *jugglerSender) preparePlugin() error {
+func (js *jugglerSender) preparePlugin(taskData tasks.DataType) error {
 	// TODO: overwrite/cleanup globals in lua plugin?
-	ltable, err := dataToLuaTable(js.state, data)
+	ltable, err := dataToLuaTable(js.state, taskData)
 	if err != nil {
 		return fmt.Errorf("%s Failed to convert taskData to lua table: %s", js.id, err)
 	}
@@ -123,7 +123,7 @@ func (js *jugglerSender) runPlugin() error {
 }
 
 func (js *jugglerSender) Send(data tasks.DataType) error {
-	if err := js.preparePlugin(); err != nil {
+	if err := js.preparePlugin(data); err != nil {
 		return err
 	}
 
