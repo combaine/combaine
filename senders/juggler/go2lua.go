@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -48,8 +49,6 @@ func dumpMapToLuaTable(l *lua.LState, t *lua.LTable, k string, rv reflect.Value)
 	keys := rv.MapKeys()
 	for _, key := range keys {
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-		//logger.Infof("Item of key %s is: %v", key, itemInterface.Kind())
-
 		err = dumpToLuaTable(l, inTable, key.String(), itemInterface)
 		if err != nil {
 			return
@@ -92,4 +91,40 @@ func dumpItemToLuaNumber(value reflect.Value) (ret lua.LNumber, err error) {
 		err = fmt.Errorf("value %s is Not a Number: %v", value.Kind(), value)
 	}
 	return
+}
+
+func luaResultToJugglerEvents(defaultLevel int, result *lua.LTable) ([]jugglerEvent, error) {
+	if result == nil {
+		return nil, errors.New("lua plugin result is nil")
+	}
+
+	var errs []error
+	var events []jugglerEvent
+	result.ForEach(func(k lua.LValue, v lua.LValue) {
+		lt, ok := v.(*lua.LTable)
+		if !ok {
+			errs = append(errs, fmt.Errorf("Failed to convert: result[%s]=%s is not lua table",
+				lua.LVAsString(k), lua.LVAsString(v)))
+		}
+		je := jugglerEvent{}
+		if je.Host = lua.LVAsString(lt.RawGetString("host")); je.Host == "" {
+			je.Host = "UnknownHost"
+		}
+		if je.Description = lua.LVAsString(lt.RawGetString("description")); je.Description == "" {
+			je.Description = "no trigger description"
+		}
+		if je.Service = lua.LVAsString(lt.RawGetString("service")); je.Service == "" {
+			je.Service = "UnknownServce"
+		}
+		if level := lt.RawGetString("level"); level != lua.LNil {
+			je.Level = int(lua.LVAsNumber(level))
+		} else {
+			je.Level = defaultLevel
+		}
+		events = append(events, je)
+	})
+	if errs != nil {
+		return nil, fmt.Errorf("%s", errs)
+	}
+	return events, nil
 }
