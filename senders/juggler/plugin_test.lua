@@ -65,8 +65,6 @@ function testQuery(t)
             end
         end
     end
-    result[#result + 1] = {}
     return result
-
 end
 

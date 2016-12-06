@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
@@ -33,13 +34,13 @@ type Conditions struct {
 
 type JugglerConfig struct {
 	Host             string                  `codec:"Host"`
-	Method           string                  `codec:"Method"`
+	Methods          []string                `codec:"Methods"`
 	Aggregator       string                  `codec:"Aggregator"`
 	CheckName        string                  `codec:"checkname"`
 	Description      string                  `codec:"description"`
 	AggregatorKWargs JugglerAggregatorKWArgs `codec:"aggregator_kwargs"`
 	Flap             JugglerFlapConfig       `codec:"flap"`
-	JPluginConfig    map[string]string       `codec:"config"`
+	JPluginConfig    configs.PluginConfig    `codec:"config"`
 	JHosts           []string                `codec:"juggler_hosts"`
 	JFrontend        []string                `codec:"juggler_frontend"`
 	Conditions
@@ -87,6 +88,7 @@ func NewJugglerSender(conf JugglerConfig, id string) (*jugglerSender, error) {
 // and load lua plugin by name from juggler config section
 func (js *jugglerSender) loadPlugin() error {
 	// TODO: overwrite/cleanup globals in lua plugin?
+	// prelad all plugins and cache lua state
 	return nil
 }
 
@@ -126,14 +128,12 @@ func (js *jugglerSender) preparePluginEnv(taskData tasks.DataType) error {
 		idx++
 	}
 	js.state.SetGlobal("conditions", lconditions)
-	return nil
 
-	lconfig := js.state.NewTable()
-	for k, v := range js.JPluginConfig {
-		lconfig.RawSetString(k, lua.LString(v))
+	if lconfig, err := jPluginConfigToLuaTable(js.state, js.JPluginConfig); err != nil {
+		return err
+	} else {
+		js.state.SetGlobal("config", lconfig)
 	}
-	js.state.SetGlobal("config", lconfig)
-
 	return nil
 }
 

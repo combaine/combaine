@@ -10,24 +10,32 @@ import (
 
 var data = tasks.DataType{
 	"host1": map[string]interface{}{
-		"front1.timings": []float64{11133.4},
-		"1rps":           111234,
-		"1error":         1110.000,
+		"service1": map[string]interface{}{
+			"front1.timings": []float64{11133.4},
+			"1rps":           111234,
+			"1error":         1110.000,
+		},
 	},
 	"host2": map[string]interface{}{
-		"front2.timings": []float64{22233.4, 222222.2},
-		"2rps":           222234,
-		"2error":         2220.000,
+		"service2": map[string]interface{}{
+			"front2.timings": []float64{22233.4, 222222.2},
+			"2rps":           222234,
+			"2error":         2220.000,
+		},
 	},
 	"host3": map[string]interface{}{
-		"front3.timings": []float64{33333.4, 333222.2, 3333434.3},
-		"3rps":           333234,
-		"3error":         3330.000,
+		"service3": map[string]interface{}{
+			"front3.timings": []float64{33333.4, 333222.2, 3333434.3},
+			"3rps":           333234,
+			"3error":         3330.000,
+		},
 	},
 	"host7": map[string]interface{}{
-		"front7.timings": []float64{777.1, 777.2, 777.3, 777.4, 777.5, 777.6, 777.7},
-		"7rps":           777,
-		"7error":         777.777,
+		"service4": map[string]interface{}{
+			"front7.timings": []float64{777.1, 777.2, 777.3, 777.4, 777.5, 777.6, 777.7},
+			"7rps":           777,
+			"7error":         777.777,
+		},
 	},
 }
 
@@ -59,7 +67,7 @@ func TestQueryLuaTable(t *testing.T) {
 	}
 	table, err := dataToLuaTable(l, data)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panic(err)
 	}
 	l.SetGlobal("query", lua.LString("%S+/%S+timings/3"))
 	l.Push(l.GetGlobal("testQuery"))
@@ -70,7 +78,7 @@ func TestQueryLuaTable(t *testing.T) {
 	CRIT := 3 // defaultLevel
 	events, err := luaResultToJugglerEvents(CRIT, result)
 	if err != nil {
-		log.Fatalf("Failed to convert lua table to []jugglerEvent, %s", err)
+		log.Printf("Failed to convert lua table to []jugglerEvent, %s", err)
 	}
 
 	for _, j := range events {

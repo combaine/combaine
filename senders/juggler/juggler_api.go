@@ -14,7 +14,7 @@ type JugglerChildrenCheck struct {
 	Service  string `json:"service"`
 }
 
-type JugglerAggregatorKWArgs map[string]interface{}
+type JugglerAggregatorKWArgs []byte
 
 type JugglerFlapConfig struct {
 	Enable       int64 `codec:"enable" json:"-"`
@@ -36,10 +36,11 @@ type JugglerCheck struct {
 	AggregatorKWArgs JugglerAggregatorKWArgs `json:"aggregator_kwargs"`
 	Tags             []string                `json:"tags"`
 	Methods          []string                `json:"methods"`
-	Active           string                  `json:"active"`
-	ActiveKWArgs     map[string]string       `json:"active_kwargs"`
 	Children         []JugglerChildrenCheck  `json:"children"`
 	Flap             JugglerFlapConfig       `json:"flaps,omitempty"`
+
+	//Active           string                  `json:"active"`
+	//ActiveKWArgs     map[string]string       `json:"active_kwargs"`
 	//MaxStatus        string                  `json:"max_status"`
 	//CreationTime     int64                   `json:"creation_time"`
 	//ModificationTime int64                   `json:"modification_time"`
