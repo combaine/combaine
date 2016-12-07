@@ -60,7 +60,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	logger.Debugf("%s Task: %v", task, task.Id)
 
-	jCli, err := juggler.NewJugglerSender(task.Config, task.Id)
+	jCli, err := juggler.NewJugglerSender(&task.Config, task.Id)
 	if err != nil {
 		logger.Errf("%s Unexpected error %s", err, task.Id)
 		response.ErrorMsg(-100, err.Error())
