@@ -81,7 +81,7 @@ func (js *jugglerSender) getCheck(ctx context.Context) (JugglerResponse, error) 
 	var hostChecks JugglerResponse
 	var flap map[string]map[string]JugglerFlapConfig
 
-	for jhost := range js.JHosts {
+	for _, jhost := range js.JHosts {
 		url := fmt.Sprintf(getCheckUrl, jhost, js.Host)
 		logger.Infof("%s Query check %s", js.id, url)
 
