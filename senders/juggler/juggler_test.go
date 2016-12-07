@@ -47,7 +47,7 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		table, err := dataToLuaTable(l, data)
 		if err != nil {
-			log.Fatalln(err)
+			log.Panic(err)
 		}
 		l.SetGlobal("table", table)
 		l.Push(l.GetGlobal("sumTable"))
@@ -61,9 +61,9 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 
 func TestQueryLuaTable(t *testing.T) {
 
-	l := lua.NewState()
-	if err := l.DoFile("plugin_test.lua"); err != nil {
-		panic(err)
+	l, err := LoadPlugin("plugin_test.lua")
+	if err != nil {
+		log.Panic(err)
 	}
 	table, err := dataToLuaTable(l, data)
 	if err != nil {
@@ -75,8 +75,7 @@ func TestQueryLuaTable(t *testing.T) {
 	l.Call(1, 1)
 	result := l.ToTable(1)
 
-	CRIT := 3 // defaultLevel
-	events, err := luaResultToJugglerEvents(CRIT, result)
+	events, err := luaResultToJugglerEvents("CRIT", result)
 	if err != nil {
 		log.Printf("Failed to convert lua table to []jugglerEvent, %s", err)
 	}

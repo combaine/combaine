@@ -13,6 +13,15 @@ import (
 
 type DumperFunc func(reflect.Value) (lua.LValue, error)
 
+type JugglerLevels map[string]int
+
+var jLevels = JugglerLevels{
+	"OK":   0,
+	"WARN": 1,
+	"CRIT": 2,
+	"INFO": 3,
+}
+
 func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTable, error) {
 	table := l.NewTable()
 	for name, value := range in {
@@ -126,7 +135,10 @@ func dumperToLuaValue(value reflect.Value) (ret lua.LValue, err error) {
 
 // luaResultToJugglerEvents convert well known type of lua plugin result
 // in to go types
-func luaResultToJugglerEvents(defaultLevel int, result *lua.LTable) ([]jugglerEvent, error) {
+func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]jugglerEvent, error) {
+	if defaultLevel == "" {
+		defaultLevel = DEFAULT_CHECK_LEVEL
+	}
 	if result == nil {
 		return nil, errors.New("lua plugin result is nil")
 	}
@@ -150,11 +162,14 @@ func luaResultToJugglerEvents(defaultLevel int, result *lua.LTable) ([]jugglerEv
 		if je.Service = lua.LVAsString(lt.RawGetString("service")); je.Service == "" {
 			je.Service = "UnknownServce"
 		}
-		if level := lt.RawGetString("level"); level != lua.LNil {
-			je.Level = int(lua.LVAsNumber(level))
+		level := lua.LVAsString(lt.RawGetString("level"))
+		if l, ok := jLevels[level]; ok {
+			je.Level = l
 		} else {
-			je.Level = defaultLevel
+			je.Level = jLevels[defaultLevel]
+			je.Description = fmt.Sprintf("%s (Forse status %s)", je.Description, defaultLevel)
 		}
+
 		events = append(events, je)
 	})
 	if errs != nil {

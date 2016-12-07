@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,8 @@ import (
 
 const (
 	DEFAULT_CONFIG_PATH = "/etc/combaine/juggler.yaml"
-	PLUGIN_DIR          = "/usr/lib/yandex/combaine/juggler"
+	DEFAULT_PLUGIN_DIR  = "/usr/lib/yandex/combaine/juggler"
+	DEFAULT_CHECK_LEVEL = "OK"
 )
 
 type Conditions struct {
@@ -33,22 +35,26 @@ type Conditions struct {
 }
 
 type JugglerConfig struct {
-	Host             string                  `codec:"Host"`
-	Methods          []string                `codec:"Methods"`
-	Aggregator       string                  `codec:"Aggregator"`
-	CheckName        string                  `codec:"checkname"`
-	Description      string                  `codec:"description"`
-	AggregatorKWargs JugglerAggregatorKWArgs `codec:"aggregator_kwargs"`
-	Flap             JugglerFlapConfig       `codec:"flap"`
-	JPluginConfig    configs.PluginConfig    `codec:"config"`
-	JHosts           []string                `codec:"juggler_hosts"`
-	JFrontend        []string                `codec:"juggler_frontend"`
+	PluginsDir         string                  `codec:"PluginsDir"`
+	Plugin             string                  `codec:"Plugin"`
+	DefaultCheckStatus string                  `codec:"DefaultCheckStatus"`
+	Host               string                  `codec:"Host"`
+	Methods            []string                `codec:"Methods"`
+	Aggregator         string                  `codec:"Aggregator"`
+	CheckName          string                  `codec:"checkname"`
+	Description        string                  `codec:"description"`
+	AggregatorKWargs   JugglerAggregatorKWArgs `codec:"aggregator_kwargs"`
+	Flap               JugglerFlapConfig       `codec:"flap"`
+	JPluginConfig      configs.PluginConfig    `codec:"config"`
+	JHosts             []string                `codec:"juggler_hosts"`
+	JFrontend          []string                `codec:"juggler_frontend"`
 	Conditions
 }
 
-type jugglerServers struct {
-	Hosts    []string `yaml:"juggler_hosts"`
-	Frontend []string `yaml:"juggler_frontend"`
+type jugglerSenderConf struct {
+	PluginsDir string   `yaml:"PluginsDir"`
+	Hosts      []string `yaml:"juggler_hosts"`
+	Frontend   []string `yaml:"juggler_frontend"`
 }
 
 type jugglerSender struct {
@@ -59,7 +65,7 @@ type jugglerSender struct {
 
 // GetJugglerConfig read yaml file with two arrays of hosts
 // if juggler_frontend not defined, use juggler_hosts as frontend
-func GetJugglerConfig() (conf jugglerServers, err error) {
+func GetJugglerConfig() (conf jugglerSenderConf, err error) {
 	var path string = os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
 		path = DEFAULT_CONFIG_PATH
@@ -73,6 +79,9 @@ func GetJugglerConfig() (conf jugglerServers, err error) {
 	if conf.Frontend == nil {
 		conf.Frontend = conf.Hosts
 	}
+	if conf.PluginsDir == "" {
+		conf.PluginsDir = DEFAULT_PLUGIN_DIR
+	}
 	return
 }
 
@@ -80,16 +89,20 @@ func NewJugglerSender(conf JugglerConfig, id string) (*jugglerSender, error) {
 	return &jugglerSender{
 		JugglerConfig: conf,
 		id:            id,
-		state:         lua.NewState(),
+		state:         nil,
 	}, nil
 }
 
-// loadPlugin cleanup lua state global/local environment
+// LoadPlugin cleanup lua state global/local environment
 // and load lua plugin by name from juggler config section
-func (js *jugglerSender) loadPlugin() error {
+func LoadPlugin(fileName string) (*lua.LState, error) {
+	l := lua.NewState()
+	if err := l.DoFile(fileName); err != nil {
+		return nil, err
+	}
 	// TODO: overwrite/cleanup globals in lua plugin?
-	// prelad all plugins and cache lua state
-	return nil
+	//		 cache lua state in plugin cache?
+	return l, nil
 }
 
 // preparePluginEnv add data from aggregate task as global variable in lua
@@ -144,7 +157,12 @@ func (js *jugglerSender) runPlugin() ([]jugglerEvent, error) {
 	if err := js.state.PCall(0, 1, nil); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	result := js.state.ToTable(1)
+	events, err := luaResultToJugglerEvents(js.DefaultCheckStatus, result)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 // getCheck query juggler api for check and Unmarshal json response in to
@@ -270,9 +288,16 @@ func (js *jugglerSender) sendEvent(event jugglerEvent) error {
 
 // Send make all things abount juggler sender tasks
 func (js *jugglerSender) Send(data tasks.DataType) error {
-	if err := js.loadPlugin(); err != nil {
+	file := path.Join(js.PluginsDir, js.Plugin)
+
+	logger.Debugf("%s Load lua plugin %s", js.id, file)
+	state, err := LoadPlugin(file)
+	if err != nil {
 		return err
 	}
+	js.state = state
+
+	logger.Debugf("%s Prepare plugin state", js.id)
 	if err := js.preparePluginEnv(data); err != nil {
 		return err
 	}
