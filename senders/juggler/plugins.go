@@ -182,6 +182,11 @@ func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]juggle
 // and load lua plugin by name from juggler config section
 func LoadPlugin(fileName string) (*lua.LState, error) {
 	l := lua.NewState()
+
+	if err := PreloadTools(l); err != nil {
+		return nil, err
+	}
+
 	if err := l.DoFile(fileName); err != nil {
 		return nil, err
 	}
@@ -215,15 +220,12 @@ func (js *jugglerSender) preparePluginEnv(taskData tasks.DataType) error {
 	}
 
 	lconditions := js.state.NewTable()
-	idx := 0
 	for name, cond := range levels {
 		lcondTable := js.state.NewTable()
-		lconditions.RawSetString(name, lua.LNumber(idx))
-		lconditions.RawSetInt(idx, lcondTable)
 		for _, v := range cond {
 			lcondTable.Append(lua.LString(v))
 		}
-		idx++
+		lconditions.RawSetString(name, lcondTable)
 	}
 	js.state.SetGlobal("conditions", lconditions)
 

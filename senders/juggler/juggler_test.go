@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common/tasks"
+	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -39,6 +40,30 @@ var data = tasks.DataType{
 	},
 }
 
+func DefaultJugglerTestConfig() *JugglerConfig {
+	conf := DefaultJugglerConfig()
+	// add test conditions
+	conf.Conditions = Conditions{
+		OK:   []string{"${nginx}.get('5xx', 0)<0.06"},
+		CRIT: []string{"${nginx}.get('5xx', 0)>0.06"},
+	}
+	// add test config
+	conf.JPluginConfig = map[string]interface{}{
+		"checks": map[string]interface{}{
+			"testTimings": map[string]interface{}{
+				"query": "%S+/%S+timings/3",
+				"limit": 200.0, // ms
+			},
+			"testErrors": map[string]interface{}{
+				"query": "%S+/%S+error",
+				"limit": 50,
+			},
+		},
+	}
+	return conf
+
+}
+
 func BenchmarkDataToLuaTable(b *testing.B) {
 	l := lua.NewState()
 	if err := l.DoFile("plugins/test.lua"); err != nil {
@@ -64,13 +89,21 @@ func TestPrepareLuaEnv(t *testing.T) {
 	if err != nil {
 		log.Panic(err)
 	}
-	jconf := DefaultJugglerConfig()
+	jconf := DefaultJugglerTestConfig()
+
 	js, err := NewJugglerSender(jconf, "Test ID")
-	js.state = l
-	js.preparePluginEnv(data)
 	if err != nil {
 		log.Panic(err)
 	}
+
+	js.state = l
+	js.preparePluginEnv(data)
+
+	l.Push(l.GetGlobal("testEnv"))
+	l.Call(0, 1)
+
+	result := l.ToString(1)
+	assert.Equal(t, "OK", result)
 
 }
 

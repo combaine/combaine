@@ -1,27 +1,4 @@
 -- Compatibility: Lua-5.1
-function split(str, pat)
-   local t = {}  -- NOTE: use {n = 0} in Lua-5.0
-   local fpat = "(.-)" .. pat
-   local last_end = 1
-   local s, e, cap = str:find(fpat, 1)
-   while s do
-      if s ~= 1 or cap ~= "" then
-         table.insert(t,cap)
-      end
-      last_end = e+1
-      s, e, cap = str:find(fpat, last_end)
-   end
-   if last_end <= #str then
-      cap = str:sub(last_end)
-      table.insert(t, cap)
-   end
-   return t
-end
-
-function split_path(str)
-   return split(str,'[/]+')
-end
-
 function sumTable(t)
     local result = 0
     for _, v in pairs(t) do
@@ -50,11 +27,11 @@ end
 function testQuery(t)
     local result = {}
     local flat = {}
-    local path = split_path(query)
+    local path = split(query, "/")
     -- print(path[1], path[2], path[3])
     flatting("", t, flat)
     for k, v in pairs(flat) do
-        local kp = split_path(k)
+        local kp = split(k, "/")
         if #kp == #path then
             if k:match('^'..query..'$', 1) then
                 result[#result + 1] = {
@@ -68,3 +45,68 @@ function testQuery(t)
     return result
 end
 
+function testEnv()
+    -- we have payload
+    if not _G.payload then
+        return "Missing Payload"
+    else
+        -- and payload not empty
+        payload_is_empty = true
+        for _, v in pairs(payload) do
+            if type(v) == "table" then
+                payload_is_empty = false
+                break
+            end
+        end
+        if payload_is_empty then
+            return "Payload empty"
+        end
+    end
+
+    -- we have conditions
+    if not _G.conditions then
+        return "Missing Conditions"
+    else
+        for k, v in pairs(conditions) do
+            print(k .. tostring(v))
+        end
+        -- OK case present in conditions
+        if not conditions.OK then
+            return "Missing OK case"
+        end
+        -- ok case not a table (array)
+        if #conditions.OK <= 0 then
+            return "OK case not array or empty"
+        end
+        -- ok cases is string
+        for i, v in pairs(conditions.OK) do
+            if type(v) ~= "string" then
+                return string.format("OK case %d: %s is not a lua string", i, tostring(v))
+            end
+        end
+    end
+
+    -- Check Plugin Configs
+    -- we have config
+    if not _G.config then
+        return "Missing plugin config"
+    else
+        -- we have config.checks
+        if not config.checks then
+            return "Missing checks"
+        end
+        -- we have testTimings in checks
+        if not config.checks.testTimings then
+            return "Missing testTimings from default test plugin config"
+        end
+        -- limit for testTimings is a number
+        if type(config.checks.testTimings.limit) ~= "number" then
+            return string.format("testTimings limit shoult be a number, not - %s: %s",
+                                 type(config.checks.testTimings.limit),
+                                 tostring(config.checks.testTimings.limit))
+        end
+    end
+
+
+    return "OK"
+end
