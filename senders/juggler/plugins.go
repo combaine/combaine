@@ -177,3 +177,75 @@ func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]juggle
 	}
 	return events, nil
 }
+
+// LoadPlugin cleanup lua state global/local environment
+// and load lua plugin by name from juggler config section
+func LoadPlugin(fileName string) (*lua.LState, error) {
+	l := lua.NewState()
+	if err := l.DoFile(fileName); err != nil {
+		return nil, err
+	}
+	// TODO: overwrite/cleanup globals in lua plugin?
+	//		 cache lua state in plugin cache?
+	return l, nil
+}
+
+// preparePluginEnv add data from aggregate task as global variable in lua
+// plugin. Also inject juggler conditions from juggler configs and plugin config
+func (js *jugglerSender) preparePluginEnv(taskData tasks.DataType) error {
+	ltable, err := dataToLuaTable(js.state, taskData)
+	if err != nil {
+		return fmt.Errorf("Failed to convert taskData to lua table: %s", err)
+	}
+
+	js.state.SetGlobal("payload", ltable)
+
+	levels := make(map[string][]string)
+	if js.Conditions.OK != nil {
+		levels["OK"] = js.Conditions.OK
+	}
+	if js.Conditions.INFO != nil {
+		levels["INFO"] = js.Conditions.INFO
+	}
+	if js.Conditions.WARN != nil {
+		levels["WARN"] = js.Conditions.WARN
+	}
+	if js.Conditions.CRIT != nil {
+		levels["CRIT"] = js.Conditions.CRIT
+	}
+
+	lconditions := js.state.NewTable()
+	idx := 0
+	for name, cond := range levels {
+		lcondTable := js.state.NewTable()
+		lconditions.RawSetString(name, lua.LNumber(idx))
+		lconditions.RawSetInt(idx, lcondTable)
+		for _, v := range cond {
+			lcondTable.Append(lua.LString(v))
+		}
+		idx++
+	}
+	js.state.SetGlobal("conditions", lconditions)
+
+	if lconfig, err := jPluginConfigToLuaTable(js.state, js.JPluginConfig); err != nil {
+		return err
+	} else {
+		js.state.SetGlobal("config", lconfig)
+	}
+	return nil
+}
+
+// runPlugin run lua plugin with prepared environment
+// collect, convert and return plugin result
+func (js *jugglerSender) runPlugin() ([]jugglerEvent, error) {
+	js.state.Push(js.state.GetGlobal("run"))
+	if err := js.state.PCall(0, 1, nil); err != nil {
+		return nil, err
+	}
+	result := js.state.ToTable(1)
+	events, err := luaResultToJugglerEvents(js.DefaultCheckStatus, result)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}

@@ -41,7 +41,7 @@ var data = tasks.DataType{
 
 func BenchmarkDataToLuaTable(b *testing.B) {
 	l := lua.NewState()
-	if err := l.DoFile("plugin_test.lua"); err != nil {
+	if err := l.DoFile("plugins/test.lua"); err != nil {
 		panic(err)
 	}
 	for i := 0; i < b.N; i++ {
@@ -59,9 +59,23 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 	l.Close()
 }
 
+func TestPrepareLuaEnv(t *testing.T) {
+	l, err := LoadPlugin("plugins/test.lua")
+	if err != nil {
+		log.Panic(err)
+	}
+	jconf := DefaultJugglerConfig()
+	js, err := NewJugglerSender(jconf, "Test ID")
+	js.state = l
+	if err != nil {
+		log.Panic(err)
+	}
+
+}
+
 func TestQueryLuaTable(t *testing.T) {
 
-	l, err := LoadPlugin("plugin_test.lua")
+	l, err := LoadPlugin("plugins/test.lua")
 	if err != nil {
 		log.Panic(err)
 	}
