@@ -327,19 +327,10 @@ func isLoopbackIP(ip_str string) bool {
 	return loopbackBlock.Contains(ip)
 }
 
-// Given a string of the form "host", "host:port",
-// "ipv6::addr" or "[ipv6::address]:port",
+// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
 // return true if the string includes a port.
 func hasPort(s string) bool {
-	if s == "" {
-		return false
-	}
-	last := strings.LastIndex(s, ":")
-	if s[0] == '[' {
-		return last > strings.LastIndex(s, "]")
-	}
-	first := strings.Index(s, ":")
-	return first != -1 && first == last
+	return strings.LastIndex(s, ":") > strings.LastIndex(s, "]")
 }
 
 // compressPayload takes an opaque input buffer, compresses it
