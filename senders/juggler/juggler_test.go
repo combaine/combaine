@@ -67,6 +67,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	jconf := DefaultJugglerConfig()
 	js, err := NewJugglerSender(jconf, "Test ID")
 	js.state = l
+	js.preparePluginEnv(data)
 	if err != nil {
 		log.Panic(err)
 	}
