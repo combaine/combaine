@@ -32,7 +32,7 @@ func NewJugglerSender(conf *JugglerConfig, id string) (*jugglerSender, error) {
 }
 
 // Send make all things abount juggler sender tasks
-func (js *jugglerSender) Send(data tasks.DataType) error {
+func (js *jugglerSender) Send(ctx context.Context, data tasks.DataType) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
 	if err != nil {
@@ -49,13 +49,14 @@ func (js *jugglerSender) Send(data tasks.DataType) error {
 	if err != nil {
 		return err
 	}
-	if err := js.ensureCheck(context.TODO(), jEvents); err != nil {
+	if err := js.ensureCheck(ctx, jEvents); err != nil {
 		return err
 	}
 
 	var jWg sync.WaitGroup
 	var sendEeventsFailed int32
 	// TODO send evnets to all juggler fronts
+	// use builk request?
 	for _, e := range jEvents {
 		jWg.Add(1)
 		go func(jEv jugglerEvent, wg *sync.WaitGroup) {

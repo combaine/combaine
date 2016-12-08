@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -67,7 +68,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	err = jCli.Send(task.Data)
+	err = jCli.Send(context.Background(), task.Data)
 	if err != nil {
 		logger.Errf("%s Sending error %s", err, task.Id)
 		response.ErrorMsg(-100, err.Error())
