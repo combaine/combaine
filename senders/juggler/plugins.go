@@ -180,14 +180,14 @@ func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]juggle
 
 // LoadPlugin cleanup lua state global/local environment
 // and load lua plugin by name from juggler config section
-func LoadPlugin(fileName string) (*lua.LState, error) {
-	l := lua.NewState()
+func LoadPlugin(dir, name string) (*lua.LState, error) {
+	file := fmt.Sprintf("%s/%s.lua", dir, name)
 
+	l := lua.NewState()
 	if err := PreloadTools(l); err != nil {
 		return nil, err
 	}
-
-	if err := l.DoFile(fileName); err != nil {
+	if err := l.DoFile(file); err != nil {
 		return nil, err
 	}
 	// TODO: overwrite/cleanup globals in lua plugin?

@@ -67,9 +67,6 @@ function testEnv()
     if not _G.conditions then
         return "Missing Conditions"
     else
-        for k, v in pairs(conditions) do
-            print(k .. tostring(v))
-        end
         -- OK case present in conditions
         if not conditions.OK then
             return "Missing OK case"

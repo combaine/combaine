@@ -61,12 +61,12 @@ func DefaultJugglerTestConfig() *JugglerConfig {
 		},
 	}
 	return conf
-
 }
 
+// Benchmarks
 func BenchmarkDataToLuaTable(b *testing.B) {
-	l := lua.NewState()
-	if err := l.DoFile("plugins/test.lua"); err != nil {
+	l, err := LoadPlugin("./plugins", "test")
+	if err != nil {
 		panic(err)
 	}
 	for i := 0; i < b.N; i++ {
@@ -84,13 +84,25 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 	l.Close()
 }
 
+// Tests
+func TestLoadPlugin(t *testing.T) {
+	if _, err := LoadPlugin(".", "file_not_exists.lua"); err == nil {
+		log.Fatalf("Loading non existing plugin should return error")
+	}
+	if _, err := LoadPlugin("./plugins", "test"); err != nil {
+		log.Fatalf("Failed to load plugin 'test': %s", err)
+	}
+}
+
 func TestPrepareLuaEnv(t *testing.T) {
-	l, err := LoadPlugin("plugins/test.lua")
+	jconf := DefaultJugglerTestConfig()
+	jconf.PluginsDir = "./plugins"
+	jconf.Plugin = "test"
+
+	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
 	if err != nil {
 		log.Panic(err)
 	}
-	jconf := DefaultJugglerTestConfig()
-
 	js, err := NewJugglerSender(jconf, "Test ID")
 	if err != nil {
 		log.Panic(err)
@@ -104,12 +116,10 @@ func TestPrepareLuaEnv(t *testing.T) {
 
 	result := l.ToString(1)
 	assert.Equal(t, "OK", result)
-
 }
 
 func TestQueryLuaTable(t *testing.T) {
-
-	l, err := LoadPlugin("plugins/test.lua")
+	l, err := LoadPlugin("plugins", "test")
 	if err != nil {
 		log.Panic(err)
 	}

@@ -162,12 +162,10 @@ func (js *jugglerSender) ensureCheck(ctx context.Context, triggers []jugglerEven
 			}
 			if check.Aggregator != js.Aggregator ||
 				!reflect.DeepEqual(check.AggregatorKWArgs, js.AggregatorKWargs) {
-
 				check.Update = true
 				check.Aggregator = js.Aggregator
 				check.AggregatorKWArgs = js.AggregatorKWargs
 			}
-
 		} else {
 			if _, ok := childSet[t.Host+":"+t.Service]; !ok {
 				check.Update = true
@@ -183,7 +181,6 @@ func (js *jugglerSender) ensureCheck(ctx context.Context, triggers []jugglerEven
 			}
 		}
 	}
-
 	return nil
 }
 

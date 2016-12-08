@@ -3,7 +3,6 @@ package juggler
 import (
 	"context"
 	"fmt"
-	"path"
 	"sync"
 	"sync/atomic"
 
@@ -34,10 +33,8 @@ func NewJugglerSender(conf *JugglerConfig, id string) (*jugglerSender, error) {
 
 // Send make all things abount juggler sender tasks
 func (js *jugglerSender) Send(data tasks.DataType) error {
-	file := path.Join(js.PluginsDir, js.Plugin)
-
-	logger.Debugf("%s Load lua plugin %s", js.id, file)
-	state, err := LoadPlugin(file)
+	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
+	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
 	if err != nil {
 		return err
 	}

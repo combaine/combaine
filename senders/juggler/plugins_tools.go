@@ -12,6 +12,7 @@ func Split(l *lua.LState) int {
 	splited := strings.Split(s, sep)
 
 	t := l.NewTable()
+	// TODO: use user data is more efficent here
 	for _, substr := range splited {
 		t.Append(lua.LString(substr))
 	}

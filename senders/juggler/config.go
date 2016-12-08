@@ -61,7 +61,6 @@ func GetJugglerConfig() (conf jugglerSenderConf, err error) {
 }
 
 func DefaultJugglerConfig() *JugglerConfig {
-
 	return &JugglerConfig{
 		PluginsDir:         "/etc/combaine/juggler/plugins",
 		Plugin:             "",
@@ -78,5 +77,4 @@ func DefaultJugglerConfig() *JugglerConfig {
 		JFrontend:          []string{},
 		Conditions:         Conditions{},
 	}
-
 }
