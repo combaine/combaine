@@ -49,7 +49,11 @@ func (js *jugglerSender) Send(ctx context.Context, data tasks.DataType) error {
 	if err != nil {
 		return err
 	}
-	if err := js.ensureCheck(ctx, jEvents); err != nil {
+	checks, err := js.getCheck(ctx)
+	if err != nil {
+		return err
+	}
+	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
 		return err
 	}
 

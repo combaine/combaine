@@ -133,11 +133,7 @@ func (js *jugglerSender) ensureFlap(jcheck *JugglerCheck) error {
 
 // ensureCheck check that juggler check exists and it in sync with task data
 // if need it create or update check
-func (js *jugglerSender) ensureCheck(ctx context.Context, triggers []jugglerEvent) error {
-	hostChecks, err := js.getCheck(ctx)
-	if err != nil {
-		return err
-	}
+func (js *jugglerSender) ensureCheck(ctx context.Context, hostChecks JugglerResponse, triggers []jugglerEvent) error {
 
 	services, ok := hostChecks[js.Host]
 	if !ok {

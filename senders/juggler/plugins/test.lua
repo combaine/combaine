@@ -35,6 +35,7 @@ function testQuery(t)
         if #kp == #path then
             if k:match('^'..query..'$', 1) then
                 result[#result + 1] = {
+                    ["host"] = "TestHost",
                     ["description"] = string.format("%s = %0.3f", table.concat(kp, ".", 2), v),
                     ["level"] = v,
                     ["service"] = kp[2],

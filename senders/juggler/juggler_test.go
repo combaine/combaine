@@ -148,19 +148,13 @@ func TestQueryLuaTable(t *testing.T) {
 	assert.NoError(t, err)
 	table, err := dataToLuaTable(l, data)
 	assert.NoError(t, err)
-	l.SetGlobal("query", lua.LString("%S+/%S+timings/3"))
+	l.SetGlobal("query", lua.LString(".+/.+/.+timings/3"))
 	l.Push(l.GetGlobal("testQuery"))
 	l.Push(table)
 	l.Call(1, 1)
 	result := l.ToTable(1)
 
-	events, err := luaResultToJugglerEvents("CRIT", result)
-	if err != nil {
-		log.Printf("Failed to convert lua table to []jugglerEvent, %s", err)
-	}
-
-	for _, j := range events {
-		log.Printf("Juggler event: {host: %s, service: %s, description: %s, Level: %d}\n",
-			j.Host, j.Service, j.Description, j.Level)
-	}
+	events, err := luaResultToJugglerEvents("OK", result)
+	assert.NoError(t, err)
+	assert.Len(t, events, 2)
 }
