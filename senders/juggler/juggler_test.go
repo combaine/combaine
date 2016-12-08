@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"errors"
 	"log"
 	"testing"
 
@@ -72,7 +73,7 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		table, err := dataToLuaTable(l, data)
 		if err != nil {
-			log.Panic(err)
+			b.Fatal(err)
 		}
 		l.SetGlobal("table", table)
 		l.Push(l.GetGlobal("sumTable"))
@@ -100,13 +101,9 @@ func TestPrepareLuaEnv(t *testing.T) {
 	jconf.Plugin = "test"
 
 	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
-	if err != nil {
-		log.Panic(err)
-	}
+	assert.NoError(t, err)
 	js, err := NewJugglerSender(jconf, "Test ID")
-	if err != nil {
-		log.Panic(err)
-	}
+	assert.NoError(t, err)
 
 	js.state = l
 	js.preparePluginEnv(data)
@@ -118,15 +115,39 @@ func TestPrepareLuaEnv(t *testing.T) {
 	assert.Equal(t, "OK", result)
 }
 
+func TestRunPlugin(t *testing.T) {
+	jconf := DefaultJugglerTestConfig()
+	jconf.PluginsDir = "./plugins"
+
+	js, err := NewJugglerSender(jconf, "Test ID")
+	assert.NoError(t, err)
+
+	jconf.Plugin = "correct"
+	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	assert.NoError(t, err)
+	js.state = l
+	assert.NoError(t, js.preparePluginEnv(data))
+
+	_, err = js.runPlugin()
+	assert.NoError(t, err)
+
+	jconf.Plugin = "incorrect"
+	l, err = LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	assert.NoError(t, err)
+	js.state = l
+	assert.NoError(t, js.preparePluginEnv(data))
+	_, err = js.runPlugin()
+	if err == nil {
+		err = errors.New("incorrect should fail")
+	}
+	assert.Contains(t, err.Error(), "Expected 'run' function inside plugin")
+}
+
 func TestQueryLuaTable(t *testing.T) {
 	l, err := LoadPlugin("plugins", "test")
-	if err != nil {
-		log.Panic(err)
-	}
+	assert.NoError(t, err)
 	table, err := dataToLuaTable(l, data)
-	if err != nil {
-		log.Panic(err)
-	}
+	assert.NoError(t, err)
 	l.SetGlobal("query", lua.LString("%S+/%S+timings/3"))
 	l.Push(l.GetGlobal("testQuery"))
 	l.Push(table)

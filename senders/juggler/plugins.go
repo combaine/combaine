@@ -242,7 +242,7 @@ func (js *jugglerSender) preparePluginEnv(taskData tasks.DataType) error {
 func (js *jugglerSender) runPlugin() ([]jugglerEvent, error) {
 	js.state.Push(js.state.GetGlobal("run"))
 	if err := js.state.PCall(0, 1, nil); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Expected 'run' function inside plugin: %s", err)
 	}
 	result := js.state.ToTable(1)
 	events, err := luaResultToJugglerEvents(js.DefaultCheckStatus, result)
