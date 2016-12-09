@@ -214,14 +214,14 @@ func TestGetCheck(t *testing.T) {
 	}{
 		{"backend", true, 5, map[string]*JugglerFlapConfig{
 			"api_timings":             nil,
-			"prod-app_khttpd_timings": &JugglerFlapConfig{StableTime: 60, CriticalTime: 90},
+			"prod-app_khttpd_timings": {StableTime: 60, CriticalTime: 90},
 			"prod-app_5xx":            nil,
 			"common_log_err":          nil,
 			"api_5xx":                 nil,
 		}},
 		{"frontend", true, 4, map[string]*JugglerFlapConfig{
 			"wsgi_timings":            nil,
-			"prod-app_khttpd_timings": &JugglerFlapConfig{StableTime: 60, CriticalTime: 90},
+			"prod-app_khttpd_timings": {StableTime: 60, CriticalTime: 90},
 			"node_err":                nil,
 			"app_5xx":                 nil,
 		}},
