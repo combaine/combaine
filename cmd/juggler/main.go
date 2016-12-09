@@ -30,25 +30,25 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	conf, err := juggler.GetJugglerConfig()
+	sConf, err := juggler.GetJugglerSenderConfig()
 	if err != nil {
 		logger.Errf("%s Failed to read juggler config %s", err, task.Id)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	if conf.Frontend == nil {
-		conf.Frontend = conf.Hosts
+	if sConf.Frontend == nil {
+		sConf.Frontend = sConf.Hosts
 	}
 	if task.Config.JHosts == nil {
-		if conf.Hosts == nil {
+		if sConf.Hosts == nil {
 			msg := fmt.Sprintf("%s juggler hosts not defined", task.Id)
 			logger.Err(msg)
 			response.ErrorMsg(-100, msg)
 			return
 		}
 		// if jhosts not in PluginConfig override both jhosts and jfrontend
-		task.Config.JHosts = conf.Hosts
-		task.Config.JFrontend = conf.Frontend
+		task.Config.JHosts = sConf.Hosts
+		task.Config.JFrontend = sConf.Frontend
 	} else {
 		if task.Config.JFrontend == nil {
 			// jhost is by default used as jfrontend
@@ -56,7 +56,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		}
 	}
 	if task.Config.PluginsDir == "" {
-		task.Config.PluginsDir = conf.PluginsDir
+		task.Config.PluginsDir = sConf.PluginsDir
 	}
 
 	logger.Debugf("%s Task: %v", task, task.Id)

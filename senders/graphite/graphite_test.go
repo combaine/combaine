@@ -62,8 +62,7 @@ func TestNewConn(t *testing.T) {
 		}
 
 		if c.shouldError {
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), c.expected)
+			assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
 		} else {
 			assert.NoError(t, err)
 		}

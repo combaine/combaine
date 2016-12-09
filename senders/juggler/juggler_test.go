@@ -1,8 +1,13 @@
 package juggler
 
 import (
+	"context"
 	"errors"
-	"log"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/combaine/combaine/common/tasks"
@@ -61,6 +66,18 @@ func DefaultJugglerTestConfig() *JugglerConfig {
 			},
 		},
 	}
+
+	testConf := "testdata/config/juggler_example.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
+	sConf, err := GetJugglerSenderConfig()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load juggler sender config %s: %s", testConf, err))
+	}
+
+	conf.PluginsDir = sConf.PluginsDir
+	conf.JHosts = sConf.Hosts
+	conf.JFrontend = sConf.Frontend
+
 	return conf
 }
 
@@ -88,16 +105,15 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 // Tests
 func TestLoadPlugin(t *testing.T) {
 	if _, err := LoadPlugin(".", "file_not_exists.lua"); err == nil {
-		log.Fatalf("Loading non existing plugin should return error")
+		t.Fatalf("Loading non existing plugin should return error")
 	}
 	if _, err := LoadPlugin("testdata/plugins", "test"); err != nil {
-		log.Fatalf("Failed to load plugin 'test': %s", err)
+		t.Fatalf("Failed to load plugin 'test': %s", err)
 	}
 }
 
 func TestPrepareLuaEnv(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	jconf.PluginsDir = "testdata/plugins"
 	jconf.Plugin = "test"
 
 	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
@@ -117,7 +133,6 @@ func TestPrepareLuaEnv(t *testing.T) {
 
 func TestRunPlugin(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	jconf.PluginsDir = "testdata/plugins"
 
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
@@ -160,6 +175,72 @@ func TestQueryLuaTable(t *testing.T) {
 }
 
 func TestGetCheck(t *testing.T) {
-	cases := []string{"testdata/checks/backend.json", "testdata/checks/terse.json"}
-	_ = cases
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/checks/checks":
+			hostName := r.URL.Query().Get("host_name")
+			if hostName == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintln(w, "Query parameter host_name not specified")
+			}
+			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
+			data, err := ioutil.ReadFile(fileName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Failed to read file %s, %s", fileName, err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(data)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintln(w, "Not Found")
+		}
+	}))
+	defer ts.Close()
+
+	jconf := DefaultJugglerTestConfig()
+	assert.Contains(t, jconf.JHosts[0], "localhost")
+	jconf.JHosts = []string{ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+
+	js, err := NewJugglerSender(jconf, "Test ID")
+	assert.NoError(t, err)
+
+	cases := []struct {
+		name      string
+		exists    bool
+		len       int
+		withFlaps map[string]*JugglerFlapConfig
+	}{
+		{"backend", true, 5, map[string]*JugglerFlapConfig{
+			"api_timings":             nil,
+			"prod-app_khttpd_timings": &JugglerFlapConfig{StableTime: 60, CriticalTime: 90},
+			"prod-app_5xx":            nil,
+			"common_log_err":          nil,
+			"api_5xx":                 nil,
+		}},
+		{"frontend", true, 4, map[string]*JugglerFlapConfig{
+			"wsgi_timings":            nil,
+			"prod-app_khttpd_timings": &JugglerFlapConfig{StableTime: 60, CriticalTime: 90},
+			"node_err":                nil,
+			"app_5xx":                 nil,
+		}},
+		{"nonExisting", false, 0, make(map[string]*JugglerFlapConfig)},
+	}
+
+	ctx := context.TODO()
+	for _, c := range cases {
+		js.Host = c.name
+		juggler_resp, err := js.getCheck(ctx)
+		if c.exists {
+			assert.NoError(t, err)
+		} else {
+			assert.Contains(t, fmt.Sprintf("%v", err), "no such file")
+		}
+		assert.Len(t, juggler_resp[js.Host], c.len)
+
+		for k, v := range c.withFlaps {
+			assert.Equal(t, v, juggler_resp[c.name][k].Flap)
+		}
+	}
 }

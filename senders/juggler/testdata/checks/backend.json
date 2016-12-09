@@ -219,10 +219,10 @@
         "GOLEM"
       ]
     },
-    "bash_err": {
+    "common_log_err": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "bash_err",
+      "description": "common_log_err",
       "tags": null,
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947572,
@@ -255,79 +255,79 @@
           "instance": "",
           "host": "backend-srv-dc3-11.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc2-11.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc1-11.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc3-12.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc2-12.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc1-12.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc3-17.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc2-17.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-srv-dc1-17.host.name",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-backend",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-backend-DC1",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-backend-DC2",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         },
         {
           "instance": "",
           "host": "backend-backend-DC3",
           "type": "HOST",
-          "service": "bash_err"
+          "service": "common_log_err"
         }
       ],
       "methods": [

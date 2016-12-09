@@ -11,12 +11,6 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-const (
-	DEFAULT_CONFIG_PATH = "/etc/combaine/juggler.yaml"
-	DEFAULT_PLUGIN_DIR  = "/usr/lib/yandex/combaine/juggler"
-	DEFAULT_CHECK_LEVEL = "OK"
-)
-
 type jugglerSender struct {
 	*JugglerConfig
 	id    string

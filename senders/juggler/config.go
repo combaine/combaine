@@ -1,11 +1,18 @@
 package juggler
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 
 	"github.com/combaine/combaine/common/configs"
 	yaml "gopkg.in/yaml.v2"
+)
+
+const (
+	DEFAULT_CONFIG_PATH = "/etc/combaine/juggler.yaml"
+	DEFAULT_PLUGIN_DIR  = "/usr/lib/yandex/combaine/juggler"
+	DEFAULT_CHECK_LEVEL = "OK"
 )
 
 type Conditions struct {
@@ -16,31 +23,32 @@ type Conditions struct {
 }
 
 type JugglerConfig struct {
-	PluginsDir         string                  `codec:"PluginsDir"`
-	Plugin             string                  `codec:"Plugin"`
-	DefaultCheckStatus string                  `codec:"DefaultCheckStatus"`
-	Host               string                  `codec:"Host"`
-	Methods            []string                `codec:"Methods"`
-	Aggregator         string                  `codec:"Aggregator"`
-	CheckName          string                  `codec:"checkname"`
-	Description        string                  `codec:"description"`
-	AggregatorKWargs   JugglerAggregatorKWArgs `codec:"aggregator_kwargs"`
-	Flap               JugglerFlapConfig       `codec:"flap"`
-	JPluginConfig      configs.PluginConfig    `codec:"config"`
-	JHosts             []string                `codec:"juggler_hosts"`
-	JFrontend          []string                `codec:"juggler_frontend"`
+	PluginsDir         string                        `codec:"plugins_dir"`
+	Plugin             string                        `codec:"plugin"`
+	DefaultCheckStatus string                        `codec:"default_status"`
+	Host               string                        `codec:"Host"`
+	Methods            []string                      `codec:"Methods"`
+	Aggregator         string                        `codec:"Aggregator"`
+	CheckName          string                        `codec:"checkname"`
+	Description        string                        `codec:"description"`
+	AggregatorKWargs   json.RawMessage               `codec:"aggregator_kwargs"`
+	Flap               *JugglerFlapConfig            `codec:"flap"`
+	FlapByCheck        map[string]*JugglerFlapConfig `codec:"flap_by_check"`
+	JPluginConfig      configs.PluginConfig          `codec:"config"`
+	JHosts             []string                      `codec:"juggler_hosts"`
+	JFrontend          []string                      `codec:"juggler_frontend"`
 	Conditions
 }
 
-type jugglerSenderConf struct {
-	PluginsDir string   `yaml:"PluginsDir"`
+type jugglerSenderConfig struct {
+	PluginsDir string   `yaml:"plugins_dir"`
 	Hosts      []string `yaml:"juggler_hosts"`
 	Frontend   []string `yaml:"juggler_frontend"`
 }
 
-// GetJugglerConfig read yaml file with two arrays of hosts
+// GetJugglerSenderConfig read yaml file with two arrays of hosts
 // if juggler_frontend not defined, use juggler_hosts as frontend
-func GetJugglerConfig() (conf jugglerSenderConf, err error) {
+func GetJugglerSenderConfig() (conf jugglerSenderConfig, err error) {
 	var path string = os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
 		path = DEFAULT_CONFIG_PATH
@@ -70,8 +78,8 @@ func DefaultJugglerConfig() *JugglerConfig {
 		Aggregator:         "",
 		CheckName:          "",
 		Description:        "",
-		AggregatorKWargs:   JugglerAggregatorKWArgs{},
-		Flap:               JugglerFlapConfig{},
+		AggregatorKWargs:   json.RawMessage{},
+		Flap:               nil,
 		JPluginConfig:      configs.PluginConfig{},
 		JHosts:             []string{},
 		JFrontend:          []string{},
