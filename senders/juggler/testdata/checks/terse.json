@@ -1,0 +1,214 @@
+{
+  "backend": {
+    "api_timings": {
+      "refresh_time": 90,
+      "description": "api_timings",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend-meta.host.name",
+          "type": "HOST",
+          "service": "api_timings"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC1",
+          "type": "HOST",
+          "service": "api_timings"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC2",
+          "type": "HOST",
+          "service": "api_timings"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC3",
+          "type": "HOST",
+          "service": "api_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "prod-app_khttpd_timings": {
+      "refresh_time": 90,
+      "description": "prod-app_khttpd_timings",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "flap_time": 0,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": 90,
+      "boost_time": 0,
+      "ttl": 900,
+      "stable_time": 60,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend-backend",
+          "type": "HOST",
+          "service": "prod-app_khttpd_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "bash_err": {
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend-dc1-11.host.name",
+          "type": "HOST",
+          "service": "bash_err"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc1-12.host.name",
+          "type": "HOST",
+          "service": "bash_err"
+        },
+        {
+          "instance": "",
+          "host": "backend-backend",
+          "type": "HOST",
+          "service": "bash_err"
+        },
+        {
+          "instance": "",
+          "host": "backend-backend-DC1",
+          "type": "HOST",
+          "service": "bash_err"
+        }
+      ],
+      "methods": [
+        "GOLEM",
+        "SMS"
+      ]
+    },
+    "api_5xx": {
+      "refresh_time": 90,
+      "description": "api_5xx",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend-meta.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC1",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC2",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-meta.host.name-DC3",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc3-10.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc2-10.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc1-10.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc3-16.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc2-16.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "backend-dc1-16.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        }
+      ],
+      "methods": [
+        "GOLEM",
+        "NASA"
+      ]
+    }
+  }
+}

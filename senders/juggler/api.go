@@ -114,9 +114,7 @@ func (js *jugglerSender) getCheck(ctx context.Context) (JugglerResponse, error) 
 			logger.Errf("%s %s", js.id, err)
 		}
 	}
-
 	return nil, errors.New("Failed to get juggler check")
-
 }
 func (js *jugglerSender) ensureFlap(jcheck *JugglerCheck) error {
 	if js.JugglerConfig.Flap.Enable == 1 {

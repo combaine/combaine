@@ -66,7 +66,7 @@ func DefaultJugglerTestConfig() *JugglerConfig {
 
 // Benchmarks
 func BenchmarkDataToLuaTable(b *testing.B) {
-	l, err := LoadPlugin("./plugins", "test")
+	l, err := LoadPlugin("testdata/plugins", "test")
 	if err != nil {
 		panic(err)
 	}
@@ -90,14 +90,14 @@ func TestLoadPlugin(t *testing.T) {
 	if _, err := LoadPlugin(".", "file_not_exists.lua"); err == nil {
 		log.Fatalf("Loading non existing plugin should return error")
 	}
-	if _, err := LoadPlugin("./plugins", "test"); err != nil {
+	if _, err := LoadPlugin("testdata/plugins", "test"); err != nil {
 		log.Fatalf("Failed to load plugin 'test': %s", err)
 	}
 }
 
 func TestPrepareLuaEnv(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	jconf.PluginsDir = "./plugins"
+	jconf.PluginsDir = "testdata/plugins"
 	jconf.Plugin = "test"
 
 	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
@@ -117,7 +117,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 
 func TestRunPlugin(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	jconf.PluginsDir = "./plugins"
+	jconf.PluginsDir = "testdata/plugins"
 
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
@@ -144,7 +144,7 @@ func TestRunPlugin(t *testing.T) {
 }
 
 func TestQueryLuaTable(t *testing.T) {
-	l, err := LoadPlugin("plugins", "test")
+	l, err := LoadPlugin("testdata/plugins", "test")
 	assert.NoError(t, err)
 	table, err := dataToLuaTable(l, data)
 	assert.NoError(t, err)
@@ -157,4 +157,9 @@ func TestQueryLuaTable(t *testing.T) {
 	events, err := luaResultToJugglerEvents("OK", result)
 	assert.NoError(t, err)
 	assert.Len(t, events, 2)
+}
+
+func TestGetCheck(t *testing.T) {
+	cases := []string{"testdata/checks/backend.json", "testdata/checks/terse.json"}
+	_ = cases
 }
