@@ -1,8 +1,9 @@
 {
   "frontend": {
-    "wsgi_timings": {
+    "upstream_timings": {
       "refresh_time": 90,
-      "description": "wsgi_timings",
+      "description": "description for check",
+      "tags": [ "combaine" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "aggregator_kwargs": {
         "ignore_nodata": 1,
@@ -20,38 +21,39 @@
       "children": [
         {
           "instance": "",
-          "host": "frontend-meta.host.name",
+          "host": "frontend-frontend",
           "type": "HOST",
-          "service": "wsgi_timings"
+          "service": "upstream_timings"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC1",
+          "host": "frontend-frontend-DC1",
           "type": "HOST",
-          "service": "wsgi_timings"
+          "service": "upstream_timings"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC2",
+          "host": "frontend-frontend-DC2",
           "type": "HOST",
-          "service": "wsgi_timings"
+          "service": "upstream_timings"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC3",
+          "host": "frontend-frontend-DC3",
           "type": "HOST",
-          "service": "wsgi_timings"
+          "service": "upstream_timings"
         }
       ],
       "methods": [
         "GOLEM"
       ]
     },
-    "prod-app_khttpd_timings": {
+    "ssl_handshake_timings": {
       "refresh_time": 90,
-      "description": "prod-app_khttpd_timings",
+      "description": "ssl_handshake_timings",
       "aggregator": "timed_more_than_limit_is_problem",
       "flap_time": 0,
+      "tags": [ "app", "front", "core" ],
       "aggregator_kwargs": {
         "ignore_nodata": 1,
         "limits": [
@@ -73,14 +75,14 @@
           "instance": "",
           "host": "frontend-frontend",
           "type": "HOST",
-          "service": "prod-app_khttpd_timings"
+          "service": "ssl_handshake_timings"
         }
       ],
       "methods": [
         "GOLEM"
       ]
     },
-    "node_err": {
+    "4xx": {
       "aggregator": "timed_more_than_limit_is_problem",
       "aggregator_kwargs": {
         "ignore_nodata": 1,
@@ -100,25 +102,25 @@
           "instance": "",
           "host": "frontend-dc1-11.host.name",
           "type": "HOST",
-          "service": "node_err"
+          "service": "4xx"
         },
         {
           "instance": "",
           "host": "frontend-dc1-12.host.name",
           "type": "HOST",
-          "service": "node_err"
+          "service": "4xx"
         },
         {
           "instance": "",
           "host": "frontend-frontend",
           "type": "HOST",
-          "service": "node_err"
+          "service": "4xx"
         },
         {
           "instance": "",
           "host": "frontend-frontend-DC1",
           "type": "HOST",
-          "service": "node_err"
+          "service": "4xx"
         }
       ],
       "methods": [
@@ -126,10 +128,11 @@
         "SMS"
       ]
     },
-    "app_5xx": {
+    "2xx": {
       "refresh_time": 90,
-      "description": "app_5xx",
+      "description": "2xx",
       "aggregator": "timed_more_than_limit_is_problem",
+      "tags": [ "NASA" ],
       "aggregator_kwargs": {
         "ignore_nodata": 1,
         "limits": [
@@ -146,63 +149,45 @@
       "children": [
         {
           "instance": "",
-          "host": "frontend-meta.host.name",
+          "host": "frontend-frontend",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC1",
+          "host": "frontend-frontend-DC1",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC2",
+          "host": "frontend-frontend-DC2",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-meta.host.name-DC3",
+          "host": "frontend-frontend-DC3",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-dc3-10.host.name",
+          "host": "frontend-dc3-06.host.name",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-dc2-10.host.name",
+          "host": "frontend-dc2-06.host.name",
           "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         },
         {
           "instance": "",
-          "host": "frontend-dc1-10.host.name",
+          "host": "frontend-dc1-06.host.name",
           "type": "HOST",
-          "service": "app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "frontend-dc3-16.host.name",
-          "type": "HOST",
-          "service": "app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "frontend-dc2-16.host.name",
-          "type": "HOST",
-          "service": "app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "frontend-dc1-16.host.name",
-          "type": "HOST",
-          "service": "app_5xx"
+          "service": "2xx"
         }
       ],
       "methods": [

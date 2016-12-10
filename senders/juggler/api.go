@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
 
 	"github.com/combaine/combaine/common/httpclient"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	getCheckUrl = "http://%s/api/checks/checks?do=1&include_children=true&host_name=%s"
-	AoUCheckUrl = "http://%s/api/checks/add_or_update?do=1"
+	GET_CHECK_URL = "http://%s/api/checks/checks?%s"
+	AOU_CHECK_URL = "http://%s/api/checks/add_or_update?do=1"
+	DEFAULT_TAG   = "combaine"
 )
 
 type JugglerResponse map[ /*hostname*/ string]map[ /*serviceName*/ string]JugglerCheck
@@ -58,7 +60,7 @@ type JugglerCheck struct {
 }
 
 type jugglerEvent struct {
-	Host        string
+	Tags        map[string]string
 	Service     string
 	Description string
 	Level       int
@@ -79,8 +81,15 @@ func (js *jugglerSender) getCheck(ctx context.Context) (JugglerResponse, error) 
 	var flap map[string]map[string]*JugglerFlapConfig
 
 	var jerrors []error
+	query := url.Values{
+		"do":               {"1"},
+		"include_children": {"true"},
+		"tag_name":         js.JugglerConfig.Tags,
+	}
 	for _, jhost := range js.JHosts {
-		url := fmt.Sprintf(getCheckUrl, jhost, js.Host)
+		//do=1&include_children=true&tag_name=combaine&host_name=
+		query.Set("host_name", js.Host)
+		url := fmt.Sprintf(GET_CHECK_URL, jhost, query.Encode())
 		logger.Infof("%s Query check %s", js.id, url)
 
 		resp, err := httpclient.Get(ctx, url)
@@ -119,8 +128,99 @@ func (js *jugglerSender) getCheck(ctx context.Context) (JugglerResponse, error) 
 	}
 	return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 }
+
+// ensureCheck check that juggler check exists and it in sync with task data
+// if need it call add_or_update check
+func (js *jugglerSender) ensureCheck(ctx context.Context, hostChecks JugglerResponse, triggers []jugglerEvent) error {
+
+	services, ok := hostChecks[js.Host]
+	if !ok {
+		logger.Debugf("%s Create new checks for host: %s", js.id, js.Host)
+		services = make(map[string]JugglerCheck)
+		hostChecks[js.Host] = services
+	}
+	childSet := make(map[string]struct{}) // set
+	for serviceName, v := range services {
+		for _, c := range v.Children {
+			childSet[c.Host+":"+serviceName] = struct{}{}
+		}
+	}
+
+	for _, t := range triggers {
+		check, ok := services[t.Service]
+		if !ok {
+			check = JugglerCheck{Update: true}
+		}
+		if t.Tags["type"] == "metahost" {
+			logger.Infof("%s ensure check %s for metahost %s", js.id, t.Service, t.Tags["metahost"])
+			// aggregator
+			if check.Aggregator != js.Aggregator ||
+				!reflect.DeepEqual(check.AggregatorKWArgs, js.AggregatorKWargs) {
+				check.Update = true
+				check.Aggregator = js.Aggregator
+				check.AggregatorKWArgs = js.AggregatorKWargs
+			}
+			// flap
+			if err := js.ensureFlap(&check); err != nil {
+				return err
+			}
+
+			// tags
+			if js.JugglerConfig.Tags == nil || len(js.JugglerConfig.Tags) == 0 {
+				js.JugglerConfig.Tags = []string{DEFAULT_TAG}
+			}
+			// TODO: tags by servces in juggler config as for flaps?
+			if check.Tags == nil || len(check.Tags) == 0 {
+				check.Update = true
+				check.Tags = make([]string, len(js.JugglerConfig.Tags))
+				copy(check.Tags, js.JugglerConfig.Tags)
+			} else {
+				tagsSet := make(map[string]struct{}, len(check.Tags))
+				for _, tag := range check.Tags {
+					tagsSet[tag] = struct{}{}
+				}
+				for _, tag := range js.JugglerConfig.Tags {
+					if _, ok := tagsSet[tag]; !ok {
+						check.Update = true
+						logger.Warnf("%s Add tag %s for check %s", js.id, tag, t.Service)
+						check.Tags = append(check.Tags, tag)
+					}
+				}
+			}
+		} else {
+			name := t.Tags["metahost"]
+			if t.Tags["type"] == "datacenter" {
+				name = fmt.Sprintf("%s-%s-%s", name, js.Host, t.Tags["name"])
+			} else { // type == host
+				name = name + "-" + t.Tags["name"]
+			}
+
+			if _, ok := childSet[name+":"+t.Service]; !ok {
+				check.Update = true
+				child := JugglerChildrenCheck{
+					Instance: "", // FIXME? hardcode, delete?
+					Host:     name,
+					Type:     "HOST", // FIXME? hardcode, delete?
+					Service:  t.Service,
+				}
+				logger.Debugf("%s Add children %s", js.id, child)
+				check.Children = append(check.Children, child)
+			}
+		}
+		if check.Update {
+			services[t.Service] = check
+			check.Host = js.Host
+			check.Service = t.Service
+			if err := js.updateCheck(ctx, check); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (js *jugglerSender) ensureFlap(jcheck *JugglerCheck) error {
-	if f, ok := js.JugglerConfig.FlapByCheck[jcheck.Service]; ok {
+	if f, ok := js.JugglerConfig.ChecksOptions[jcheck.Service]; ok {
 		if f.Enable == 1 {
 			if jcheck.Flap == nil {
 				jcheck.Flap = &JugglerFlapConfig{Enable: 1}
@@ -149,56 +249,8 @@ func (js *jugglerSender) ensureFlap(jcheck *JugglerCheck) error {
 	return nil
 }
 
-// ensureCheck check that juggler check exists and it in sync with task data
-// if need it create or update check
-func (js *jugglerSender) ensureCheck(ctx context.Context, hostChecks JugglerResponse, triggers []jugglerEvent) error {
-
-	services, ok := hostChecks[js.Host]
-	if !ok {
-		services = make(map[string]JugglerCheck)
-		hostChecks[js.Host] = services
-	}
-	childSet := make(map[string]struct{}) // set
-	for n, v := range services {
-		for _, c := range v.Children {
-			childSet[c.Host+":"+n] = struct{}{}
-		}
-	}
-
-	for _, t := range triggers {
-		check, ok := services[t.Service]
-		if !ok {
-			check = JugglerCheck{Update: true}
-		}
-		if t.Host == js.Host { // for metahost
-			if err := js.ensureFlap(&check); err != nil {
-				return err
-			}
-			if check.Aggregator != js.Aggregator ||
-				!reflect.DeepEqual(check.AggregatorKWArgs, js.AggregatorKWargs) {
-				check.Update = true
-				check.Aggregator = js.Aggregator
-				check.AggregatorKWArgs = js.AggregatorKWargs
-			}
-		} else {
-			if _, ok := childSet[t.Host+":"+t.Service]; !ok {
-				check.Update = true
-				check.Children = append(check.Children, JugglerChildrenCheck{
-					Host:    t.Host,
-					Service: t.Service,
-				})
-			}
-		}
-		if check.Update {
-			if err := js.updateCheck(ctx, check); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (js *jugglerSender) updateCheck(ctx context.Context, check JugglerCheck) error {
+	logger.Infof("%s Update check %s", js.id, check.Service)
 	return nil
 }
 

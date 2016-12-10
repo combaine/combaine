@@ -4,14 +4,15 @@ function sumTable(t)
     for _, v in pairs(t) do
         if type(v) == "table" then
             result = result + sumTable(v)
-        else
+        else if type(v) == "number" then
             result = result + v
-        end
+        end end
     end
     return result
 end
 
 function flatting(key, val, res)
+    -- TODO: eliminate after rewriting testQeury
     if type(val) == "table" then
         if key ~= "" then
             key = key .. "/"
@@ -24,22 +25,31 @@ function flatting(key, val, res)
     end
 end
 
-function testQuery(t)
+function testQuery()
+    -- TODO: rewrite for new data format []tasks.AggregationResult
+    -- it work only thanks to the universality of Lua tables
     local result = {}
     local flat = {}
-    local path = split(query, "/")
-    -- print(path[1], path[2], path[3])
-    flatting("", t, flat)
-    for k, v in pairs(flat) do
-        local kp = split(k, "/")
-        if #kp == #path then
-            if k:match('^'..query..'$', 1) then
-                result[#result + 1] = {
-                    ["host"] = "TestHost",
-                    ["description"] = string.format("%s = %0.3f", table.concat(kp, ".", 2), v),
-                    ["level"] = v,
-                    ["service"] = kp[2],
-                }
+    for _, t in pairs(config.checks) do
+        local path = split(t.query, "/")
+        -- print(path[1], path[2], path[3])
+        flatting("", payload, flat)
+        for k, v in pairs(flat) do
+            local kp = split(k, "/")
+            if #kp == #path then
+                if k:match('^'..t.query..'$', 1) then
+                    -- print(k, t.query)
+                    result[#result + 1] = {
+                        ["tags"] = {
+                            ["name"] = "TestHost",
+                            ["type"] = "host",
+                            ["metahost"] = "TestMetahost",
+                        },
+                        ["description"] = string.format("%s = %0.3f", table.concat(kp, "."), v),
+                        ["level"] = "OK",
+                        ["service"] = kp[3],
+                    }
+                end
             end
         end
     end

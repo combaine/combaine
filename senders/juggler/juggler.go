@@ -26,7 +26,7 @@ func NewJugglerSender(conf *JugglerConfig, id string) (*jugglerSender, error) {
 }
 
 // Send make all things abount juggler sender tasks
-func (js *jugglerSender) Send(ctx context.Context, data tasks.DataType) error {
+func (js *jugglerSender) Send(ctx context.Context, data []tasks.AggregationResult) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
 	if err != nil {
@@ -47,6 +47,7 @@ func (js *jugglerSender) Send(ctx context.Context, data tasks.DataType) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("jEvents: %v", jEvents)
 	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
 		return err
 	}

@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	DEFAULT_CONFIG_PATH = "/etc/combaine/juggler.yaml"
-	DEFAULT_PLUGIN_DIR  = "/usr/lib/yandex/combaine/juggler"
-	DEFAULT_CHECK_LEVEL = "OK"
+	DEFAULT_CONFIG_PATH  = "/etc/combaine/juggler.yaml"
+	DEFAULT_PLUGIN_DIR   = "/usr/lib/yandex/combaine/juggler"
+	DEFAULT_CHECK_STATUS = "OK"
 )
 
 type Conditions struct {
@@ -31,9 +31,10 @@ type JugglerConfig struct {
 	Aggregator         string                        `codec:"Aggregator"`
 	CheckName          string                        `codec:"checkname"`
 	Description        string                        `codec:"description"`
+	Tags               []string                      `codec:"tags"`
 	AggregatorKWargs   json.RawMessage               `codec:"aggregator_kwargs"`
 	Flap               *JugglerFlapConfig            `codec:"flap"`
-	FlapByCheck        map[string]*JugglerFlapConfig `codec:"flap_by_check"`
+	ChecksOptions      map[string]*JugglerFlapConfig `codec:"checks_options"`
 	JPluginConfig      configs.PluginConfig          `codec:"config"`
 	JHosts             []string                      `codec:"juggler_hosts"`
 	JFrontend          []string                      `codec:"juggler_frontend"`
@@ -72,14 +73,16 @@ func DefaultJugglerConfig() *JugglerConfig {
 	return &JugglerConfig{
 		PluginsDir:         "/etc/combaine/juggler/plugins",
 		Plugin:             "",
-		DefaultCheckStatus: "OK",
+		DefaultCheckStatus: DEFAULT_CHECK_STATUS,
 		Host:               "",
 		Methods:            []string{},
 		Aggregator:         "",
 		CheckName:          "",
 		Description:        "",
+		Tags:               []string{"combaine"},
 		AggregatorKWargs:   json.RawMessage{},
 		Flap:               nil,
+		ChecksOptions:      make(map[string]*JugglerFlapConfig, 0),
 		JPluginConfig:      configs.PluginConfig{},
 		JHosts:             []string{},
 		JFrontend:          []string{},

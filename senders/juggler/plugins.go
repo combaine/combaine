@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -34,18 +35,23 @@ func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTabl
 	return table, nil
 }
 
-func dataToLuaTable(l *lua.LState, in tasks.DataType) (*lua.LTable, error) {
+func dataToLuaTable(l *lua.LState, in []tasks.AggregationResult) (*lua.LTable, error) {
 	out := l.NewTable()
-	for host, item := range in {
+	for _, item := range in {
 		table := l.NewTable()
-		out.RawSetString(host, table)
-		for metric, value := range item {
-			if val, err := ToLuaValue(l, value, dumperToLuaNumber); err == nil {
-				table.RawSetString(metric, val)
-			} else {
-				return nil, err
-			}
+
+		tags := l.NewTable()
+		for k, v := range item.Tags {
+			tags.RawSetString(k, lua.LString(v))
 		}
+		table.RawSetString("Tags", tags)
+
+		if val, err := ToLuaValue(l, item.Result, dumperToLuaNumber); err == nil {
+			table.RawSetString("Result", val)
+		} else {
+			return nil, err
+		}
+		out.Append(table)
 	}
 	return out, nil
 }
@@ -70,7 +76,7 @@ func ToLuaValue(l *lua.LState, v interface{}, dumper DumperFunc) (lua.LValue, er
 		for _, key := range rv.MapKeys() {
 			item := rv.MapIndex(key).Interface()
 			if v, err := ToLuaValue(l, item, dumper); err == nil {
-				inTable.RawSetString(key.String(), v)
+				inTable.RawSetString(fmt.Sprintf("%s", key), v)
 			} else {
 				return nil, err
 			}
@@ -135,25 +141,36 @@ func dumperToLuaValue(value reflect.Value) (ret lua.LValue, err error) {
 
 // luaResultToJugglerEvents convert well known type of lua plugin result
 // in to go types
-func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]jugglerEvent, error) {
-	if defaultLevel == "" {
-		defaultLevel = DEFAULT_CHECK_LEVEL
-	}
+func (js *jugglerSender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, error) {
 	if result == nil {
 		return nil, errors.New("lua plugin result is nil")
 	}
 
-	var errs []error
+	errs := make(map[string]string, 0)
 	var events []jugglerEvent
 	result.ForEach(func(k lua.LValue, v lua.LValue) {
 		lt, ok := v.(*lua.LTable)
 		if !ok {
-			errs = append(errs, fmt.Errorf("Failed to convert: result[%s]=%s is not lua table",
-				lua.LVAsString(k), lua.LVAsString(v)))
+			errs[fmt.Sprintf("Failed to convert: result[%s]=%s is not lua table",
+				lua.LVAsString(k), lua.LVAsString(v))] = ""
+			return
 		}
 		je := jugglerEvent{}
-		if je.Host = lua.LVAsString(lt.RawGetString("host")); je.Host == "" {
-			errs = append(errs, errors.New("UnknownHost in event"))
+		tags, ok := lt.RawGetString("tags").(*lua.LTable)
+		if !ok {
+			errs["Failed to convert tags to lua table"] = ""
+			return
+		}
+		je.Tags = make(map[string]string, 0)
+		tags.ForEach(func(tk lua.LValue, tv lua.LValue) {
+			je.Tags[lua.LVAsString(tk)] = lua.LVAsString(tv)
+		})
+		if _, ok := je.Tags["type"]; !ok {
+			name := "UnknownEntity"
+			if entity, ok := je.Tags["name"]; ok {
+				name = entity
+			}
+			errs[fmt.Sprintf("Missing tag type for %s", name)] = ""
 			return
 		}
 		if je.Description = lua.LVAsString(lt.RawGetString("description")); je.Description == "" {
@@ -166,13 +183,14 @@ func luaResultToJugglerEvents(defaultLevel string, result *lua.LTable) ([]juggle
 		if l, ok := jLevels[level]; ok {
 			je.Level = l
 		} else {
-			je.Level = jLevels[defaultLevel]
-			je.Description = fmt.Sprintf("%s (Forse status %s)", je.Description, defaultLevel)
+			logger.Errf("%s Plugin %s do not return event level, force status to default", js.id, js.Plugin)
+			je.Level = jLevels[js.DefaultCheckStatus]
+			je.Description = fmt.Sprintf("%s (Force status %s)", je.Description, js.DefaultCheckStatus)
 		}
 
 		events = append(events, je)
 	})
-	if errs != nil {
+	if len(errs) > 0 {
 		return nil, fmt.Errorf("%s", errs)
 	}
 	return events, nil
@@ -197,10 +215,10 @@ func LoadPlugin(dir, name string) (*lua.LState, error) {
 
 // preparePluginEnv add data from aggregate task as global variable in lua
 // plugin. Also inject juggler conditions from juggler configs and plugin config
-func (js *jugglerSender) preparePluginEnv(taskData tasks.DataType) error {
-	ltable, err := dataToLuaTable(js.state, taskData)
+func (js *jugglerSender) preparePluginEnv(data []tasks.AggregationResult) error {
+	ltable, err := dataToLuaTable(js.state, data)
 	if err != nil {
-		return fmt.Errorf("Failed to convert taskData to lua table: %s", err)
+		return fmt.Errorf("Failed to convert AggregationResult to lua table: %s", err)
 	}
 
 	js.state.SetGlobal("payload", ltable)
@@ -245,7 +263,7 @@ func (js *jugglerSender) runPlugin() ([]jugglerEvent, error) {
 		return nil, fmt.Errorf("Expected 'run' function inside plugin: %s", err)
 	}
 	result := js.state.ToTable(1)
-	events, err := luaResultToJugglerEvents(js.DefaultCheckStatus, result)
+	events, err := js.luaResultToJugglerEvents(result)
 	if err != nil {
 		return nil, err
 	}

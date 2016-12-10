@@ -10,41 +10,14 @@ import (
 	"os"
 	"testing"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
-	lua "github.com/yuin/gopher-lua"
 )
 
-var data = tasks.DataType{
-	"host1": map[string]interface{}{
-		"service1": map[string]interface{}{
-			"front1.timings": []float64{11133.4},
-			"1rps":           111234,
-			"1error":         1110.000,
-		},
-	},
-	"host2": map[string]interface{}{
-		"service2": map[string]interface{}{
-			"front2.timings": []float64{22233.4, 222222.2},
-			"2rps":           222234,
-			"2error":         2220.000,
-		},
-	},
-	"host3": map[string]interface{}{
-		"service3": map[string]interface{}{
-			"front3.timings": []float64{33333.4, 333222.2, 3333434.3},
-			"3rps":           333234,
-			"3error":         3330.000,
-		},
-	},
-	"host7": map[string]interface{}{
-		"service4": map[string]interface{}{
-			"front7.timings": []float64{777.1, 777.2, 777.3, 777.4, 777.5, 777.6, 777.7},
-			"7rps":           777,
-			"7error":         777.777,
-		},
-	},
-}
+var data []tasks.AggregationResult
+var ts *httptest.Server
 
 func DefaultJugglerTestConfig() *JugglerConfig {
 	conf := DefaultJugglerConfig()
@@ -57,12 +30,14 @@ func DefaultJugglerTestConfig() *JugglerConfig {
 	conf.JPluginConfig = map[string]interface{}{
 		"checks": map[string]interface{}{
 			"testTimings": map[string]interface{}{
-				"query": "%S+/%S+timings/3",
-				"limit": 200.0, // ms
+				"query":  "%S+/%S+/%S+timings/7",
+				"status": "WARN",
+				"limit":  0.900, // second
 			},
-			"testErrors": map[string]interface{}{
-				"query": "%S+/%S+error",
-				"limit": 50,
+			"test4xx": map[string]interface{}{
+				"query":  "%S+/%S+/4xx",
+				"status": "CRIT",
+				"limit":  30,
 			},
 		},
 	}
@@ -96,7 +71,6 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 		l.Push(l.GetGlobal("sumTable"))
 		l.Push(l.GetGlobal("table"))
 		l.Call(1, 1)
-		l.Get(1)
 		l.Pop(1)
 	}
 	l.Close()
@@ -159,45 +133,27 @@ func TestRunPlugin(t *testing.T) {
 }
 
 func TestQueryLuaTable(t *testing.T) {
-	l, err := LoadPlugin("testdata/plugins", "test")
+	jconf := DefaultJugglerTestConfig()
+
+	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
-	table, err := dataToLuaTable(l, data)
+
+	jconf.Plugin = "test"
+	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
-	l.SetGlobal("query", lua.LString(".+/.+/.+timings/3"))
+	js.state = l
+	assert.NoError(t, js.preparePluginEnv(data))
 	l.Push(l.GetGlobal("testQuery"))
-	l.Push(table)
-	l.Call(1, 1)
+	l.Call(0, 1)
 	result := l.ToTable(1)
 
-	events, err := luaResultToJugglerEvents("OK", result)
+	events, err := js.luaResultToJugglerEvents(result)
+	t.Logf("Test events: %v", events)
 	assert.NoError(t, err)
-	assert.Len(t, events, 2)
+	assert.Len(t, events, 32)
 }
 
 func TestGetCheck(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/checks/checks":
-			hostName := r.URL.Query().Get("host_name")
-			if hostName == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintln(w, "Query parameter host_name not specified")
-			}
-			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
-			data, err := ioutil.ReadFile(fileName)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "Failed to read file %s, %s", fileName, err)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(data)
-		default:
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintln(w, "Not Found")
-		}
-	}))
-	defer ts.Close()
-
 	jconf := DefaultJugglerTestConfig()
 	assert.Contains(t, jconf.JHosts[0], "localhost")
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
@@ -212,18 +168,18 @@ func TestGetCheck(t *testing.T) {
 		len       int
 		withFlaps map[string]*JugglerFlapConfig
 	}{
-		{"backend", true, 5, map[string]*JugglerFlapConfig{
-			"api_timings":             nil,
-			"prod-app_khttpd_timings": {StableTime: 60, CriticalTime: 90},
-			"prod-app_5xx":            nil,
-			"common_log_err":          nil,
-			"api_5xx":                 nil,
+		{"hostname_from_config", true, 5, map[string]*JugglerFlapConfig{
+			"type1_timings":  nil,
+			"type2_timings":  {StableTime: 60, CriticalTime: 90},
+			"prod-app_5xx":   nil,
+			"common_log_err": nil,
+			"api_5xx":        nil,
 		}},
 		{"frontend", true, 4, map[string]*JugglerFlapConfig{
-			"wsgi_timings":            nil,
-			"prod-app_khttpd_timings": {StableTime: 60, CriticalTime: 90},
-			"node_err":                nil,
-			"app_5xx":                 nil,
+			"upstream_timings":      nil,
+			"ssl_handshake_timings": {StableTime: 60, CriticalTime: 90},
+			"4xx": nil,
+			"2xx": nil,
 		}},
 		{"nonExisting", false, 0, make(map[string]*JugglerFlapConfig)},
 	}
@@ -243,4 +199,102 @@ func TestGetCheck(t *testing.T) {
 			assert.Equal(t, v, juggler_resp[c.name][k].Flap)
 		}
 	}
+}
+
+func TestEnsureCheck(t *testing.T) {
+	cases := []struct {
+		name string
+		tags map[string][]string
+	}{
+		{"hostname_from_config", map[string][]string{
+			"type2_timings":  {"app", "combaine"},
+			"common_log_err": {"common", "combaine"},
+		}},
+		{"frontend", map[string][]string{
+			"ssl_handshake_timings": {"app", "front", "core", "combaine"},
+			"4xx": {"combaine"},
+		}},
+	}
+
+	jconf := DefaultJugglerTestConfig()
+	jconf.JPluginConfig = map[string]interface{}{
+		"checks": map[string]interface{}{
+			"testTimings": map[string]interface{}{
+				"type":       "metahost",
+				"query":      ".+_timings$",
+				"percentile": 6, // 97
+				"status":     "WARN",
+				"limit":      0.900, // second
+			},
+			"testErr": map[string]interface{}{
+				"type":   "metahost",
+				"query":  "[4e][xr][xr]$",
+				"status": "CRIT",
+				"limit":  30,
+			},
+		},
+	}
+
+	jconf.JHosts = []string{ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+
+	js, err := NewJugglerSender(jconf, "Test ID")
+	assert.NoError(t, err)
+
+	jconf.Plugin = "test_ensure_check"
+	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
+	assert.NoError(t, err)
+	js.state = state
+	assert.NoError(t, js.preparePluginEnv(data))
+
+	jEvents, err := js.runPlugin()
+	assert.NoError(t, err)
+	t.Logf("juggler events: %v", jEvents)
+
+	ctx := context.TODO()
+	for _, c := range cases {
+		js.Host = c.name
+		checks, err := js.getCheck(ctx)
+		assert.NoError(t, err)
+		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
+		for service, tags := range c.tags {
+			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
+		}
+	}
+}
+
+func TestMain(m *testing.M) {
+	dataYaml, yerr := ioutil.ReadFile("testdata/payload.yaml")
+	if yerr != nil {
+		panic(yerr)
+	}
+	//var data []tasks.AggregationResult is global
+	if yerr := yaml.Unmarshal([]byte(dataYaml), &data); yerr != nil {
+		panic(yerr)
+	}
+
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/checks/checks":
+			hostName := r.URL.Query().Get("host_name")
+			if hostName == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintln(w, "Query parameter host_name not specified")
+			}
+			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
+			resp, err := ioutil.ReadFile(fileName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Failed to read file %s, %s", fileName, err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(resp)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintln(w, "Not Found")
+		}
+	}))
+	defer ts.Close()
+
+	os.Exit(m.Run())
 }

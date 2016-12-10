@@ -1,7 +1,11 @@
 function run(t)
     local result = {}
     result[#result + 1] = {
-        ["host"] = "TestHost",
+        ["tags"] = {
+            ["name"] = "TestHost",
+            ["type"] = "host",
+            ["metahost"] = "TestMetahost",
+        },
         ["service"] = "Test Service",
         ["level"] = "OK",
         ["description"] = "Test description",

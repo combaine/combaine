@@ -1,9 +1,9 @@
 {
-  "backend": {
-    "api_timings": {
+  "hostname_from_config": {
+    "type1_timings": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "api_timings",
+      "description": "check_description",
       "tags": null,
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947534,
@@ -34,38 +34,44 @@
       "children": [
         {
           "instance": "",
-          "host": "backend-meta.host.name",
+          "host": "hostname_from_config-meta-host-name",
           "type": "HOST",
-          "service": "api_timings"
+          "service": "type1_timings"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC1",
+          "host": "hostname_from_config-meta-host-name-DC1",
           "type": "HOST",
-          "service": "api_timings"
+          "service": "type1_timings"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC2",
+          "host": "hostname_from_config-meta-host-name-DC2",
           "type": "HOST",
-          "service": "api_timings"
+          "service": "type1_timings"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC3",
+          "host": "hostname_from_config-host1",
           "type": "HOST",
-          "service": "api_timings"
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-host2",
+          "type": "HOST",
+          "service": "type1_timings"
         }
       ],
       "methods": [
         "GOLEM"
       ]
     },
-    "prod-app_khttpd_timings": {
+    "type2_timings": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "prod-app_khttpd_timings",
-      "tags": null,
+      "description": "check_description",
+      "tags": [ "app" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947562,
       "flap_time": 0,
@@ -95,9 +101,15 @@
       "children": [
         {
           "instance": "",
-          "host": "backend-backend",
+          "host": "hostname_from_config-meta-host-name",
           "type": "HOST",
-          "service": "prod-app_khttpd_timings"
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC1",
+          "type": "HOST",
+          "service": "type1_timings"
         }
       ],
       "methods": [
@@ -107,8 +119,8 @@
     "prod-app_5xx": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "prod-app_5xx",
-      "tags": null,
+      "description": "description for check",
+      "tags": [ "combaine" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947562,
       "flap_time": null,
@@ -138,79 +150,43 @@
       "children": [
         {
           "instance": "",
-          "host": "backend-srv-dc3-10.host.name",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc2-10.host.name",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc1-10.host.name",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc3-14.host.name",
+          "host": "hostname_from_config-kroup1",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc2-14.host.name",
+          "host": "hostname_from_config-meta-host-name-DC1",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc1-14.host.name",
+          "host": "hostname_from_config-meta-host-name-DC2",
           "type": "HOST",
           "service": "prod-app_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc3-17.host.name",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc2-17.host.name",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc1-17.host.name",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC1",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC2",
-          "type": "HOST",
-          "service": "prod-app_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC3",
+          "host": "hostname_from_config-meta-host-name-DC3",
           "type": "HOST",
           "service": "prod-app_5xx"
         }
@@ -222,8 +198,8 @@
     "common_log_err": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "common_log_err",
-      "tags": null,
+      "description": "description for check",
+      "tags": [ "common" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947572,
       "flap_time": null,
@@ -253,79 +229,43 @@
       "children": [
         {
           "instance": "",
-          "host": "backend-srv-dc3-11.host.name",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc2-11.host.name",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc1-11.host.name",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc3-12.host.name",
+          "host": "hostname_from_config-meta-host-name",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc2-12.host.name",
+          "host": "hostname_from_config-meta-host-name-DC1",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc1-12.host.name",
+          "host": "hostname_from_config-meta-host-name-DC2",
           "type": "HOST",
           "service": "common_log_err"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc3-17.host.name",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc2-17.host.name",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc1-17.host.name",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC1",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC2",
-          "type": "HOST",
-          "service": "common_log_err"
-        },
-        {
-          "instance": "",
-          "host": "backend-backend-DC3",
+          "host": "hostname_from_config-meta-host-name-DC3",
           "type": "HOST",
           "service": "common_log_err"
         }
@@ -337,7 +277,7 @@
     "api_5xx": {
       "max_status": null,
       "refresh_time": 90,
-      "description": "api_5xx",
+      "description": "description for check",
       "tags": null,
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947558,
@@ -368,97 +308,43 @@
       "children": [
         {
           "instance": "",
-          "host": "backend-meta.host.name",
+          "host": "hostname_from_config-meta.host.name",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC1",
+          "host": "hostname_from_config-meta.host.name-DC1",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC2",
+          "host": "hostname_from_config-meta.host.name-DC2",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-meta.host.name-DC3",
+          "host": "hostname_from_config-meta.host.name-DC3",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc3-10.host.name",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc2-10.host.name",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
           "type": "HOST",
           "service": "api_5xx"
         },
         {
           "instance": "",
-          "host": "backend-srv-dc1-10.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc3-11.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc2-11.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc1-11.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc3-15.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc2-15.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc1-15.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc3-16.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc2-16.host.name",
-          "type": "HOST",
-          "service": "api_5xx"
-        },
-        {
-          "instance": "",
-          "host": "backend-srv-dc1-16.host.name",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
           "type": "HOST",
           "service": "api_5xx"
         }
