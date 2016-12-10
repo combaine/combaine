@@ -94,18 +94,18 @@ func TestAggregating(t *testing.T) {
 			"Host1Host2Host3Host4": false,
 		}
 		expectSenders := map[string]int{
-			"Host1":              0,
-			"Host2":              0,
-			"Host3":              0,
-			"Host4":              0,
-			"test-combainer-DC1": 0,
-			"test-combainer-DC2": 0,
-			"test-combainer":     0, // metahost
+			"Host1":          0,
+			"Host2":          0,
+			"Host3":          0,
+			"Host4":          0,
+			"DC1":            0,
+			"DC2":            0,
+			"test-combainer": 0, // metahost
 		}
 
 		shouldSendToSenders := 2
 
-		for r := range tests.Spy {
+		for r := range tests.Spy { // r == []interface{servicecacher.Service, []byte}
 			method := string(r[0].(string))
 			if method == "stop" {
 				break
@@ -114,10 +114,10 @@ func TestAggregating(t *testing.T) {
 			case "aggregate_group":
 				var akeys []string
 
-				var payload []interface{}
+				var payload []interface{} // []interface{}{id, PluginConfig, [][]byte}
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 
-				tmp := payload[2].([]interface{})
+				tmp := payload[2].([]interface{}) // text for expectAggregatingGroup
 				for _, v := range tmp {
 					akeys = append(akeys, string(v.([]byte)[:5]))
 				}
@@ -133,11 +133,9 @@ func TestAggregating(t *testing.T) {
 				var payload tasks.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
-					for _k := range v {
-						_, ok := expectSenders[_k]
-						assert.True(t, ok, "Unexpected senders payload %s", _k)
-						expectSenders[_k]++
-					}
+					_, ok := expectSenders[v.Tags["name"]]
+					assert.True(t, ok, "Unexpected senders payload %s", v.Tags["name"])
+					expectSenders[v.Tags["name"]]++
 				}
 				if shouldSendToSenders == 0 {
 					tests.Spy <- []interface{}{"stop", ""}
