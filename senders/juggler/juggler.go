@@ -34,7 +34,7 @@ func (js *jugglerSender) Send(ctx context.Context, data []tasks.AggregationResul
 	}
 	js.state = state
 
-	logger.Debugf("%s Prepare plugin state", js.id)
+	logger.Debugf("%s Prepare state of lua plugin", js.id)
 	if err := js.preparePluginEnv(data); err != nil {
 		return err
 	}
@@ -47,33 +47,39 @@ func (js *jugglerSender) Send(ctx context.Context, data []tasks.AggregationResul
 	if err != nil {
 		return err
 	}
-	fmt.Printf("jEvents: %v", jEvents)
 	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
 		return err
 	}
 
+	if err := js.sendInternal(ctx, jEvents); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (js *jugglerSender) sendInternal(ctx context.Context, events []jugglerEvent) error {
 	var jWg sync.WaitGroup
 	var sendEeventsFailed int32
-	// TODO send evnets to all juggler fronts
-	// use builk request?
-	for _, e := range jEvents {
+	for _, jFront := range js.JugglerConfig.JFrontend {
 		jWg.Add(1)
-		go func(jEv jugglerEvent, wg *sync.WaitGroup) {
+		go func(front string, jEs []jugglerEvent, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := js.sendEvent(jEv); err != nil {
-				atomic.AddInt32(&sendEeventsFailed, 1)
-				logger.Errf("%s failed to send juggler Event: %s", js.id, err)
+			for _, e := range jEs {
+				if err := js.sendEvent(ctx, front, e); err != nil {
+					atomic.AddInt32(&sendEeventsFailed, 1)
+					logger.Errf("%s failed to send juggler Event %s: %s", js.id, e, err)
+				}
 			}
-		}(e, &jWg)
+		}(jFront, events, &jWg)
 	}
 	jWg.Wait()
 
 	if sendEeventsFailed > 0 {
-		msg := fmt.Errorf("failed to send %d/%d events", sendEeventsFailed, len(jEvents))
+		msg := fmt.Errorf("failed to send %d/%d events", sendEeventsFailed, len(events))
 		logger.Errf("%s %s", js.id, msg.Error())
 		return msg
 	}
-	logger.Infof("%s successfully send %d events", js.id, len(jEvents))
+	logger.Infof("%s successfully send %d events", js.id, len(events))
 
 	return nil
 }

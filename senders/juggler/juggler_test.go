@@ -237,11 +237,11 @@ func TestEnsureCheck(t *testing.T) {
 
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
 	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+	jconf.Plugin = "test_ensure_check"
 
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
-	jconf.Plugin = "test_ensure_check"
 	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
 	assert.NoError(t, err)
 	js.state = state
@@ -263,6 +263,39 @@ func TestEnsureCheck(t *testing.T) {
 	}
 }
 
+func TestSendEvent(t *testing.T) {
+	jconf := DefaultJugglerTestConfig()
+	jconf.JPluginConfig = map[string]interface{}{
+		"checks": map[string]interface{}{
+			"testTimings": map[string]interface{}{
+				"type":       "metahost",
+				"query":      ".+_timings$",
+				"percentile": 6, // 97
+				"status":     "WARN",
+				"limit":      0.900, // second
+			},
+			"testErr": map[string]interface{}{
+				"type":   "metahost",
+				"query":  "[4e][xr][xr]$",
+				"status": "CRIT",
+				"limit":  30,
+			},
+		},
+	}
+	jconf.JHosts = []string{ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+	jconf.Plugin = "test_ensure_check"
+
+	cases := []string{"hostname_from_config", "frontend"}
+	for _, c := range cases {
+		jconf.Host = c
+
+		js, err := NewJugglerSender(jconf, "Test ID")
+		assert.NoError(t, err)
+		assert.NoError(t, js.Send(context.TODO(), data))
+	}
+}
+
 func TestMain(m *testing.M) {
 	dataYaml, yerr := ioutil.ReadFile("testdata/payload.yaml")
 	if yerr != nil {
@@ -280,6 +313,7 @@ func TestMain(m *testing.M) {
 			if hostName == "" {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintln(w, "Query parameter host_name not specified")
+				return
 			}
 			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
 			resp, err := ioutil.ReadFile(fileName)
@@ -289,6 +323,8 @@ func TestMain(m *testing.M) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(resp)
+		case "/juggler-fcgi.py":
+			fmt.Fprintln(w, "OK")
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintln(w, "Not Found")

@@ -16,13 +16,6 @@ type DumperFunc func(reflect.Value) (lua.LValue, error)
 
 type JugglerLevels map[string]int
 
-var jLevels = JugglerLevels{
-	"OK":   0,
-	"WARN": 1,
-	"CRIT": 2,
-	"INFO": 3,
-}
-
 func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTable, error) {
 	table := l.NewTable()
 	for name, value := range in {
@@ -179,12 +172,11 @@ func (js *jugglerSender) luaResultToJugglerEvents(result *lua.LTable) ([]juggler
 		if je.Service = lua.LVAsString(lt.RawGetString("service")); je.Service == "" {
 			je.Service = "UnknownServce"
 		}
-		level := lua.LVAsString(lt.RawGetString("level"))
-		if l, ok := jLevels[level]; ok {
-			je.Level = l
+		if lvl := lt.RawGetString("level"); lvl != lua.LNil {
+			je.Level = lua.LVAsString(lvl)
 		} else {
 			logger.Errf("%s Plugin %s do not return event level, force status to default", js.id, js.Plugin)
-			je.Level = jLevels[js.DefaultCheckStatus]
+			je.Level = js.DefaultCheckStatus
 			je.Description = fmt.Sprintf("%s (Force status %s)", je.Description, js.DefaultCheckStatus)
 		}
 

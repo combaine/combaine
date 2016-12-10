@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	GET_CHECK_URL = "http://%s/api/checks/checks?%s"
-	AOU_CHECK_URL = "http://%s/api/checks/add_or_update?do=1"
-	DEFAULT_TAG   = "combaine"
+	GET_CHECKS_URL = "http://%s/api/checks/checks?%s"
+	AORU_CHECK_URL = "http://%s/api/checks/add_or_update?do=1"
+	SEND_EVENT_URL = "http://%s/juggler-fcgi.py?%s"
+	DEFAULT_TAG    = "combaine"
 )
 
 type JugglerResponse map[ /*hostname*/ string]map[ /*serviceName*/ string]JugglerCheck
@@ -63,7 +64,7 @@ type jugglerEvent struct {
 	Tags        map[string]string
 	Service     string
 	Description string
-	Level       int
+	Level       string
 }
 
 /*
@@ -89,14 +90,14 @@ func (js *jugglerSender) getCheck(ctx context.Context) (JugglerResponse, error) 
 	for _, jhost := range js.JHosts {
 		//do=1&include_children=true&tag_name=combaine&host_name=
 		query.Set("host_name", js.Host)
-		url := fmt.Sprintf(GET_CHECK_URL, jhost, query.Encode())
+		url := fmt.Sprintf(GET_CHECKS_URL, jhost, query.Encode())
 		logger.Infof("%s Query check %s", js.id, url)
 
 		resp, err := httpclient.Get(ctx, url)
 		switch err {
 		case nil:
 			body, rerr := ioutil.ReadAll(resp.Body)
-			logger.Debugf("Juggler response %d: '%q'", resp.StatusCode, body)
+			logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
 			if rerr != nil {
 				logger.Errf("%s %s", js.id, rerr)
 				jerrors = append(jerrors, rerr)
@@ -188,12 +189,11 @@ func (js *jugglerSender) ensureCheck(ctx context.Context, hostChecks JugglerResp
 				}
 			}
 		} else {
-			name := t.Tags["metahost"]
+			name := t.Tags["metahost"] + "-" + t.Tags["name"]
 			if t.Tags["type"] == "datacenter" {
-				name = fmt.Sprintf("%s-%s-%s", name, js.Host, t.Tags["name"])
-			} else { // type == host
-				name = name + "-" + t.Tags["name"]
+				name = fmt.Sprintf("%s-%s-%s", t.Tags["metahost"], js.Host, t.Tags["name"])
 			}
+			t.Tags["name"] = name
 
 			if _, ok := childSet[name+":"+t.Service]; !ok {
 				check.Update = true
@@ -255,6 +255,36 @@ func (js *jugglerSender) updateCheck(ctx context.Context, check JugglerCheck) er
 }
 
 // sendEvent send juggler event borned by ensureCheck to juggler's
-func (js *jugglerSender) sendEvent(event jugglerEvent) error {
+func (js *jugglerSender) sendEvent(ctx context.Context, front string, event jugglerEvent) error {
+	logger.Infof("%s Send juggler event %s", js.id, event)
+	query := url.Values{
+		"status":      {event.Level},
+		"description": {event.Description},
+		"service":     {event.Service},
+		"host":        {event.Tags["name"]},
+		"instance":    {""},
+	}
+
+	url := fmt.Sprintf(SEND_EVENT_URL, front, query.Encode())
+	resp, err := httpclient.Get(ctx, url)
+	switch err {
+	case nil:
+		body, rerr := ioutil.ReadAll(resp.Body)
+		logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
+		if rerr != nil {
+			logger.Errf("%s %s", js.id, rerr)
+			return rerr
+		}
+		if resp.StatusCode != http.StatusOK {
+			return errors.New(string(body))
+		}
+		return nil
+	case context.Canceled, context.DeadlineExceeded:
+		return err
+	default:
+		logger.Errf("%s %s", js.id, err)
+		return err
+	}
+
 	return nil
 }
