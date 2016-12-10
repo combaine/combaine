@@ -15,7 +15,7 @@ var logger *cocaine.Logger
 
 type Task struct {
 	Id     string
-	Data   tasks.DataType
+	Data   []tasks.AggregationResult
 	Config juggler.JugglerConfig
 }
 
