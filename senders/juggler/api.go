@@ -285,6 +285,4 @@ func (js *jugglerSender) sendEvent(ctx context.Context, front string, event jugg
 		logger.Errf("%s %s", js.id, err)
 		return err
 	}
-
-	return nil
 }
