@@ -13,13 +13,13 @@ import (
 
 var logger *cocaine.Logger
 
-type Task struct {
-	Id     string
+type task struct {
+	ID     string
 	Data   []tasks.AggregationResult
 	Config juggler.JugglerConfig
 }
 
-func Send(request *cocaine.Request, response *cocaine.Response) {
+func send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
@@ -32,7 +32,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	sConf, err := juggler.GetJugglerSenderConfig()
 	if err != nil {
-		logger.Errf("%s Failed to read juggler config %s", err, task.Id)
+		logger.Errf("%s Failed to read juggler config %s", err, task.ID)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -41,7 +41,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	}
 	if task.Config.JHosts == nil {
 		if sConf.Hosts == nil {
-			msg := fmt.Sprintf("%s juggler hosts not defined", task.Id)
+			msg := fmt.Sprintf("%s juggler hosts not defined", task.ID)
 			logger.Err(msg)
 			response.ErrorMsg(-100, msg)
 			return
@@ -59,18 +59,18 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		task.Config.PluginsDir = sConf.PluginsDir
 	}
 
-	logger.Debugf("%s Task: %v", task, task.Id)
+	logger.Debugf("%s Task: %v", task, task.ID)
 
-	jCli, err := juggler.NewJugglerSender(&task.Config, task.Id)
+	jCli, err := juggler.NewJugglerSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("%s Unexpected error %s", err, task.Id)
+		logger.Errf("%s Unexpected error %s", err, task.ID)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
 	err = jCli.Send(context.Background(), task.Data)
 	if err != nil {
-		logger.Errf("%s Sending error %s", err, task.Id)
+		logger.Errf("%s Sending error %s", err, task.ID)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -80,7 +80,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 func main() {
 	logger, _ = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
-		"send": Send,
+		"send": send,
 	}
 	logger.Debugf("Start Juggler cocaine worker")
 

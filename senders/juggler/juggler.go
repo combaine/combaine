@@ -11,22 +11,24 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-type jugglerSender struct {
-	*JugglerConfig
+// Sender main object
+type Sender struct {
+	*Config
 	id    string
 	state *lua.LState
 }
 
-func NewJugglerSender(conf *JugglerConfig, id string) (*jugglerSender, error) {
-	return &jugglerSender{
-		JugglerConfig: conf,
-		id:            id,
-		state:         nil,
+// NewJugglerSender return sender object with specified config
+func NewJugglerSender(conf *Config, id string) (*Sender, error) {
+	return &Sender{
+		Config: conf,
+		id:     id,
+		state:  nil,
 	}, nil
 }
 
 // Send make all things abount juggler sender tasks
-func (js *jugglerSender) Send(ctx context.Context, data []tasks.AggregationResult) error {
+func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
 	if err != nil {
@@ -57,10 +59,10 @@ func (js *jugglerSender) Send(ctx context.Context, data []tasks.AggregationResul
 	return nil
 }
 
-func (js *jugglerSender) sendInternal(ctx context.Context, events []jugglerEvent) error {
+func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error {
 	var jWg sync.WaitGroup
 	var sendEeventsFailed int32
-	for _, jFront := range js.JugglerConfig.JFrontend {
+	for _, jFront := range js.Config.JFrontend {
 		jWg.Add(1)
 		go func(front string, jEs []jugglerEvent, wg *sync.WaitGroup) {
 			defer wg.Done()

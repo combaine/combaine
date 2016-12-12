@@ -19,10 +19,10 @@ import (
 var data []tasks.AggregationResult
 var ts *httptest.Server
 
-func DefaultJugglerTestConfig() *JugglerConfig {
-	conf := DefaultJugglerConfig()
+func DefaultJugglerTestConfig() *Config {
+	conf := DefaultConfig()
 	// add test conditions
-	conf.Conditions = Conditions{
+	conf.conditions = conditions{
 		OK:   []string{"${nginx}.get('5xx', 0)<0.06"},
 		CRIT: []string{"${nginx}.get('5xx', 0)>0.06"},
 	}
@@ -166,37 +166,37 @@ func TestGetCheck(t *testing.T) {
 		name      string
 		exists    bool
 		len       int
-		withFlaps map[string]*JugglerFlapConfig
+		withFlaps map[string]*jugglerFlapConfig
 	}{
-		{"hostname_from_config", true, 5, map[string]*JugglerFlapConfig{
+		{"hostname_from_config", true, 5, map[string]*jugglerFlapConfig{
 			"type1_timings":  nil,
 			"type2_timings":  {StableTime: 60, CriticalTime: 90},
 			"prod-app_5xx":   nil,
 			"common_log_err": nil,
 			"api_5xx":        nil,
 		}},
-		{"frontend", true, 4, map[string]*JugglerFlapConfig{
+		{"frontend", true, 4, map[string]*jugglerFlapConfig{
 			"upstream_timings":      nil,
 			"ssl_handshake_timings": {StableTime: 60, CriticalTime: 90},
 			"4xx": nil,
 			"2xx": nil,
 		}},
-		{"nonExisting", false, 0, make(map[string]*JugglerFlapConfig)},
+		{"nonExisting", false, 0, make(map[string]*jugglerFlapConfig)},
 	}
 
 	ctx := context.TODO()
 	for _, c := range cases {
 		js.Host = c.name
-		juggler_resp, err := js.getCheck(ctx)
+		jugglerResp, err := js.getCheck(ctx)
 		if c.exists {
 			assert.NoError(t, err)
 		} else {
 			assert.Contains(t, fmt.Sprintf("%v", err), "no such file")
 		}
-		assert.Len(t, juggler_resp[js.Host], c.len)
+		assert.Len(t, jugglerResp[js.Host], c.len)
 
 		for k, v := range c.withFlaps {
-			assert.Equal(t, v, juggler_resp[c.name][k].Flap)
+			assert.Equal(t, v, jugglerResp[c.name][k].Flap)
 		}
 	}
 }

@@ -10,19 +10,21 @@ import (
 )
 
 const (
-	DEFAULT_CONFIG_PATH  = "/etc/combaine/juggler.yaml"
-	DEFAULT_PLUGIN_DIR   = "/usr/lib/yandex/combaine/juggler"
-	DEFAULT_CHECK_STATUS = "OK"
+	defaultConfigPath  = "/etc/combaine/juggler.yaml"
+	defaultPluginsDir  = "/usr/lib/yandex/combaine/juggler"
+	defaultCheckStatus = "OK"
 )
 
-type Conditions struct {
+type conditions struct {
 	OK   []string `codec:"OK"`
 	INFO []string `codec:"INFO"`
 	WARN []string `codec:"WARN"`
 	CRIT []string `codec:"CRIT"`
 }
 
-type JugglerConfig struct {
+// Config contains config section from combainer's aggregations section
+// also it include defaultConfigPath (or user specified) yaml config
+type Config struct {
 	PluginsDir         string                        `codec:"plugins_dir"`
 	Plugin             string                        `codec:"plugin"`
 	DefaultCheckStatus string                        `codec:"default_status"`
@@ -33,15 +35,17 @@ type JugglerConfig struct {
 	Description        string                        `codec:"description"`
 	Tags               []string                      `codec:"tags"`
 	AggregatorKWargs   json.RawMessage               `codec:"aggregator_kwargs"`
-	Flap               *JugglerFlapConfig            `codec:"flap"`
-	ChecksOptions      map[string]*JugglerFlapConfig `codec:"checks_options"`
+	Flap               *jugglerFlapConfig            `codec:"flap"`
+	ChecksOptions      map[string]*jugglerFlapConfig `codec:"checks_options"`
 	JPluginConfig      configs.PluginConfig          `codec:"config"`
 	JHosts             []string                      `codec:"juggler_hosts"`
 	JFrontend          []string                      `codec:"juggler_frontend"`
-	Conditions
+	conditions
 }
 
-type jugglerSenderConfig struct {
+// SenderConfig contains configuration loaded from combaine's config file
+// placed in defaultConfigPath
+type SenderConfig struct {
 	PluginsDir string   `yaml:"plugins_dir"`
 	Hosts      []string `yaml:"juggler_hosts"`
 	Frontend   []string `yaml:"juggler_frontend"`
@@ -49,10 +53,10 @@ type jugglerSenderConfig struct {
 
 // GetJugglerSenderConfig read yaml file with two arrays of hosts
 // if juggler_frontend not defined, use juggler_hosts as frontend
-func GetJugglerSenderConfig() (conf jugglerSenderConfig, err error) {
-	var path string = os.Getenv("JUGGLER_CONFIG")
+func GetJugglerSenderConfig() (conf SenderConfig, err error) {
+	var path = os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
-		path = DEFAULT_CONFIG_PATH
+		path = defaultConfigPath
 	}
 
 	rawConfig, err := ioutil.ReadFile(path)
@@ -64,16 +68,17 @@ func GetJugglerSenderConfig() (conf jugglerSenderConfig, err error) {
 		conf.Frontend = conf.Hosts
 	}
 	if conf.PluginsDir == "" {
-		conf.PluginsDir = DEFAULT_PLUGIN_DIR
+		conf.PluginsDir = defaultPluginsDir
 	}
 	return
 }
 
-func DefaultJugglerConfig() *JugglerConfig {
-	return &JugglerConfig{
+// DefaultConfig build default config for sender, it has sanity defaults
+func DefaultConfig() *Config {
+	return &Config{
 		PluginsDir:         "/etc/combaine/juggler/plugins",
 		Plugin:             "",
-		DefaultCheckStatus: DEFAULT_CHECK_STATUS,
+		DefaultCheckStatus: defaultCheckStatus,
 		Host:               "",
 		Methods:            []string{},
 		Aggregator:         "",
@@ -82,10 +87,10 @@ func DefaultJugglerConfig() *JugglerConfig {
 		Tags:               []string{"combaine"},
 		AggregatorKWargs:   json.RawMessage{},
 		Flap:               nil,
-		ChecksOptions:      make(map[string]*JugglerFlapConfig, 0),
+		ChecksOptions:      make(map[string]*jugglerFlapConfig, 0),
 		JPluginConfig:      configs.PluginConfig{},
 		JHosts:             []string{},
 		JFrontend:          []string{},
-		Conditions:         Conditions{},
+		conditions:         conditions{},
 	}
 }

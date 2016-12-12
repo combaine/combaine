@@ -6,7 +6,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-func Split(l *lua.LState) int {
+func split(l *lua.LState) int {
 	s := l.CheckString(1)
 	sep := l.CheckString(2)
 	splited := strings.Split(s, sep)
@@ -22,6 +22,6 @@ func Split(l *lua.LState) int {
 
 // PreloadTools preload go functions in lua global environment
 func PreloadTools(l *lua.LState) error {
-	l.SetGlobal("split", l.NewFunction(Split))
+	l.SetGlobal("split", l.NewFunction(split))
 	return nil
 }
