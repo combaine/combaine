@@ -167,7 +167,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			}
 
 			// tags
-			if js.Config.Tags == nil || len(js.Config.Tags) == 0 {
+			if len(js.Config.Tags) == 0 {
 				js.Config.Tags = []string{defaultTag}
 			}
 			// TODO: tags by servces in juggler config as for flaps?
@@ -266,6 +266,7 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 	}
 
 	url := fmt.Sprintf(sendEventURL, front, query.Encode())
+	logger.Debugf("%s Try send event %s", js.id, url)
 	resp, err := httpclient.Get(ctx, url)
 	switch err {
 	case nil:

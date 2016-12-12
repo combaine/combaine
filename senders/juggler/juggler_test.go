@@ -77,6 +77,24 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 }
 
 // Tests
+
+func TestGetJugglerSenderConfig(t *testing.T) {
+	conf, err := GetJugglerSenderConfig()
+	assert.Error(t, err)
+
+	testConf := "testdata/config/juggler_example.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
+	conf, err = GetJugglerSenderConfig()
+	assert.Equal(t, conf.Hosts[0], "host1")
+
+	testConf = "testdata/config/without_fronts.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
+	conf, err = GetJugglerSenderConfig()
+	assert.Equal(t, conf.Frontend, conf.Hosts)
+	assert.Equal(t, conf.PluginsDir, defaultPluginsDir)
+
+}
+
 func TestLoadPlugin(t *testing.T) {
 	if _, err := LoadPlugin(".", "file_not_exists.lua"); err == nil {
 		t.Fatalf("Loading non existing plugin should return error")
@@ -155,13 +173,16 @@ func TestQueryLuaTable(t *testing.T) {
 
 func TestGetCheck(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	assert.Contains(t, jconf.JHosts[0], "localhost")
-	jconf.JHosts = []string{ts.Listener.Addr().String()}
+	jconf.JHosts = []string{"localhost:80"}
 	jconf.JFrontend = []string{ts.Listener.Addr().String()}
 
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
+	_, err = js.getCheck(context.TODO())
+	assert.Error(t, err)
 
+	jconf.JHosts = []string{"localhost:80", ts.Listener.Addr().String()}
+	js, err = NewJugglerSender(jconf, "Test ID")
 	cases := []struct {
 		name      string
 		exists    bool
@@ -217,6 +238,7 @@ func TestEnsureCheck(t *testing.T) {
 	}
 
 	jconf := DefaultJugglerTestConfig()
+	jconf.Flap = &jugglerFlapConfig{Enable: 1, StableTime: 60}
 	jconf.JPluginConfig = map[string]interface{}{
 		"checks": map[string]interface{}{
 			"testTimings": map[string]interface{}{
@@ -256,11 +278,18 @@ func TestEnsureCheck(t *testing.T) {
 		js.Host = c.name
 		checks, err := js.getCheck(ctx)
 		assert.NoError(t, err)
+		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
 		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
 		for service, tags := range c.tags {
 			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
 		}
 	}
+	// non existing check check
+	js.Host = "someHost"
+	checks := map[string]map[string]jugglerCheck{"nonExistingHost": {
+		"nonExistingCheck": jugglerCheck{},
+	}}
+	assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
 }
 
 func TestSendEvent(t *testing.T) {
@@ -289,7 +318,6 @@ func TestSendEvent(t *testing.T) {
 	cases := []string{"hostname_from_config", "frontend"}
 	for _, c := range cases {
 		jconf.Host = c
-
 		js, err := NewJugglerSender(jconf, "Test ID")
 		assert.NoError(t, err)
 		assert.NoError(t, js.Send(context.TODO(), data))

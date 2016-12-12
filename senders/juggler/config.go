@@ -64,13 +64,13 @@ func GetJugglerSenderConfig() (conf SenderConfig, err error) {
 		return
 	}
 	err = yaml.Unmarshal(rawConfig, &conf)
-	if conf.Frontend == nil {
+	if len(conf.Frontend) == 0 {
 		conf.Frontend = conf.Hosts
 	}
 	if conf.PluginsDir == "" {
 		conf.PluginsDir = defaultPluginsDir
 	}
-	return
+	return conf, nil
 }
 
 // DefaultConfig build default config for sender, it has sanity defaults

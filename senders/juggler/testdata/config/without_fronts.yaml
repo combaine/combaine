@@ -1,0 +1,3 @@
+#plugins_dir: "testdata/plugins"
+juggler_hosts: ["localhost"] # example mega.juggler.host.name:10999
+#juggler_frontend: ["localhost"]
