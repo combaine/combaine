@@ -13,17 +13,17 @@ import (
 
 var logger *cocaine.Logger
 
-type task struct {
+type senderTask struct {
 	ID     string
 	Data   []tasks.AggregationResult
-	Config juggler.JugglerConfig
+	Config juggler.Config
 }
 
 func send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task Task
+	var task senderTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
