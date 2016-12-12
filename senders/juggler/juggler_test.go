@@ -23,8 +23,10 @@ func DefaultJugglerTestConfig() *Config {
 	conf := DefaultConfig()
 	// add test conditions
 	conf.conditions = conditions{
-		OK:   []string{"${nginx}.get('5xx', 0)<0.06"},
-		CRIT: []string{"${nginx}.get('5xx', 0)>0.06"},
+		OK:   []string{"${nginx}.get('5xx', 0)<0.060"},
+		INFO: []string{"${nginx}.get('5xx', 0)<0.260"},
+		WARN: []string{"${nginx}.get('5xx', 0)<0.460"},
+		CRIT: []string{"${nginx}.get('5xx', 0)>1.060"},
 	}
 	// add test config
 	conf.JPluginConfig = map[string]interface{}{
@@ -311,16 +313,26 @@ func TestSendEvent(t *testing.T) {
 			},
 		},
 	}
-	jconf.JHosts = []string{ts.Listener.Addr().String()}
-	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+	jconf.JHosts = []string{"localhost", ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{"localhost", ts.Listener.Addr().String()}
 	jconf.Plugin = "test_ensure_check"
 
-	cases := []string{"hostname_from_config", "frontend"}
+	cases := []string{"hostname_from_config", "deadline", "frontend"}
 	for _, c := range cases {
 		jconf.Host = c
-		js, err := NewJugglerSender(jconf, "Test ID")
-		assert.NoError(t, err)
-		assert.NoError(t, js.Send(context.TODO(), data))
+		if c != "deadline" {
+			js, err := NewJugglerSender(jconf, "Test ID")
+			assert.NoError(t, err)
+			err = js.Send(context.TODO(), data)
+			assert.Equal(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
+		} else {
+			jconf.Host = "Frontend"
+			js, err := NewJugglerSender(jconf, "Test ID")
+			assert.NoError(t, err)
+			ctx, cancel := context.WithTimeout(context.Background(), 1)
+			assert.Equal(t, context.DeadlineExceeded, js.Send(ctx, data))
+			cancel()
+		}
 	}
 }
 

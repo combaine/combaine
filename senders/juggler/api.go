@@ -121,6 +121,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 			}
 			return hostChecks, nil
 		case context.Canceled, context.DeadlineExceeded:
+			logger.Errf("%s %s", js.id, err)
 			return nil, err
 		default:
 			logger.Errf("%s %s", js.id, err)
@@ -268,22 +269,19 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 	url := fmt.Sprintf(sendEventURL, front, query.Encode())
 	logger.Debugf("%s Try send event %s", js.id, url)
 	resp, err := httpclient.Get(ctx, url)
-	switch err {
-	case nil:
-		body, rerr := ioutil.ReadAll(resp.Body)
-		logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
-		if rerr != nil {
-			logger.Errf("%s %s", js.id, rerr)
-			return rerr
-		}
-		if resp.StatusCode != http.StatusOK {
-			return errors.New(string(body))
-		}
-		return nil
-	case context.Canceled, context.DeadlineExceeded:
-		return err
-	default:
+	if err != nil {
 		logger.Errf("%s %s", js.id, err)
 		return err
 	}
+
+	body, rerr := ioutil.ReadAll(resp.Body)
+	logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
+	if rerr != nil {
+		logger.Errf("%s %s", js.id, rerr)
+		return rerr
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(string(body))
+	}
+	return nil
 }

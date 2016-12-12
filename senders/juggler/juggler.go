@@ -77,7 +77,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 	jWg.Wait()
 
 	if sendEeventsFailed > 0 {
-		msg := fmt.Errorf("failed to send %d/%d events", sendEeventsFailed, len(events))
+		msg := fmt.Errorf("failed to send %d/%d events", sendEeventsFailed, len(events)*len(js.Config.JFrontend))
 		logger.Errf("%s %s", js.id, msg.Error())
 		return msg
 	}
