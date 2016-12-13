@@ -324,6 +324,7 @@ func TestSendEvent(t *testing.T) {
 			js, err := NewJugglerSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
+			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
 			assert.Equal(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
 		} else {
 			jconf.Host = "Frontend"
@@ -363,6 +364,8 @@ func TestMain(m *testing.M) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(resp)
+		case "/api/checks/add_or_update":
+			fmt.Fprintln(w, "OK")
 		case "/juggler-fcgi.py":
 			fmt.Fprintln(w, "OK")
 		default:

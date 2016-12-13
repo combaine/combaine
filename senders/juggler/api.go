@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -97,12 +98,13 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		switch err {
 		case nil:
 			body, rerr := ioutil.ReadAll(resp.Body)
-			logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
 			if rerr != nil {
 				logger.Errf("%s %s", js.id, rerr)
-				jerrors = append(jerrors, rerr)
+				jerrors = append(jerrors, fmt.Errorf("failed to read respose from %s: %s", jhost, rerr))
 				continue
 			}
+			logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
+
 			if resp.StatusCode != http.StatusOK {
 				return nil, errors.New(string(body))
 			}
@@ -125,7 +127,8 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 			return nil, err
 		default:
 			logger.Errf("%s %s", js.id, err)
-			jerrors = append(jerrors, err)
+			jerrors = append(jerrors, fmt.Errorf("host %s failed with %s", jhost, err))
+			continue
 		}
 	}
 	return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
@@ -252,7 +255,45 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) error {
 
 func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	logger.Infof("%s Update check %s", js.id, check.Service)
-	return nil
+
+	cJSON, err := json.Marshal(check)
+	if err != nil {
+		return err
+	}
+	errs := make(map[string]string, 0)
+	for _, host := range js.JHosts {
+		url := fmt.Sprintf(updateCheckURL, host)
+		resp, err := httpclient.Post(ctx, url, "application/json", bytes.NewReader(cJSON))
+		switch err {
+		case nil:
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				logger.Errf("%s %s", js.id, err)
+				errs[err.Error()] = ""
+				continue
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				logger.Warnf("%s Juggler %s update check response %d: '%q'", js.id, host, resp.StatusCode, body)
+				errs[string(body)] = ""
+				continue
+			}
+			logger.Infof("%s Sucessfully send update check for `%s.%s`", js.id, check.Host, check.Service)
+			return nil
+		case context.Canceled, context.DeadlineExceeded:
+			logger.Errf("%s %s", js.id, err)
+			return err
+		default:
+			logger.Errf("%s %s", js.id, err)
+			errs[err.Error()] = ""
+			continue
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", errs)
+	}
+	logger.Errf("%s failed to sent update check for %v", js.id, check)
+	return fmt.Errorf("Upexpected error, can't update check for `%s.%s`", check.Host, check.Service)
 }
 
 // sendEvent send juggler event borned by ensureCheck to juggler's
@@ -274,11 +315,11 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 		return err
 	}
 
-	body, rerr := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
-	if rerr != nil {
-		logger.Errf("%s %s", js.id, rerr)
-		return rerr
+	if err != nil {
+		logger.Errf("%s %s", js.id, err)
+		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		return errors.New(string(body))
