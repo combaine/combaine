@@ -20,8 +20,14 @@ func TestSend(t *testing.T) {
 	defer ts.Close()
 
 	testConfig := Config{
-		ID:            "testID",
-		Items:         []string{"20x", "20x.MAP1", "20x.MP2", "20x.MP3", "30x"},
+		ID: "testID",
+		Items: []string{
+			"20x",
+			"20x.MAP1",
+			"20x.MP2",
+			"20x.MP3",
+			"30x",
+		},
 		Hosts:         []string{"localhost", ts.Listener.Addr().String()},
 		GraphName:     "GraphName",
 		GraphTemplate: "graph_template",

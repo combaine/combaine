@@ -122,6 +122,10 @@ func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, err
 		items := strings.SplitN(aggname, ".", 2)
 		if len(items) > 1 {
 			queryItems[items[0]] = append(queryItems[items[0]], items[1])
+		} else {
+			if _, ok := queryItems[items[0]]; !ok {
+				queryItems[items[0]] = []string{}
+			}
 		}
 	}
 	for _, item := range data {
@@ -137,7 +141,6 @@ func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, err
 			logger.Debugf("%s %s not in Items, skip task: %v", as.ID, root, item)
 			continue
 		}
-
 		subgroup, err := as.getSubgroupName(item)
 		if err != nil {
 			logger.Errf("%s %s", as.ID, err)
@@ -197,7 +200,6 @@ func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, err
 						mname, common.InterfaceToString(value.Interface())))
 				}
 			}
-			logger.Errf("%s skip task: %v", as.ID, repacked)
 		default:
 			repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s",
 				root, common.InterfaceToString(item.Result)))
