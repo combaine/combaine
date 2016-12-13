@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -19,36 +20,34 @@ import (
 )
 
 const (
-	CONNECTION_TIMEOUT = 2000 // ms
-	RW_TIMEOUT         = 3000 // ms
+	connectionTimeout = 2000 // ms
+	rwTimeout         = 3000 // ms
 
 	urlTemplateString = "/api/update/{{.Group}}/{{.Graphname}}?values={{.Values}}&ts={{.Time}}&template={{.Template}}&title={{.Title}}&step={{.Step}}"
 )
 
 var (
-	AgaveHttpClient = httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
+	agaveHTTPClient = httpclient.NewClientWithTimeout(
+		time.Millisecond*connectionTimeout,
+		time.Millisecond*rwTimeout)
 
-	DEFAULT_HEADERS = http.Header{
+	defaultHeaders = http.Header{
 		"User-Agent": {"Yandex/CombaineClient"},
 		"Connection": {"TE"},
 		"TE":         {"deflate", "gzip;q=0.3"},
 	}
 
-	URLTEMPLATE *template.Template = template.Must(template.New("URL").Parse(urlTemplateString))
+	urlTemplate = template.Must(template.New("URL").Parse(urlTemplateString))
 )
 
-type IAgaveSender interface {
-	Send(tasks.DataType) error
+// Sender is agave sender, embed agave config and provide method Send
+type Sender struct {
+	Config
 }
 
-type AgaveSender struct {
-	AgaveConfig
-}
-
-type AgaveConfig struct {
-	Id            string   `codec:"Id"`
+// Config contains main configuration for agave sender
+type Config struct {
+	ID            string   `codec:"Id"`
 	Items         []string `codec:"items"`
 	Hosts         []string `codec:"hosts"`
 	GraphName     string   `codec:"graph_name"`
@@ -57,7 +56,8 @@ type AgaveConfig struct {
 	Step          int64    `codec:"step"`
 }
 
-func (as *AgaveSender) Send(data tasks.DataType) error {
+// Send get task data and send all metrics to agave hosts, specified via config
+func (as *Sender) Send(data []tasks.AggregationResult) error {
 
 	repacked, err := as.send(data)
 	if err != nil {
@@ -65,50 +65,111 @@ func (as *AgaveSender) Send(data tasks.DataType) error {
 	}
 
 	//Send points
+	e := make(chan error, 1)
+	errs := make(map[string]struct{}, 0)
+
+	var wg sync.WaitGroup
 	for subgroup, value := range repacked {
-		go as.handleOneItem(subgroup, strings.Join(value, "+"))
+		wg.Add(1)
+		go as.handleOneItem(subgroup, strings.Join(value, "+"), &wg, e)
 	}
 
+	go func() {
+		wg.Wait()
+		close(e)
+	}()
+
+	for err := range e {
+		errs[fmt.Sprintf("%s", err)] = struct{}{}
+	}
+	if len(errs) > 0 {
+		checkByHosts := len(repacked) * len(as.Hosts)
+		if len(errs) == checkByHosts {
+			return fmt.Errorf("%s", errs)
+		}
+		logger.Warnf("Failed to send %d/%d checks", len(errs), checkByHosts)
+	}
 	return nil
 }
 
-func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
+func (as *Sender) getSubgroupName(task tasks.AggregationResult) (string, error) {
+	var subgroup string
+	var ok bool
+
+	if subgroup, ok = task.Tags["name"]; !ok {
+		return "", fmt.Errorf("Failed to get data tag 'name', skip task: %v", task)
+	}
+	if t, ok := task.Tags["type"]; ok {
+		if t == "datacenter" {
+			if meta, ok := task.Tags["metahost"]; ok {
+				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
+			} else {
+				return "", fmt.Errorf("Failed to get data tag 'metahost', skip task: %v", task)
+			}
+		}
+	} else {
+		return "", fmt.Errorf("Failed to get data tag 'type', skip task: %v", task)
+	}
+	return subgroup, nil
+}
+
+func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, error) {
 	// Repack data by subgroups
-	logger.Debugf("%s Data to send: %v", as.Id, data)
-	var repacked map[string][]string = make(map[string][]string)
+	logger.Debugf("%s Data to send: %v", as.ID, data)
+	var repacked = make(map[string][]string)
+	var queryItems = make(map[string][]string)
 	for _, aggname := range as.Items {
-		var root, metricname string
 		items := strings.SplitN(aggname, ".", 2)
 		if len(items) > 1 {
-			root, metricname = items[0], items[1]
-		} else {
-			root = items[0]
+			queryItems[items[0]] = append(queryItems[items[0]], items[1])
 		}
-		for subgroup, value := range data[root] {
-			rv := reflect.ValueOf(value)
-			switch rv.Kind() {
-			case reflect.Slice, reflect.Array:
-				if len(metricname) != 0 {
-					// we expect neted map here
-					continue
-				}
-				if len(as.Fields) == 0 || len(as.Fields) != rv.Len() {
-					logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
-					continue
-				}
+	}
+	for _, item := range data {
+		var root string
+		var metricname []string
+		var ok bool
 
-				forJoin := make([]string, 0, len(as.Fields))
-				for i, field := range as.Fields {
-					forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
-				}
+		if root, ok = item.Tags["aggregate"]; !ok {
+			logger.Errf("%s Failed to get data tag 'aggregate', skip task: %v", as.ID, item)
+			continue
+		}
+		if metricname, ok = queryItems[root]; !ok {
+			logger.Debugf("%s %s not in Items, skip task: %v", as.ID, root, item)
+			continue
+		}
 
-				repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
-			case reflect.Map:
-				if len(metricname) == 0 {
-					continue
-				}
+		subgroup, err := as.getSubgroupName(item)
+		if err != nil {
+			logger.Errf("%s %s", as.ID, err)
+			continue
+		}
 
-				key := reflect.ValueOf(metricname)
+		rv := reflect.ValueOf(item.Result)
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			if len(metricname) != 0 {
+				// we expect neted map here
+				continue
+			}
+			if len(as.Fields) == 0 || len(as.Fields) != rv.Len() {
+				logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.ID, len(as.Fields), rv.Len())
+				continue
+			}
+
+			forJoin := make([]string, 0, len(as.Fields))
+			for i, field := range as.Fields {
+				forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
+			}
+
+			repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
+		case reflect.Map:
+			if len(metricname) == 0 {
+				continue
+			}
+
+			for _, mname := range metricname {
+
+				key := reflect.ValueOf(mname)
 				mapVal := rv.MapIndex(key)
 				if !mapVal.IsValid() {
 					continue
@@ -119,37 +180,38 @@ func (as *AgaveSender) send(data tasks.DataType) (map[string][]string, error) {
 				switch value.Kind() {
 				case reflect.Slice, reflect.Array:
 					if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
-						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.Id, len(as.Fields), rv.Len())
+						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d",
+							as.ID, len(as.Fields), rv.Len())
 						continue
 					}
 					forJoin := make([]string, 0, len(as.Fields))
 					for i, field := range as.Fields {
-						forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(value.Index(i).Interface())))
+						forJoin = append(forJoin, fmt.Sprintf("%s:%s",
+							field, common.InterfaceToString(value.Index(i).Interface())))
 					}
 					repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 				case reflect.Map:
 					//unsupported
 				default:
-					repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", metricname, common.InterfaceToString(value.Interface())))
+					repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s",
+						mname, common.InterfaceToString(value.Interface())))
 				}
-
-				// }
-			default:
-				if len(metricname) != 0 {
-					// we expect neted map here
-					continue
-				}
-				repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s", root, common.InterfaceToString(value)))
 			}
+			logger.Errf("%s skip task: %v", as.ID, repacked)
+		default:
+			repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s",
+				root, common.InterfaceToString(item.Result)))
 		}
 	}
 
 	return repacked, nil
 }
 
-func (as *AgaveSender) handleOneItem(subgroup string, values string) {
+func (as *Sender) handleOneItem(subgroup string, values string, g *sync.WaitGroup, e chan<- error) {
 	var url bytes.Buffer
-	if err := URLTEMPLATE.Execute(&url, struct {
+	defer g.Done()
+
+	err := urlTemplate.Execute(&url, struct {
 		Group     string
 		Values    string
 		Time      int64
@@ -157,51 +219,51 @@ func (as *AgaveSender) handleOneItem(subgroup string, values string) {
 		Title     string
 		Graphname string
 		Step      int64
-	}{
-		subgroup,
-		values,
-		time.Now().Unix(),
-		as.GraphTemplate,
-		as.GraphName,
-		as.GraphName,
-		as.Step,
-	}); err != nil {
-		logger.Errf("%s unable to generate template %s", as.Id, err)
+	}{subgroup, values, time.Now().Unix(), as.GraphTemplate, as.GraphName, as.GraphName, as.Step})
+
+	if err != nil {
+		logger.Errf("%s unable to generate template %s", as.ID, err)
+		e <- err
 		return
 	}
 
-	as.sendPoint(url.String())
+	g.Add(1)
+	as.sendPoint(url.String(), g, e)
 }
 
-func (as *AgaveSender) sendPoint(url string) {
+func (as *Sender) sendPoint(url string, g *sync.WaitGroup, e chan<- error) {
+	defer g.Done()
 	for _, host := range as.Hosts {
 		req, _ := http.NewRequest("GET",
 			fmt.Sprintf("http://%s%s", host, url),
 			nil)
-		req.Header = DEFAULT_HEADERS
+		req.Header = defaultHeaders
 
-		logger.Debugf("%s %s", as.Id, req.URL)
-		resp, err := AgaveHttpClient.Do(req)
+		logger.Debugf("%s %s", as.ID, req.URL)
+		resp, err := agaveHTTPClient.Do(req)
 		if err != nil {
-			logger.Errf("%s Unable to do request %s", as.Id, err)
+			logger.Errf("%s Unable to do request %s", as.ID, err)
+			e <- err
 			continue
 		}
 		defer resp.Body.Close()
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			logger.Errf("%s %s %d %s", as.Id, req.URL, resp.StatusCode, err)
+			logger.Errf("%s %s %d %s", as.ID, req.URL, resp.StatusCode, err)
+			e <- err
 			continue
 		}
 
-		logger.Infof("%s %s %d %s", as.Id, req.URL, resp.StatusCode, body)
+		logger.Infof("%s %s %d %s", as.ID, req.URL, resp.StatusCode, body)
 	}
 }
 
-func NewAgaveSender(config AgaveConfig) (as IAgaveSender, err error) {
-	logger.Debugf("%s AgaveConfig: %s", config.Id, config)
-	as = &AgaveSender{
-		AgaveConfig: config,
+// NewSender return agave sender interface
+func NewSender(config Config) (as *Sender, err error) {
+	logger.Debugf("%s Config: %s", config.ID, config)
+	as = &Sender{
+		Config: config,
 	}
 	return as, nil
 }

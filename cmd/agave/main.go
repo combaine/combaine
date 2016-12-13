@@ -15,9 +15,15 @@ import (
 )
 
 var (
-	DEFAULT_FIELDS       = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
-	DEFAULT_STEP   int64 = 300
+	defaultFields       = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
+	defaultStep   int64 = 300
 )
+
+type agaveTask struct {
+	ID     string
+	Data   []tasks.AggregationResult
+	Config agave.Config
+}
 
 func getAgaveHosts() ([]string, error) {
 	var path = os.Getenv("config")
@@ -44,26 +50,21 @@ func getAgaveHosts() ([]string, error) {
 	return result, nil
 }
 
-type Task struct {
-	Id     string
-	Data   tasks.DataType
-	Config agave.AgaveConfig
-}
-
+// Send parse cocaine Requset and send all metrics to agave hosts
 func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
 
-	var task Task
+	var task agaveTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	logger.Debugf("%s Task: %v", task.Id, task)
+	logger.Debugf("%s Task: %v", task.ID, task)
 
-	task.Config.Id = task.Id
+	task.Config.ID = task.ID
 	task.Config.Hosts, err = getAgaveHosts()
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
@@ -71,18 +72,18 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	}
 
 	if len(task.Config.Fields) == 0 {
-		task.Config.Fields = DEFAULT_FIELDS
+		task.Config.Fields = defaultFields
 	}
 
 	if task.Config.Step == 0 {
-		task.Config.Step = DEFAULT_STEP
+		task.Config.Step = defaultStep
 	}
 
-	logger.Debugf("%s Fields: %v Step: %d", task.Id, task.Config.Fields, task.Config.Step)
+	logger.Debugf("%s Fields: %v Step: %d", task.ID, task.Config.Fields, task.Config.Step)
 
-	as, err := agave.NewAgaveSender(task.Config)
+	as, err := agave.NewSender(task.Config)
 	if err != nil {
-		logger.Errf("%s Unexpected error %s", task.Id, err)
+		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
