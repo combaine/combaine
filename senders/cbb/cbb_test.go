@@ -1,8 +1,6 @@
 package cbb
 
 import (
-	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -10,14 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMain(t *testing.T) {
-	data := tasks.DataType{
-		"cbb": {
-			"hosts-group-1": map[string]interface{}{
+func TestSend(t *testing.T) {
+	data := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "hosts-group-1",
+			"metahost": "meta.host.name", "aggregate": "cbb"},
+			Result: map[string]interface{}{
 				"2xx": map[string]interface{}{
 					"10.12.10.226": 74.90206796028059},
-			},
-			"hosts-group-2": map[string]interface{}{
+			}},
+		{Tags: map[string]string{"type": "host", "name": "hosts-group-2",
+			"metahost": "meta.host.name", "aggregate": "cbb"},
+			Result: map[string]interface{}{
 				"4xx": map[string]interface{}{
 					"10.100.21.30":  74.75854383358097,
 					"10.32.218.444": 73.74793615850301,
@@ -28,35 +29,36 @@ func TestMain(t *testing.T) {
 				},
 				"2xx": map[string]interface{}{
 					"10.111.140.57": 72.52881101845779},
-			},
-			"host1": map[string]interface{}{
+			}},
+		{Tags: map[string]string{"type": "host", "name": "host1",
+			"metahost": "host1", "aggregate": "cbb"},
+			Result: map[string]interface{}{
 				"2xx": 0,
 				"4xx": []string{"10.32.218.444", "10.32.218.555"},
-			},
-			"host2": map[string]interface{}{},
-			"host3": map[string]interface{}{},
-			"host4": map[string]interface{}{},
-		},
+			}},
+		{Tags: map[string]string{"type": "host", "name": "host2",
+			"metahost": "host2", "aggregate": "cbb"},
+			Result: map[string]interface{}{}},
+		{Tags: map[string]string{"type": "host", "name": "host3",
+			"metahost": "host3", "aggregate": "cbb"},
+			Result: map[string]interface{}{}},
+		{Tags: map[string]string{"type": "host", "name": "host4",
+			"metahost": "host4", "aggregate": "cbb"},
+			Result: map[string]interface{}{}},
 	}
-	testQ := func(cfg *CBBConfig, data tasks.DataType) []url.URL {
+
+	testQ := func(cfg *Config, data []tasks.AggregationResult) []string {
 		s, err := NewCBBClient(cfg, "testCbbClient")
 		if err != nil {
 			t.Logf("Unexpected error %s", err)
 			t.Fail()
 		}
 		res, err := s.send(data, uint64(time.Now().Unix()))
-		if err != nil {
-			t.Logf("%v", err)
-			t.Fail()
-		}
-		requests := make([]url.URL, 0)
-		for _, u := range res {
-			requests = append(requests, u)
-		}
-		return requests
+		assert.NoError(t, err)
+		return res
 	}
 
-	testConfig := CBBConfig{
+	testConfig := Config{
 		Items:      []string{"5bad", "cbb.2xx", "cbb.5xx"},
 		Flag:       112,
 		Host:       "localhost",
@@ -77,33 +79,33 @@ func TestMain(t *testing.T) {
 	testConfig.Items = []string{"cbb.5xx"}
 	testConfig.Description = "Text"
 	testConfig.Path = "path"
-	dataOneIp := tasks.DataType{
-		"cbb": {
-			"hosts-group-1": map[string]interface{}{
+	dataOneIP := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "hosts-group-1",
+			"metahost": "meta.host.name", "aggregate": "cbb"},
+			Result: map[string]interface{}{
 				"5xx": map[string]interface{}{
 					"10.9.9.9": 74.90206796028059},
-			},
-		},
+			}},
 	}
-	requests = testQ(&testConfig, dataOneIp)
+	requests = testQ(&testConfig, dataOneIP)
 	assert.Equal(t, len(requests), 1)
 
 	// tabletype != 2
 	testConfig.TableType = 0
-	query := requests[0].RawQuery
-	assert.True(t, strings.Contains(query, "description=Text"))
-	assert.True(t, strings.Contains(query, "range_src=10.9.9.9") &&
-		strings.Contains(query, "range_dst=10.9.9.9"))
-	assert.Equal(t, requests[0].Path, "path")
+	query := requests[0]
+	assert.Contains(t, query, "description=Text")
+	assert.Contains(t, query, "range_src=10.9.9.9")
+	assert.Contains(t, query, "range_dst=10.9.9.9")
+	assert.Contains(t, query, "path")
 
 	// tabletype == 2
 	testConfig.TableType = 2
-	requests = testQ(&testConfig, dataOneIp)
-	query = requests[0].RawQuery
-	assert.True(t, strings.Contains(query, "description=Text"))
-	assert.True(t, strings.Contains(query, "net_ip=10.9.9.9") &&
-		strings.Contains(query, "net_mask=32"))
-	assert.Equal(t, requests[0].Path, "path")
+	requests = testQ(&testConfig, dataOneIP)
+	query = requests[0]
+	assert.Contains(t, query, "description=Text")
+	assert.Contains(t, query, "net_ip=10.9.9.9")
+	assert.Contains(t, query, "net_mask=32")
+	assert.Contains(t, query, "path")
 
 	t.Logf("%v", query)
 }
