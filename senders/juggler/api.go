@@ -97,6 +97,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		resp, err := httpclient.Get(ctx, url)
 		switch err {
 		case nil:
+			defer resp.Body.Close()
 			body, rerr := ioutil.ReadAll(resp.Body)
 			if rerr != nil {
 				logger.Errf("%s %s", js.id, rerr)
@@ -266,6 +267,7 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 		resp, err := httpclient.Post(ctx, url, "application/json", bytes.NewReader(cJSON))
 		switch err {
 		case nil:
+			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				logger.Errf("%s %s", js.id, err)
@@ -314,6 +316,7 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 		logger.Errf("%s %s", js.id, err)
 		return err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
