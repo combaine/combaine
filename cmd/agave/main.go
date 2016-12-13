@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
@@ -15,12 +17,17 @@ import (
 )
 
 var (
-	defaultFields       = []string{"75_prc", "90_prc", "93_prc", "94_prc", "95_prc", "96_prc", "97_prc", "98_prc", "99_prc"}
-	defaultStep   int64 = 300
+	defaultFields = []string{
+		"75_prc", "90_prc", "93_prc",
+		"94_prc", "95_prc", "96_prc",
+		"97_prc", "98_prc", "99_prc",
+	}
+	defaultStep    int64 = 300
+	defaultTimeout       = 5 * time.Second
 )
 
 type agaveTask struct {
-	ID     string
+	ID     string `codec:"Id"`
 	Data   []tasks.AggregationResult
 	Config agave.Config
 }
@@ -64,7 +71,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	}
 	logger.Debugf("%s Task: %v", task.ID, task)
 
-	task.Config.ID = task.ID
 	task.Config.Hosts, err = getAgaveHosts()
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
@@ -81,13 +87,15 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	logger.Debugf("%s Fields: %v Step: %d", task.ID, task.Config.Fields, task.Config.Step)
 
-	as, err := agave.NewSender(task.Config)
+	as, err := agave.NewSender(task.ID, task.Config)
 	if err != nil {
 		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	as.Send(task.Data)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	as.Send(ctx, task.Data)
 	response.Write("OK")
 }
 

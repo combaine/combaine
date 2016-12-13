@@ -1,6 +1,7 @@
 package agave
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,6 @@ func TestSend(t *testing.T) {
 	defer ts.Close()
 
 	testConfig := Config{
-		ID: "testID",
 		Items: []string{
 			"20x",
 			"20x.MAP1",
@@ -34,7 +34,8 @@ func TestSend(t *testing.T) {
 		Fields:        []string{"A", "B", "C"},
 		Step:          300,
 	}
-	s, err := NewSender(testConfig)
+	s, err := NewSender("testID", testConfig)
+
 	assert.NoError(t, err)
 
 	data := []tasks.AggregationResult{
@@ -82,6 +83,6 @@ func TestSend(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 
-	err = s.Send(data)
+	err = s.Send(context.Background(), data)
 	assert.NoError(t, err)
 }
