@@ -22,7 +22,7 @@ const (
 var logger *cocaine.Logger
 
 type cbbTask struct {
-	ID       string
+	ID       string `codec:"Id"`
 	Data     []tasks.AggregationResult
 	Config   cbb.Config
 	CurrTime uint64
