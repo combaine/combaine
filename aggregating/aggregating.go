@@ -108,9 +108,10 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 				logger.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
 				hostAggRes := &tasks.AggregationResult{
 					Tags: map[string]string{
-						"type":     "host",
-						"name":     host,
-						"metahost": meta,
+						"type":      "host",
+						"aggregate": name,
+						"name":      host,
+						"metahost":  meta,
 					},
 				}
 				aggWg.Add(1)
@@ -125,9 +126,10 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 			logger.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
 			groupAggRes := &tasks.AggregationResult{
 				Tags: map[string]string{
-					"type":     "datacenter",
-					"name":     subGroup,
-					"metahost": meta,
+					"type":      "datacenter",
+					"aggregate": name,
+					"name":      subGroup,
+					"metahost":  meta,
 				},
 			}
 			aggWg.Add(1)
@@ -142,9 +144,10 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 		logger.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
 		metaAggRes := &tasks.AggregationResult{
 			Tags: map[string]string{
-				"type":     "metahost",
-				"name":     meta,
-				"metahost": meta,
+				"type":      "metahost",
+				"aggregate": name,
+				"name":      meta,
+				"metahost":  meta,
 			},
 		}
 		aggWg.Add(1)
