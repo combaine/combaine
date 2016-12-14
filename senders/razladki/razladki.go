@@ -115,7 +115,6 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 			mp[mName] = title
 		}
 	}
-	logger.Errf("Query Items: %v", queryItems)
 
 	for _, item := range data {
 		var root string
