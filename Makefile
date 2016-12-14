@@ -6,7 +6,7 @@ PKGS := $(shell go list ./... | grep -v '^github.com/combaine/combaine/\(tests\|
 .PHONY: clean all fmt vet lint build test proto
 
 build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon
+	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -35,6 +35,10 @@ ${DIR}/cbb: $(wildcard **/*.go)
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/solomon/main.go
+
+${DIR}/juggler: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/juggler/main.go
 
 proto: ${PREFIX}/rpc/rpc.pb.go
 

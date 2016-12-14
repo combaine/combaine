@@ -75,10 +75,15 @@ override_dh_install:
 	install -m755 deploy/scripts/deploy_solomon.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/solomon/deploy.sh
 	# juggler
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	install -m755 senders/juggler/helpers.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	install -m755 $(BUILD_DIR)/juggler  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m664 deploy/manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh
+	# juggler
+	#install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	#install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	#install -m755 senders/juggler/helpers.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	#install -m664 deploy/manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
+	#install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh
 
 	# combaine-tuner
 	install -d $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting
