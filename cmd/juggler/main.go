@@ -14,11 +14,9 @@ import (
 var logger *cocaine.Logger
 
 type senderTask struct {
-	ID       string                    `codec:"Id"`
-	Data     []tasks.AggregationResult `codec:"Data"`
-	Config   juggler.Config            `codec:"Config"`
-	CurrTime uint64
-	PrevTime uint64
+	ID     string `codec:"Id"`
+	Data   []tasks.AggregationResult
+	Config juggler.Config
 }
 
 func send(request *cocaine.Request, response *cocaine.Response) {
@@ -62,7 +60,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		task.Config.PluginsDir = sConf.PluginsDir
 	}
 
-	logger.Debugf("%s Task: %v", task, task.ID)
+	logger.Debugf("%s Task: %v", task.ID, task)
 
 	jCli, err := juggler.NewJugglerSender(&task.Config, task.ID)
 	if err != nil {

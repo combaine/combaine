@@ -44,7 +44,7 @@ type jugglerCheck struct {
 	Service          string                 `json:"service"`
 	Description      string                 `json:"description"`
 	Aggregator       string                 `json:"aggregator"`
-	AggregatorKWArgs json.RawMessage        `json:"aggregator_kwargs"`
+	AggregatorKWArgs interface{}            `json:"aggregator_kwargs"`
 	Tags             []string               `json:"tags"`
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
@@ -230,8 +230,8 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) error {
 				jcheck.Flap = &jugglerFlapConfig{Enable: 1}
 				jcheck.Update = true
 			}
-			if jcheck.Flap != f {
-				jcheck.Flap = f
+			if *jcheck.Flap != f {
+				jcheck.Flap = &f
 				jcheck.Update = true
 			}
 		}

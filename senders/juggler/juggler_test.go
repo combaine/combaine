@@ -22,12 +22,10 @@ var ts *httptest.Server
 func DefaultJugglerTestConfig() *Config {
 	conf := DefaultConfig()
 	// add test conditions
-	conf.conditions = conditions{
-		OK:   []string{"${nginx}.get('5xx', 0)<0.060"},
-		INFO: []string{"${nginx}.get('5xx', 0)<0.260"},
-		WARN: []string{"${nginx}.get('5xx', 0)<0.460"},
-		CRIT: []string{"${nginx}.get('5xx', 0)>1.060"},
-	}
+	conf.OK = []string{"${nginx}.get('5xx', 0)<0.060"}
+	conf.INFO = []string{"${nginx}.get('5xx', 0)<0.260"}
+	//conf.WARN = []string{"${nginx}.get('5xx', 0)<0.460"}
+	conf.CRIT = []string{"${nginx}.get('5xx', 0)>1.060"}
 	// add test config
 	conf.JPluginConfig = map[string]interface{}{
 		"checks": map[string]interface{}{

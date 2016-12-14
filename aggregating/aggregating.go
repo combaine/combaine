@@ -24,7 +24,7 @@ func enqueue(method string, app servicecacher.Service, payload *[]byte) (interfa
 		return nil, common.ErrAppCall
 	}
 	if res.Err() != nil {
-		return nil, fmt.Errorf("task failed  %s", res.Err())
+		return nil, fmt.Errorf("task failed %s", res.Err())
 	}
 
 	if err := res.Extract(&rawRes); err != nil {

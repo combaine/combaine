@@ -214,17 +214,17 @@ func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
 	js.state.SetGlobal("payload", ltable)
 
 	levels := make(map[string][]string)
-	if js.conditions.OK != nil {
-		levels["OK"] = js.conditions.OK
+	if js.OK != nil {
+		levels["OK"] = js.OK
 	}
-	if js.conditions.INFO != nil {
-		levels["INFO"] = js.conditions.INFO
+	if js.INFO != nil {
+		levels["INFO"] = js.INFO
 	}
-	if js.conditions.WARN != nil {
-		levels["WARN"] = js.conditions.WARN
+	if js.WARN != nil {
+		levels["WARN"] = js.WARN
 	}
-	if js.conditions.CRIT != nil {
-		levels["CRIT"] = js.conditions.CRIT
+	if js.CRIT != nil {
+		levels["CRIT"] = js.CRIT
 	}
 
 	lconditions := js.state.NewTable()
