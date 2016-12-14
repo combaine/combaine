@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	DEFAULT_FIELDS = []string{
+	defaultFields = []string{
 		"75_prc",
 		"90_prc",
 		"93_prc",
@@ -21,47 +21,48 @@ var (
 		"98_prc",
 		"99_prc",
 	}
-	DEFAULT_CONNECTION_ENDPOINT = ":42000"
-	logger                      *cocaine.Logger
+	defaultConnectionEndpoint = ":42000"
+	logger                    *cocaine.Logger
 )
 
-type Task struct {
-	Id       string
-	Data     tasks.DataType
-	Config   graphite.GraphiteCfg
+type graphiteTask struct {
+	ID       string
+	Data     []tasks.AggregationResult
+	Config   graphite.Config
 	CurrTime uint64
 	PrevTime uint64
 }
 
+// Send parse cocaine request and send points to graphite
 func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task Task
+	var task graphiteTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	logger.Debugf("Task: %v", task)
+	logger.Debugf("%s Task: %v", task.ID, task)
 
 	if len(task.Config.Fields) == 0 {
-		task.Config.Fields = DEFAULT_FIELDS
+		task.Config.Fields = defaultFields
 	}
 	if task.Config.Endpoint == "" {
-		task.Config.Endpoint = DEFAULT_CONNECTION_ENDPOINT
+		task.Config.Endpoint = defaultConnectionEndpoint
 	}
 
-	gCli, err := graphite.NewGraphiteClient(&task.Config, task.Id)
+	gCli, err := graphite.NewSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("Unexpected error %s", err)
+		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
 	err = gCli.Send(task.Data, task.PrevTime)
 	if err != nil {
-		logger.Errf("Sending error %s", err)
+		logger.Errf("%s Sending error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}

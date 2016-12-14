@@ -18,6 +18,7 @@ func init() {
 	connPool = NewCacher(NewConn)
 }
 
+// NewConn provide new connections for connection pool
 func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("Not enought arguments")
@@ -46,9 +47,10 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 	return
 }
 
+// ServiceBurner wrapper for hide cocaine.NewService
 type ServiceBurner func(string, ...interface{}) (io.WriteCloser, error)
 
-// cacher
+// Cacher interface
 type Cacher interface {
 	Get(string, ...interface{}) (io.WriteCloser, error)
 	Evict(interface{})
@@ -60,6 +62,8 @@ type cacher struct {
 	cache map[string]*entry
 }
 
+// NewCacher take function that provide connections
+// for connection pool and reurn connection pool
 func NewCacher(f ServiceBurner) Cacher {
 	return &cacher{fun: f, cache: make(map[string]*entry)}
 }

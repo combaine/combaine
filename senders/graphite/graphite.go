@@ -12,27 +12,25 @@ import (
 )
 
 const (
-	ONE_POINT_FORMAT = "%s.combaine.%s.%s %s %d\n"
+	onePointFormat = "%s.combaine.%s.%s %s %d\n"
 )
 
-// var for testing purposes
+// should be var for testing purposes
 var (
 	connectionTimeout = 300 //msec
 	reconnectInterval = 50  //msec
 )
 
-type GraphiteSender interface {
-	Send(tasks.DataType, uint64) error
-}
-
-type graphiteClient struct {
+// Sender contains main setting for graphite sender
+type Sender struct {
 	id       string
 	cluster  string
 	endpoint string
 	fields   []string
 }
 
-type GraphiteCfg struct {
+// Config extract sender config from task data
+type Config struct {
 	Cluster  string   `codec:"cluster"`
 	Endpoint string   `codec:"endpoint"`
 	Fields   []string `codec:"Fields"`
@@ -57,7 +55,7 @@ func formatSubgroup(input string) string {
 	return strings.Replace(strings.Replace(input, ".", "_", -1), "-", "_", -1)
 }
 
-func (g *graphiteClient) send(output io.Writer, data string) error {
+func (g *Sender) send(output io.Writer, data string) error {
 	logger.Debugf("%s Send %s", g.id, data)
 	if _, err := fmt.Fprint(output, data); err != nil {
 		logger.Errf("%s Sending error: %s", g.id, err)
@@ -67,13 +65,13 @@ func (g *graphiteClient) send(output io.Writer, data string) error {
 	return nil
 }
 
-func (g *graphiteClient) sendInterface(output io.Writer, metricName common.NameStack,
+func (g *Sender) sendInterface(output io.Writer, metricName common.NameStack,
 	f pointFormat, value interface{}, timestamp uint64) error {
 	data := f(metricName, value, timestamp)
 	return g.send(output, data)
 }
 
-func (g *graphiteClient) sendSlice(output io.Writer, metricName common.NameStack, f pointFormat,
+func (g *Sender) sendSlice(output io.Writer, metricName common.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) error {
 
 	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
@@ -95,7 +93,7 @@ func (g *graphiteClient) sendSlice(output io.Writer, metricName common.NameStack
 	return nil
 }
 
-func (g *graphiteClient) sendMap(output io.Writer, metricName common.NameStack, f pointFormat,
+func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) (err error) {
 
 	keys := rv.MapKeys()
@@ -124,50 +122,79 @@ func (g *graphiteClient) sendMap(output io.Writer, metricName common.NameStack, 
 	return
 }
 
-func (g *graphiteClient) sendInternal(data *tasks.DataType, timestamp uint64, output io.Writer) (err error) {
+func (g *Sender) getSubgroupName(tags map[string]string) (string, error) {
+	var subgroup string
+	var ok bool
+
+	if subgroup, ok = tags["name"]; !ok {
+		return "", fmt.Errorf("Failed to get data tag 'name', skip task: %v", tags)
+	}
+	if t, ok := tags["type"]; ok {
+		if t == "datacenter" {
+			if meta, ok := tags["metahost"]; ok {
+				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
+			} else {
+				return "", fmt.Errorf("Failed to get data tag 'metahost', skip task: %v", tags)
+			}
+		}
+	} else {
+		return "", fmt.Errorf("Failed to get data tag 'type', skip task: %v", tags)
+	}
+	return subgroup, nil
+}
+
+func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(common.NameStack, 0, 3)
 
-	for aggname, subgroupsAndValues := range *data {
+	for _, aggItem := range data {
+		aggname := aggItem.Tags["aggregate"]
 		logger.Infof("%s Handle aggregate named %s", g.id, aggname)
 
 		metricName.Push(aggname)
-		for subgroup, value := range subgroupsAndValues {
-			pointFormatter := makePoint(ONE_POINT_FORMAT, g.cluster, subgroup)
-			rv := reflect.ValueOf(value)
-			logger.Debugf("%s %s", g.id, rv.Kind())
+		subgroup, err := g.getSubgroupName(aggItem.Tags)
+		if err != nil {
+			logger.Errf("%s %s", g.id, err)
+			continue
+		}
+		//for subgroup, value := range aggItem {
+		pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
+		rv := reflect.ValueOf(aggItem.Result)
+		logger.Debugf("%s %s", g.id, rv.Kind())
 
-			switch rv.Kind() {
-			case reflect.Slice, reflect.Array:
-				err = g.sendSlice(output, metricName, pointFormatter, rv, timestamp)
-			case reflect.Map:
-				err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
-			default:
-				err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(value), timestamp)
-			}
-			if err != nil {
-				break
-			}
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			err = g.sendSlice(output, metricName, pointFormatter, rv, timestamp)
+		case reflect.Map:
+			err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
+		default:
+			err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(aggItem.Result), timestamp)
+		}
+		if err != nil {
+			break
 		}
 		metricName.Pop()
 	}
 	return
 }
 
-func (g *graphiteClient) Send(data tasks.DataType, timestamp uint64) error {
+// Send proxy send operation to all graphite endpoints
+func (g *Sender) Send(data []tasks.AggregationResult, timestamp uint64) error {
 	if len(data) == 0 {
-		return fmt.Errorf("%s Empty data. Nothing to send.", g.id)
+		return fmt.Errorf("%s Empty data. Nothing to send", g.id)
 	}
 
+	// TODO: make endpoints as slice, and send to all endpoints in parallel
 	sock, err := connPool.Get(g.endpoint, 3, connectionTimeout)
 	if err != nil {
 		return err
 	}
 
-	return g.sendInternal(&data, timestamp, sock)
+	return g.sendInternal(data, timestamp, sock)
 }
 
-func NewGraphiteClient(cfg *GraphiteCfg, id string) (gs GraphiteSender, err error) {
-	gs = &graphiteClient{
+// NewSender return pointer to sender with specified config
+func NewSender(cfg *Config, id string) (gs *Sender, err error) {
+	gs = &Sender{
 		id:       id,
 		cluster:  cfg.Cluster,
 		fields:   cfg.Fields,
