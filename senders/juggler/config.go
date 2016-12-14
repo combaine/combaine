@@ -10,7 +10,6 @@ import (
 
 const (
 	defaultConfigPath = "/etc/combaine/juggler.yaml"
-	defaultPlugin     = "deprecated"
 	defaultPluginsDir = "/usr/lib/yandex/combaine/juggler"
 )
 
@@ -60,9 +59,6 @@ func GetJugglerSenderConfig() (conf SenderConfig, err error) {
 	err = yaml.Unmarshal(rawConfig, &conf)
 	if len(conf.Frontend) == 0 {
 		conf.Frontend = conf.Hosts
-	}
-	if conf.Plugin == "" {
-		conf.Plugin = defaultPlugin
 	}
 	if conf.PluginsDir == "" {
 		conf.PluginsDir = defaultPluginsDir

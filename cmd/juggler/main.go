@@ -11,6 +11,8 @@ import (
 	"github.com/combaine/combaine/senders/juggler"
 )
 
+const defaultPlugin = "deprecated"
+
 var logger *cocaine.Logger
 
 type senderTask struct {
@@ -58,6 +60,9 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	}
 	if task.Config.PluginsDir == "" {
 		task.Config.PluginsDir = sConf.PluginsDir
+	}
+	if task.Config.Plugin == "" {
+		task.Config.Plugin = defaultPlugin
 	}
 
 	logger.Debugf("%s Task: %v", task.ID, task)
