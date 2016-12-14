@@ -14,7 +14,7 @@ import (
 var logger *cocaine.Logger
 
 type senderTask struct {
-	ID     string
+	ID     string `codec:"Id"`
 	Data   []tasks.AggregationResult
 	Config juggler.Config
 }

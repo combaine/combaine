@@ -203,10 +203,9 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			if _, ok := childSet[name+":"+t.Service]; !ok {
 				check.Update = true
 				child := jugglerChildrenCheck{
-					Instance: "", // FIXME? hardcode, delete?
-					Host:     name,
-					Type:     "HOST", // FIXME? hardcode, delete?
-					Service:  t.Service,
+					Host:    name,
+					Type:    "HOST", // FIXME? hardcode, delete?
+					Service: t.Service,
 				}
 				logger.Debugf("%s Add children %s", js.id, child)
 				check.Children = append(check.Children, child)
