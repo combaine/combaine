@@ -170,7 +170,7 @@ func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, 
 			err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(aggItem.Result), timestamp)
 		}
 		if err != nil {
-			break
+			return err
 		}
 		metricName.Pop()
 	}
