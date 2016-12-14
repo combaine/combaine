@@ -14,9 +14,11 @@ import (
 var logger *cocaine.Logger
 
 type senderTask struct {
-	ID     string `codec:"Id"`
-	Data   []tasks.AggregationResult
-	Config juggler.Config
+	ID       string                    `codec:"Id"`
+	Data     []tasks.AggregationResult `codec:"Data"`
+	Config   juggler.Config            `codec:"Config"`
+	CurrTime uint64
+	PrevTime uint64
 }
 
 func send(request *cocaine.Request, response *cocaine.Response) {
@@ -26,13 +28,14 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	var task senderTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
+		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
 	sConf, err := juggler.GetJugglerSenderConfig()
 	if err != nil {
-		logger.Errf("%s Failed to read juggler config %s", err, task.ID)
+		logger.Errf("%s Failed to read juggler config %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -63,14 +66,14 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 
 	jCli, err := juggler.NewJugglerSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("%s Unexpected error %s", err, task.ID)
+		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
 	err = jCli.Send(context.Background(), task.Data)
 	if err != nil {
-		logger.Errf("%s Sending error %s", err, task.ID)
+		logger.Errf("%s Sending error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -78,12 +81,11 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	logger, _ = cocaine.NewLogger()
+	var err error
+	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": send,
 	}
-	logger.Debugf("Start Juggler cocaine worker")
-
 	Worker, err := cocaine.NewWorker()
 	if err != nil {
 		log.Fatal(err)

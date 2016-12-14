@@ -11,12 +11,12 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/senders/agave"
 )
 
 var (
+	logger        *cocaine.Logger
 	defaultFields = []string{
 		"75_prc", "90_prc", "93_prc",
 		"94_prc", "95_prc", "96_prc",
@@ -62,10 +62,10 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-
 	var task agaveTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
+		logger.Errf("%s Failed to unpack agave task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -100,6 +100,8 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
+	var err error
+	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
 	}

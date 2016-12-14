@@ -81,10 +81,13 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 // Tests
 
 func TestGetJugglerSenderConfig(t *testing.T) {
+	_, _ = GetJugglerSenderConfig() // just coverage )
+	testConf := "testdata/config/nonExistingJugglerConfig.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
 	conf, err := GetJugglerSenderConfig()
 	assert.Error(t, err)
 
-	testConf := "testdata/config/juggler_example.yaml"
+	testConf = "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
 	conf, err = GetJugglerSenderConfig()
 	assert.Equal(t, conf.Hosts[0], "host1")
@@ -175,7 +178,7 @@ func TestQueryLuaTable(t *testing.T) {
 
 func TestGetCheck(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-	jconf.JHosts = []string{"localhost:80"}
+	jconf.JHosts = []string{"localhost:3333"}
 	jconf.JFrontend = []string{ts.Listener.Addr().String()}
 
 	js, err := NewJugglerSender(jconf, "Test ID")
@@ -183,7 +186,7 @@ func TestGetCheck(t *testing.T) {
 	_, err = js.getCheck(context.TODO())
 	assert.Error(t, err)
 
-	jconf.JHosts = []string{"localhost:80", ts.Listener.Addr().String()}
+	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
 	js, err = NewJugglerSender(jconf, "Test ID")
 	cases := []struct {
 		name      string
@@ -313,8 +316,8 @@ func TestSendEvent(t *testing.T) {
 			},
 		},
 	}
-	jconf.JHosts = []string{"localhost", ts.Listener.Addr().String()}
-	jconf.JFrontend = []string{"localhost", ts.Listener.Addr().String()}
+	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{"localhost:3333", ts.Listener.Addr().String()}
 	jconf.Plugin = "test_ensure_check"
 
 	cases := []string{"hostname_from_config", "deadline", "frontend"}

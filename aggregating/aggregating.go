@@ -38,7 +38,11 @@ func aggregating(id string, ch chan *tasks.AggregationResult, res *tasks.Aggrega
 
 	defer wg.Done()
 
-	payload, _ := common.Pack([]interface{}{id, c, d})
+	payload, err := common.Pack([]interface{}{id, c, d})
+	if err != nil {
+		logger.Errf("%s unable to pack data: %s", id, err)
+		return
+	}
 	data, err := enqueue("aggregate_group", app, &payload)
 	if err != nil {
 		logger.Errf("%s unable to aggregate %s: %s", id, res, err)
@@ -167,7 +171,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 	logger.Infof("%s aggregation completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
 
 	startTm = time.Now()
-	logger.Infof("%s %s start sending", task.Id, task.Config)
+	logger.Infof("%s start sending for %s", task.Id, task.Config)
 
 	var sendersWg sync.WaitGroup
 	for senderName, senderConf := range aggregationConfig.Senders {
@@ -181,13 +185,13 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
-				logger.Errf("%s %s unknown sender type %s", task.Id, task.Config, err)
+				logger.Errf("%s unknown sender type %s for %s", task.Id, task.Config, err)
 				return
 			}
 			logger.Infof("%s send to sender %s", task.Id, senderType)
 			app, err := cacher.Get(senderType)
 			if err != nil {
-				logger.Errf("%s %s skip sender %s %s", task.Id, task.Config, senderType, err)
+				logger.Errf("%s skip sender %s %s for %s", task.Id, task.Config, senderType, err)
 				return
 			}
 			senderPayload := tasks.SenderPayload{
@@ -200,20 +204,25 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 				Data:   result,
 			}
 
-			logger.Debugf("%s %s %s data to send %s", task.Id, task.Config, senderType, senderPayload)
-			payload, _ := common.Pack(senderPayload)
+			logger.Debugf("%s data to send for %s.%s: %s", task.Id, task.Config, senderType, senderPayload)
+			payload, err := common.Pack(senderPayload)
+			if err != nil {
+				logger.Errf("%s unable to pack data for %s.%s: %s", task.Id, task.Config, senderType, err)
+				return
+			}
 			res, err := enqueue("send", app, &payload)
 			if err != nil {
-				logger.Errf("%s %s %s unable to send %s", task.Id, task.Config, senderType, err)
+				logger.Errf("%s unable to send for %s.%s: %s", task.Id, task.Config, senderType, err)
+				return
 			}
-			logger.Infof("%s %s %s sender response %s", task.Id, task.Config, senderType, res)
+			logger.Infof("%s sender response for %s.%s: %s", task.Id, task.Config, senderType, res)
 		}(&sendersWg, senderName, senderConf)
 	}
 	sendersWg.Wait()
 
 	logger.Debugf("%s result %s", task.Id, result)
 	logger.Infof("%s senders completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
-	logger.Infof("%s %s Done", task.Id, task.Config)
+	logger.Infof("%s Done for %s ", task.Id, task.Config)
 
 	return nil
 }

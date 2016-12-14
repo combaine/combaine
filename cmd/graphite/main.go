@@ -26,7 +26,7 @@ var (
 )
 
 type graphiteTask struct {
-	ID       string
+	ID       string `codec:"Id"`
 	Data     []tasks.AggregationResult
 	Config   graphite.Config
 	CurrTime uint64
@@ -41,6 +41,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	var task graphiteTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
+		logger.Errf("%s Failed to unpack graphite task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}

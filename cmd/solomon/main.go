@@ -92,7 +92,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 func main() {
 	var err error
-
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,

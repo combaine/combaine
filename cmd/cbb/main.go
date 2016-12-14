@@ -57,9 +57,11 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	var task cbbTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
+		logger.Errf("%s Failed to unpack CBB task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
+	logger.Debugf("%s Task: %v", task.ID, task)
 
 	if task.Config.Host == "" {
 		task.Config.Host, err = getCBBHost()
@@ -68,8 +70,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 			return
 		}
 	}
-
-	logger.Debugf("%s Task: %v", task.ID, task)
 
 	cCli, err := cbb.NewCBBClient(&task.Config, task.ID)
 	if err != nil {

@@ -174,8 +174,8 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			je.Level = lua.LVAsString(lvl)
 		} else {
 			logger.Errf("%s Plugin %s do not return event level, force status to default", js.id, js.Plugin)
-			je.Level = js.DefaultCheckStatus
-			je.Description = fmt.Sprintf("%s (Force status %s)", je.Description, js.DefaultCheckStatus)
+			je.Level = "OK"
+			je.Description = fmt.Sprintf("%s (Force 'OK')", je.Description)
 		}
 
 		events = append(events, je)
