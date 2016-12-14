@@ -2,6 +2,7 @@ package solomon
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
@@ -91,11 +90,11 @@ func (s *Sender) dumpSensor(sensors *[]sensor, name string,
 	case reflect.String:
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
-		logger.Errf("Default case:, %t, %s:%s", value, value.Kind(), value)
+		logger.Errf("%s Default case:, %t, %s:%s", s.id, value, value.Kind(), value)
 		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
-		return fmt.Errorf("%s %s: %s", s.id, err, common.InterfaceToString(value))
+		return fmt.Errorf("%s: %s", err, common.InterfaceToString(value))
 	}
 
 	*sensors = append(*sensors, sensor{
@@ -112,7 +111,7 @@ func (s *Sender) dumpSlice(sensors *[]sensor, name string,
 	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
 		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d",
 			s.id, len(s.Fields), rv.Len())
-		logger.Errf("%s", msg)
+		logger.Errf("%s %s", s.id, msg)
 		return fmt.Errorf(msg)
 	}
 
@@ -151,23 +150,47 @@ func (s *Sender) dumpMap(sensors *[]sensor, name string,
 		}
 
 		if err != nil {
-			break
+			return
 		}
 	}
 	return
 }
 
-func (s *Sender) sendInternal(data *tasks.DataType, timestamp uint64) ([]solomonPush, error) {
+func (s *Sender) getSubgroupName(tags map[string]string) (string, error) {
+	var subgroup string
+	var ok bool
+
+	if subgroup, ok = tags["name"]; !ok {
+		return "", fmt.Errorf("Failed to get data tag 'name': %v", tags)
+	}
+	if t, ok := tags["type"]; ok {
+		if t == "datacenter" {
+			if meta, ok := tags["metahost"]; ok {
+				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
+			} else {
+				return "", fmt.Errorf("Failed to get data tag 'metahost': %v", tags)
+			}
+		}
+	} else {
+		return "", fmt.Errorf("Failed to get data tag 'type': %v", tags)
+	}
+	return subgroup, nil
+}
+
+func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) ([]solomonPush, error) {
 
 	var (
+		host     string
 		err      error
 		pushData solomonPush
 	)
 
 	var groups []solomonPush
 
-	for aggname, subgroupsAndValues := range *data {
-		logger.Debugf("%s Sender handle aggregate named %s", s.id, aggname)
+	//for aggname, subgroupsAndValues := range data {
+	for _, item := range data {
+		aggname := item.Tags["aggregate"]
+		logger.Infof("%s Handle aggregate named %s", s.id, aggname)
 
 		service := aggname
 		if strings.ContainsRune(aggname, '.') {
@@ -176,50 +199,57 @@ func (s *Sender) sendInternal(data *tasks.DataType, timestamp uint64) ([]solomon
 			s.prefix = aPrefix[1] + "."
 		}
 
-		for host, value := range subgroupsAndValues {
-			var sensors []sensor
-			pushData = solomonPush{
-				CommonLabels: comLabels{
-					Host:    host,
-					Service: service,
-					Cluster: s.Cluster,
-					Project: s.Project,
-				},
-			}
+		host, err = s.getSubgroupName(item.Tags)
+		if err != nil {
+			logger.Errf("%s skip task: %s", s.id, err)
+			continue
+		}
+		//for host, value := range subgroupsAndValues {
+		var sensors []sensor
+		pushData = solomonPush{
+			CommonLabels: comLabels{
+				Host:    host,
+				Service: service,
+				Cluster: s.Cluster,
+				Project: s.Project,
+			},
+		}
 
-			rv := reflect.ValueOf(value)
-			logger.Debugf("%s %s", s.id, rv.Kind())
+		rv := reflect.ValueOf(item.Result)
+		logger.Debugf("%s %s", s.id, rv.Kind())
 
-			if rv.Kind() == reflect.Map {
-				err = s.dumpMap(&sensors, "", rv, timestamp)
-				if err == nil {
-					pushData.Sensors = sensors
-					groups = append(groups, pushData)
-				}
-			} else {
-				err = fmt.Errorf("%s Value of group should be dict", s.id)
+		if rv.Kind() == reflect.Map {
+			err = s.dumpMap(&sensors, "", rv, timestamp)
+			if err == nil {
+				pushData.Sensors = sensors
+				groups = append(groups, pushData)
 			}
-			if err != nil {
-				logger.Warnf("%s bad value for %s: %s", s.id, aggname, common.InterfaceToString(value))
-			}
+		} else {
+			err = fmt.Errorf("Value of group should be dict")
+		}
+		if err != nil {
+			logger.Errf("%s bad value for %s - %s: %s", s.id, aggname, err, common.InterfaceToString(item.Result))
 		}
 	}
 	return groups, err
 }
 
 // Send parse data, build and send http request to solomon api
-func (s *Sender) Send(task tasks.DataType, timestamp uint64) error {
+func (s *Sender) Send(task []tasks.AggregationResult, timestamp uint64) error {
 	if len(task) == 0 {
-		return fmt.Errorf("%s Empty data. Nothing to send", s.id)
+		return fmt.Errorf("Empty data. Nothing to send")
 	}
 
-	data, err := s.sendInternal(&task, timestamp)
+	data, err := s.sendInternal(task, timestamp)
 	if err != nil {
-		return fmt.Errorf("%s %s", s.id, err)
+		return err
 	}
 	logger.Infof("%s Send %d items", s.id, len(data))
 	for _, v := range data {
-		push, _ := json.Marshal(v)
+		push, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
 		logger.Debugf("%s Sending work to JobQueue", s.id)
@@ -246,17 +276,10 @@ func (w Worker) sendToSolomon(job Job) error {
 		}
 		attempt++
 
-		req, err := http.NewRequest("POST", job.SolCli.API, bytes.NewReader(job.PushData))
-		if err != nil {
-			sendErr = fmt.Errorf("%s request error: %s", job.SolCli.id, err)
-			break
-		}
-		req.Header.Add("Content-Type", "application/json")
-
 		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.id, attempt)
-		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
-		defer cancelFunc()
-		resp, err := httpclient.Do(ctx, req)
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
+		defer cancel()
+		resp, err := httpclient.Post(ctx, job.SolCli.API, "application/json", bytes.NewReader(job.PushData))
 		switch err {
 		case nil:
 			// The default HTTP client's Transport does not attempt to
@@ -270,12 +293,12 @@ func (w Worker) sendToSolomon(job Job) error {
 				logger.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.id, attempt)
 				break
 			}
-			sendErr = fmt.Errorf("%s bad status='%d %s', response: %s", job.SolCli.id, resp.StatusCode, resp.Status, b)
+			sendErr = fmt.Errorf("bad status='%d %s', response: %s", resp.StatusCode, resp.Status, b)
 			isTimeout = resp.StatusCode == http.StatusRequestTimeout
 		case context.Canceled, context.DeadlineExceeded:
 			isTimeout = true
 		default:
-			sendErr = fmt.Errorf("%s send error: %s", job.SolCli.id, err)
+			sendErr = fmt.Errorf("send error: %s", err)
 		}
 
 		if !isTimeout {
@@ -283,7 +306,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			break
 		}
 
-		logger.Debugf("%s timed out. Worker %d. Retrying.", job.SolCli.id, w.id)
+		logger.Debugf("%s timed out. Worker %d. Retrying", job.SolCli.id, w.id)
 		if attempt < w.Retry {
 			time.Sleep(time.Millisecond * w.RetryInterval)
 		}
@@ -295,7 +318,7 @@ func (w Worker) start(j chan Job) {
 	for job := range j {
 		logger.Debugf("%s worker %d received job", job.SolCli.id, w.id)
 		if err := w.sendToSolomon(job); err != nil {
-			logger.Errf("%s", err)
+			logger.Errf("%s %s", job.SolCli.id, err)
 		}
 	}
 }
@@ -308,7 +331,7 @@ func newWorker(id int, retry int, interval int) Worker {
 // workers concurently wite job from JobQueue
 func StartWorkers(j chan Job, retryInterval int) {
 	for i := 0; i < cap(j); i++ {
-		logger.Debugf("creating worker %d", i)
+		logger.Debugf("Creating worker %d", i)
 		worker := newWorker(i, postRetries, retryInterval)
 		go worker.start(j)
 	}

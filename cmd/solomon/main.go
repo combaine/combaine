@@ -29,7 +29,7 @@ var (
 
 type solomonTask struct {
 	ID       string `codec:"Id"`
-	Data     tasks.DataType
+	Data     []tasks.AggregationResult
 	Config   solomon.Config
 	CurrTime uint64
 	PrevTime uint64
