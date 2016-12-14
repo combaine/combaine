@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
@@ -14,20 +16,21 @@ import (
 
 const (
 	defaultConfigPath = "/etc/combaine/razladki.conf"
+	defaultTimeout    = 5 * time.Second
 )
 
 var logger *cocaine.Logger
 
-type Task struct {
-	Id       string
-	Data     tasks.DataType
-	Config   razladki.RazladkiConfig
+type razladkiTask struct {
+	ID       string `codec:"Id"`
+	Data     []tasks.AggregationResult
+	Config   razladki.Config
 	CurrTime uint64
 	PrevTime uint64
 }
 
 func getRazladkiHost() (string, error) {
-	var path string = os.Getenv("config")
+	var path = os.Getenv("config")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
@@ -46,11 +49,12 @@ func getRazladkiHost() (string, error) {
 	return "", scanner.Err()
 }
 
+// Send parse cocaine request and send points to razladki service
 func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task Task
+	var task razladkiTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
@@ -63,18 +67,20 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	logger.Debugf("Task: %v", task)
+	logger.Debugf("%s Task: %v", task.ID, task)
 
-	rCli, err := razladki.NewRazladkiClient(&task.Config, task.Id)
+	rCli, err := razladki.NewSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("Unexpected error %s", err)
+		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
-	err = rCli.Send(task.Data, task.PrevTime)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	err = rCli.Send(ctx, task.Data, task.PrevTime)
 	if err != nil {
-		logger.Errf("Sending error %s", err)
+		logger.Errf("%s Sending error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
