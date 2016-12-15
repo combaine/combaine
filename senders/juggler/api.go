@@ -260,6 +260,8 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	if err != nil {
 		return err
 	}
+	logger.Infof("%s Update check json payload: %s", js.id, cJSON)
+
 	errs := make(map[string]string, 0)
 	for _, host := range js.JHosts {
 		url := fmt.Sprintf(updateCheckURL, host)
@@ -275,11 +277,11 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				logger.Warnf("%s Juggler %s update check response %d: '%q'", js.id, host, resp.StatusCode, body)
+				logger.Warnf("%s Update check query %s: %d - '%s'", js.id, url, resp.StatusCode, body)
 				errs[string(body)] = ""
 				continue
 			}
-			logger.Infof("%s Sucessfully send update check for `%s.%s`", js.id, check.Host, check.Service)
+			logger.Infof("%s Sucessfully send update `%s.%s` %s: %s", js.id, check.Host, check.Service, url, body)
 			return nil
 		case context.Canceled, context.DeadlineExceeded:
 			logger.Errf("%s %s", js.id, err)

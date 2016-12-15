@@ -1,9 +1,11 @@
 package juggler
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -297,6 +299,23 @@ func TestEnsureCheck(t *testing.T) {
 
 func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
+
+	jconf.Aggregator = "timed_more_than_limit_is_problem"
+	jconf.AggregatorKWargs = map[string]interface{}{
+		"ignore_nodata": 1,
+		"limits": []map[string]interface{}{
+			{"crit": 0,
+				"day_end":    7,
+				"time_start": 2,
+				"time_end":   1,
+				"day_start":  1},
+			{"crit": "146%",
+				"day_start":  1,
+				"day_end":    7,
+				"time_start": 20,
+				"time_end":   8},
+		}}
+
 	jconf.JPluginConfig = map[string]interface{}{
 		"checks": map[string]interface{}{
 			"testTimings": map[string]interface{}{
@@ -366,7 +385,14 @@ func TestMain(m *testing.M) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(resp)
 		case "/api/checks/add_or_update":
-			fmt.Fprintln(w, "OK")
+			reqBytes, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				w.WriteHeader(500)
+				fmt.Fprintln(w, err)
+			}
+			w.WriteHeader(200)
+			io.Copy(w, bytes.NewReader(reqBytes))
+			//fmt.Fprintln(w, reqJSON)
 		case "/juggler-fcgi.py":
 			fmt.Fprintln(w, "OK")
 		default:

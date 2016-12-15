@@ -21,10 +21,10 @@ type Config struct {
 	Host             string                       `codec:"Host"`
 	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
+	AggregatorKWargs interface{}                  `codec:"aggregator_kwargs"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
 	Tags             []string                     `codec:"tags"`
-	AggregatorKWargs interface{}                  `codec:"aggregator_kwargs"`
 	Flap             *jugglerFlapConfig           `codec:"flap"`
 	ChecksOptions    map[string]jugglerFlapConfig `codec:"checks_options"`
 	JPluginConfig    configs.PluginConfig         `codec:"config"`
@@ -74,10 +74,10 @@ func DefaultConfig() *Config {
 		Host:             "",
 		Methods:          []string{},
 		Aggregator:       "",
+		AggregatorKWargs: nil,
 		CheckName:        "",
 		Description:      "",
 		Tags:             []string{"combaine"},
-		AggregatorKWargs: nil,
 		Flap:             nil,
 		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
 		JPluginConfig:    configs.PluginConfig{},
