@@ -176,6 +176,32 @@ func TestQueryLuaTable(t *testing.T) {
 	assert.Len(t, events, 32)
 }
 
+func TestPluginSimple(t *testing.T) {
+	jconf := DefaultJugglerTestConfig()
+
+	jconf.Aggregator = "timed_more_than_limit_is_problem"
+	jconf.AggregatorKWargs = map[string]interface{}{
+		"ignore_nodata": 1,
+		"limits": []map[string]interface{}{
+			{"crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1},
+		}}
+	//jconf.JPluginConfig = map[string]interface{}{}
+	jconf.JHosts = []string{ts.Listener.Addr().String()}
+	jconf.JFrontend = []string{ts.Listener.Addr().String()}
+	jconf.Plugin = "simple"
+	jconf.Host = "hostname_from_config"
+	js, err := NewJugglerSender(jconf, "Test ID")
+	assert.NoError(t, err)
+	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	assert.NoError(t, err)
+	js.state = l
+	assert.NoError(t, js.preparePluginEnv(data))
+
+	events, err := js.runPlugin()
+	assert.NoError(t, err)
+	t.Logf("%v", events)
+}
+
 func TestGetCheck(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 	jconf.JHosts = []string{"localhost:3333"}
@@ -304,16 +330,8 @@ func TestSendEvent(t *testing.T) {
 	jconf.AggregatorKWargs = map[string]interface{}{
 		"ignore_nodata": 1,
 		"limits": []map[string]interface{}{
-			{"crit": 0,
-				"day_end":    7,
-				"time_start": 2,
-				"time_end":   1,
-				"day_start":  1},
-			{"crit": "146%",
-				"day_start":  1,
-				"day_end":    7,
-				"time_start": 20,
-				"time_end":   8},
+			{"crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1},
+			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		}}
 
 	jconf.JPluginConfig = map[string]interface{}{

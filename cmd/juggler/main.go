@@ -11,7 +11,7 @@ import (
 	"github.com/combaine/combaine/senders/juggler"
 )
 
-const defaultPlugin = "deprecated"
+const defaultPlugin = "simple"
 
 var logger *cocaine.Logger
 
