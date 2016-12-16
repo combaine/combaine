@@ -73,27 +73,6 @@ func NewSender(cfg *Config, id string) (*Sender, error) {
 	}, nil
 }
 
-func (r *Sender) getSubgroupName(task tasks.AggregationResult) (string, error) {
-	var subgroup string
-	var ok bool
-
-	if subgroup, ok = task.Tags["name"]; !ok {
-		return "", fmt.Errorf("Failed to get data tag 'name', skip task: %v", task)
-	}
-	if t, ok := task.Tags["type"]; ok {
-		if t == "datacenter" {
-			if meta, ok := task.Tags["metahost"]; ok {
-				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
-			} else {
-				return "", fmt.Errorf("Failed to get data tag 'metahost', skip task: %v", task)
-			}
-		}
-	} else {
-		return "", fmt.Errorf("Failed to get data tag 'type', skip task: %v", task)
-	}
-	return subgroup, nil
-}
-
 func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result, error) {
 	logger.Debugf("%s Data to send: %v", r.id, data)
 	res := result{
@@ -129,7 +108,7 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 			logger.Debugf("%s %s not in Items, skip task: %v", r.id, root, item)
 			continue
 		}
-		subgroup, err := r.getSubgroupName(item)
+		subgroup, err := common.GetSubgroupName(item.Tags)
 		if err != nil {
 			logger.Errf("%s %s", r.id, err)
 			continue

@@ -122,27 +122,6 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 	return
 }
 
-func (g *Sender) getSubgroupName(tags map[string]string) (string, error) {
-	var subgroup string
-	var ok bool
-
-	if subgroup, ok = tags["name"]; !ok {
-		return "", fmt.Errorf("Failed to get data tag 'name', skip task: %v", tags)
-	}
-	if t, ok := tags["type"]; ok {
-		if t == "datacenter" {
-			if meta, ok := tags["metahost"]; ok {
-				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
-			} else {
-				return "", fmt.Errorf("Failed to get data tag 'metahost', skip task: %v", tags)
-			}
-		}
-	} else {
-		return "", fmt.Errorf("Failed to get data tag 'type', skip task: %v", tags)
-	}
-	return subgroup, nil
-}
-
 func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(common.NameStack, 0, 3)
 
@@ -151,7 +130,7 @@ func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, 
 		logger.Infof("%s Handle aggregate named %s", g.id, aggname)
 
 		metricName.Push(aggname)
-		subgroup, err := g.getSubgroupName(aggItem.Tags)
+		subgroup, err := common.GetSubgroupName(aggItem.Tags)
 		if err != nil {
 			logger.Errf("%s %s", g.id, err)
 			continue

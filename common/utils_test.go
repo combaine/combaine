@@ -78,32 +78,6 @@ func TestGetType(t *testing.T) {
 	}
 }
 
-func TestMapUpdate(t *testing.T) {
-	cases := []struct {
-		src      map[string]interface{}
-		dst      map[string]interface{}
-		expected map[string]interface{}
-	}{
-		{
-			map[string]interface{}{"x": 1, "z": 3},
-			map[string]interface{}{"y": 2, "z": 4},
-			map[string]interface{}{"x": 1, "y": 2, "z": 3}},
-		{
-			map[string]interface{}{"a": "a", "b": "b"},
-			map[string]interface{}{},
-			map[string]interface{}{"a": "a", "b": "b"}},
-		{
-			map[string]interface{}{"a": 1, "b": 2},
-			map[string]interface{}{"a": "a", "b": false, "c": 3},
-			map[string]interface{}{"a": 1, "b": 2, "c": 3}},
-	}
-	for _, c := range cases {
-		MapUpdate(c.src, c.dst)
-
-		assert.Equal(t, c.expected, c.dst)
-	}
-}
-
 func TestInterfaceToString(t *testing.T) {
 	cases := []struct {
 		v        interface{}
@@ -111,7 +85,7 @@ func TestInterfaceToString(t *testing.T) {
 	}{
 		{uint(1), "1"},
 		{uint8(2), "2"},
-		{float32(2), fmt.Sprintf("%f", float32(2))},
+		{float32(2), "2"},
 		{int64(0), "0"},
 		{[]byte("a\nb"), "\"a\\nb\""},
 		{[]string{"a", "|", "b"}, "[a | b]"},
@@ -119,6 +93,36 @@ func TestInterfaceToString(t *testing.T) {
 
 	for _, c := range cases {
 		assert.Equal(t, InterfaceToString(c.v), c.expected)
+	}
+
+}
+
+func TestGetSubgroupName(t *testing.T) {
+	cases := []struct {
+		tags      map[string]string
+		expected  string
+		withError bool
+	}{
+		{map[string]string{
+			"type": "datacenter", "metahost": "frontend", "name": "DC2",
+		}, "frontend-DC2", false},
+		{map[string]string{
+			"type": "host", "metahost": "frontend", "name": "host.name.one",
+		}, "host.name.one", false},
+		{map[string]string{
+			"type": "metahost", "metahost": "frontend", "name": "frontend",
+		}, "frontend", false},
+		{map[string]string{"type": "datacenter", "metahost": "a"}, "", true},
+		{map[string]string{"metahost": "a", "name": "dc1"}, "", true},
+		{map[string]string{"type": "datacenter", "name": "dc1"}, "", true},
+	}
+
+	for _, c := range cases {
+		name, err := GetSubgroupName(c.tags)
+		if c.withError {
+			assert.Error(t, err)
+		}
+		assert.Equal(t, c.expected, name)
 	}
 
 }

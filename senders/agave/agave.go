@@ -86,27 +86,6 @@ func (as *Sender) Send(ctx context.Context, data []tasks.AggregationResult) erro
 	return nil
 }
 
-func (as *Sender) getSubgroupName(task tasks.AggregationResult) (string, error) {
-	var subgroup string
-	var ok bool
-
-	if subgroup, ok = task.Tags["name"]; !ok {
-		return "", fmt.Errorf("Failed to get data tag 'name', skip task: %v", task)
-	}
-	if t, ok := task.Tags["type"]; ok {
-		if t == "datacenter" {
-			if meta, ok := task.Tags["metahost"]; ok {
-				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
-			} else {
-				return "", fmt.Errorf("Failed to get data tag 'metahost', skip task: %v", task)
-			}
-		}
-	} else {
-		return "", fmt.Errorf("Failed to get data tag 'type', skip task: %v", task)
-	}
-	return subgroup, nil
-}
-
 func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, error) {
 	// Repack data by subgroups
 	logger.Debugf("%s Data to send: %v", as.id, data)
@@ -135,7 +114,7 @@ func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, err
 			logger.Debugf("%s %s not in Items, skip task: %v", as.id, root, item)
 			continue
 		}
-		subgroup, err := as.getSubgroupName(item)
+		subgroup, err := common.GetSubgroupName(item.Tags)
 		if err != nil {
 			logger.Errf("%s %s", as.id, err)
 			continue
@@ -223,12 +202,10 @@ func (as *Sender) handleOneItem(ctx context.Context, subgroup string, values str
 		return
 	}
 
-	g.Add(1)
-	as.sendPoint(ctx, url.String(), g, e)
+	as.sendPoint(ctx, url.String(), e)
 }
 
-func (as *Sender) sendPoint(ctx context.Context, url string, g *sync.WaitGroup, e chan<- error) {
-	defer g.Done()
+func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 	for _, host := range as.Hosts {
 		req, _ := http.NewRequest("GET",
 			fmt.Sprintf("http://%s%s", host, url),

@@ -156,27 +156,6 @@ func (s *Sender) dumpMap(sensors *[]sensor, name string,
 	return
 }
 
-func (s *Sender) getSubgroupName(tags map[string]string) (string, error) {
-	var subgroup string
-	var ok bool
-
-	if subgroup, ok = tags["name"]; !ok {
-		return "", fmt.Errorf("Failed to get data tag 'name': %v", tags)
-	}
-	if t, ok := tags["type"]; ok {
-		if t == "datacenter" {
-			if meta, ok := tags["metahost"]; ok {
-				subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
-			} else {
-				return "", fmt.Errorf("Failed to get data tag 'metahost': %v", tags)
-			}
-		}
-	} else {
-		return "", fmt.Errorf("Failed to get data tag 'type': %v", tags)
-	}
-	return subgroup, nil
-}
-
 func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) ([]solomonPush, error) {
 
 	var (
@@ -199,7 +178,7 @@ func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) 
 			s.prefix = aPrefix[1] + "."
 		}
 
-		host, err = s.getSubgroupName(item.Tags)
+		host, err = common.GetSubgroupName(item.Tags)
 		if err != nil {
 			logger.Errf("%s skip task: %s", s.id, err)
 			continue
