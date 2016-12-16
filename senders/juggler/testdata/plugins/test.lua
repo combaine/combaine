@@ -40,14 +40,14 @@ function testQuery()
                 if k:match('^'..t.query..'$', 1) then
                     -- print(k, t.query)
                     result[#result + 1] = {
-                        ["tags"] = {
-                            ["name"] = "TestHost",
-                            ["type"] = "host",
-                            ["metahost"] = "TestMetahost",
+                        tags = {
+                            name = "TestHost",
+                            type = "host",
+                            metahost = "TestMetahost",
                         },
-                        ["description"] = string.format("%s = %0.3f", table.concat(kp, "."), v),
-                        ["level"] = "OK",
-                        ["service"] = kp[3],
+                        description = string.format("%s = %0.3f", table.concat(kp, "."), v),
+                        level = "OK",
+                        service = kp[3],
                     }
                 end
             end
