@@ -49,16 +49,6 @@ type jugglerCheck struct {
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
-
-	//Active           string                  `json:"active"`
-	//ActiveKWArgs     map[string]string       `json:"active_kwargs"`
-	//AlertInterval    []int64                `json:"alert_interval"`
-	//RefreshTime      int64                  `json:"refresh_time"`
-	//Ttl              int64                  `json:"ttl"`
-	//MaxStatus        string                  `json:"max_status"`
-	//CreationTime     int64                   `json:"creation_time"`
-	//ModificationTime int64                   `json:"modification_time"`
-	//Notifications    []JugglerNotification   `json:"notifications"`
 }
 
 type jugglerEvent struct {
@@ -68,16 +58,8 @@ type jugglerEvent struct {
 	Level       string
 }
 
-/*
-type JugglerNotification struct {
-	TemplateName   string                 `json:"template_name"`
-	TemplateKWArgs map[string]interface{} `json:"template_kwargs"`
-	Description    string                 `json:"description"`
-}
-*/
-
-// getCheck query juggler api for check and Unmarshal json response in to
-// jugglerResponse type
+// getCheck query juggler api for check
+// and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 	var hostChecks jugglerResponse
 	var flap map[string]map[string]*jugglerFlapConfig
@@ -167,10 +149,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 				check.AggregatorKWArgs = js.AggregatorKWargs
 			}
 			// flap
-			if err := js.ensureFlap(&check); err != nil {
-				return err
-			}
-
+			js.ensureFlap(&check)
 			// tags
 			if len(js.Config.Tags) == 0 {
 				js.Config.Tags = []string{defaultTag}
@@ -223,7 +202,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 	return nil
 }
 
-func (js *Sender) ensureFlap(jcheck *jugglerCheck) error {
+func (js *Sender) ensureFlap(jcheck *jugglerCheck) {
 	if f, ok := js.Config.ChecksOptions[jcheck.Service]; ok {
 		if f.Enable == 1 {
 			if jcheck.Flap == nil {
@@ -250,7 +229,6 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) error {
 			jcheck.Flap = nil
 		}
 	}
-	return nil
 }
 
 func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
@@ -268,8 +246,8 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 		resp, err := httpclient.Post(ctx, url, "application/json", bytes.NewReader(cJSON))
 		switch err {
 		case nil:
-			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			if err != nil {
 				logger.Errf("%s %s", js.id, err)
 				errs[err.Error()] = ""

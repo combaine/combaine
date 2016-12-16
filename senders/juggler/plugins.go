@@ -17,11 +17,11 @@ type dumperFunc func(reflect.Value) (lua.LValue, error)
 func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTable, error) {
 	table := l.NewTable()
 	for name, value := range in {
-		if val, err := toLuaValue(l, value, dumperToLuaValue); err == nil {
-			table.RawSetString(name, val)
-		} else {
+		val, err := toLuaValue(l, value, dumperToLuaValue)
+		if err != nil {
 			return nil, err
 		}
+		table.RawSetString(name, val)
 	}
 	return table, nil
 }
@@ -37,11 +37,11 @@ func dataToLuaTable(l *lua.LState, in []tasks.AggregationResult) (*lua.LTable, e
 		}
 		table.RawSetString("Tags", tags)
 
-		if val, err := toLuaValue(l, item.Result, dumperToLuaNumber); err == nil {
-			table.RawSetString("Result", val)
-		} else {
+		val, err := toLuaValue(l, item.Result, dumperToLuaNumber)
+		if err != nil {
 			return nil, err
 		}
+		table.RawSetString("Result", val)
 		out.Append(table)
 	}
 	return out, nil
@@ -55,22 +55,22 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 		inTable := l.NewTable()
 		for i := 0; i < rv.Len(); i++ {
 			item := rv.Index(i).Interface()
-			if v, err := toLuaValue(l, item, dumper); err == nil {
-				inTable.Append(v)
-			} else {
+			v, err := toLuaValue(l, item, dumper)
+			if err != nil {
 				return nil, err
 			}
+			inTable.Append(v)
 		}
 		return inTable, nil
 	case reflect.Map:
 		inTable := l.NewTable()
 		for _, key := range rv.MapKeys() {
 			item := rv.MapIndex(key).Interface()
-			if v, err := toLuaValue(l, item, dumper); err == nil {
-				inTable.RawSetString(fmt.Sprintf("%s", key), v)
-			} else {
+			v, err := toLuaValue(l, item, dumper)
+			if err != nil {
 				return nil, err
 			}
+			inTable.RawSetString(fmt.Sprintf("%s", key), v)
 		}
 		return inTable, nil
 	case reflect.Struct:
@@ -78,19 +78,15 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 
 		for i := 0; i < rv.NumField(); i++ {
 			item := rv.Field(i).Interface()
-			if v, err := toLuaValue(l, item, dumper); err == nil {
-				inTable.RawSetString(rv.Type().Field(i).Name, v)
-			} else {
+			v, err := toLuaValue(l, item, dumper)
+			if err != nil {
 				return nil, err
 			}
+			inTable.RawSetString(rv.Type().Field(i).Name, v)
 		}
 		return inTable, nil
 	default:
-		v, err := dumper(rv)
-		if err == nil {
-			return v, nil
-		}
-		return nil, err
+		return dumper(rv)
 	}
 }
 
