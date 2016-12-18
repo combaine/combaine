@@ -201,6 +201,7 @@ func TestPluginSimple(t *testing.T) {
 		"${agg}['a'] + ${agg}['b'] <=1",
 		"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <1",
 		"${agg}['a']-${agg}['b']-${agg}['c-d'] <1",
+		"${agg}['a']-${agg}['b']-${agg}['b_c.a.c-d'] <1",
 		"${agg}['a'] - (${agg}['b'] + ${agg}['c'])<=300",
 		"${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'] > 100",
 
