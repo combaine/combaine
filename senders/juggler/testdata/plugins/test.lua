@@ -33,7 +33,11 @@ function testQuery()
     for _, t in pairs(config.checks) do
         local path = split(t.query, "/")
         -- print(path[1], path[2], path[3])
-        flatting("", payload, flat)
+        for k, v in pairs(payload) do
+            if v.Tags and v.Tags and (v.Tags.aggregate == "nginx" or v.Tags.aggregate == "app") then
+                flatting(k, v, flat)
+            end
+        end
         for k, v in pairs(flat) do
             local kp = split(k, "/")
             if #kp == #path then

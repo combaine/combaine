@@ -3,6 +3,7 @@ package juggler
 import (
 	"strings"
 
+	"github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -23,5 +24,6 @@ func split(l *lua.LState) int {
 // PreloadTools preload go functions in lua global environment
 func PreloadTools(l *lua.LState) error {
 	l.SetGlobal("split", l.NewFunction(split))
+	l.PreloadModule("re", gluare.Loader)
 	return nil
 }
