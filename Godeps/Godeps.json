@@ -102,6 +102,10 @@
 			"Rev": "1d5269ed4e89d423d40362a0914e1c99adb13cc8"
 		},
 		{
+			"ImportPath": "github.com/yuin/gluare",
+			"Rev": "8e2742cd1bf2b904720ac66eca3c2091b2ea0720"
+		},
+		{
 			"ImportPath": "github.com/yuin/gopher-lua",
 			"Rev": "7692488a1ad6bd06dc48890f4a149b65a86a767d"
 		},
