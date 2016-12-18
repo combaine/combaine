@@ -1,3 +1,5 @@
+local re = require("re")
+
 function run()
     local result = {}
     for _, v in pairs(payload) do
@@ -11,10 +13,10 @@ function run()
             check = conditions[level]
             if check then for _, case in pairs(check) do
 
-                pattern = "${%s-"..v.Tags.aggregate.."%s-}[^<>=+/()$%s]+" -- "%.get%([^)]+%)%s*"
-                print([[lkjsdf\ljksdflj\\lkj]])
+                pattern = [=[[$]{\s*]=]..v.Tags.aggregate..[[\s*}]]
+                pattern = pattern..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
 
-                for query in case:gmatch(pattern) do
+                for query in re.gmatch(case, pattern) do
                     print("In [31m"..case.."[0m Matched query: [32m"..query.."[0m")
                 end
             end end
