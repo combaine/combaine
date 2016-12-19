@@ -79,8 +79,8 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		resp, err := httpclient.Get(ctx, url)
 		switch err {
 		case nil:
-			defer resp.Body.Close()
 			body, rerr := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			if rerr != nil {
 				logger.Errf("%s %s", js.id, rerr)
 				jerrors = append(jerrors, fmt.Errorf("failed to read respose from %s: %s", jhost, rerr))
@@ -295,9 +295,9 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 		logger.Errf("%s %s", js.id, err)
 		return err
 	}
-	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
 	if err != nil {
 		logger.Errf("%s %s", js.id, err)

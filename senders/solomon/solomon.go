@@ -257,8 +257,8 @@ func (w Worker) sendToSolomon(job Job) error {
 
 		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.id, attempt)
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
-		defer cancel()
 		resp, err := httpclient.Post(ctx, job.SolCli.API, "application/json", bytes.NewReader(job.PushData))
+		cancel()
 		switch err {
 		case nil:
 			// The default HTTP client's Transport does not attempt to

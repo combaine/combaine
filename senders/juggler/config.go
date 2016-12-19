@@ -58,6 +58,9 @@ func GetJugglerSenderConfig() (conf SenderConfig, err error) {
 		return
 	}
 	err = yaml.Unmarshal(rawConfig, &conf)
+	if err != nil {
+		return
+	}
 	if len(conf.Frontend) == 0 {
 		conf.Frontend = conf.Hosts
 	}

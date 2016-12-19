@@ -31,6 +31,7 @@ func NewJugglerSender(conf *Config, id string) (*Sender, error) {
 func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
+	defer state.Close() // see TODO in LoadPlugin
 	if err != nil {
 		return err
 	}
@@ -64,15 +65,15 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 	var sendEeventsFailed int32
 	for _, jFront := range js.Config.JFrontend {
 		jWg.Add(1)
-		go func(front string, jEs []jugglerEvent, wg *sync.WaitGroup) {
-			defer wg.Done()
+		go func(front string, jEs []jugglerEvent) {
+			defer jWg.Done()
 			for _, e := range jEs {
 				if err := js.sendEvent(ctx, front, e); err != nil {
 					atomic.AddInt32(&sendEeventsFailed, 1)
 					logger.Errf("%s failed to send juggler Event %s: %s", js.id, e, err)
 				}
 			}
-		}(jFront, events, &jWg)
+		}(jFront, events)
 	}
 	jWg.Wait()
 

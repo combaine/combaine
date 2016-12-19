@@ -31,9 +31,9 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 
 	for i := 1; i <= retry; i++ {
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(timeout)*time.Millisecond)
-		defer cancel()
 		dialer := net.Dialer{DualStack: true}
 		conn, err = dialer.DialContext(ctx, "tcp", endpoint)
+		cancel()
 		if err == nil {
 			break
 		} else {
