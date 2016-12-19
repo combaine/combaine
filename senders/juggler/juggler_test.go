@@ -178,79 +178,89 @@ func TestQueryLuaTable(t *testing.T) {
 
 func TestPluginSimple(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
-
 	jconf.OK = []string{}
 	jconf.INFO = []string{}
 	jconf.WARN = []string{}
-	jconf.CRIT = []string{
-		// implement in simple
-		"${agg}['a'] >= VAR_FIRST",
-		"${agg}['a'] >= VAR1",
-		"${'agg'}['b'] >= 1",
-
-		"${agg}.get('b',0)>1",
-		"${agg}.get('b', 0)>1",
-
-		"${agg}['t'][4] > VAR2",
-		"${agg}['t'][1] > 800",
-
-		"(${agg}['a.b'] - ${agg}.get('n',0) ) <= 3",
-		"(${agg}['a']-${agg}.get('n',0) ) <= 3",
-		"(${agg}['a'] - ${agg}.get('n',   0) ) <= 3",
-
-		"${agg}['a'] + ${agg}['b'] <=1",
-		"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <1",
-		"${agg}['a']-${agg}['b']-${agg}['c-d'] <1",
-		"${agg}['a']-${agg}['b']-${agg}['b_c.a.c-d'] <1",
-		"${agg}['a'] - (${agg}['b'] + ${agg}['c'])<=300",
-		"${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'] > 100",
-
-		"(${agg}['d'] <= 70 )",
-
-		// ???
-		"(${agg}['s']['ss']['sss']+${agg}['r']['rr']['rrr'])/(${agg}['z']['zz']['zzz']+0.0001)>0.1",
-		"(${agg}['a']+${agg}['b']+${agg}['c']+${agg}['d'])/${agg}['f']>0.15",
-
-		"(${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'])/${agg}['f'] > 0.05",
-		"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e']) > 0.01",
-		"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['D'] + ${agg}['Q']) > 0.01",
-
-		// and/or + -1
-		"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1",
-		"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5",
-		"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1",
-		"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5",
-
-		"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1",
-		"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5",
-		"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1",
-		"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5",
-		"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000",
-		"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000",
-		"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000",
-		"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2",
-	}
-	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWargs = map[string]interface{}{
-		"ignore_nodata": 1,
-		"limits": []map[string]interface{}{
-			{"crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1},
-		}}
+	jconf.CRIT = []string{}
 	//jconf.JPluginConfig = map[string]interface{}{}
-	jconf.JHosts = []string{ts.Listener.Addr().String()}
-	jconf.JFrontend = []string{ts.Listener.Addr().String()}
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
-	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
-	assert.NoError(t, err)
-	js.state = l
-	assert.NoError(t, js.preparePluginEnv(data))
 
-	events, err := js.runPlugin()
-	assert.NoError(t, err)
-	t.Logf("%v", events)
+	cases := [][]string{
+		// implement in simple
+		{"${agg}['a'] >= VAR_FIRST"},
+		{"${agg}['a'] >= VAR1"},
+
+		{"${'agg'}['b'] >= 1"},
+
+		{
+			"${agg}.get('b',0)>1",
+			"${agg}.get('b', 0)>1",
+		},
+
+		{"${agg}['t'][4] > VAR2"},
+		{"${agg}['t'][1] > 800"},
+
+		{
+			"(${agg}['a.b'] - ${agg}.get('n',0) ) <= 3",
+			"(${agg}['a']-${agg}.get('n',0) ) <= 3",
+			"(${agg}['a'] - ${agg}.get('n',   0) ) <= 3",
+		},
+
+		{"${agg}['a'] + ${agg}['b'] <=1"},
+		{"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <1"},
+		{
+			"${agg}['a']-${agg}['b']-${agg}['c-d'] <1",
+			"${agg}['a']-${agg}['b']-${agg}['b_c.a.c-d'] <1",
+		},
+		{"${agg}['a'] - (${agg}['b'] + ${agg}['c'])<=300"},
+		{"${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'] > 100"},
+
+		{"(${agg}['d'] <= 70 )"},
+
+		// ???
+		{"(${agg}['s']['ss']['sss']+${agg}['r']['rr']['rrr'])/(${agg}['z']['zz']['zzz']+0.01)>0.1"},
+		{"(${agg}['a']+${agg}['b']+${agg}['c']+${agg}['d'])/${agg}['f']>0.15"},
+
+		{"(${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'])/${agg}['f'] > 0.05"},
+		{
+			"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e']) > 0.01",
+			"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['D'] + ${agg}['Q']) > 0.01",
+		},
+
+		// and/or + -1
+		{"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1"},
+		{"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5"},
+		{"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1"},
+		{"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5"},
+
+		{"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1"},
+		{"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5"},
+		{"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1"},
+		{"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5"},
+		{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000"},
+		{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000"},
+		{
+			"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000",
+			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2",
+		},
+	}
+
+	for _, c := range cases {
+
+		jconf.CRIT = c
+
+		l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+		js.state = l
+		assert.NoError(t, err)
+		assert.NoError(t, js.preparePluginEnv(data))
+
+		events, err := js.runPlugin()
+		assert.NoError(t, err)
+		t.Logf("%v", events)
+	}
 }
 
 func TestGetCheck(t *testing.T) {

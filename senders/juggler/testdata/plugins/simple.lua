@@ -13,7 +13,7 @@ function run()
             check = conditions[level]
             if check then for _, case in pairs(check) do
 
-                pattern = [=[[$]{\s*]=]..v.Tags.aggregate..[[\s*}]]
+                pattern = [=[[$]{['\s]*]=]..v.Tags.aggregate..[=[[\s']*}]=]
                 pattern = pattern..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
 
                 for query in re.gmatch(case, pattern) do
