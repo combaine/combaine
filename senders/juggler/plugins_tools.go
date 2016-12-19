@@ -21,9 +21,19 @@ func split(l *lua.LState) int {
 	return 1
 }
 
+func replace(l *lua.LState) int {
+	origin := l.CheckString(1)
+	pattern := l.CheckString(2)
+	repl := l.CheckString(3)
+	res := strings.Replace(origin, pattern, repl, 1)
+	l.Push(lua.LString(res))
+	return 1
+}
+
 // PreloadTools preload go functions in lua global environment
 func PreloadTools(l *lua.LState) error {
 	l.SetGlobal("split", l.NewFunction(split))
+	l.SetGlobal("replace", l.NewFunction(replace))
 	l.PreloadModule("re", gluare.Loader)
 	return nil
 }

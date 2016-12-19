@@ -197,7 +197,7 @@ func TestPluginSimple(t *testing.T) {
 
 		{
 			"${agg}.get('b',0)>1",
-			"${agg}.get('b', 0)>1",
+			"${agg}.get('b_c.a.c-d', 0)>1",
 		},
 
 		{"${agg}['t'][4] > VAR2"},
@@ -249,9 +249,7 @@ func TestPluginSimple(t *testing.T) {
 	}
 
 	for _, c := range cases {
-
 		jconf.CRIT = c
-
 		l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
 		js.state = l
 		assert.NoError(t, err)

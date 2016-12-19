@@ -145,7 +145,7 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 		je := jugglerEvent{}
 		tags, ok := lt.RawGetString("tags").(*lua.LTable)
 		if !ok {
-			errs["Failed to convert tags to lua table"] = ""
+			errs[fmt.Sprintf("Failed to get tags from lua result[%s]", lua.LVAsString(k))] = ""
 			return
 		}
 		je.Tags = make(map[string]string, 0)
@@ -208,6 +208,8 @@ func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
 	}
 
 	js.state.SetGlobal("payload", ltable)
+	js.state.SetGlobal("checkName", lua.LString(js.Config.CheckName))
+	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))
 
 	levels := make(map[string][]string)
 	if js.OK != nil {
@@ -222,7 +224,6 @@ func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
 	if js.CRIT != nil {
 		levels["CRIT"] = js.CRIT
 	}
-
 	lconditions := js.state.NewTable()
 	for name, cond := range levels {
 		lcondTable := js.state.NewTable()
