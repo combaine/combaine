@@ -1,77 +1,135 @@
 local re = require("re")
+local log = require("log")
+local os = require("os")
+
+
+
+
+sandbox = {
+    iftimeofday = function (bot, top, in_val, out_val)
+        function inTimeOfDay()
+            hour = tonumber(os.date("%H"))
+            if bot < top then
+                return bot <= hour and hour <= top
+            else
+                return bot <= hour or hour < top
+            end
+        end
+
+        if inTimeOfDay(bot, top) then 
+            return in_val
+        else
+            return out_val
+        end
+    end,
+}
+
+function evalVariables()
+    env = {}
+    for name, def in pairs(variables) do
+        func = loadstring("return ".. def)
+        setfenv(func, sandbox)
+        ok, res = pcall(func)
+        if ok then
+            -- log.debug(string.format("for %s result is: %s: %s",name, ok,res))
+            env[name] = res
+        else
+            log.error(string.format("Failed to eval %s: %s", def, res))
+        end
+    end
+    return env
+end
+
+function extractMetric(q, res)
+    local metric = "?"
+    if q:find("%.get%(") then
+        local key = q:match([[.get%(['"]([^'"]+)]])
+        metric = res[key] or 0
+    else
+        local iv = res
+        local key
+        for key in q:gmatch([==[%[['"%s]*([^"'%[%s%]]+)['"%s]*%]]==]) do
+            -- print(string.format("Query %s on %s with key %s", q, iv, key))
+            if key:match("^%-?%d$") then
+                key = tonumber(key)
+                if key < 0
+                then key = #iv -- lua do not support keys -1 like python
+                else key = key + 1 -- lua start index from 1, but python from 0
+                end
+            end
+            iv = iv[key]
+        end
+        metric = iv or 0
+    end
+    return metric
+end
+
+function addResult(ev, lvl, tags)
+    local q, v = ev:match("(.+)([<>!]=?.*)")
+    local f, e = loadstring("return "..tostring(q))
+    if type(f) == "function" then
+        setfenv(f, {})
+    end
+    local r
+    if not e then
+        _, r = pcall(f)
+        r = string.format("%0.3f%s", r, v)
+    else
+        r = ev
+    end
+    r = r:gsub("%s+", "")
+    log.debug(string.format("Eval Query is '%s' q='%s' v='%s' evaluated r='%s'", ev, q, v, r))
+
+    return {
+        tags = tags,
+        description = r,
+        level = lvl,
+        service = checkName,
+    }
+end
 
 function run()
+    testEnv = evalVariables()
     local result = {}
     for _, data in pairs(payload) do
         if not data.Tags or not data.Tags.aggregate then
-            result[#result + 1] = {
-                tags = data.Tags,
-                level = "CRIT",
-                error = "Missing tag 'aggregate'",
-            }
+           log.error("Missing tag 'aggregate'")
         else
-            local res = data.Result
-            local pattern = [=[[$]{['\s]*]=]..data.Tags.aggregate..[=[[\s']*}]=]..
-                [=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
+            local pattern = "[$]{"..data.Tags.aggregate.."}"..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
             for _, level in pairs {"CRIT", "WARN", "INFO", "OK"} do
                 local check = conditions[level]
                 if check then for _, case in pairs(check) do
 
-                    local resolve = case
+                    local eval = case
                     local matched = false
                     for query in re.gmatch(case, pattern) do
                         matched = true
-                        local metric = "?"
-                        if query:find("%.get%(") then
-                            local key = query:match([[.get%(['"]([^'"]+)]])
-                            metric = res[key] or 0
-                        else
-                            local iv = res
-                            local key
-                            for key in query:gmatch([==[%[['"%s]*([^"'%[%s%]]+)['"%s]*%]]==]) do
-                                -- print("Query "..query.." key ".. tostring(key))
-                                if key then
-                                    iv = res[key]
-                                end
-                            end
-                            metric = iv or 0
-                        end
-                        resolve = replace(resolve, query, tostring(metric))
+                        local metric = extractMetric(query, data.Result)
+                        eval = replace(eval, query, tostring(metric))
                     end
                     if matched then
-                        local test, err = loadstring("return "..resolve)
+                        local test, err = loadstring("return "..eval)
+                        setfenv(test, testEnv)
+
                         if err then
-                            result[#result + 1] = {
-                                tags = data.Tags,
-                                description = checkDescription,
-                                level = level,
-                                service = checkName,
-                                error = string.format("%q in check %q resoved to -> %q", err, case, resolve),
-                            }
+                            log.error(string.format("'%q' in check '%q' resoved to -> '%q'", err, case, eval))
                         else
                             ok, fire = pcall(test)
-                            if fire then
-                                local q, v = resolve:match("(.+)([<>!]=?.*)")
-                                local f, e = loadstring("return "..tostring(q))
-                                local r
-                                if not e then
-                                    _, r = pcall(f)
-                                    r = string.format("%0.3g%s", r, v)
+                            if not ok then
+                                log.error("Error in query "..eval)
+                            else
+                                if fire then
+                                    log.info("trigger test '"..eval.."' is true")
+                                    result[#result + 1] = addResult(eval, level, data.Tags, env)
+                                    break -- Checks are coupled with OR logic.
+                                          -- break when one of expressions is evaluated as True
                                 else
-                                    r = resolve
+                                    log.info("trigger test '"..eval.."' is false")
                                 end
-                                print(string.format("Eval Query is %s %s %s evaluated %s", resolve, q, v, r))
-
-                                result[#result + 1] = {
-                                    tags = data.Tags,
-                                    description = r,
-                                    level = level,
-                                    service = checkName,
-                                    error = "",
-                                }
-                                break -- this check is on fire, and case selected by or, skip next
                             end
                         end
+                    else
+                        -- log.debug("case '"..case.."' not match, pattern='"..pattern.."' for '"..level.."'")
                     end
                 end end
             end
@@ -79,38 +137,3 @@ function run()
     end
     return result
 end
-
---[===[
-function run()
-    local result = {}
-    for _, v in pairs(payload) do
-        if not v.Tags or not v.Tags.aggregate then
-            result[#result + 1] = {
-                tags = v.Tags, level = "CRIT",
-                error = "Missing tag 'aggregate'",
-            }
-        else
-            local res = v.Result
-            -- local pattern = [=[[$]{['"\s]*]=]..v.Tags.aggregate..[=[[\s'"]*}]=]..
-            --     [=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
-            for _, level in pairs {"CRIT", "WARN", "INFO", "OK"} do
-                local check = conditions[level]
-                if check and #check > 0 then for _, case in pairs(check) do
-                    print("Case "..case)
-                    query = case:gsub([=[${['"%s]*]=]..v.Tags.aggregate..[=[[%s'"]*}]=], "res")
-                    print("In [31m"..case.."[0m after gsub: [32m"..query.."[0m")
-                end end
-            end
-        end
-    end
-    return result
-end
-
-result[#result + 1] = {
-    tags = v.Tags,
-    description = string.format("%s.%s = %0.3f", v.Tags.metahost, k, iv),
-    level = t.status,
-    service = k,
-    error = "",
-}
-]===]--

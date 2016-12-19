@@ -26,6 +26,7 @@ type Config struct {
 	Description      string                       `codec:"description"`
 	Tags             []string                     `codec:"tags"`
 	Flap             *jugglerFlapConfig           `codec:"flap"`
+	Variables        map[string]string            `codec:"variables"`
 	ChecksOptions    map[string]jugglerFlapConfig `codec:"checks_options"`
 	JPluginConfig    configs.PluginConfig         `codec:"config"`
 	JHosts           []string                     `codec:"juggler_hosts"`

@@ -60,7 +60,7 @@ func DefaultJugglerTestConfig() *Config {
 
 // Benchmarks
 func BenchmarkDataToLuaTable(b *testing.B) {
-	l, err := LoadPlugin("testdata/plugins", "test")
+	l, err := LoadPlugin("Test Id", "testdata/plugins", "test")
 	if err != nil {
 		panic(err)
 	}
@@ -101,10 +101,10 @@ func TestGetJugglerSenderConfig(t *testing.T) {
 }
 
 func TestLoadPlugin(t *testing.T) {
-	if _, err := LoadPlugin(".", "file_not_exists.lua"); err == nil {
+	if _, err := LoadPlugin("Test Id", ".", "file_not_exists.lua"); err == nil {
 		t.Fatalf("Loading non existing plugin should return error")
 	}
-	if _, err := LoadPlugin("testdata/plugins", "test"); err != nil {
+	if _, err := LoadPlugin("Test Id", "testdata/plugins", "test"); err != nil {
 		t.Fatalf("Failed to load plugin 'test': %s", err)
 	}
 }
@@ -113,7 +113,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 	jconf.Plugin = "test"
 
-	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
@@ -135,7 +135,7 @@ func TestRunPlugin(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "correct"
-	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
 	assert.NoError(t, js.preparePluginEnv(data))
@@ -144,7 +144,7 @@ func TestRunPlugin(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "incorrect"
-	l, err = LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	l, err = LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
 	assert.NoError(t, js.preparePluginEnv(data))
@@ -162,7 +162,7 @@ func TestQueryLuaTable(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "test"
-	l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
 	assert.NoError(t, js.preparePluginEnv(data))
@@ -182,75 +182,72 @@ func TestPluginSimple(t *testing.T) {
 	jconf.INFO = []string{}
 	jconf.WARN = []string{}
 	jconf.CRIT = []string{}
-	//jconf.JPluginConfig = map[string]interface{}{}
+	jconf.CheckName = "Matcher"
+	jconf.Variables = map[string]string{
+		"VAR_FIRST": "iftimeofday(23, 7, 10000 , 4000)",
+		"VAR1":      "300",
+		"VAR2":      "iftimeofday(20, 6, 10, 40)",
+		"VAR_LAST":  "iftimeofday(1, 6, 2600, 2800)",
+		"VAR_LAST2": "3000",
+	}
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
-	cases := [][]string{
-		// implement in simple
-		{"${agg}['a'] >= VAR_FIRST"},
-		{"${agg}['a'] >= VAR1"},
+	cases := []struct {
+		checks []string
+		fire   bool
+	}{
+		{[]string{"${agg}['a'] >= VAR_FIRST"}, true},
+		{[]string{"${agg}['a'] >= VAR1"}, true},
 
-		{"${'agg'}['b'] >= 1"},
+		{[]string{"${agg}['b'] >= 1"}, true},
 
-		{
-			"${agg}.get('b',0)>1",
-			"${agg}.get('b_c.a.c-d', 0)>1",
-		},
+		{[]string{"${agg}.get('b',0)>2", "${agg}.get('b_c.a.c-d', 0)>3"}, true},
 
-		{"${agg}['t'][4] > VAR2"},
-		{"${agg}['t'][1] > 800"},
+		{[]string{"${agg}['t'][4] > VAR2"}, false},
+		{[]string{"${agg}['t'][1] > 444"}, false},
 
-		{
-			"(${agg}['a.b'] - ${agg}.get('n',0) ) <= 3",
-			"(${agg}['a']-${agg}.get('n',0) ) <= 3",
-			"(${agg}['a'] - ${agg}.get('n',   0) ) <= 3",
-		},
+		{[]string{"(${agg}['a.b'] - ${agg}.get('n',0) ) <= 5",
+			"(${agg}['a']-${agg}.get('n',0) ) <= 6",
+			"(${agg}['a'] - ${agg}.get('a.b',   0) ) <= 7"}, true},
 
-		{"${agg}['a'] + ${agg}['b'] <=1"},
-		{"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <1"},
-		{
-			"${agg}['a']-${agg}['b']-${agg}['c-d'] <1",
-			"${agg}['a']-${agg}['b']-${agg}['b_c.a.c-d'] <1",
-		},
-		{"${agg}['a'] - (${agg}['b'] + ${agg}['c'])<=300"},
-		{"${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'] > 100"},
+		{[]string{"${agg}['a'] + ${agg}['b'] <=8"}, false},
+		{[]string{"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <13009"}, true},
+		{[]string{"${agg}['a']-${agg}['b']-${agg}['b_c.a.c-d'] <10",
+			"${agg}['a']-${agg}['b']-${agg}['c-d'] <10011"}, true},
+		{[]string{"${agg}['a'] - (${agg}['b'] + ${agg}['c'])>=312"}, true},
+		{[]string{"${agg}['b'] + ${agg}['c'] + ${agg}['d'] - ${agg}['e'] > 113"}, true},
 
-		{"(${agg}['d'] <= 70 )"},
+		{[]string{"(${agg}['d'] <= 114 )"}, true},
+		/// ???
+		{[]string{"(${agg}['j']['q']['p']+${agg}['r']['s']['t'])/(${agg}['x']['y']['z']+0.01)>0.15"}, true},
+		{[]string{"(${agg}['a']+${agg}['b']+${agg}['c']+${agg}['d'])/${agg}['f']>0.16"}, true},
 
-		// ???
-		{"(${agg}['s']['ss']['sss']+${agg}['r']['rr']['rrr'])/(${agg}['z']['zz']['zzz']+0.01)>0.1"},
-		{"(${agg}['a']+${agg}['b']+${agg}['c']+${agg}['d'])/${agg}['f']>0.15"},
-
-		{"(${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'])/${agg}['f'] > 0.05"},
-		{
-			"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e']) > 0.01",
-			"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['D'] + ${agg}['Q']) > 0.01",
-		},
+		{[]string{"(${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e'])/${agg}['f'] > 0.17"}, true},
+		{[]string{"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['d'] + ${agg}['e']) > 0.18",
+			"${agg}['f'] / (${agg}['b'] + ${agg}['c'] + ${agg}['D'] + ${agg}['Q']) > 0.19"}, true},
 
 		// and/or + -1
-		{"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1"},
-		{"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5"},
-		{"${agg}['t'][0]>=0.1 or ${agg}['t2'][-1]>=1"},
-		{"${agg}['t'][0]>=0.5 or ${agg}['t2'][-1]>=1.5"},
+		{[]string{"${agg}['t'][0]>=0.1 or ${agg}['t'][-1]>=1.020"}, true},
+		{[]string{"${agg}['t'][0]>=0.5 or ${agg}['t'][-1]>=1.521"}, true},
+		{[]string{"${agg}['t'][0]>=0.1 or ${agg}['t'][-1]>=1.022"}, true},
+		{[]string{"${agg}['t'][0]>=0.5 or ${agg}['t'][-1]>=1.523"}, true},
 
-		{"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1"},
-		{"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5"},
-		{"${agg}['t'][0]<0.1 and ${agg}['t2'][-1]<1"},
-		{"${agg}['t'][0]<0.5 and ${agg}['t2'][-1]<1.5"},
-		{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000"},
-		{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000"},
-		{
-			"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3000",
-			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2",
-		},
+		{[]string{"${agg}['t'][0]<0.3 and ${agg}['t'][-1]<3.024"}, true},
+		{[]string{"${agg}['t2'][0]<0.1 and ${agg}['t2'][-1]<0.925"}, false},
+		{[]string{"${agg}['t'][0]<0.1 and ${agg}['t'][-1]<1.026"}, false},
+		{[]string{"${agg}['t'][0]<0.5 and ${agg}['t'][-1]<3.527"}, true},
+		{[]string{"${agg}['bt'][4]<3000 and ${agg}['bt2'][8]<3028"}, true},
+		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3029"}, false},
+		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3030",
+			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2"}, true},
 	}
 
 	for _, c := range cases {
-		jconf.CRIT = c
-		l, err := LoadPlugin(jconf.PluginsDir, jconf.Plugin)
+		jconf.CRIT = c.checks
+		l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 		js.state = l
 		assert.NoError(t, err)
 		assert.NoError(t, js.preparePluginEnv(data))
@@ -258,6 +255,7 @@ func TestPluginSimple(t *testing.T) {
 		events, err := js.runPlugin()
 		assert.NoError(t, err)
 		t.Logf("%v", events)
+		assert.Equal(t, c.fire, len(events) > 0, fmt.Sprintf("%s", c.checks))
 	}
 }
 
@@ -354,7 +352,7 @@ func TestEnsureCheck(t *testing.T) {
 	js, err := NewJugglerSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
-	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
+	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
 	assert.NoError(t, err)
 	js.state = state
 	assert.NoError(t, js.preparePluginEnv(data))

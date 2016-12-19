@@ -30,7 +30,7 @@ func NewJugglerSender(conf *Config, id string) (*Sender, error) {
 // Send make all things abount juggler sender tasks
 func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
-	state, err := LoadPlugin(js.PluginsDir, js.Plugin)
+	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	if err != nil {
 		return err
 	}

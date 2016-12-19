@@ -173,7 +173,6 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			je.Level = "OK"
 			je.Description = fmt.Sprintf("%s (force OK)", je.Description)
 		}
-		je.Error = lua.LVAsString(lt.RawGetString("error"))
 		events = append(events, je)
 	})
 	if len(errs) > 0 {
@@ -184,11 +183,11 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 
 // LoadPlugin cleanup lua state global/local environment
 // and load lua plugin by name from juggler config section
-func LoadPlugin(dir, name string) (*lua.LState, error) {
+func LoadPlugin(id, dir, name string) (*lua.LState, error) {
 	file := fmt.Sprintf("%s/%s.lua", dir, name)
 
 	l := lua.NewState()
-	if err := PreloadTools(l); err != nil {
+	if err := PreloadTools(id, l); err != nil {
 		return nil, err
 	}
 	if err := l.DoFile(file); err != nil {
@@ -211,6 +210,14 @@ func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
 	js.state.SetGlobal("checkName", lua.LString(js.Config.CheckName))
 	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))
 
+	// variables
+	lvariables := js.state.NewTable()
+	for k, v := range js.Config.Variables {
+		lvariables.RawSetString(k, lua.LString(v))
+	}
+	js.state.SetGlobal("variables", lvariables)
+
+	// conditions
 	levels := make(map[string][]string)
 	if js.OK != nil {
 		levels["OK"] = js.OK
@@ -234,6 +241,7 @@ func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
 	}
 	js.state.SetGlobal("conditions", lconditions)
 
+	// config
 	lconfig, err := jPluginConfigToLuaTable(js.state, js.JPluginConfig)
 	if err != nil {
 		return err

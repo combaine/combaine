@@ -56,7 +56,6 @@ type jugglerEvent struct {
 	Service     string
 	Description string
 	Level       string
-	Error       string
 }
 
 // getCheck query juggler api for check

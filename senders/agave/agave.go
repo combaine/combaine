@@ -214,11 +214,10 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 
 		logger.Debugf("%s %s", as.id, req.URL)
 		resp, err := httpclient.Do(ctx, req)
-		///
 		switch err {
 		case nil:
-			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			if err != nil {
 				logger.Errf("%s %s %d %s", as.id, req.URL, resp.StatusCode, err)
 				e <- err
@@ -240,8 +239,6 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 			e <- err
 			continue
 		}
-		///
-
 	}
 }
 
