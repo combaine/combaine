@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 )
@@ -149,8 +150,15 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
+
+		subgroup, err := common.GetSubgroupName(t.Tags)
+		if err != nil {
+			return err
+		}
+		t.Tags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
+
 		if t.Tags["type"] == "metahost" {
-			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, t.Tags["metahost"])
+			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
 			// aggregator
 			aggregatorOutdated := false
 			if check.AggregatorKWArgs.IgnoreNoData != js.AggregatorKWArgs.IgnoreNoData {
@@ -208,7 +216,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			}
 			if methodsOutdated {
 				check.Update = true
-				logger.Debugf("%s Check outdated, METHODS differ: %s", js.id, check.Methods, js.Methods)
+				logger.Debugf("%s Check outdated, METHODS differ: %s != %s", js.id, check.Methods, js.Methods)
 				check.Methods = js.Methods
 			}
 
@@ -239,16 +247,10 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 				}
 			}
 		} else {
-			name := t.Tags["metahost"] + "-" + t.Tags["name"]
-			if t.Tags["type"] == "datacenter" {
-				name = fmt.Sprintf("%s-%s-%s", t.Tags["metahost"], js.Host, t.Tags["name"])
-			}
-			t.Tags["name"] = name
-
-			if _, ok := childSet[name+":"+t.Service]; !ok {
+			if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
 				check.Update = true
 				child := jugglerChildrenCheck{
-					Host:    name,
+					Host:    t.Tags["name"],
 					Type:    "HOST", // FIXME? hardcode, delete?
 					Service: t.Service,
 				}
