@@ -33,29 +33,29 @@ func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) erro
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	defer state.Close() // see TODO in LoadPlugin
 	if err != nil {
-		return err
+		return fmt.Errorf("LoadPlugin: %s", err)
 	}
 	js.state = state
 
 	logger.Debugf("%s Prepare state of lua plugin", js.id)
 	if err := js.preparePluginEnv(data); err != nil {
-		return err
+		return fmt.Errorf("preparePluginEnv: %s", err)
 	}
 
 	jEvents, err := js.runPlugin()
 	if err != nil {
-		return err
+		return fmt.Errorf("runPlugin: %s", err)
 	}
 	checks, err := js.getCheck(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("getCheck: %s", err)
 	}
 	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
-		return err
+		return fmt.Errorf("ensureCheck: %s", err)
 	}
 
 	if err := js.sendInternal(ctx, jEvents); err != nil {
-		return err
+		return fmt.Errorf("sendInternal: %s", err)
 	}
 	return nil
 }

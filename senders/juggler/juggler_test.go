@@ -384,9 +384,9 @@ func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWargs = map[string]interface{}{
-		"ignore_nodata": 1,
-		"limits": []map[string]interface{}{
+	jconf.AggregatorKWArgs = aggKWArgs{
+		IgnoreNoData: 1,
+		Limits: []map[string]interface{}{
 			{"crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1},
 			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		}}
@@ -420,13 +420,13 @@ func TestSendEvent(t *testing.T) {
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
 			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Equal(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
 		} else {
 			jconf.Host = "Frontend"
 			js, err := NewJugglerSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			ctx, cancel := context.WithTimeout(context.Background(), 1)
-			assert.Equal(t, context.DeadlineExceeded, js.Send(ctx, data))
+			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, data)), context.DeadlineExceeded.Error())
 			cancel()
 		}
 	}

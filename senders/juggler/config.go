@@ -19,9 +19,10 @@ type Config struct {
 	PluginsDir       string                       `codec:"plugins_dir"`
 	Plugin           string                       `codec:"plugin"`
 	Host             string                       `codec:"Host"`
+	Method           string                       `codec:"Method"`
 	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
-	AggregatorKWargs interface{}                  `codec:"aggregator_kwargs"`
+	AggregatorKWArgs aggKWArgs                    `codec:"aggregator_kwargs"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
 	Tags             []string                     `codec:"tags"`
@@ -78,7 +79,7 @@ func DefaultConfig() *Config {
 		Host:             "",
 		Methods:          []string{},
 		Aggregator:       "",
-		AggregatorKWargs: nil,
+		AggregatorKWArgs: aggKWArgs{},
 		CheckName:        "",
 		Description:      "",
 		Tags:             []string{"combaine"},

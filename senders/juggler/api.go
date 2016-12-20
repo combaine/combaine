@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"reflect"
+	"strings"
 
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
@@ -44,11 +44,16 @@ type jugglerCheck struct {
 	Service          string                 `json:"service"`
 	Description      string                 `json:"description"`
 	Aggregator       string                 `json:"aggregator"`
-	AggregatorKWArgs interface{}            `json:"aggregator_kwargs"`
+	AggregatorKWArgs aggKWArgs              `json:"aggregator_kwargs"`
 	Tags             []string               `json:"tags"`
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
+}
+
+type aggKWArgs struct {
+	IgnoreNoData int                      `codec:"ignore_nodata" json:"ignore_nodata"`
+	Limits       []map[string]interface{} `codec:"limits" json:"limits"`
 }
 
 type jugglerEvent struct {
@@ -65,6 +70,10 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 	var flap map[string]map[string]*jugglerFlapConfig
 
 	var jerrors []error
+	if len(js.Config.Tags) == 0 {
+		js.Config.Tags = []string{"combaine"}
+		logger.Warnf("%s Set query tags to default %s", js.id, js.Config.Tags)
+	}
 	query := url.Values{
 		"do":               {"1"},
 		"include_children": {"true"},
@@ -86,7 +95,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 				jerrors = append(jerrors, fmt.Errorf("failed to read respose from %s: %s", jhost, rerr))
 				continue
 			}
-			logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
+			logger.Debugf("%s Juggler response %d: %s", js.id, resp.StatusCode, body)
 
 			if resp.StatusCode != http.StatusOK {
 				return nil, errors.New(string(body))
@@ -137,19 +146,75 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 	for _, t := range triggers {
 		check, ok := services[t.Service]
 		if !ok {
+			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
 		if t.Tags["type"] == "metahost" {
-			logger.Infof("%s ensure check %s for metahost %s", js.id, t.Service, t.Tags["metahost"])
+			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, t.Tags["metahost"])
 			// aggregator
-			if check.Aggregator != js.Aggregator ||
-				!reflect.DeepEqual(check.AggregatorKWArgs, js.AggregatorKWargs) {
-				check.Update = true
-				check.Aggregator = js.Aggregator
-				check.AggregatorKWArgs = js.AggregatorKWargs
+			aggregatorOutdated := false
+			if check.AggregatorKWArgs.IgnoreNoData != js.AggregatorKWArgs.IgnoreNoData {
+				aggregatorOutdated = true
 			}
+			if len(check.AggregatorKWArgs.Limits) != len(js.AggregatorKWArgs.Limits) {
+				aggregatorOutdated = true
+			}
+			if !aggregatorOutdated {
+			CHECK:
+				for i, v := range js.AggregatorKWArgs.Limits {
+					for k, jv := range v {
+						if cv, ok := check.AggregatorKWArgs.Limits[i][k]; ok {
+							if fmt.Sprintf("%v", cv) != fmt.Sprintf("%v", jv) {
+								aggregatorOutdated = true
+								break CHECK
+							}
+						} else {
+							aggregatorOutdated = true
+							break CHECK
+						}
+					}
+				}
+
+			}
+			if aggregatorOutdated {
+				check.Update = true
+				logger.Debugf("%s Check outdated, aggregator differ: %s != %s", js.id, check.AggregatorKWArgs, js.AggregatorKWArgs)
+				check.Aggregator = js.Aggregator
+				check.AggregatorKWArgs = js.AggregatorKWArgs
+			}
+
+			// methods
+			if len(js.Methods) == 0 {
+				if js.Method != "" {
+					js.Methods = strings.Split(js.Method, ",")
+				} else {
+					js.Methods = []string{"GOLEM"}
+				}
+			}
+			methodsOutdated := false
+			if len(check.Methods) != len(js.Methods) {
+				methodsOutdated = true
+			} else {
+				checkMSet := make(map[string]struct{})
+				for _, m := range check.Methods {
+					checkMSet[m] = struct{}{}
+				}
+				for _, m := range js.Methods {
+					if _, ok = checkMSet[m]; !ok {
+						methodsOutdated = true
+						break
+					}
+				}
+			}
+			if methodsOutdated {
+				check.Update = true
+				logger.Debugf("%s Check outdated, METHODS differ: %s", js.id, check.Methods, js.Methods)
+				check.Methods = js.Methods
+			}
+
 			// flap
 			js.ensureFlap(&check)
+
 			// tags
 			if len(js.Config.Tags) == 0 {
 				js.Config.Tags = []string{defaultTag}
@@ -157,6 +222,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			// TODO: tags by servces in juggler config as for flaps?
 			if check.Tags == nil || len(check.Tags) == 0 {
 				check.Update = true
+				logger.Debugf("%s Check outdated, Tags differ: %s != %s", js.id, check.Tags, js.Tags)
 				check.Tags = make([]string, len(js.Config.Tags))
 				copy(check.Tags, js.Config.Tags)
 			} else {
@@ -167,7 +233,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 				for _, tag := range js.Config.Tags {
 					if _, ok := tagsSet[tag]; !ok {
 						check.Update = true
-						logger.Warnf("%s Add tag %s for check %s", js.id, tag, t.Service)
+						logger.Infof("%s Add tag %s for check %s", js.id, tag, t.Service)
 						check.Tags = append(check.Tags, tag)
 					}
 				}
@@ -191,10 +257,14 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			}
 		}
 		if check.Update {
-			services[t.Service] = check
 			check.Host = js.Host
 			check.Service = t.Service
-			if err := js.updateCheck(ctx, check); err != nil {
+			services[t.Service] = check
+		}
+	}
+	for _, c := range services {
+		if c.Update {
+			if err := js.updateCheck(ctx, c); err != nil {
 				return err
 			}
 		}
@@ -207,11 +277,11 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) {
 		if f.Enable == 1 {
 			if jcheck.Flap == nil {
 				jcheck.Flap = &jugglerFlapConfig{Enable: 1}
-				jcheck.Update = true
 			}
 			if *jcheck.Flap != f {
 				jcheck.Flap = &f
 				jcheck.Update = true
+				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, jcheck.Flap, js.Flap)
 			}
 		}
 	} else {
@@ -219,11 +289,11 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) {
 		if js.Config.Flap != nil && js.Config.Flap.Enable == 1 {
 			if jcheck.Flap == nil {
 				jcheck.Flap = &jugglerFlapConfig{Enable: 1}
-				jcheck.Update = true
 			}
 			if jcheck.Flap != js.Config.Flap {
-				jcheck.Flap = js.Config.Flap
 				jcheck.Update = true
+				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, jcheck.Flap, js.Flap)
+				jcheck.Flap = js.Config.Flap
 			}
 		} else {
 			jcheck.Flap = nil
@@ -232,13 +302,13 @@ func (js *Sender) ensureFlap(jcheck *jugglerCheck) {
 }
 
 func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
-	logger.Infof("%s Update check %s", js.id, check.Service)
+	logger.Infof("%s Update check %s for %s", js.id, check.Service, check.Host)
 
 	cJSON, err := json.Marshal(check)
 	if err != nil {
 		return err
 	}
-	logger.Infof("%s Update check json payload: %s", js.id, cJSON)
+	logger.Debugf("%s JSON payload for updating check: %s", js.id, cJSON)
 
 	errs := make(map[string]string, 0)
 	for _, host := range js.JHosts {
@@ -255,11 +325,11 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				logger.Warnf("%s Update check query %s: %d - '%s'", js.id, url, resp.StatusCode, body)
+				logger.Warnf("%s Update check query %s: %d - %s", js.id, url, resp.StatusCode, body)
 				errs[string(body)] = ""
 				continue
 			}
-			logger.Infof("%s Sucessfully send update `%s.%s` %s: %s", js.id, check.Host, check.Service, url, body)
+			logger.Infof("%s Sucessfully send update %s.%s %s: %s", js.id, check.Host, check.Service, url, body)
 			return nil
 		case context.Canceled, context.DeadlineExceeded:
 			logger.Errf("%s %s", js.id, err)
@@ -274,12 +344,11 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 		return fmt.Errorf("%s", errs)
 	}
 	logger.Errf("%s failed to sent update check for %v", js.id, check)
-	return fmt.Errorf("Upexpected error, can't update check for `%s.%s`", check.Host, check.Service)
+	return fmt.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
 }
 
 // sendEvent send juggler event borned by ensureCheck to juggler's
 func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEvent) error {
-	logger.Infof("%s Send juggler event %s", js.id, event)
 	query := url.Values{
 		"status":      {event.Level},
 		"description": {event.Description},
@@ -289,7 +358,7 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 	}
 
 	url := fmt.Sprintf(sendEventURL, front, query.Encode())
-	logger.Debugf("%s Try send event %s", js.id, url)
+	logger.Debugf("%s Send event %s", js.id, url)
 	resp, err := httpclient.Get(ctx, url)
 	if err != nil {
 		logger.Errf("%s %s", js.id, err)
@@ -298,11 +367,12 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
-	logger.Debugf("%s Juggler response %d: '%q'", js.id, resp.StatusCode, body)
 	if err != nil {
 		logger.Errf("%s %s", js.id, err)
 		return err
 	}
+	logger.Infof("%s Response %s: %d - %q", js.id, url, resp.StatusCode, body)
+
 	if resp.StatusCode != http.StatusOK {
 		return errors.New(string(body))
 	}

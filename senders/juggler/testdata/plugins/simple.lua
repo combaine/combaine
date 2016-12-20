@@ -109,7 +109,9 @@ function run()
                     end
                     if matched then
                         local test, err = loadstring("return "..eval)
-                        setfenv(test, testEnv)
+                        if type(test) == "function" then
+                            setfenv(test, testEnv)
+                        end
 
                         if err then
                             log.error(string.format("'%q' in check '%q' resoved to -> '%q'", err, case, eval))
@@ -124,7 +126,7 @@ function run()
                                     break -- Checks are coupled with OR logic.
                                           -- break when one of expressions is evaluated as True
                                 else
-                                    log.info("trigger test '"..eval.."' is false")
+                                    log.info("trigger test '"..case.."' -> '"..eval.."' is false")
                                 end
                             end
                         end
