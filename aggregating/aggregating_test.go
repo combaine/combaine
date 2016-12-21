@@ -21,7 +21,7 @@ import (
 
 const (
 	cfgName  = "aggCore"
-	repoPath = "../tests/fixtures/configs"
+	repoPath = "../tests/testdata/configs"
 )
 
 var (

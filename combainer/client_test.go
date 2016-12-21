@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	const repopath = "../tests/fixtures/configs"
+	const repopath = "../tests/testdata/configs"
 
 	repo, err := configs.NewFilesystemRepository(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))

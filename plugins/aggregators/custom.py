@@ -5,15 +5,24 @@ import os
 import sys
 import imp
 
+import logging
 import msgpack
 # pylint: disable=import-error
 from cocaine.worker import Worker
 from cocaine.logging import Logger
-
-from combaine.common.logger import get_logger_adapter
+from cocaine.logging.hanlders import CocaineHandler
 # pylint: enable=import-error
 
 LOG = Logger()
+LOG.error("INITIALIZE")
+
+LOG = logging.getLogger("combaine")
+LOG.setLevel(logging.DEBUG)
+ch = CocaineHandler()
+formatter = logging.Formatter("%(tid)s %(message)s")
+ch.setFormatter(formatter)
+ch.setLevel(logging.DEBUG)
+LOG.addHandler(ch)
 
 PATH = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
 sys.path.insert(0, PATH)
@@ -37,13 +46,15 @@ def plugin_import():
     with an uppercase letter
     """
 
+    logger = logging.LoggerAdapter(LOG, {"tid": "plugin_import"})
     modules = set(os.path.splitext(c)[0] for c in os.listdir(PATH)
                   if _is_plugin(c))
     all_custom_parsers = {}
     for module in modules:
         try:
             mfp, path, descr = imp.find_module(module, [PATH])
-        except ImportError:
+        except ImportError as err:
+            logger.error("ImportError. Module: %s %s" % (module, repr(err)))
             continue
 
         try:
@@ -53,14 +64,13 @@ def plugin_import():
                 if callable(candidate):
                     all_custom_parsers[item] = candidate
         except ImportError as err:
-            LOG.error("ImportError. Module: %s %s" % (module, repr(err)))
+            logger.error("ImportError. Module: %s %s" % (module, repr(err)))
         except Exception as err:  # pylint: disable=broad-except
-            LOG.error("Exception. Module: %s %s" % (module, repr(err)))
+            logger.error("Exception. Module: %s %s" % (module, repr(err)))
         finally:
             if mfp:
                 mfp.close()
-    LOG.debug("%s are available custom plugin for parsing"
-              % str(all_custom_parsers.keys()))
+    logger.debug("%s are available custom plugin for parsing" % str(all_custom_parsers.keys()))
     return all_custom_parsers
 
 
@@ -73,7 +83,7 @@ def aggregate_host(request, response):
         raw = yield request.read()
         task = msgpack.unpackb(raw)
         tid = task['id']
-        logger = get_logger_adapter(tid)
+        logger = logging.LoggerAdapter(LOG, {"tid": tid})
         logger.info("Handle task")
         cfg = task['config']
         klass_name = cfg['class']
@@ -104,7 +114,7 @@ def aggregate_group(request, response):
     try:
         raw = yield request.read()
         tid, cfg, data = msgpack.unpackb(raw)
-        logger = get_logger_adapter(tid)
+        logger = logging.LoggerAdapter(LOG, {"tid": tid})
         logger.debug("Unpack raw data successfully")
         payload = map(msgpack.unpackb, data)
         klass_name = cfg['class']

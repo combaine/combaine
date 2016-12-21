@@ -19,7 +19,7 @@ import (
 const (
 	aggConf           = "aggCore"
 	moreConf          = "http_ok"
-	repoPath          = "../tests/fixtures/configs"
+	repoPath          = "../tests/testdata/configs"
 	expectedResultLen = 4 // below defined 4 test data
 )
 
@@ -92,7 +92,7 @@ func TestParsing(t *testing.T) {
 			close(tests.Spy)
 		}()
 
-		for remain := expectedResultLen; remain != 0; remain -= 1 {
+		for remain := expectedResultLen; remain != 0; remain-- {
 			t.Logf("iteration %d", expectedResultLen-remain+1)
 			select {
 			case url, ok := <-fch:

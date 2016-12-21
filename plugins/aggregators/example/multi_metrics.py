@@ -4,14 +4,9 @@ Multimetrics parse data like 'metric_name value' from hosts loggiver, and
 aggregate result of hosts parsing via aggregate_group
 """
 
-if __name__ == '__main__':
-    import logging
-    logging.basicConfig()
-    get_logger_adapter = logging.getLogger  # pylint: disable=invalid-name
-else:
-    from combaine.common.logger import get_logger_adapter  # pylint: disable=import-error
-
 DEFAULT_QUANTILE_VALUES = [75, 90, 93, 94, 95, 96, 97, 98, 99]
+
+import logging
 
 
 def _clean_timings(timings_str):
@@ -57,7 +52,7 @@ class Multimetrics(object):
         # get prc of errors in info from metrics which contents 'ext_services'
         self.get_prc = config.get("get_prc", False)
 
-        self.log = config.get("logger", get_logger_adapter("Multimetrics"))
+        self.log = config.get("logger", logging.LoggerAdapter(LOG, {"tid": "Multimetrics"}))
 
     def is_timings(self, name):
         "Check metric name against is timings"
@@ -224,4 +219,5 @@ def test(datafile):
 
 if __name__ == '__main__':
     import sys
+    logging.basicConfig()
     test(sys.argv[1])

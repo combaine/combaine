@@ -46,9 +46,6 @@ ${PREFIX}/rpc/rpc.pb.go: $(wildcard **/*.proto)
 	@echo "+ $@"
 	protoc -I rpc/ rpc/rpc.proto --go_out=plugins=grpc:rpc
 
-fixture:
-	go run tests/fixtures/gen_fixtures.go
-
 clean:
 	@echo "+ $@"
 	rm -rf ${DIR}/ || true

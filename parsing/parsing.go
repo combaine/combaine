@@ -49,15 +49,7 @@ func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingCo
 	return blob, nil
 }
 
-func parseData(id string, name string, data []byte) ([]byte, error) {
-	parser, err := GetParser(cacher)
-	if err != nil {
-		return nil, err
-	}
-
-	return parser.Parse(id, name, data)
-}
-
+// Do distribute tasks accross cluster
 func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher) (*rpc.ParsingResult, error) {
 	logger.Infof("%s start parsing", task.Id)
 
@@ -72,20 +64,6 @@ func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher)
 	if err != nil {
 		logger.Errf("%s error `%v` occured while fetching data", task.Id, err)
 		return nil, err
-	}
-
-	if !parsingConfig.SkipParsingStage() {
-		logger.Infof("%s Send data to parsing", task.Id)
-		blob, err = parseData(task.Id, parsingConfig.Parser, blob)
-		if err != nil {
-			logger.Errf("%s error `%v` occured while parsing data", task.Id, err)
-			return nil, err
-		}
-	}
-
-	if !parsingConfig.Raw {
-		logger.Infof("%s Raw data is not supported anymore", task.Id)
-		return nil, fmt.Errorf("Raw data is not supported anymore")
 	}
 
 	type item struct {

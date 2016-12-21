@@ -9,8 +9,8 @@
 # Uncomment this to turn on verbose mode.
 
 export DH_ALWAYS_EXCLUDE=.git
-export DH_VERBOSE=1
-export DEB_VERBOSE_ALL=1
+#export DH_VERBOSE=1
+#export DEB_VERBOSE_ALL=1
 
 CPWD=$(shell pwd)
 PACKAGE_PATH=$(CPWD)/src/github.com/combaine/combaine
@@ -22,27 +22,18 @@ DEB_DESTDIR=$(CPWD)/debian/tmp/
 
 
 %:
-	dh $@ --with python2
+	dh $@
 
 override_dh_auto_build:
 	mkdir -p ${CPWD}/debian/tmp/go/src/github.com/combaine
 	ln -s ${CPWD} ${CPWD}/debian/tmp/go/src/github.com/combaine/combaine
 	cd ${CPWD}/debian/tmp/go/src/github.com/combaine/combaine && GOPATH=${CPWD}/debian/tmp/go make build && cd -
 
-	python setup.py build --force
-
 override_dh_install:
-	python setup.py install --force --root=${CPWD}/debian/tmp --no-compile -O0 --install-layout=deb
-
 	install -d $(DEB_DESTDIR)usr/bin
 	install -m755 $(BUILD_DIR)/combainer  $(DEB_DESTDIR)usr/bin/combainer
 	install -m755 $(BUILD_DIR)/worker  $(DEB_DESTDIR)usr/bin/combaine-worker
 
-	# parsingApp
-	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m755 parsing_app.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m664 deploy/manifests/manifest_parsing-app.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app
-	install -m755 deploy/scripts/deploy_parsing-app.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/parsing-app/deploy.sh
 	# custom
 	install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
 	install -m755 plugins/aggregators/custom.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/aggregate-custom
@@ -78,12 +69,6 @@ override_dh_install:
 	install -m755 $(BUILD_DIR)/juggler  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m664 deploy/manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
 	install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh
-	# juggler
-	#install -d $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	#install -m755 senders/juggler/juggler.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	#install -m755 senders/juggler/helpers.py  $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	#install -m664 deploy/manifests/manifest_juggler.json $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler
-	#install -m755 deploy/scripts/deploy_juggler.sh $(DEB_DESTDIR)$(CORE_APPS_PATH)/juggler/deploy.sh
 
 	# combaine-tuner
 	install -d $(DEB_DESTDIR)$(COMBAINE_LIB_PATH)/presetting

@@ -14,7 +14,7 @@ func TestUtilityFunctions(t *testing.T) {
 }
 
 func TestRepository(t *testing.T) {
-	const repopath = "../../tests/fixtures/configs"
+	const repopath = "../../tests/testdata/configs"
 
 	var (
 		expectedPcfg      = []string{"aggCore", "img_status"}
@@ -48,9 +48,9 @@ func TestRepository(t *testing.T) {
 			t.Fatalf("Parsing config %s don't exists", name)
 		}
 
-		not_existing := "balbla"
-		if repo.ParsingConfigIsExists(not_existing) {
-			t.Fatalf("No existing config %s mistakenly identified as there", not_existing)
+		notExisting := "balbla"
+		if repo.ParsingConfigIsExists(notExisting) {
+			t.Fatalf("No existing config %s mistakenly identified as there", notExisting)
 		}
 
 		assert.NotNil(t, pcfg, "ooops")
