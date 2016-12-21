@@ -190,6 +190,7 @@ func TestPluginSimple(t *testing.T) {
 		"VAR_LAST":  "iftimeofday(1, 6, 2600, 2800)",
 		"VAR_LAST2": "3000",
 	}
+	jconf.PluginsDir = "../../plugins/juggler"
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
 	js, err := NewJugglerSender(jconf, "Test ID")
@@ -248,8 +249,11 @@ func TestPluginSimple(t *testing.T) {
 	for _, c := range cases {
 		jconf.CRIT = c.checks
 		l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
-		js.state = l
 		assert.NoError(t, err)
+		if err != nil {
+			t.FailNow()
+		}
+		js.state = l
 		assert.NoError(t, js.preparePluginEnv(data))
 
 		events, err := js.runPlugin()
