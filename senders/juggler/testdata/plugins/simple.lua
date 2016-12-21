@@ -2,9 +2,6 @@ local re = require("re")
 local log = require("log")
 local os = require("os")
 
-
-
-
 sandbox = {
     iftimeofday = function (bot, top, in_val, out_val)
         function inTimeOfDay()
@@ -88,6 +85,43 @@ function addResult(ev, lvl, tags)
     }
 end
 
+function evalCheck(cases, lvl, d)
+    local pattern = "[$]{"..d.Tags.aggregate.."}"..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
+    for _, c in pairs(cases) do
+        local eval = c
+        local matched = false
+        for query in re.gmatch(c, pattern) do
+            matched = true
+            local metric = extractMetric(query, d.Result)
+            eval = replace(eval, query, tostring(metric))
+        end
+        if matched then
+            local test, err = loadstring("return "..eval)
+            if type(test) == "function" then
+                setfenv(test, testEnv)
+            end
+
+            if err then
+                log.error(string.format("'%q' in check '%q' resoved to -> '%q'", err, c, eval))
+            else
+                local ok, fire = pcall(test)
+                if not ok then
+                    log.error("Error in query "..eval)
+                else
+                    log.info(string.format("%s trigger test `%s` -> `%s` is %s", lvl, c, eval, fire))
+                    if fire then
+                        -- Checks are coupled with OR logic.
+                        -- return when one of expressions is evaluated as True
+                        return addResult(eval, lvl, d.Tags)
+                    end
+                end
+            end
+        else
+            -- log.debug("case '"..c.."' not match, pattern='"..pattern.."' for '"..lvl.."'")
+        end
+    end
+end
+
 function run()
     testEnv = evalVariables()
     local result = {}
@@ -95,45 +129,15 @@ function run()
         if not data.Tags or not data.Tags.aggregate then
            log.error("Missing tag 'aggregate'")
         else
-            local pattern = "[$]{"..data.Tags.aggregate.."}"..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
             for _, level in pairs {"CRIT", "WARN", "INFO", "OK"} do
                 local check = conditions[level]
-                if check then for _, case in pairs(check) do
-
-                    local eval = case
-                    local matched = false
-                    for query in re.gmatch(case, pattern) do
-                        matched = true
-                        local metric = extractMetric(query, data.Result)
-                        eval = replace(eval, query, tostring(metric))
+                if check then
+                    local res = evalCheck(check, level, data)
+                    if res then
+                        result[#result +1] = res
+                        break -- higher level event set on fire, no need continue checks
                     end
-                    if matched then
-                        local test, err = loadstring("return "..eval)
-                        if type(test) == "function" then
-                            setfenv(test, testEnv)
-                        end
-
-                        if err then
-                            log.error(string.format("'%q' in check '%q' resoved to -> '%q'", err, case, eval))
-                        else
-                            ok, fire = pcall(test)
-                            if not ok then
-                                log.error("Error in query "..eval)
-                            else
-                                if fire then
-                                    log.info("trigger test '"..eval.."' is true")
-                                    result[#result + 1] = addResult(eval, level, data.Tags, env)
-                                    break -- Checks are coupled with OR logic.
-                                          -- break when one of expressions is evaluated as True
-                                else
-                                    log.info("trigger test '"..case.."' -> '"..eval.."' is false")
-                                end
-                            end
-                        end
-                    else
-                        -- log.debug("case '"..case.."' not match, pattern='"..pattern.."' for '"..level.."'")
-                    end
-                end end
+                end
             end
         end
     end

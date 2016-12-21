@@ -31,10 +31,10 @@ func NewJugglerSender(conf *Config, id string) (*Sender, error) {
 func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
-	defer state.Close() // see TODO in LoadPlugin
 	if err != nil {
 		return fmt.Errorf("LoadPlugin: %s", err)
 	}
+	defer state.Close() // see TODO in LoadPlugin
 	js.state = state
 
 	logger.Debugf("%s Prepare state of lua plugin", js.id)

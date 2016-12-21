@@ -71,14 +71,14 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 	var flap map[string]map[string]*jugglerFlapConfig
 
 	var jerrors []error
-	if len(js.Config.Tags) == 0 {
-		js.Config.Tags = []string{"combaine"}
-		logger.Warnf("%s Set query tags to default %s", js.id, js.Config.Tags)
+	if len(js.Tags) == 0 {
+		js.Tags = []string{"combaine"}
+		logger.Warnf("%s Set query tags to default %s", js.id, js.Tags)
 	}
 	query := url.Values{
 		"do":               {"1"},
 		"include_children": {"true"},
-		"tag_name":         js.Config.Tags,
+		"tag_name":         js.Tags,
 	}
 	for _, jhost := range js.JHosts {
 		//do=1&include_children=true&tag_name=combaine&host_name=
@@ -130,10 +130,9 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 // ensureCheck check that juggler check exists and it in sync with task data
 // if need it call add_or_update check
 func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, triggers []jugglerEvent) error {
-
 	services, ok := hostChecks[js.Host]
 	if !ok {
-		logger.Debugf("%s Create new checks for host: %s", js.id, js.Host)
+		logger.Debugf("%s Create new checks for %s", js.id, js.Host)
 		services = make(map[string]jugglerCheck)
 		hostChecks[js.Host] = services
 	}
@@ -143,14 +142,12 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			childSet[c.Host+":"+serviceName] = struct{}{}
 		}
 	}
-
 	for _, t := range triggers {
 		check, ok := services[t.Service]
 		if !ok {
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
-
 		subgroup, err := common.GetSubgroupName(t.Tags)
 		if err != nil {
 			return err
@@ -160,104 +157,26 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		if t.Tags["type"] == "metahost" {
 			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
 			// aggregator
-			aggregatorOutdated := false
-			if check.AggregatorKWArgs.IgnoreNoData != js.AggregatorKWArgs.IgnoreNoData {
-				aggregatorOutdated = true
-			}
-			if len(check.AggregatorKWArgs.Limits) != len(js.AggregatorKWArgs.Limits) {
-				aggregatorOutdated = true
-			}
-			if !aggregatorOutdated {
-			CHECK:
-				for i, v := range js.AggregatorKWArgs.Limits {
-					for k, jv := range v {
-						if cv, ok := check.AggregatorKWArgs.Limits[i][k]; ok {
-							if fmt.Sprintf("%v", cv) != fmt.Sprintf("%v", jv) {
-								aggregatorOutdated = true
-								break CHECK
-							}
-						} else {
-							aggregatorOutdated = true
-							break CHECK
-						}
-					}
-				}
-
-			}
-			if aggregatorOutdated {
-				check.Update = true
-				logger.Debugf("%s Check outdated, aggregator differ: %s != %s", js.id, check.AggregatorKWArgs, js.AggregatorKWArgs)
-				check.Aggregator = js.Aggregator
-				check.AggregatorKWArgs = js.AggregatorKWArgs
-			}
-
+			js.ensureAggregator(&check)
 			// methods
-			if len(js.Methods) == 0 {
-				if js.Method != "" {
-					js.Methods = strings.Split(js.Method, ",")
-				} else {
-					js.Methods = []string{"GOLEM"}
-				}
-			}
-			methodsOutdated := false
-			if len(check.Methods) != len(js.Methods) {
-				methodsOutdated = true
-			} else {
-				checkMSet := make(map[string]struct{})
-				for _, m := range check.Methods {
-					checkMSet[m] = struct{}{}
-				}
-				for _, m := range js.Methods {
-					if _, ok = checkMSet[m]; !ok {
-						methodsOutdated = true
-						break
-					}
-				}
-			}
-			if methodsOutdated {
-				check.Update = true
-				logger.Debugf("%s Check outdated, METHODS differ: %s != %s", js.id, check.Methods, js.Methods)
-				check.Methods = js.Methods
-			}
-
+			js.ensureMethods(&check)
 			// flap
 			js.ensureFlap(&check)
-
 			// tags
-			if len(js.Config.Tags) == 0 {
-				js.Config.Tags = []string{defaultTag}
-			}
-			// TODO: tags by servces in juggler config as for flaps?
-			if check.Tags == nil || len(check.Tags) == 0 {
-				check.Update = true
-				logger.Debugf("%s Check outdated, Tags differ: %s != %s", js.id, check.Tags, js.Tags)
-				check.Tags = make([]string, len(js.Config.Tags))
-				copy(check.Tags, js.Config.Tags)
-			} else {
-				tagsSet := make(map[string]struct{}, len(check.Tags))
-				for _, tag := range check.Tags {
-					tagsSet[tag] = struct{}{}
-				}
-				for _, tag := range js.Config.Tags {
-					if _, ok := tagsSet[tag]; !ok {
-						check.Update = true
-						logger.Infof("%s Add tag %s for check %s", js.id, tag, t.Service)
-						check.Tags = append(check.Tags, tag)
-					}
-				}
-			}
-		} else {
-			if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
-				check.Update = true
-				child := jugglerChildrenCheck{
-					Host:    t.Tags["name"],
-					Type:    "HOST", // FIXME? hardcode, delete?
-					Service: t.Service,
-				}
-				logger.Debugf("%s Add children %s", js.id, child)
-				check.Children = append(check.Children, child)
-			}
+			js.ensureTags(&check)
 		}
+		// add children
+		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
+			check.Update = true
+			child := jugglerChildrenCheck{
+				Host:    t.Tags["name"],
+				Type:    "HOST", // FIXME? hardcode, delete?
+				Service: t.Service,
+			}
+			logger.Debugf("%s Add children %s", js.id, child)
+			check.Children = append(check.Children, child)
+		}
+
 		if check.Update {
 			check.Host = js.Host
 			check.Service = t.Service
@@ -274,31 +193,122 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 	return nil
 }
 
-func (js *Sender) ensureFlap(jcheck *jugglerCheck) {
-	if f, ok := js.Config.ChecksOptions[jcheck.Service]; ok {
-		if f.Enable == 1 {
-			if jcheck.Flap == nil {
-				jcheck.Flap = &jugglerFlapConfig{Enable: 1}
+func (js *Sender) ensureAggregator(c *jugglerCheck) {
+	aggregatorOutdated := false
+	if c.AggregatorKWArgs.IgnoreNoData != js.AggregatorKWArgs.IgnoreNoData {
+		aggregatorOutdated = true
+	}
+	if len(c.AggregatorKWArgs.Limits) != len(js.AggregatorKWArgs.Limits) {
+		aggregatorOutdated = true
+	}
+	if !aggregatorOutdated {
+	CHECK:
+		for i, v := range js.AggregatorKWArgs.Limits {
+			for k, jv := range v {
+				if cv, ok := c.AggregatorKWArgs.Limits[i][k]; ok {
+					if byteVal, ok := jv.([]byte); ok {
+						jv = string(byteVal) // for check below update 'jv'
+						v[k] = jv            // json encode []bytes in base64, but there string need
+					}
+					if fmt.Sprintf("%v", cv) != fmt.Sprintf("%v", jv) {
+						aggregatorOutdated = true
+						break CHECK
+					}
+				} else {
+					aggregatorOutdated = true
+					break CHECK
+				}
 			}
-			if *jcheck.Flap != f {
-				jcheck.Flap = &f
-				jcheck.Update = true
-				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, jcheck.Flap, js.Flap)
+		}
+
+	}
+	if aggregatorOutdated {
+		c.Update = true
+		logger.Debugf("%s Check outdated, aggregator differ: %s != %s", js.id, c.AggregatorKWArgs, js.AggregatorKWArgs)
+		c.Aggregator = js.Aggregator
+		c.AggregatorKWArgs = js.AggregatorKWArgs
+	}
+}
+
+func (js *Sender) ensureMethods(c *jugglerCheck) {
+	if len(js.Methods) == 0 {
+		if js.Method != "" {
+			js.Methods = strings.Split(js.Method, ",")
+		} else {
+			js.Methods = []string{"GOLEM"}
+		}
+	}
+	methodsOutdated := false
+	if len(c.Methods) != len(js.Methods) {
+		methodsOutdated = true
+	} else {
+		checkMSet := make(map[string]struct{}, len(c.Methods))
+		for _, m := range c.Methods {
+			checkMSet[m] = struct{}{}
+		}
+		for _, m := range js.Methods {
+			if _, ok := checkMSet[m]; !ok {
+				methodsOutdated = true
+				break
+			}
+		}
+	}
+	if methodsOutdated {
+		c.Update = true
+		logger.Debugf("%s Check outdated, METHODS differ: %s != %s", js.id, c.Methods, js.Methods)
+		c.Methods = js.Methods
+	}
+}
+
+func (js *Sender) ensureFlap(c *jugglerCheck) {
+	if c.Flap == nil {
+		c.Flap = &jugglerFlapConfig{}
+	}
+	c.Flap.Enable = 1 // enable field not set by json, set in manually
+
+	if f, ok := js.ChecksOptions[c.Service]; ok {
+		if f.Enable == 1 {
+			if *c.Flap != f {
+				c.Update = true
+				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
+				c.Flap = &f
 			}
 		}
 	} else {
 		// if flap setting not set for check individually, try apply global settings
-		if js.Config.Flap != nil && js.Config.Flap.Enable == 1 {
-			if jcheck.Flap == nil {
-				jcheck.Flap = &jugglerFlapConfig{Enable: 1}
-			}
-			if jcheck.Flap != js.Config.Flap {
-				jcheck.Update = true
-				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, jcheck.Flap, js.Flap)
-				jcheck.Flap = js.Config.Flap
+		if js.Flap != nil && js.Flap.Enable == 1 {
+			if *c.Flap != *js.Flap {
+				c.Update = true
+				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
+				c.Flap = js.Flap
 			}
 		} else {
-			jcheck.Flap = nil
+			c.Flap = nil
+		}
+	}
+}
+
+func (js *Sender) ensureTags(c *jugglerCheck) {
+	if len(js.Tags) == 0 {
+		js.Tags = []string{defaultTag}
+	}
+	// TODO: tags by servces in juggler config as for flaps?
+	if c.Tags == nil || len(c.Tags) == 0 {
+		c.Update = true
+		logger.Debugf("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
+		c.Tags = make([]string, len(js.Tags))
+		copy(c.Tags, js.Tags)
+	} else {
+		tagsSet := make(map[string]struct{}, len(c.Tags))
+		for _, tag := range c.Tags {
+			tagsSet[tag] = struct{}{}
+		}
+		for _, tag := range js.Tags {
+			if _, ok := tagsSet[tag]; !ok {
+				c.Update = true
+				logger.Infof("%s Add tag %s", js.id, tag)
+				c.Tags = append(c.Tags, tag)
+			}
 		}
 	}
 }
