@@ -1,0 +1,357 @@
+{
+  "hostname_from_config": {
+    "type1_timings": {
+      "max_status": null,
+      "refresh_time": 90,
+      "description": "check_description",
+      "tags": null,
+      "aggregator": "timed_more_than_limit_is_problem",
+      "creation_time": 1480947534,
+      "flap_time": null,
+      "active_kwargs": null,
+      "alert_interval": [
+        null,
+        null
+      ],
+      "modification_time": 1480947535,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": null,
+      "boost_time": null,
+      "ttl": 900,
+      "active": null,
+      "stable_time": null,
+      "children": [
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name",
+          "type": "HOST",
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC1",
+          "type": "HOST",
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC2",
+          "type": "HOST",
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-host1",
+          "type": "HOST",
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-host2",
+          "type": "HOST",
+          "service": "type1_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "type2_timings": {
+      "max_status": null,
+      "refresh_time": 90,
+      "description": "check_description",
+      "tags": [ "app" ],
+      "aggregator": "timed_more_than_limit_is_problem",
+      "creation_time": 1480947562,
+      "flap_time": 0,
+      "active_kwargs": null,
+      "alert_interval": [
+        null,
+        null
+      ],
+      "modification_time": 1480947562,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": 90,
+      "boost_time": 0,
+      "ttl": 900,
+      "active": null,
+      "stable_time": 60,
+      "children": [
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name",
+          "type": "HOST",
+          "service": "type1_timings"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC1",
+          "type": "HOST",
+          "service": "type1_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "prod-app_5xx": {
+      "max_status": null,
+      "refresh_time": 90,
+      "description": "description for check",
+      "tags": [ "combaine" ],
+      "aggregator": "timed_more_than_limit_is_problem",
+      "creation_time": 1480947562,
+      "flap_time": null,
+      "active_kwargs": null,
+      "alert_interval": [
+        null,
+        null
+      ],
+      "modification_time": 1480947563,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": null,
+      "boost_time": null,
+      "ttl": 900,
+      "active": null,
+      "stable_time": null,
+      "children": [
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-kroup1",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC1",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC2",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC3",
+          "type": "HOST",
+          "service": "prod-app_5xx"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "common_log_err": {
+      "max_status": null,
+      "refresh_time": 90,
+      "description": "description for check",
+      "tags": [ "common" ],
+      "aggregator": "timed_more_than_limit_is_problem",
+      "creation_time": 1480947572,
+      "flap_time": null,
+      "active_kwargs": null,
+      "alert_interval": [
+        null,
+        null
+      ],
+      "modification_time": 1480947573,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": null,
+      "boost_time": null,
+      "ttl": 900,
+      "active": null,
+      "stable_time": null,
+      "children": [
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC1",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC2",
+          "type": "HOST",
+          "service": "common_log_err"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta-host-name-DC3",
+          "type": "HOST",
+          "service": "common_log_err"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "api_5xx": {
+      "max_status": null,
+      "refresh_time": 90,
+      "description": "description for check",
+      "tags": null,
+      "aggregator": "timed_more_than_limit_is_problem",
+      "creation_time": 1480947558,
+      "flap_time": null,
+      "active_kwargs": null,
+      "alert_interval": [
+        null,
+        null
+      ],
+      "modification_time": 1480947560,
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": null,
+      "boost_time": null,
+      "ttl": 900,
+      "active": null,
+      "stable_time": null,
+      "children": [
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta.host.name-DC1",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta.host.name-DC2",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-meta.host.name-DC3",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc3-17.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc2-17.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        },
+        {
+          "instance": "",
+          "host": "hostname_from_config-srv-dc1-17.host.name",
+          "type": "HOST",
+          "service": "api_5xx"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    }
+  }
+}

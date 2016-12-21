@@ -62,8 +62,7 @@ func TestNewConn(t *testing.T) {
 		}
 
 		if c.shouldError {
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), c.expected)
+			assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
 		} else {
 			assert.NoError(t, err)
 		}
@@ -100,59 +99,81 @@ func TestCacheGetEvict(t *testing.T) {
 }
 
 func TestNewGraphiteClient(t *testing.T) {
-	gSender, err := NewGraphiteClient(&GraphiteCfg{}, "id")
+	gSender, err := NewSender(&Config{}, "id")
 	assert.NoError(t, err)
-	gClient, ok := gSender.(*graphiteClient)
-	assert.True(t, ok)
-	assert.Equal(t, gClient.id, "id")
+	assert.Equal(t, gSender.id, "id")
 }
 
 func TestGraphiteSend(t *testing.T) {
-	grCfg := graphiteClient{
+	grCfg := Sender{
 		id:      "TESTID",
 		cluster: "TESTCOMBAINE",
 		fields:  []string{"A", "B", "C"},
 	}
 
 	cases := []struct {
-		data     tasks.DataType
+		data     []tasks.AggregationResult
 		expected []string
-	}{{
-		tasks.DataType{"20x": tasks.DataItem{"simple": 2000, "array": []int{20, 30, 40},
-			"map_of_array": map[string]interface{}{
-				"MAP1": []interface{}{201, 301, 401},
-				"MAP2": []interface{}{202, 302, 402}}}},
-		[]string{
-			"TESTCOMBAINE.combaine.simple.20x 2000",
-			"TESTCOMBAINE.combaine.array.20x.A 20",
-			"TESTCOMBAINE.combaine.array.20x.B 30",
-			"TESTCOMBAINE.combaine.array.20x.C 40",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.A 201",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.B 301",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP1.C 401",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.A 202",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.B 302",
-			"TESTCOMBAINE.combaine.map_of_array.20x.MAP2.C 402"}},
-		{tasks.DataType{"20x": tasks.DataItem{"map_of_simple": map[string]interface{}{
-			"MP1": 1000,
-			"MP2": 1002}}},
-			[]string{
-				"TESTCOMBAINE.combaine.map_of_simple.20x.MP1 1000",
-				"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002"}},
-		{tasks.DataType{"20x": tasks.DataItem{"map_of_map": map[string]interface{}{
-			"MAPMAP1": map[string]interface{}{
-				"MPMP1": 1000,
-				"MPMP2": 1002}}}},
-			[]string{
-				"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP1 1000",
-				"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP2 1002"}},
-		{tasks.DataType{"30x": tasks.DataItem{"simple": 2000}},
-			[]string{"TESTCOMBAINE.combaine.simple.30x 2000"}},
+	}{
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{"type": "host", "name": "simple", "metahost": "simple", "aggregate": "20x"},
+					Result: 2000},
+				{Tags: map[string]string{
+					"type": "host", "name": "array", "metahost": "array", "aggregate": "20x"},
+					Result: []int{20, 30, 40}},
+				{Tags: map[string]string{
+					"type": "datacenter", "name": "DC1", "metahost": "map_of_array", "aggregate": "20x"},
+					Result: map[string]interface{}{
+						"MAP1": []interface{}{201, 301, 401},
+						"MAP2": []interface{}{202, 302, 402}},
+				}},
+			[]string{"TESTCOMBAINE.combaine.simple.20x 2000",
+				"TESTCOMBAINE.combaine.array.20x.A 20",
+				"TESTCOMBAINE.combaine.array.20x.B 30",
+				"TESTCOMBAINE.combaine.array.20x.C 40",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP1.A 201",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP1.B 301",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP1.C 401",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP2.A 202",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP2.B 302",
+				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP2.C 402"},
+		},
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{
+					"type": "host", "name": "map_of_simple", "metahost": "map_of_simple", "aggregate": "20x"},
+					Result: map[string]interface{}{
+						"MP1": 1000,
+						"MP2": 1002},
+				}},
+			[]string{"TESTCOMBAINE.combaine.map_of_simple.20x.MP1 1000",
+				"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002"},
+		},
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{
+					"type": "host", "name": "map_of_map", "metahost": "map_of_map", "aggregate": "20x"},
+					Result: map[string]interface{}{
+						"MAPMAP1": map[string]interface{}{
+							"MPMP1": 1000,
+							"MPMP2": 1002}},
+				}},
+			[]string{"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP1 1000",
+				"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP2 1002"},
+		},
+		{
+			[]tasks.AggregationResult{{Tags: map[string]string{
+				"type": "host", "name": "simple", "metahost": "simple", "aggregate": "30x"},
+				Result: 2000,
+			}},
+			[]string{"TESTCOMBAINE.combaine.simple.30x 2000"},
+		},
 	}
 
 	buff := new(bytes.Buffer)
 	for i, c := range cases {
-		err := grCfg.sendInternal(&c.data, uint64(i), buff)
+		err := grCfg.sendInternal(c.data, uint64(i), buff)
 		assert.NoError(t, err)
 		result := "\n" + buff.String() + "\n"
 
@@ -164,35 +185,50 @@ func TestGraphiteSend(t *testing.T) {
 }
 
 func TestGraphiteSendError(t *testing.T) {
-	grCfg := graphiteClient{}
+	grCfg := Sender{}
 	ioWErr := new(ioWriteFailerCloser)
 
 	cases := []struct {
-		data     tasks.DataType
+		data     []tasks.AggregationResult
 		expected string
 	}{
-		{tasks.DataType{"20x": tasks.DataItem{"array": []int{20, 30, 40}}},
-			"Unable to send a slice. Fields len 0, len of value 3"},
-		{tasks.DataType{"20x": tasks.DataItem{"map_of_array": map[string]interface{}{
-			"MAP2": []interface{}{202}}}},
-			"Unable to send a slice. Fields len 0, len of value 1"},
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{
+					"type": "host", "name": "array", "metahost": "array", "aggregate": "20x"},
+					Result: []int{20, 30, 40},
+				}},
+			"Unable to send a slice. Fields len 0, len of value 3",
+		},
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{
+					"type": "host", "name": "map_of_array", "metahost": "map_of_array", "aggregate": "20x"},
+					Result: map[string]interface{}{"MAP2": []interface{}{202}},
+				}},
+			"Unable to send a slice. Fields len 0, len of value 1",
+		},
 	}
 
 	for _, c := range cases {
-		err := grCfg.sendInternal(&c.data, 1, new(bytes.Buffer))
+		err := grCfg.sendInternal(c.data, 1, new(bytes.Buffer))
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), c.expected)
+		assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
 	}
 
 	assert.Error(t, grCfg.send(ioWErr, "test"))
 	assert.Contains(t, grCfg.send(ioWErr, "test").Error(), "testingErr")
 
-	grCfg = graphiteClient{fields: []string{"A"}}
+	grCfg = Sender{fields: []string{"A"}}
 
-	data := tasks.DataType{"20x": tasks.DataItem{"arr": []int{20}}}
-	err := grCfg.sendInternal(&data, 1, ioWErr)
+	data := []tasks.AggregationResult{
+		{Tags: map[string]string{
+			"type": "host", "name": "arr", "metahost": "arr", "aggregate": "20x"},
+			Result: []int{20},
+		}}
+	err := grCfg.sendInternal(data, 1, ioWErr)
 	assert.Error(t, err, "test")
-	assert.Contains(t, err.Error(), "testingErr")
+	assert.Contains(t, fmt.Sprintf("%v", err), "testingErr")
 
 }
 
@@ -201,41 +237,58 @@ func TestNetSend(t *testing.T) {
 	defer l.Close()
 	t.Logf("work with addr %s", l.Addr().String())
 
-	gc := graphiteClient{id: "TESTID", endpoint: l.Addr().String()}
+	gc := Sender{id: "TESTID", endpoint: l.Addr().String()}
 
 	cases := []struct {
-		data     tasks.DataType
+		data     []tasks.AggregationResult
 		expected string
 		withErr  bool
+		fields   []string
 	}{
-		{tasks.DataType{}, "Empty data. Nothing to send", true},
-		{tasks.DataType{"20x": tasks.DataItem{"array": []int{20, 30, 40}}},
-			"TESTID Unable to send a slice. Fields len 0, len of value 3", true},
+		{[]tasks.AggregationResult{}, "Empty data. Nothing to send", true, []string{}},
+		{
+			[]tasks.AggregationResult{
+				{Tags: map[string]string{
+					"type": "host", "name": "array", "metahost": "array", "aggregate": "20x"},
+					Result: []int{20, 30, 40},
+				}},
+			"TESTID Unable to send a slice. Fields len 0, len of value 3", true, []string{},
+		},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "datacenter", "name": "DC1", "aggregate": "20x"}, Result: []int{0}}},
+			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "datacenter", "metahost": "array", "aggregate": "20x"}, Result: []int{0}}},
+			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"metahost": "array", "name": "DC1", "aggregate": "20x"}, Result: []int{0}}},
+			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
 	}
 
 	for _, c := range cases {
+		gc.fields = c.fields
 		err := gc.Send(c.data, 1)
 		if c.withErr {
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), c.expected)
+			assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
 		} else {
 			assert.Nil(t, err)
 		}
 	}
 
-	gc = graphiteClient{endpoint: ":::port"}
+	gc = Sender{endpoint: ":::port"}
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "too many colons in address")
+	assert.Contains(t, fmt.Sprintf("%v", err), "too many colons in address")
 
-	gc = graphiteClient{endpoint: ":10101"}
+	gc = Sender{endpoint: ":10101"}
 	connectionTimeout = -1
 	reconnectInterval = 5
 	err = gc.Send(cases[1].data, 3)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "context deadline exceeded after 3 attempts")
+	assert.Contains(t, fmt.Sprintf("%v", err), "context deadline exceeded after 3 attempts")
 
-	gc = graphiteClient{fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
+	gc = Sender{fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
 	err = gc.Send(cases[1].data, 1)
 	assert.NoError(t, err)
 }

@@ -1,0 +1,199 @@
+{
+  "frontend": {
+    "upstream_timings": {
+      "refresh_time": 90,
+      "description": "description for check",
+      "tags": [ "combaine" ],
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "frontend-frontend",
+          "type": "HOST",
+          "service": "upstream_timings"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC1",
+          "type": "HOST",
+          "service": "upstream_timings"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC2",
+          "type": "HOST",
+          "service": "upstream_timings"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC3",
+          "type": "HOST",
+          "service": "upstream_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "ssl_handshake_timings": {
+      "refresh_time": 90,
+      "description": "ssl_handshake_timings",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "flap_time": 0,
+      "tags": [ "app", "front", "core" ],
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "critical_time": 90,
+      "boost_time": 0,
+      "ttl": 900,
+      "stable_time": 60,
+      "children": [
+        {
+          "instance": "",
+          "host": "frontend-frontend",
+          "type": "HOST",
+          "service": "ssl_handshake_timings"
+        }
+      ],
+      "methods": [
+        "GOLEM"
+      ]
+    },
+    "4xx": {
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "frontend-dc1-11.host.name",
+          "type": "HOST",
+          "service": "4xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-dc1-12.host.name",
+          "type": "HOST",
+          "service": "4xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend",
+          "type": "HOST",
+          "service": "4xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC1",
+          "type": "HOST",
+          "service": "4xx"
+        }
+      ],
+      "methods": [
+        "GOLEM",
+        "SMS"
+      ]
+    },
+    "2xx": {
+      "refresh_time": 90,
+      "description": "2xx",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "tags": [ "NASA" ],
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          {
+            "crit": 0,
+            "day_end": 7,
+            "time_start": 2,
+            "time_end": 1,
+            "day_start": 1
+          }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "frontend-frontend",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC1",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC2",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-frontend-DC3",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-dc3-06.host.name",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-dc2-06.host.name",
+          "type": "HOST",
+          "service": "2xx"
+        },
+        {
+          "instance": "",
+          "host": "frontend-dc1-06.host.name",
+          "type": "HOST",
+          "service": "2xx"
+        }
+      ],
+      "methods": [
+        "GOLEM",
+        "NASA"
+      ]
+    }
+  }
+}

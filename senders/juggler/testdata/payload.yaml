@@ -1,0 +1,208 @@
+- Tags:
+    metahost: frontend
+    name: frontend
+    type: metahost
+    aggregate: nginx
+  Result:
+    "200": 13006.5
+    "2xx": 13006.5
+    "400": 45.5
+    "401": 364.0
+    "403": 13.0
+    "499": 26.0
+    "4xx": 464.5
+    total_rps: 13471.0
+    ssl_handshake_timings: [0.119, 0.133, 0.187, 0.271, 0.378, 0.498, 0.901, 0.921, 0.942]
+    upstream_timings: [0.269, 0.293, 0.387, 0.471, 0.58, 0.98, 1.375, 1.761, 2.142]
+- Tags:
+    metahost: frontend
+    name: DC1
+    type: datacenter
+    aggregate: nginx
+  Result:
+    "200": 5500.2
+    "2xx": 5500.2
+    "400": 40.4
+    "401": 304.0
+    "403": 10.0
+    "499": 16.0
+    "4xx": 370.4
+    total_rps: 5870.6
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: DC2
+    type: datacenter
+    aggregate: nginx
+  Result:
+    "200": 7506.3
+    "2xx": 7506.3
+    "400": 5.1
+    "401": 60.0
+    "403": 3.0
+    "499": 26.0
+    "4xx": 94.1
+    total_rps: 7600.4
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: host1
+    type: host
+    aggregate: nginx
+  Result:
+    "200": 2750.1
+    "2xx": 2750.1
+    "400": 20.2
+    "401": 152.0
+    "403": 5.0
+    "499": 8.0
+    "4xx": 185.2
+    total_rps: 2935.3
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: host2
+    type: host
+    aggregate: nginx
+  Result:
+    "200": 2750.1
+    "2xx": 2750.1
+    "400": 20.2
+    "401": 152.0
+    "403": 5.0
+    "499": 8.0
+    "4xx": 185.2
+    total_rps: 2935.3
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: host3
+    type: host
+    aggregate: nginx
+  Result:
+    "200": 2502.1
+    "2xx": 2502.1
+    "400": 1.7
+    "401": 20.0
+    "403": 1.0
+    "499": 8.667
+    "4xx": 21.367
+    total_rps: 2533.467
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: host4
+    type: host
+    aggregate: nginx
+  Result:
+    "200": 2502.1
+    "2xx": 2502.1
+    "400": 1.7
+    "401": 20.0
+    "403": 1.0
+    "499": 8.667
+    "4xx": 51.367
+    total_rps: 2533.467
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+- Tags:
+    metahost: frontend
+    name: host5
+    type: host
+    aggregate: nginx
+  Result:
+    "200": 2502.1
+    "2xx": 2502.1
+    "400": 1.7
+    "401": 20.0
+    "403": 1.0
+    "499": 8.667
+    "4xx": 21.367
+    # node_error: 78.667
+    total_rps: 2533.467
+    ssl_handshake_timings: [0.019, 0.033, 0.087, 0.171, 0.278, 0.298, 0.375, 0.461, 0.542]
+    upstream_timings: [0.169, 0.393, 0.587, 0.671, 0.78, 0.98, 1.375, 1.761, 3.142]
+
+## another host
+- Tags:
+    metahost: meta-host-name
+    name: meta-host-name
+    type: metahost
+    aggregate: app
+  Result:
+    type1_timings:     [0.109, 0.303, 0.407, 0.471, 0.58, 0.59, 0.6, 0.761, 0.842]
+    type2_timings:     [1.109, 1.303, 1.407, 1.471, 1.58, 1.59, 1.6, 1.761, 1.842]
+    type1.total_rps:   333234
+    type2.total_rps:   833234
+    prod-app_5xx:      3
+    common_log_err:    334
+    api_5xx:           14
+- Tags:
+    metahost: meta-host-name
+    name: DC1
+    type: datacenter
+    aggregate: app
+  Result:
+    type1_timings:     [0.109, 0.303, 0.407, 0.471, 0.58, 0.59, 0.6, 0.761, 0.842]
+    type2_timings:     [1.109, 1.303, 1.407, 1.471, 1.58, 1.59, 1.6, 1.761, 1.842]
+    type1.total_rps:   333234
+    type2.total_rps:   833234
+    prod-app_5xx:      3
+    common_log_err:    334
+    api_5xx:           14
+- Tags:
+    metahost: meta-host-name
+    name: srv-dc3-17.host.name
+    type: host
+    aggregate: app
+  Result:
+    type1_timings:     [0.109, 0.303, 0.407, 0.471, 0.58, 0.59, 0.6, 0.761, 0.842]
+    type2_timings:     [1.109, 1.303, 1.407, 1.471, 1.58, 1.59, 1.6, 1.761, 1.842]
+    type1.total_rps:   130234
+    type2.total_rps:   403030
+    prod-app_5xx:      1
+    common_log_err:    34
+    api_5xx:        7
+- Tags:
+    metahost: meta-host-name
+    name: srv-dc2-17.host.name
+    type: host
+    aggregate: app
+  Result:
+    type1_timings:     [0.109, 0.303, 0.407, 0.471, 0.58, 0.59, 0.6, 0.761, 0.842]
+    type2_timings:     [1.109, 1.303, 1.407, 1.471, 1.58, 1.59, 1.6, 1.761, 1.842]
+    type1.total_rps:   203000
+    type2.total_rps:   430204
+    prod-app_5xx:      2
+    common_log_err:    300
+    api_5xx:           7
+
+# for simple
+- Tags:
+    metahost: simple
+    name: simple
+    type: simple
+    aggregate: agg
+  Result:
+    a: 13006.5
+    a.b: 13006.5
+    b: 45.5
+    b_c.a.c-d: 45.5
+    c: 364.0
+    c-d: 3364.0999
+    d: 13.0
+    e: 226.0
+    f: 464.5
+    g: 13471.0
+    j: {q: {p: 30}}
+    r: {s: {t: 100}}
+    x: {"y": {z: 60}}
+    t: [0.269, 0.293, 0.387, 0.471, 0.58, 0.98, 1.375, 1.761, 2.142]
+    t2: [0.119, 0.133, 0.187, 0.271, 0.378, 0.498, 0.901, 0.921, 0.942]
+    bt: [1269, 1293, 1387, 1471, 2580, 2980, 3375, 3761, 4142]
+    bt2: [1119, 1133, 1187, 1271, 1378, 1498, 1901, 1921, 1942]

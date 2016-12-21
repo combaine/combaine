@@ -10,10 +10,13 @@ type CommonTask struct {
 
 type ParsingResult map[string]interface{}
 
-type AggregationResult map[string]ParsingResult
+type AggregationResult struct {
+	Tags   map[string]string `codec:"Tags" yaml:"Tags"`
+	Result interface{}       `codec:"Result" yaml:"Result"`
+}
 
 type SenderPayload struct {
 	CommonTask
 	Config configs.PluginConfig
-	Data   AggregationResult
+	Data   []AggregationResult
 }

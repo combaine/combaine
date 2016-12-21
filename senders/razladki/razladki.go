@@ -2,13 +2,13 @@ package razladki
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
@@ -16,48 +16,42 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-const (
-	CONNECTION_TIMEOUT = 2000 // ms
-	RW_TIMEOUT         = 3000 // ms
-)
-
-var (
-	RazladkiHttpClient = httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
-)
-
-type RazladkiConfig struct {
+// Config containse fields from compbainer task config
+type Config struct {
 	Items   map[string]string `codec:"items"`
 	Project string            `codec:"project"`
 	Host    string            `codec:"host"`
 }
 
-type RazladkiSender struct {
-	*RazladkiConfig
+// Sender main sender object
+type Sender struct {
+	*Config
 	id string
 }
 
+// Meta field in razladki request json
 type Meta struct {
 	Title string `json:"title"`
 }
 
+// Param field in razladki request json
 type Param struct {
 	Value string `json:"value"`
 	Meta  Meta
 }
 
+// Alarm field in razladki request json
 type Alarm struct {
 	Meta Meta
 }
 
-type RazladkiResult struct {
+type result struct {
 	Timestamp uint64           `json:"ts"`
 	Params    map[string]Param `json:"params"`
 	Alarms    map[string]Alarm `json:"alarms"`
 }
 
-func (r *RazladkiResult) Push(name, value, title string) {
+func (r *result) Push(name, value, title string) {
 	r.Params[fmt.Sprintf(name)] = Param{
 		Value: value,
 		Meta: Meta{
@@ -71,39 +65,66 @@ func (r *RazladkiResult) Push(name, value, title string) {
 	}
 }
 
-func NewRazladkiClient(cfg *RazladkiConfig, id string) (*RazladkiSender, error) {
-	return &RazladkiSender{
-		RazladkiConfig: cfg,
-		id:             id,
+// NewSender build new razladki sender
+func NewSender(cfg *Config, id string) (*Sender, error) {
+	return &Sender{
+		Config: cfg,
+		id:     id,
 	}, nil
 }
 
-func (r *RazladkiSender) send(data tasks.DataType, timestamp uint64) (*RazladkiResult, error) {
+func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result, error) {
 	logger.Debugf("%s Data to send: %v", r.id, data)
-	result := RazladkiResult{
+	res := result{
 		Timestamp: timestamp,
 		Params:    make(map[string]Param),
 		Alarms:    make(map[string]Alarm),
 	}
-	for aggname, title := range r.Items {
-		var root, metricname string
-		items := strings.SplitN(aggname, ".", 2)
-		if len(items) > 1 {
-			root, metricname = items[0], items[1]
-		} else {
-			root = items[0]
-		}
-		for subgroup, value := range data[root] {
-			rv := reflect.ValueOf(value)
-			switch rv.Kind() {
-			case reflect.Slice, reflect.Array:
-				// unsupported
-			case reflect.Map:
-				if len(metricname) == 0 {
-					continue
-				}
 
-				key := reflect.ValueOf(metricname)
+	var queryItems = make(map[string]map[string]string)
+	for aggname, title := range r.Items {
+		items := strings.SplitN(aggname, ".", 2)
+		mName := ""
+		if len(items) > 1 {
+			mName = items[1]
+		}
+		if mp, ok := queryItems[items[0]]; !ok {
+			queryItems[items[0]] = map[string]string{mName: title}
+		} else {
+			mp[mName] = title
+		}
+	}
+
+	for _, item := range data {
+		var root string
+		var metrics map[string]string
+		var ok bool
+
+		if root, ok = item.Tags["aggregate"]; !ok {
+			logger.Errf("%s Failed to get data tag 'aggregate', skip task: %v", r.id, item)
+			continue
+		}
+		if metrics, ok = queryItems[root]; !ok {
+			logger.Debugf("%s %s not in Items, skip task: %v", r.id, root, item)
+			continue
+		}
+		subgroup, err := common.GetSubgroupName(item.Tags)
+		if err != nil {
+			logger.Errf("%s %s", r.id, err)
+			continue
+		}
+
+		rv := reflect.ValueOf(item.Result)
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			// unsupported
+		case reflect.Map:
+			if len(metrics) == 0 {
+				continue
+			}
+
+			for key, title := range metrics {
+				key := reflect.ValueOf(key)
 				mapVal := rv.MapIndex(key)
 				if !mapVal.IsValid() {
 					continue
@@ -117,22 +138,22 @@ func (r *RazladkiSender) send(data tasks.DataType, timestamp uint64) (*RazladkiR
 				case reflect.Map:
 					// unsupported
 				default:
-					name := fmt.Sprintf("%s_%s", subgroup, metricname)
-					result.Push(name, common.InterfaceToString(value.Interface()), title)
+					name := fmt.Sprintf("%s_%s", subgroup, key)
+					res.Push(name, common.InterfaceToString(value.Interface()), title)
 				}
-			default:
-				if len(metricname) != 0 {
-					continue
-				}
+			}
+		default:
+			if title, ok := metrics[""]; ok {
 				name := fmt.Sprintf("%s_%s", subgroup, root)
-				result.Push(name, common.InterfaceToString(value), title)
+				res.Push(name, common.InterfaceToString(item.Result), title)
 			}
 		}
 	}
-	return &result, nil
+	return &res, nil
 }
 
-func (r *RazladkiSender) Send(data tasks.DataType, timestamp uint64) error {
+// Send perform request to razladki service
+func (r *Sender) Send(ctx context.Context, data []tasks.AggregationResult, timestamp uint64) error {
 	res, err := r.send(data, timestamp)
 	if err != nil {
 		return err
@@ -150,7 +171,7 @@ func (r *RazladkiSender) Send(data tasks.DataType, timestamp uint64) error {
 		return err
 	}
 
-	resp, err := RazladkiHttpClient.Do(req)
+	resp, err := httpclient.Do(ctx, req)
 	if err != nil {
 		logger.Errf("%s unable to do http request: %v", r.id, err)
 		return err

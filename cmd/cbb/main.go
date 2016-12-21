@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
@@ -14,20 +16,21 @@ import (
 
 const (
 	defaultConfigPath = "/etc/combaine/cbb.conf"
+	defaultTimeout    = 5 * time.Second
 )
 
 var logger *cocaine.Logger
 
-type Task struct {
-	Id       string
-	Data     tasks.DataType
-	Config   cbb.CBBConfig
+type cbbTask struct {
+	ID       string `codec:"Id"`
+	Data     []tasks.AggregationResult
+	Config   cbb.Config
 	CurrTime uint64
 	PrevTime uint64
 }
 
 func getCBBHost() (string, error) {
-	var path string = os.Getenv("config")
+	var path = os.Getenv("config")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
@@ -46,16 +49,19 @@ func getCBBHost() (string, error) {
 	return "", scanner.Err()
 }
 
+// Send unpack cocaine.Request and send items to cbb server
 func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task Task
+	var task cbbTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
+		logger.Errf("%s Failed to unpack CBB task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
+	logger.Debugf("%s Task: %v", task.ID, task)
 
 	if task.Config.Host == "" {
 		task.Config.Host, err = getCBBHost()
@@ -65,18 +71,18 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 		}
 	}
 
-	logger.Debugf("Task: %v", task)
-
-	cCli, err := cbb.NewCBBClient(&task.Config, task.Id)
+	cCli, err := cbb.NewCBBClient(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("Unexpected error %s", err)
+		logger.Errf("%s Unexpected error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
 
-	err = cCli.Send(task.Data, task.PrevTime)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	err = cCli.Send(ctx, task.Data, task.PrevTime)
 	if err != nil {
-		logger.Errf("Sending error %s", err)
+		logger.Errf("%s Sending error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}

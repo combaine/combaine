@@ -1,6 +1,7 @@
 package cbb
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -15,18 +16,8 @@ import (
 	"github.com/combaine/combaine/common/tasks"
 )
 
-const (
-	CONNECTION_TIMEOUT = 2000 // ms
-	RW_TIMEOUT         = 3000 // ms
-)
-
-var (
-	CBBHTTPClient = httpclient.NewClientWithTimeout(
-		time.Millisecond*CONNECTION_TIMEOUT,
-		time.Millisecond*RW_TIMEOUT)
-)
-
-type CBBConfig struct {
+// Config contains aggregation config and local sender configs
+type Config struct {
 	Items       []string `codec:"items"`
 	Flag        int      `codec:"flag"`
 	Host        string   `codec:"host"`
@@ -36,19 +27,21 @@ type CBBConfig struct {
 	Path        string   `codec:"path"`
 }
 
-type CBBSender struct {
-	*CBBConfig
+// Sender talk with cbb api and send info abount blocked ips
+type Sender struct {
+	*Config
 	id string
 }
 
-func NewCBBClient(cfg *CBBConfig, id string) (*CBBSender, error) {
-	return &CBBSender{
-		CBBConfig: cfg,
-		id:        id,
+// NewCBBClient return cbb client
+func NewCBBClient(cfg *Config, id string) (*Sender, error) {
+	return &Sender{
+		Config: cfg,
+		id:     id,
 	}, nil
 }
 
-func (c *CBBSender) makeBaseUrl() url.URL {
+func (c *Sender) makeBaseURL() url.URL {
 	if c.Path == "" {
 		if c.TableType == 2 {
 			c.Path = "/cgi-bin/set_netblock.pl"
@@ -56,15 +49,14 @@ func (c *CBBSender) makeBaseUrl() url.URL {
 			c.Path = "/cgi-bin/set_range.pl"
 		}
 	}
-	reqUrl := url.URL{
+	return url.URL{
 		Scheme: "http",
 		Host:   c.Host,
 		Path:   c.Path,
 	}
-	return reqUrl
 }
 
-func (c *CBBSender) makeUrlValues(ip string, code string, desc string) url.Values {
+func (c *Sender) makeURLValues(ip string, code string, desc string) url.Values {
 	val := url.Values{
 		"flag":      []string{strconv.Itoa(c.Flag)},
 		"operation": []string{"add"},
@@ -86,69 +78,91 @@ func (c *CBBSender) makeUrlValues(ip string, code string, desc string) url.Value
 	return val
 }
 
-func (c *CBBSender) send(data tasks.DataType, timestamp uint64) ([]url.URL, error) {
+func (c *Sender) send(data []tasks.AggregationResult, timestamp uint64) ([]string, error) {
 	logger.Debugf("%s Data to send: %v", c.id, data)
-	result := make([]url.URL, 0)
+	var requests []string
+
+	var queryItems = make(map[string][]string)
 	for _, aggname := range c.Items {
-		request := c.makeBaseUrl()
-		var root, metricname string
-		if items := strings.SplitN(aggname, ".", 2); len(items) > 1 {
-			root, metricname = items[0], items[1]
+		keys := strings.SplitN(aggname, ".", 2)
+		if len(keys) > 1 {
+			queryItems[keys[0]] = append(queryItems[keys[0]], keys[1])
 		} else {
-			root = items[0]
+			if _, ok := queryItems[keys[0]]; !ok {
+				queryItems[keys[0]] = []string{}
+			}
+		}
+	}
+
+	for _, item := range data {
+		var root string
+		var metricsName []string
+		var ok bool
+
+		req := c.makeBaseURL()
+
+		if root, ok = item.Tags["aggregate"]; !ok {
+			logger.Errf("%s Failed to get data tag 'aggregate', skip task: %v", c.id, item)
+			continue
+		}
+		if metricsName, ok = queryItems[root]; !ok {
+			logger.Debugf("%s %s not in Items, skip task: %v", c.id, root, item)
+			continue
 		}
 
-		for _, value := range data[root] {
-			subgroup := reflect.ValueOf(value)
-			if subgroup.Kind() != reflect.Map {
-				continue
-			} // {4xx: {ip: "some text desc 99%"} ...
+		subgroup := reflect.ValueOf(item.Result)
+		if subgroup.Kind() != reflect.Map {
+			logger.Debugf("%s CBB support only maps as task data: %v", c.id, subgroup)
+			continue
+		} // {4xx: {ip: "some text desc 99%"} ...
 
-			codes := subgroup.MapIndex(reflect.ValueOf(metricname))
+		for _, name := range metricsName {
+			codes := subgroup.MapIndex(reflect.ValueOf(name))
 			if !codes.IsValid() {
+				logger.Debugf("%s invalid submap for codes %s: %v", c.id, name, codes)
 				continue
 			}
 			ips := reflect.ValueOf(codes.Interface())
 			if ips.Kind() != reflect.Map {
+				// ips -> {ip: "some text desc 99%"}
+				logger.Debugf("%s CBB support only maps as ips data: %v", c.id, ips)
 				continue
 			}
 
 			var desc string
 			for _, ip := range ips.MapKeys() {
-				desc_v := reflect.ValueOf(ips.MapIndex(ip).Interface())
-				desc_t := desc_v.Type()
+				descV := reflect.ValueOf(ips.MapIndex(ip).Interface())
+				descT := descV.Type()
 
-				if desc_v.Kind() == reflect.Slice && desc_t.Elem().Kind() == reflect.Uint8 {
-					desc = string(desc_v.Bytes())
+				if descV.Kind() == reflect.Slice && descT.Elem().Kind() == reflect.Uint8 {
+					desc = string(descV.Bytes())
 				} else {
-					desc = fmt.Sprintf("%v", desc_v.Interface())
+					desc = fmt.Sprintf("%v", descV.Interface())
 				}
 
-				val := c.makeUrlValues(reflect.ValueOf(ip.Interface()).String(), metricname, desc)
-				request.RawQuery = val.Encode()
-				result = append(result, request)
+				val := c.makeURLValues(reflect.ValueOf(ip.Interface()).String(), name, desc)
+				req.RawQuery = val.Encode()
+				url := req.String()
+				logger.Debugf("%s CBB block request: %s", c.id, url)
+				requests = append(requests, url)
 			}
 		}
 	}
-	return result, nil
+	return requests, nil
 }
 
-func (c *CBBSender) Send(data tasks.DataType, timestamp uint64) error {
-	result, err := c.send(data, timestamp)
+// Send send task to cbb api
+func (c *Sender) Send(ctx context.Context, data []tasks.AggregationResult, timestamp uint64) error {
+	requests, err := c.send(data, timestamp)
 	if err != nil {
 		return err
 	}
-	for _, query := range result {
-		req, err := http.NewRequest("GET", query.String(), nil)
-		if err != nil {
-			return err
-		}
-		resp, err := CBBHTTPClient.Do(req)
+	for _, query := range requests {
+		resp, err := httpclient.Get(ctx, query)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-
 		if resp.StatusCode != http.StatusOK {
 			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {

@@ -9,30 +9,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/common/tasks"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewWorker(t *testing.T) {
-	w := NewWorker(0, 0, 0)
-	assert.Equal(t, 0, w.Id)
+	w := newWorker(0, 0, 0)
+	assert.Equal(t, 0, w.id)
 	assert.Equal(t, 0, w.Retry)
 	assert.Equal(t, time.Duration(0), w.RetryInterval)
 }
 
-func TestNewSolomonClient(t *testing.T) {
-	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr"}, "id")
-	scl := cli.(*solomonClient)
+func TestNewSender(t *testing.T) {
+	scl, _ := NewSender(Config{API: "api.addr"}, "id")
 	assert.Equal(t, scl.id, "id")
-	assert.Equal(t, scl.Api, "api.addr")
+	assert.Equal(t, scl.API, "api.addr")
 }
 
 func TestStartWorkers(t *testing.T) {
 	j := make(chan Job, 1)
 	StartWorkers(j, 10)
 
-	j <- Job{PushData: []byte{}, SolCli: &solomonClient{SolomonCfg: SolomonCfg{Api: "bad://proto"}}}
+	j <- Job{PushData: []byte{}, SolCli: &Sender{Config: Config{API: "bad://proto"}}}
 	for i := 3; i > 0; i-- {
 		if len(j) == 0 {
 			close(j)
@@ -70,36 +68,36 @@ func TestRequest(t *testing.T) {
 		attempt  int
 		err      bool
 	}{
-		{Job{PushData: []byte{}, SolCli: &solomonClient{}},
+		{Job{PushData: []byte{}, SolCli: &Sender{}},
 			"worker 0 failed to send after 0 attempts, dropping job", 0, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: "://bad_url", Timeout: 10}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: "://bad_url", Timeout: 10}}},
 			"parse ://bad_url: missing protocol scheme", 1, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: uriWithoutListener, Timeout: 10}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: uriWithoutListener, Timeout: 10}}},
 			"getsockopt: connection refused", 1, true},
 
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/timeout", Timeout: 5}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: ts.URL + "/timeout", Timeout: 5}}},
 			"worker 3 failed to send after 8 attempts, dropping job", 8, false},
 
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/200", Timeout: 10}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: ts.URL + "/200", Timeout: 10}}},
 			"worker 4 failed to send after 2 attempts, dropping job", 2, false},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/404", Timeout: 10}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: ts.URL + "/404", Timeout: 10}}},
 			"404 Not Found", 3, true},
-		{Job{PushData: []byte{}, SolCli: &solomonClient{
-			SolomonCfg: SolomonCfg{Api: ts.URL + "/408", Timeout: 10}}},
+		{Job{PushData: []byte{}, SolCli: &Sender{
+			Config: Config{API: ts.URL + "/408", Timeout: 10}}},
 			"worker 6 failed to send after 3 attempts, dropping job", 3, true},
 	}
 
 	for i, c := range cases {
-		w := NewWorker(i, c.attempt, 3)
-		err := w.SendToSolomon(c.job)
+		w := newWorker(i, c.attempt, 3)
+		err := w.sendToSolomon(c.job)
 		t.Log(err)
 		if err != nil {
-			assert.Contains(t, err.Error(), c.expected)
+			assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
 		} else {
 			if c.err {
 				t.Fatal("expect error")
@@ -110,37 +108,42 @@ func TestRequest(t *testing.T) {
 
 func TestSolomonClientSendNil(t *testing.T) {
 	dropJobs(JobQueue)
-	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr"}, "id")
+	cli, _ := NewSender(Config{API: "api.addr"}, "id")
 
 	// empty task
-	task := tasks.DataType{"app": {"grp": nil}}
+	task := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+			Result: []int{}},
+	}
 	err := cli.Send(task, 111)
-	assert.Contains(t, err.Error(), "Value of group should be dict")
+	assert.Contains(t, fmt.Sprintf("%v", err), "Value of group should be dict")
 
 	err = cli.Send(nil, 111)
-	assert.Contains(t, err.Error(), "Nothing to send")
+	assert.Contains(t, fmt.Sprintf("%v", err), "Nothing to send")
 
 	assert.Equal(t, 0, len(JobQueue))
 }
 
 func TestSolomonClientSendArray(t *testing.T) {
 	dropJobs(JobQueue)
-	cli, _ := NewSolomonClient(SolomonCfg{}, "_id")
+	cli, _ := NewSender(Config{}, "_id")
 
-	task := tasks.DataType{
-		"app": {"grp": map[string]interface{}{"ArrOv": []interface{}{20, 30.0}}},
+	task := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+			Result: map[string]interface{}{"ArrOv": []interface{}{20, 30.0}}},
 	}
 	err := cli.Send(task, 111)
-	assert.Contains(t, err.Error(), "Unable to send a slice. Fields len 0")
+	assert.Contains(t, fmt.Sprintf("%v", err), "Unable to send a slice. Fields len 0")
 	assert.Equal(t, 0, len(JobQueue))
 
-	cli, _ = NewSolomonClient(SolomonCfg{Fields: []string{"1f", "2f"}}, "_id")
+	cli, _ = NewSender(Config{Fields: []string{"1f", "2f"}}, "_id")
 	err = cli.Send(task, 111)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(JobQueue))
 
-	task = tasks.DataType{
-		"app": {"grp": map[string]interface{}{"ArrOv": []interface{}{"20", uint(30)}}},
+	task = []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+			Result: map[string]interface{}{"ArrOv": []interface{}{"20", uint(30)}}},
 	}
 	// client expect number as string
 	err = cli.Send(task, 111)
@@ -151,25 +154,48 @@ func TestSolomonClientSendArray(t *testing.T) {
 func TestSolomonClientSendNotANumber(t *testing.T) {
 	dropJobs(JobQueue)
 	cases := []struct {
-		task     tasks.DataType
+		task     []tasks.AggregationResult
 		expected string
 	}{
 		// hmm, actually sender cannot parse not common types of numbers
-		{tasks.DataType{"app": {"grp": map[string]interface{}{
-			"map": map[string]interface{}{"MAPMAP1": map[string]interface{}{"MoMv1": true}}}}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+				Result: map[string]interface{}{"map": map[string]interface{}{"MAPMAP1": map[string]interface{}{"MoMv1": true}}}}},
 			"Not a Number"},
-		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: []string{"test", "test"}}}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: []string{"test", "test"}}}},
 			`strconv.ParseFloat: parsing "test": invalid syntax: test`},
-		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: map[string]bool{"test": false}}}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: map[string]bool{"test": false}}}},
 			"Not a Number"},
-		{tasks.DataType{"app": {"grp": map[interface{}]interface{}{nil: nil}}},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: nil}}},
 			"Not a Number"},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "datacenter", "name": "grp", "metahost": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: nil}}},
+			"Not a Number"},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: nil}}},
+			"Failed to get data tag 'name'"},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"name": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: nil}}},
+			"Failed to get data tag 'type'"},
+		{[]tasks.AggregationResult{
+			{Tags: map[string]string{"type": "datacenter", "name": "grp", "aggregate": "app"},
+				Result: map[interface{}]interface{}{nil: nil}}},
+			"Failed to get data tag 'metahost'"},
 	}
-	cli, _ := NewSolomonClient(SolomonCfg{Api: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
+	cli, _ := NewSender(Config{API: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
 
 	for _, c := range cases {
 		assert.NotPanics(t, func() {
-			assert.Contains(t, cli.Send(c.task, 111).Error(), c.expected)
+			assert.Contains(t, fmt.Sprintf("%v", cli.Send(c.task, 111)), c.expected)
 		})
 	}
 	assert.Equal(t, 0, len(JobQueue))
@@ -182,13 +208,14 @@ func TestSolomonInternalSend(t *testing.T) {
 		expectedData map[string]solomonPush
 	)
 
-	solCfg := solomonClient{
-		SolomonCfg: SolomonCfg{Project: "combaine", Cluster: "backend"},
-		id:         "testId",
+	solCfg := Sender{
+		Config: Config{Project: "combaine", Cluster: "backend"},
+		id:     "testId",
 	}
 
-	simpleOneItemData := tasks.DataType{
-		"serviceName.With.Dot": {"hostName": map[string]interface{}{"sensorName": 17}},
+	simpleOneItemData := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "hostName", "metahost": "hostName", "aggregate": "serviceName.With.Dot"},
+			Result: map[string]interface{}{"sensorName": 17}},
 	}
 
 	simpleOneItemJSON := `{
@@ -205,7 +232,7 @@ func TestSolomonInternalSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts = 10
-	data, err := solCfg.sendInternal(&simpleOneItemData, ts)
+	data, err := solCfg.sendInternal(simpleOneItemData, ts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,42 +245,38 @@ func TestSolomonInternalSend(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		logger.Debugf("Expected json: %s", string(exp))
+		t.Logf("Expected json: %s", string(exp))
+		t.Logf("Resulted json: %s", string(got))
 		if string(exp) != string(got) {
 			t.Fatal(fmt.Sprintf("Unexpected result %s != %s", string(exp), string(got)))
 		}
 	}
 
 	// Complex test
-	solCfg = solomonClient{
-		SolomonCfg: SolomonCfg{
+	solCfg = Sender{
+		Config: Config{
 			Project: "TEST",
 			Cluster: "TESTCOMBAINE",
 			Fields:  []string{"25_prc", "50_prc", "99_prc"},
 		},
 		id: "TESTID",
 	}
-	app1Data := tasks.DataType{
-		"app1": {
-			"group1": map[string]interface{}{
-				"ArrayOv": []int{20, 30, 40},
-			},
-			"group2": map[string]interface{}{
-				"map_of_array": map[string]interface{}{
-					"MoAv1": []interface{}{201, 301, 401},
-					"MoAv2": []interface{}{202, 302, 402},
-				},
-			},
-			"host4": map[string]interface{}{
-				"mapOfSimple": map[string]interface{}{"MoSv1": 1001, "MoSv2": 1002},
-			},
-			"host5": map[string]interface{}{
+	app1Data := []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "group1", "metahost": "group1", "aggregate": "app1"},
+			Result: map[string]interface{}{"ArrayOv": []int{20, 30, 40}}},
+		{Tags: map[string]string{"type": "host", "name": "group2", "metahost": "group2", "aggregate": "app1"},
+			Result: map[string]interface{}{"map_of_array": map[string]interface{}{
+				"MoAv1": []interface{}{201, 301, 401},
+				"MoAv2": []interface{}{202, 302, 402},
+			}}},
+		{Tags: map[string]string{"type": "host", "name": "host4", "metahost": "host4", "aggregate": "app1"},
+			Result: map[string]interface{}{"mapOfSimple": map[string]interface{}{"MoSv1": 1001, "MoSv2": 1002}}},
+		{Tags: map[string]string{"type": "host", "name": "host5", "metahost": "host5", "aggregate": "app1"},
+			Result: map[string]interface{}{
 				"map_of_map": map[string]interface{}{
 					"MAPMAP1": map[string]interface{}{"MoMv1": 76, "MoMv2": 77},
 					"MAPMAP2": map[string]interface{}{"MoMv1": 87, "MoMv2": 88},
-				},
-			},
-		},
+				}}},
 	}
 	app1JSON := `{
 	"group1":{"commonLabels": {
@@ -312,7 +335,7 @@ func TestSolomonInternalSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts = 200
-	data, err = solCfg.sendInternal(&app1Data, ts)
+	data, err = solCfg.sendInternal(app1Data, ts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,17 +344,19 @@ func TestSolomonInternalSend(t *testing.T) {
 		assert.Equal(t, len(expValue.Sensors), len(gotValue.Sensors))
 		exp, _ := json.Marshal(expValue.CommonLabels)
 		got, _ := json.Marshal(gotValue.CommonLabels)
-		logger.Debugf("Expected json: %s", string(exp))
+		t.Logf("Expected json: %s", string(exp))
+		t.Logf("Resulted json: %s", string(got))
 		if string(exp) != string(got) {
 			t.Fatal(fmt.Sprintf("Unexpected result %s != %s", string(exp), string(got)))
 		}
 		for _, s := range expValue.Sensors {
 			found := false
 			sexp, _ := json.Marshal(s)
-			logger.Debugf("Expected json: %s", string(sexp))
+			t.Logf("Expected json: %s", string(sexp))
 			for _, gs := range gotValue.Sensors {
 				sgot, _ := json.Marshal(gs)
 				if string(sexp) == string(sgot) {
+					t.Logf("Resulted json: %s", string(sgot))
 					found = true
 				}
 			}

@@ -1,3 +1,10 @@
+combaine (0.9.0) trusty; urgency=medium
+
+  * [Senders] juggler rewrite in go
+  * [Aggregating] new data format for senders
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 14 Dec 2016 18:50:39 +0300
+
 combaine (0.8.5) trusty; urgency=medium
 
   * [Senders] juggler temporary fix root checking

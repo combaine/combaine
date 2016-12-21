@@ -1,2 +1,0 @@
-juggler_hosts: ["host1:8998", "host2:8998"]
-juggler_frontend: ["front1:8998", "front2:8998"]

@@ -20,10 +20,6 @@ func (p *PluginConfig) Type() (type_name string, err error) {
 		return
 	}
 
-	// if type_name, ok = raw_type_name.(string); !ok {
-	// 	err = fmt.Errorf("Invalid `type` argument type. String is expected. Got %s", reflect.TypeOf(raw_type_name))
-	// }
-
 	switch t := raw_type_name.(type) {
 	case string, []byte:
 		type_name = fmt.Sprintf("%s", raw_type_name)

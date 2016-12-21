@@ -14,35 +14,29 @@ import (
 
 const (
 	defaultConfigPath = "/etc/combaine/solomon-api.conf"
+	sleepInterval     = 300  // sleep after timeouts ms
+	sendTimeout       = 5000 // send timeout ms
 )
 
 var (
-	DEFAULT_FIELDS = []string{
-		"75_prc",
-		"90_prc",
-		"93_prc",
-		"94_prc",
-		"95_prc",
-		"96_prc",
-		"97_prc",
-		"98_prc",
-		"99_prc",
+	logger        *cocaine.Logger
+	defaultFields = []string{
+		"75_prc", "90_prc", "93_prc",
+		"94_prc", "95_prc", "96_prc",
+		"97_prc", "98_prc", "99_prc",
 	}
-	SEND_TIMEOUT   = 5000 // send timeout ms
-	SLEEP_INTERVAL = 300  // sleep after timeouts ms
-	logger         *cocaine.Logger
 )
 
-type Task struct {
-	Id       string
-	Data     tasks.DataType
-	Config   solomon.SolomonCfg
+type solomonTask struct {
+	ID       string `codec:"Id"`
+	Data     []tasks.AggregationResult
+	Config   solomon.Config
 	CurrTime uint64
 	PrevTime uint64
 }
 
-func getApiUrl() (string, error) {
-	var path string = os.Getenv("config")
+func getAPIURL() (string, error) {
+	var path = os.Getenv("config")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
@@ -58,37 +52,38 @@ func getApiUrl() (string, error) {
 	return "", scanner.Err()
 }
 
+// Send parse cocaine request and send sensort to solomon api
 func Send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task Task
+	var task solomonTask
 	err := common.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
-	logger.Debugf("Task: %v", task)
+	logger.Debugf("%s Task: %v", task.ID, task)
 
 	if len(task.Config.Fields) == 0 {
-		task.Config.Fields = DEFAULT_FIELDS
+		task.Config.Fields = defaultFields
 	}
 	if task.Config.Timeout == 0 {
-		task.Config.Timeout = SEND_TIMEOUT
+		task.Config.Timeout = sendTimeout
 	}
-	if task.Config.Api == "" {
-		task.Config.Api, err = getApiUrl()
+	if task.Config.API == "" {
+		task.Config.API, err = getAPIURL()
 		if err != nil {
-			logger.Errf("Failed to get api url: %s", err)
+			logger.Errf("%s Failed to get api url: %s", task.ID, err)
 			response.ErrorMsg(-100, err.Error())
 			return
 		}
 	}
 
-	solCli, _ := solomon.NewSolomonClient(task.Config, task.Id)
+	solCli, _ := solomon.NewSender(task.Config, task.ID)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
-		logger.Errf("Sending error %s", err)
+		logger.Errf("%s Sending error %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())
 		return
 	}
@@ -97,7 +92,6 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 func main() {
 	var err error
-
 	logger, err = cocaine.NewLogger()
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
@@ -107,7 +101,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go solomon.StartWorkers(solomon.JobQueue, SLEEP_INTERVAL)
+	go solomon.StartWorkers(solomon.JobQueue, sleepInterval)
 
 	Worker.Loop(binds)
 }
