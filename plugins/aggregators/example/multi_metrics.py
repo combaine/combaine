@@ -7,6 +7,7 @@ aggregate result of hosts parsing via aggregate_group
 DEFAULT_QUANTILE_VALUES = [75, 90, 93, 94, 95, 96, 97, 98, 99]
 
 import logging
+LOG = logging.getLogger("combaine")
 
 
 def _clean_timings(timings_str):
