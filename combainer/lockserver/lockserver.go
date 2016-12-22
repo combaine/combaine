@@ -11,6 +11,7 @@ import (
 
 	"github.com/talbright/go-zookeeper/zk"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 )
 
@@ -79,11 +80,15 @@ func (ls *LockServer) Lock(node string) error {
 	}
 
 	// check for node exists before create save many io on zk leader
-	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
-		return fmt.Errorf("Node %s alredy exists", path)
+	exists, state, err := ls.Conn.Exists(path)
+	if err == nil && exists {
+		if state.EphemeralOwner != ls.Conn.SessionID() {
+			return common.ErrLockByAnother
+		}
+		return common.ErrLockOwned
 	}
-
 	_, err = ls.Conn.Create(path, []byte(content), zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+
 	return err
 }
 
@@ -91,17 +96,11 @@ func (ls *LockServer) Lock(node string) error {
 func (ls *LockServer) Unlock(node string) error {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
 	ls.log.Infof("Unlocking %s", path)
-	content, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
-		if data, _, err := ls.Conn.Get(path); err != nil || string(data) == string(content) {
-			// trying delete node only if current host is owner
-			// in other case another cluster member probably grab lock
+	if exists, state, err := ls.Conn.Exists(path); err == nil && exists {
+		if state.EphemeralOwner == ls.Conn.SessionID() {
 			return ls.Conn.Delete(path, -1)
 		}
+		ls.log.Debugf("Node %s locked by another server", path)
 	}
 	return nil
 }

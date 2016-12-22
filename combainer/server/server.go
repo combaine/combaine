@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
@@ -172,6 +174,9 @@ LOCKSERVER_LOOP:
 		var next <-chan time.Time
 		next = time.After(time.Millisecond * 10)
 
+		breakDispatchLoop := make(chan struct{})
+		var breakGuard sync.Once
+
 	DISPATCH_LOOP:
 		for {
 			iteration++
@@ -187,21 +192,36 @@ LOCKSERVER_LOOP:
 					continue DISPATCH_LOOP
 				}
 
-				go func(configs []string) {
+				go func(configs []string, stop chan struct{}, guard *sync.Once) {
+					var err error
 
+				LOCK_LOOP:
 					for _, lockname := range configs {
+						llog := ilog.WithField("lockname", lockname)
 						lockerr := DLS.Lock(lockname /* lockname is config file name*/)
-						if lockerr != nil {
-							ilog.Debug(lockerr)
+						switch lockerr {
+						case nil:
+							llog.Debug("Lock acquired")
+						case common.ErrLockByAnother:
+							llog.Debug(lockerr)
 							continue
+						case common.ErrLockOwned:
+							if combainer.GlobalObserver.HasClient(lockname) {
+								llog.Debug(lockerr)
+								continue
+							}
+							llog.Debug("Lock acquired")
+						default:
+							err = fmt.Errorf("Lock failed %s", lockerr)
+							break LOCK_LOOP
 						}
 
 						// Inline function to use defers
-						err := func(lock string) error {
-							llog := ilog.WithField("lockname", lock)
+						err := func(name string) error {
 							defer trap()
+							defer DLS.Unlock(name)
 
-							if !c.Repository.ParsingConfigIsExists(lock) {
+							if !c.Repository.ParsingConfigIsExists(name) {
 								llog.Error("config doesn't exist")
 								return nil
 							}
@@ -213,48 +233,64 @@ LOCKSERVER_LOOP:
 								return nil
 							}
 
-							watcher, err := DLS.Watch(lock)
+							watcher, err := DLS.Watch(name)
 							if err != nil {
 								llog.Errorf("can't create watch %s", err)
-								return nil
+								return err
 							}
 							atomic.AddInt32(&combainer.GlobalObserver.WatchersCount, 1)
 							defer atomic.AddInt32(&combainer.GlobalObserver.WatchersCount, -1)
 
 							for {
-								if err = cl.Dispatch(lock, genUniqueID, shouldWait); err != nil {
+								if err = cl.Dispatch(name, genUniqueID, shouldWait); err != nil {
 									llog.Errorf("Dispatch error %s", err)
 									return nil
 								}
 								select {
 								case event := <-watcher:
-									// stop Dispatching if session expired
-									if event.State == zk.StateExpired {
-										return fmt.Errorf("connection expired: %s", event)
-									}
 									// stop Dispatching if lock has been force deleted
 									if event.Type == zk.EventNodeDeleted {
 										llog.Errorf("lock has been deleted: %s", event)
 										return nil
 									}
-									// retry watch on any error from zk
-									watcher, err = DLS.Watch(lock)
+									watcher, err = DLS.Watch(name)
 									if err != nil {
 										// Dispatching will be stop here
 										llog.Errorf("lock has been lost %s, can't continue watching %s", event.Err, err)
-										return nil
+										return err
 									}
 								default:
+									switch state := DLS.Conn.State(); state {
+									case zk.StateHasSession, zk.StateConnected:
+										// ok continue
+									case zk.StateConnecting:
+										llog.Warnf("zk state is %v", state)
+										return nil // let reconnection state checked in Watch setup
+									default:
+										return fmt.Errorf("zk now disconnected, %v", state)
+									}
 								}
 							}
 						}(lockname)
 						if err != nil {
-							ilog.WithField("lockname", lockname).Error(err)
-							DLS.Close()
-							return
+							break LOCK_LOOP
 						}
 					}
-				}(configs)
+					if err != nil {
+						ilog.Errorf("Stop client: %s", err)
+						guard.Do(func() {
+							ilog.Info("break dispatch loop")
+							DLS.Close() // will thils fire event with Err ?
+							close(stop)
+						})
+						return
+					}
+				}(configs, breakDispatchLoop, &breakGuard)
+				select {
+				case <-breakDispatchLoop:
+					break DISPATCH_LOOP
+				default:
+				}
 			case event := <-DLS.Session:
 				if event.Err != nil {
 					ilog.Errorf("event with error from Zookeeper: %v", event.Err)

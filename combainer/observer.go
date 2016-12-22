@@ -57,15 +57,23 @@ type Observer struct {
 // RegisterClient register client in Observer
 func (o *Observer) RegisterClient(cl *Client, config string) {
 	o.RWMutex.Lock()
-	defer o.RWMutex.Unlock()
 	o.clients[config] = cl
+	o.RWMutex.Unlock()
 }
 
 // UnregisterClient unregister client in Observer
 func (o *Observer) UnregisterClient(config string) {
 	o.RWMutex.Lock()
-	defer o.RWMutex.Unlock()
 	delete(o.clients, config)
+	o.RWMutex.Unlock()
+}
+
+// HasClient check registration of client
+func (o *Observer) HasClient(config string) bool {
+	o.RLock()
+	_, ok := o.clients[config]
+	o.RUnlock()
+	return ok
 }
 
 // GetClientsStats return map with client stats
@@ -91,7 +99,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
-		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
+		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return
 	}
 
@@ -104,7 +112,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		Clients:  stats,
 		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
 	}); err != nil {
-		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
+		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return
 	}
 }
