@@ -29,6 +29,7 @@ type Config struct {
 	API     string   `codec:"api"`
 	Project string   `codec:"project"`
 	Cluster string   `codec:"cluster"`
+	Service string   `codec:"service"`
 	Timeout int      `codec:"rw_timeout"`
 	Fields  []string `codec:"Fields"`
 }
@@ -71,8 +72,7 @@ type Worker struct {
 	RetryInterval time.Duration // ms
 }
 
-func (s *Sender) dumpSensor(sensors *[]sensor, name string,
-	value reflect.Value, timestamp uint64) error {
+func (s *Sender) dumpSensor(name string, value reflect.Value, timestamp uint64) (*sensor, error) {
 	var (
 		err         error
 		sensorValue float64
@@ -94,15 +94,14 @@ func (s *Sender) dumpSensor(sensors *[]sensor, name string,
 		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, common.InterfaceToString(value))
+		return nil, fmt.Errorf("%s: %v", err, value)
 	}
 
-	*sensors = append(*sensors, sensor{
+	return &sensor{
 		Labels: map[string]string{"sensor": s.prefix + name},
 		Ts:     timestamp,
 		Value:  sensorValue,
-	})
-	return nil
+	}, nil
 }
 
 func (s *Sender) dumpSlice(sensors *[]sensor, name string,
@@ -117,17 +116,21 @@ func (s *Sender) dumpSlice(sensors *[]sensor, name string,
 
 	for i := 0; i < rv.Len(); i++ {
 		sensorName := fmt.Sprintf("%s.%s", name, s.Fields[i])
-		item := reflect.ValueOf(rv.Index(i).Interface())
-		err := s.dumpSensor(sensors, sensorName, item, timestamp)
+		data := reflect.ValueOf(rv.Index(i).Interface())
+		item, err := s.dumpSensor(sensorName, data, timestamp)
 		if err != nil {
 			return err
 		}
+		*sensors = append(*sensors, *item)
 	}
 	return nil
 }
 
-func (s *Sender) dumpMap(sensors *[]sensor, name string,
-	rv reflect.Value, timestamp uint64) (err error) {
+func (s *Sender) dumpMap(sensors *[]sensor, name string, rv reflect.Value, timestamp uint64) error {
+	var (
+		item *sensor
+		err  error
+	)
 
 	keys := rv.MapKeys()
 	for _, key := range keys {
@@ -146,46 +149,49 @@ func (s *Sender) dumpMap(sensors *[]sensor, name string,
 		case reflect.Map:
 			err = s.dumpMap(sensors, sensorName, itemInterface, timestamp)
 		default:
-			err = s.dumpSensor(sensors, sensorName, itemInterface, timestamp)
+			item, err = s.dumpSensor(sensorName, itemInterface, timestamp)
+			if err == nil {
+				*sensors = append(*sensors, *item)
+			}
 		}
 
 		if err != nil {
-			return
+			return err
 		}
 	}
-	return
+	return err
 }
 
 func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) ([]solomonPush, error) {
-
 	var (
-		host     string
-		err      error
-		pushData solomonPush
+		groups []solomonPush
+		err    error
+		host   string
 	)
-
-	var groups []solomonPush
 
 	//for aggname, subgroupsAndValues := range data {
 	for _, item := range data {
 		aggname := item.Tags["aggregate"]
 		logger.Infof("%s Handle aggregate named %s", s.id, aggname)
 
-		service := aggname
-		if strings.ContainsRune(aggname, '.') {
-			aPrefix := strings.SplitN(aggname, ".", 2)
+		service := s.Service
+		if service == "" {
+			service = aggname
+		}
+		if strings.ContainsRune(service, '.') {
+			aPrefix := strings.SplitN(service, ".", 2)
 			service = aPrefix[0]
 			s.prefix = aPrefix[1] + "."
 		}
 
 		host, err = common.GetSubgroupName(item.Tags)
 		if err != nil {
-			logger.Errf("%s skip task: %s", s.id, err)
+			err = fmt.Errorf("skip task: %s", err)
 			continue
 		}
 		//for host, value := range subgroupsAndValues {
 		var sensors []sensor
-		pushData = solomonPush{
+		pushData := solomonPush{
 			CommonLabels: comLabels{
 				Host:    host,
 				Service: service,
@@ -197,18 +203,21 @@ func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) 
 		rv := reflect.ValueOf(item.Result)
 		logger.Debugf("%s %s", s.id, rv.Kind())
 
-		if rv.Kind() == reflect.Map {
-			err = s.dumpMap(&sensors, "", rv, timestamp)
-			if err == nil {
-				pushData.Sensors = sensors
-				groups = append(groups, pushData)
-			}
-		} else {
-			err = fmt.Errorf("Value of group should be dict")
+		if rv.Kind() != reflect.Map {
+			err = fmt.Errorf("Value of group should be dict, skip: %v", rv)
+			continue
 		}
+		err = s.dumpMap(&sensors, "", rv, timestamp)
 		if err != nil {
-			logger.Errf("%s bad value for %s - %s: %s", s.id, aggname, err, common.InterfaceToString(item.Result))
+			err = fmt.Errorf("bad value for %s - %s: %v", aggname, err, item.Result)
+			continue
 		}
+		if len(sensors) == 0 {
+			logger.Infof("%s Empty sensors for %v", s.id, pushData)
+			continue
+		}
+		pushData.Sensors = sensors
+		groups = append(groups, pushData)
 	}
 	return groups, err
 }
