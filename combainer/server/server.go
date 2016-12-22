@@ -246,6 +246,16 @@ LOCKSERVER_LOOP:
 									llog.Errorf("Dispatch error %s", err)
 									return nil
 								}
+								switch state := DLS.Conn.State(); state {
+								case zk.StateHasSession, zk.StateConnected:
+									// ok continue
+								case zk.StateConnecting:
+									llog.Warnf("zk state is %v", state)
+									return nil // let reconnection state checked in Watch setup
+								default:
+									return fmt.Errorf("zk now disconnected, %v", state)
+								}
+
 								select {
 								case event := <-watcher:
 									// stop Dispatching if lock has been force deleted
@@ -260,15 +270,6 @@ LOCKSERVER_LOOP:
 										return err
 									}
 								default:
-									switch state := DLS.Conn.State(); state {
-									case zk.StateHasSession, zk.StateConnected:
-										// ok continue
-									case zk.StateConnecting:
-										llog.Warnf("zk state is %v", state)
-										return nil // let reconnection state checked in Watch setup
-									default:
-										return fmt.Errorf("zk now disconnected, %v", state)
-									}
 								}
 							}
 						}(lockname)
@@ -280,7 +281,7 @@ LOCKSERVER_LOOP:
 						ilog.Errorf("Stop client: %s", err)
 						guard.Do(func() {
 							ilog.Info("break dispatch loop")
-							DLS.Close() // will thils fire event with Err ?
+							DLS.Close() // after Close() all Watch will be stuck
 							close(stop)
 						})
 						return
