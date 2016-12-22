@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -17,6 +18,7 @@ import (
 	"github.com/combaine/combaine/common/configs"
 )
 
+// StatInfo contains stats about main operations (aggregating and parsing)
 type StatInfo struct {
 	ParsingSuccess   int
 	ParsingFailed    int
@@ -26,6 +28,8 @@ type StatInfo struct {
 	AggregateTotal   int
 	Heartbeated      int64
 }
+
+// OpenFiles contains info abound fd usage
 type OpenFiles struct {
 	Open  uint64
 	Limit syscall.Rlimit
@@ -35,43 +39,47 @@ type info struct {
 	GoRoutines int
 	Files      OpenFiles
 	Clients    map[string]*StatInfo
+	Watchers   int32
 }
 
+// GlobalObserver is storage for client registations
 var GlobalObserver = Observer{
 	clients: make(map[string]*Client),
 }
 
+// Observer object with registered clients
 type Observer struct {
 	sync.RWMutex
-	clients map[string]*Client // map active clients to configs
+	clients       map[string]*Client // map active clients to configs
+	WatchersCount int32
 }
 
+// RegisterClient register client in Observer
 func (o *Observer) RegisterClient(cl *Client, config string) {
 	o.RWMutex.Lock()
 	defer o.RWMutex.Unlock()
 	o.clients[config] = cl
 }
 
+// UnregisterClient unregister client in Observer
 func (o *Observer) UnregisterClient(config string) {
 	o.RWMutex.Lock()
 	defer o.RWMutex.Unlock()
 	delete(o.clients, config)
 }
 
-func (o *Observer) GetClients() (clients map[string]*Client) {
+// GetClientsStats return map with client stats
+func (o *Observer) GetClientsStats() map[string]*StatInfo {
+	stats := make(map[string]*StatInfo)
 	o.RLock()
-	defer o.RUnlock()
-	clients = make(map[string]*Client)
-	clients = o.clients
-	return
+	for config, client := range o.clients {
+		stats[config] = client.GetStats()
+	}
+	o.RUnlock()
+	return stats
 }
 
-func (o *Observer) GetClient(config string) *Client {
-	o.RLock()
-	defer o.RUnlock()
-	return o.clients[config]
-}
-
+// Dashboard handle http request abount internal statistics
 func Dashboard(w http.ResponseWriter, r *http.Request) {
 	getNumberOfOpenfiles := func() uint64 {
 		files, _ := ioutil.ReadDir("/proc/self/fd")
@@ -79,10 +87,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	stats := make(map[string]*StatInfo)
-	for config, client := range GlobalObserver.GetClients() {
-		stats[config] = client.GetStats()
-	}
+	stats := GlobalObserver.GetClientsStats()
 
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
@@ -96,18 +101,22 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			getNumberOfOpenfiles(),
 			limit,
 		},
-		Clients: stats,
+		Clients:  stats,
+		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
 	}); err != nil {
 		fmt.Fprintf(w, "{\"error\": \"unable to dump json %s\"", err)
 		return
 	}
 }
 
+// ParsingConfigs list parsing configs names
 func ParsingConfigs(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	list, _ := s.GetRepository().ListParsingConfigs()
 	json.NewEncoder(w).Encode(&list)
 }
 
+// ReadParsingConfig return parsing config content
+// before return UpdateByCombainerConfig update config
 func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	repo := s.GetRepository()
@@ -151,6 +160,8 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// Tasks return information about parsing tasks
+// that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	cl, err := NewClient(s.GetContext(), s.GetRepository())
@@ -171,6 +182,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Launch run full iteration for config
 func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
@@ -203,6 +215,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "DONE")
 }
 
+// ServerContext contains server context with repository
 type ServerContext interface {
 	GetContext() *Context
 	GetRepository() configs.Repository
@@ -215,6 +228,7 @@ func attachServer(s ServerContext,
 	}
 }
 
+// GetRouter return mux root router
 func GetRouter(context ServerContext) http.Handler {
 	root := mux.NewRouter()
 	root.StrictSlash(true)
