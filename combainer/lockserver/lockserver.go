@@ -11,9 +11,11 @@ import (
 
 	"github.com/talbright/go-zookeeper/zk"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 )
 
+// LockServer object represent zk connection
 type LockServer struct {
 	log     *logrus.Entry
 	Conn    *zk.Conn
@@ -21,6 +23,8 @@ type LockServer struct {
 	configs.LockServerSection
 }
 
+// NewLockServer attempt connecting to zk server
+// and return LockServer with connection or err
 func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 	log := logrus.WithField("source", "zookeeper")
 	log.Infof("connecting to %s", config.Hosts)
@@ -40,6 +44,7 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 		return nil, err
 	}
 
+	attempts := 5
 	for event := range events {
 		switch event.State {
 		case zk.StateHasSession:
@@ -50,7 +55,13 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 				LockServerSection: config,
 			}
 			return ls, nil
+		case zk.StateConnecting:
+			if attempts--; attempts <= 0 {
+				conn.Close()
+				return nil, fmt.Errorf("Connection attempts limit is reached")
+			}
 		default:
+			attempts = 5
 			log.Infof("get connecting event %s", event)
 		}
 	}
@@ -59,6 +70,7 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 	return nil, err
 }
 
+// Lock try create ephemeral node and lock it
 func (ls *LockServer) Lock(node string) error {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
 	ls.log.Infof("Locking %s", path)
@@ -68,38 +80,39 @@ func (ls *LockServer) Lock(node string) error {
 	}
 
 	// check for node exists before create save many io on zk leader
-	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
-		return fmt.Errorf("Node %s alredy exists", path)
+	exists, state, err := ls.Conn.Exists(path)
+	if err == nil && exists {
+		if state.EphemeralOwner != ls.Conn.SessionID() {
+			return common.ErrLockByAnother
+		}
+		return common.ErrLockOwned
 	}
-
 	_, err = ls.Conn.Create(path, []byte(content), zk.FlagEphemeral, zk.WorldACL(zk.PermAll))
+
 	return err
 }
 
+// Unlock try remove owned ephemeral node
 func (ls *LockServer) Unlock(node string) error {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
 	ls.log.Infof("Unlocking %s", path)
-	content, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	if exists, _, err := ls.Conn.Exists(path); err == nil && exists {
-		if data, _, err := ls.Conn.Get(path); err != nil || string(data) == string(content) {
-			// trying delete node only if current host is owner
-			// in other case another cluster member probably grab lock
+	if exists, state, err := ls.Conn.Exists(path); err == nil && exists {
+		if state.EphemeralOwner == ls.Conn.SessionID() {
 			return ls.Conn.Delete(path, -1)
 		}
+		ls.log.Debugf("Node %s locked by another server", path)
 	}
 	return nil
 }
 
+// Watch watch events from ephemeral node
 func (ls *LockServer) Watch(node string) (<-chan zk.Event, error) {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
 	_, _, w, err := ls.Conn.GetW(path)
 	return w, err
 }
 
+// Close interrupt zk connection
 func (ls *LockServer) Close() {
 	ls.Conn.Close()
 }

@@ -1,9 +1,13 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -12,6 +16,7 @@ import (
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/combainer/lockserver"
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
@@ -27,6 +32,7 @@ func trap() {
 	}
 }
 
+// CombaineServer main combaine object
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
@@ -43,6 +49,7 @@ type CombaineServer struct {
 	log *logrus.Entry
 }
 
+// CombaineServerConfig contains config from main combaine conf
 type CombaineServerConfig struct {
 	// Configuration
 	// path to directory with combaine.yaml
@@ -55,6 +62,7 @@ type CombaineServerConfig struct {
 	Active bool
 }
 
+// NewCombainer create new combaine server
 func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	log := logrus.WithField("source", "server")
 	repository, err := configs.NewFilesystemRepository(config.ConfigsPath)
@@ -110,14 +118,17 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	return server, nil
 }
 
+// GetContext return servers context
 func (c *CombaineServer) GetContext() *combainer.Context {
 	return c.context
 }
 
+// GetRepository return repository of configs
 func (c *CombaineServer) GetRepository() configs.Repository {
 	return c.Repository
 }
 
+// Serve run main event loop
 func (c *CombaineServer) Serve() error {
 	c.log.Info("starting REST API")
 	router := combainer.GetRouter(c)
@@ -159,11 +170,17 @@ LOCKSERVER_LOOP:
 			continue LOCKSERVER_LOOP
 		}
 
+		var iteration uint64
 		var next <-chan time.Time
 		next = time.After(time.Millisecond * 10)
 
+		breakDispatchLoop := make(chan struct{})
+		var breakGuard sync.Once
+
 	DISPATCH_LOOP:
 		for {
+			iteration++
+			ilog := c.log.WithField("iteration", strconv.FormatUint(iteration, 10))
 			select {
 			// Spawn one more client
 			case <-next:
@@ -171,80 +188,113 @@ LOCKSERVER_LOOP:
 
 				configs, err := c.Repository.ListParsingConfigs()
 				if err != nil {
-					c.log.WithFields(logrus.Fields{
-						"error": err,
-					}).Error("unable to list parsing configs")
+					ilog.WithField("error", err).Error("unable to list parsing configs")
 					continue DISPATCH_LOOP
 				}
 
-				go func(configs []string) {
+				go func(configs []string, stop chan struct{}, guard *sync.Once) {
+					var err error
 
-					for _, cfg := range configs {
-						lockerr := DLS.Lock(cfg)
-						if lockerr != nil {
+				LOCK_LOOP:
+					for _, lockname := range configs {
+						llog := ilog.WithField("lockname", lockname)
+						lockerr := DLS.Lock(lockname /* lockname is config file name*/)
+						switch lockerr {
+						case nil:
+							llog.Debug("Lock acquired")
+						case common.ErrLockByAnother:
+							llog.Debug(lockerr)
 							continue
+						case common.ErrLockOwned:
+							if combainer.GlobalObserver.HasClient(lockname) {
+								llog.Debug(lockerr)
+								continue
+							}
+							llog.Debug("Lock acquired")
+						default:
+							err = fmt.Errorf("Lock failed %s", lockerr)
+							break LOCK_LOOP
 						}
 
-						lockname := cfg
-
 						// Inline function to use defers
-						func(lockname string) {
-							defer DLS.Unlock(lockname)
+						err := func(name string) error {
 							defer trap()
+							defer DLS.Unlock(name)
 
-							clog := c.log.WithFields(logrus.Fields{"lockname": lockname})
-
-							if !c.Repository.ParsingConfigIsExists(lockname) {
-								clog.Error("config doesn't exist")
-								return
+							if !c.Repository.ParsingConfigIsExists(name) {
+								llog.Error("config doesn't exist")
+								return nil
 							}
 
-							clog.Info("creating new client")
+							llog.Info("creating new client")
 							cl, err := combainer.NewClient(c.context, c.Repository)
 							if err != nil {
-								clog.Errorf("can't create client %s", err)
-								return
+								llog.Errorf("can't create client %s", err)
+								return nil
 							}
 
-							watcher, err := DLS.Watch(lockname)
+							watcher, err := DLS.Watch(name)
 							if err != nil {
-								clog.Errorf("can't create watch %s", err)
-								return
+								llog.Errorf("can't create watch %s", err)
+								return err
 							}
+							atomic.AddInt32(&combainer.GlobalObserver.WatchersCount, 1)
+							defer atomic.AddInt32(&combainer.GlobalObserver.WatchersCount, -1)
 
 							for {
-								if err = cl.Dispatch(lockname, genUniqueID, shouldWait); err != nil {
-									clog.Errorf("Dispatch error %s", err)
-									return
+								if err = cl.Dispatch(name, genUniqueID, shouldWait); err != nil {
+									llog.Errorf("Dispatch error %s", err)
+									return nil
 								}
+								switch state := DLS.Conn.State(); state {
+								case zk.StateHasSession, zk.StateConnected:
+									// ok continue
+								case zk.StateConnecting:
+									llog.Warnf("zk state is %v", state)
+									return nil // let reconnection state checked in Watch setup
+								default:
+									return fmt.Errorf("zk now disconnected, %v", state)
+								}
+
 								select {
 								case event := <-watcher:
 									// stop Dispatching if lock has been force deleted
 									if event.Type == zk.EventNodeDeleted {
-										clog.Errorf("lock has been deleted: %s", event)
-										return
+										llog.Errorf("lock has been deleted: %s", event)
+										return nil
 									}
-									// retry watch on any error from zk
-									watcher, err = DLS.Watch(lockname)
+									watcher, err = DLS.Watch(name)
 									if err != nil {
 										// Dispatching will be stop here
-										clog.Errorf("lock has been lost %s, can't continue watching %s", event.Err, err)
-										return
+										llog.Errorf("lock has been lost %s, can't continue watching %s", event.Err, err)
+										return err
 									}
 								default:
 								}
 							}
 						}(lockname)
+						if err != nil {
+							break LOCK_LOOP
+						}
 					}
-				}(configs)
-			case event := <-DLS.Session:
-				if event.State == zk.StateConnecting {
-					c.log.Warn("reconnecting event from Zookeeper session")
-					continue
+					if err != nil {
+						ilog.Errorf("Stop client: %s", err)
+						guard.Do(func() {
+							ilog.Info("break dispatch loop")
+							DLS.Close() // after Close() all Watch will be stuck
+							close(stop)
+						})
+						return
+					}
+				}(configs, breakDispatchLoop, &breakGuard)
+				select {
+				case <-breakDispatchLoop:
+					break DISPATCH_LOOP
+				default:
 				}
-
+			case event := <-DLS.Session:
 				if event.Err != nil {
-					c.log.Errorf("event with error from Zookeeper: %v", event.Err)
+					ilog.Errorf("event with error from Zookeeper: %v", event.Err)
 					DLS.Close()
 					break DISPATCH_LOOP
 				}
