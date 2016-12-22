@@ -31,8 +31,6 @@ Sample config
 parsing:
   groups: [group-of-hosts]
   metahost: host.example.com
-  parser: NullParser
-  raw: true
   agg_configs: [solomon]
   DataFetcher:
     timetail_url: "/task_data_fetch&log_ts="

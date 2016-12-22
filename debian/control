@@ -2,9 +2,8 @@ Source: combaine
 Section: misc
 Priority: extra
 Maintainer: Anton Tyurin <noxiouz@yandex.ru>
-Build-Depends: debhelper (>= 8~), python
+Build-Depends: debhelper (>= 8~)
 Standards-Version: 3.9.5
-X-Python-Version: >= 2.7
 Homepage: https://github.com/combaine/combaine
 
 Package: combaine-presetting
@@ -34,7 +33,6 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
  cocaine-framework-python (>= 0.11),
  cocaine-runtime (>= 0.10.6.6),
  combaine-presetting,
- python-tokenparser (>= 0.2)
 Description: Core task handlers.
  Dispatchers of parsing and aggregate stages.
 

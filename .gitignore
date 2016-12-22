@@ -29,8 +29,6 @@ nosetests.xml
 reports
 coverage.out
 
-tests/fixtures/fixture_*
-
 # Translations
 *.mo
 
