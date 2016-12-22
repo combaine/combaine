@@ -28,10 +28,10 @@ func TestNewSender(t *testing.T) {
 
 func TestStartWorkers(t *testing.T) {
 	j := make(chan Job, 1)
-	StartWorkers(j, 10)
+	StartWorkers(j, 5)
 
 	j <- Job{PushData: []byte{}, SolCli: &Sender{Config: Config{API: "bad://proto"}}}
-	for i := 3; i > 0; i-- {
+	for i := 6; i > 0; i-- {
 		if len(j) == 0 {
 			close(j)
 			break
@@ -110,13 +110,21 @@ func TestSolomonClientSendNil(t *testing.T) {
 	dropJobs(JobQueue)
 	cli, _ := NewSender(Config{API: "api.addr"}, "id")
 
-	// empty task
+	// bad task
 	task := []tasks.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 			Result: []int{}},
 	}
 	err := cli.Send(task, 111)
 	assert.Contains(t, fmt.Sprintf("%v", err), "Value of group should be dict")
+
+	// empty task
+	task = []tasks.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
+			Result: make(map[string]interface{})},
+	}
+	err = cli.Send(task, 111)
+	assert.NoError(t, err)
 
 	err = cli.Send(nil, 111)
 	assert.Contains(t, fmt.Sprintf("%v", err), "Nothing to send")
