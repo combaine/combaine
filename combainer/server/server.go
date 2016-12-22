@@ -201,16 +201,16 @@ LOCKSERVER_LOOP:
 						lockerr := DLS.Lock(lockname /* lockname is config file name*/)
 						switch lockerr {
 						case nil:
-							llog.Debug("Lock acquired")
+							llog.Info("Lock acquired")
 						case common.ErrLockByAnother:
-							llog.Debug(lockerr)
+							llog.Info(lockerr)
 							continue
 						case common.ErrLockOwned:
 							if combainer.GlobalObserver.HasClient(lockname) {
-								llog.Debug(lockerr)
+								llog.Info(lockerr)
 								continue
 							}
-							llog.Debug("Lock acquired")
+							llog.Info("Lock acquired")
 						default:
 							err = fmt.Errorf("Lock failed %s", lockerr)
 							break LOCK_LOOP

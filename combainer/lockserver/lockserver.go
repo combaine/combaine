@@ -73,7 +73,7 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 // Lock try create ephemeral node and lock it
 func (ls *LockServer) Lock(node string) error {
 	path := filepath.Join("/", ls.LockServerSection.Id, node)
-	ls.log.Infof("Locking %s", path)
+	ls.log.Debugf("Locking %s", path)
 	content, err := os.Hostname()
 	if err != nil {
 		return err
