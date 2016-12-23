@@ -2,7 +2,13 @@ local re = require("re")
 local log = require("log")
 local os = require("os")
 
-sandbox = {
+-- global vars
+-- variables     - come from juggler config
+-- conditions    - come from juggler config OK WARN CRIT ...
+-- payload       - come from juggler sender
+
+local envVars = {}          -- evaled vars from variables
+local sandbox = {           -- sandbox for function evalVariables
     iftimeofday = function (bot, top, in_val, out_val)
         function inTimeOfDay()
             hour = tonumber(os.date("%H"))
@@ -13,7 +19,7 @@ sandbox = {
             end
         end
 
-        if inTimeOfDay(bot, top) then 
+        if inTimeOfDay(bot, top) then
             return in_val
         else
             return out_val
@@ -22,20 +28,19 @@ sandbox = {
 }
 
 function evalVariables()
-    env = {}
     for name, def in pairs(variables) do
         func = loadstring("return ".. def)
         setfenv(func, sandbox)
         ok, res = pcall(func)
         if ok then
             -- log.debug(string.format("for %s result is: %s: %s",name, ok,res))
-            env[name] = res
+            envVars[name] = res
         else
             log.error(string.format("Failed to eval %s: %s", def, res))
         end
     end
-    return env
 end
+
 
 function extractMetric(q, res)
     local metric = "?"
@@ -55,6 +60,7 @@ function extractMetric(q, res)
                 end
             end
             iv = iv[key]
+            if not iv then break end -- payload not contains sub table for given key
         end
         metric = iv or 0
     end
@@ -98,7 +104,7 @@ function evalCheck(cases, lvl, d)
         if matched then
             local test, err = loadstring("return "..eval)
             if type(test) == "function" then
-                setfenv(test, testEnv)
+                setfenv(test, envVars) -- envVars defined at top
             end
 
             if err then
@@ -123,7 +129,7 @@ function evalCheck(cases, lvl, d)
 end
 
 function run()
-    testEnv = evalVariables()
+    evalVariables()   -- now eval variables
     local result = {}
     for _, data in pairs(payload) do
         if not data.Tags or not data.Tags.aggregate then
