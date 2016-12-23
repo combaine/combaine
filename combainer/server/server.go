@@ -202,7 +202,7 @@ LOCKSERVER_LOOP:
 						switch lockerr {
 						case nil:
 							llog.Info("Lock acquired")
-						case common.ErrLockByAnother:
+						case common.ErrLockByAnother, zk.ErrNodeExists:
 							llog.Info(lockerr)
 							continue
 						case common.ErrLockOwned:
