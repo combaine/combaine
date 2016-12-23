@@ -217,7 +217,7 @@ LOCKSERVER_LOOP:
 						}
 
 						// Inline function to use defers
-						err := func(name string) error {
+						err = func(name string) error {
 							defer trap()
 							defer DLS.Unlock(name)
 

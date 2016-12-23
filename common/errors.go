@@ -8,7 +8,7 @@ var (
 	// ErrAppUnavailable is an application for parsing/aggregating is not found
 	ErrAppUnavailable = errors.New("Application is unavailable")
 	// ErrLockOwned say about config alredy created in this zk session by this server
-	ErrLockOwned = errors.New("Config lock alredy owned")
+	ErrLockOwned = errors.New("Config lock owned")
 	// ErrLockByAnother say about config alredy locked by another client
-	ErrLockByAnother = errors.New("Config alredy locked by another client")
+	ErrLockByAnother = errors.New("Config locked by another client")
 )
