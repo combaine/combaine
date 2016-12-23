@@ -52,6 +52,9 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
+		if s, ok := v.([]byte); ok {
+			return dumper(reflect.ValueOf(fmt.Sprintf("%s", s)))
+		}
 		inTable := l.NewTable()
 		for i := 0; i < rv.Len(); i++ {
 			item := rv.Index(i).Interface()
