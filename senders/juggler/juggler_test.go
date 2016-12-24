@@ -46,7 +46,7 @@ func DefaultJugglerTestConfig() *Config {
 
 	testConf := "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	sConf, err := GetJugglerSenderConfig()
+	sConf, err := GetSenderConfig()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load juggler sender config %s: %s", testConf, err))
 	}
@@ -81,20 +81,19 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 // Tests
 
 func TestGetJugglerSenderConfig(t *testing.T) {
-	_, _ = GetJugglerSenderConfig() // just coverage )
 	testConf := "testdata/config/nonExistingJugglerConfig.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err := GetJugglerSenderConfig()
+	conf, err := GetSenderConfig()
 	assert.Error(t, err)
 
 	testConf = "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err = GetJugglerSenderConfig()
+	conf, err = GetSenderConfig()
 	assert.Equal(t, conf.Hosts[0], "host1")
 
 	testConf = "testdata/config/without_fronts.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err = GetJugglerSenderConfig()
+	conf, err = GetSenderConfig()
 	assert.Equal(t, conf.Frontend, conf.Hosts)
 	assert.Equal(t, conf.PluginsDir, defaultPluginsDir)
 

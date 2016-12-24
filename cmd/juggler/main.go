@@ -31,7 +31,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	sConf, err := juggler.GetJugglerSenderConfig()
+	sConf, err := juggler.GetSenderConfig()
 	if err != nil {
 		logger.Errf("%s Failed to read juggler config %s", task.ID, err)
 		return
@@ -59,7 +59,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	if task.Config.Plugin == "" {
 		task.Config.Plugin = defaultPlugin
 	}
-
+	juggler.GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
 	logger.Debugf("%s Task: %v", task.ID, task)
 
 	jCli, err := juggler.NewSender(&task.Config, task.ID)

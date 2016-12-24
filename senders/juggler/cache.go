@@ -5,43 +5,38 @@ import (
 	"time"
 )
 
-var (
-	defaultCleanInterval = time.Minute * 5
-	run                  sync.Once
-)
-
 // item holds cached item
 type item struct {
 	expires time.Time
 	value   interface{}
 }
 
-// Cache is ttl cache for juggler api responses abount checks
-type Cache struct {
+// cache is ttl cache for juggler api responses about checks
+type cache struct {
 	sync.RWMutex
-	ttl      time.Duration
-	interval time.Duration
-	stop     chan struct{}
-	store    map[string]*item
+	ttl            time.Duration
+	interval       time.Duration
+	store          map[string]*item
+	cleanerPresent bool
 }
 
-var globalCache = &Cache{
-	ttl:   time.Minute,
-	store: make(map[string]*item),
+// GlobalCache is singleton for juggler sender
+var GlobalCache = &cache{
+	ttl:      time.Minute,
+	interval: time.Minute * 5,
+	store:    make(map[string]*item),
 }
 
-// RunCleaner run cleaner goroutine with cleanup interval
-func (c *Cache) RunCleaner() {
-	run.Do(func() {
-		if c.interval == 0 {
-			c.interval = defaultCleanInterval
-		}
-		go c.cleaner()
-	})
+// TuneCache tune cache ttl and interval
+func (c *cache) TuneCache(ttl time.Duration, interval time.Duration) {
+	c.Lock()
+	c.ttl = ttl
+	c.interval = interval
+	c.Unlock()
 }
 
 // Get return not expired elevent from cacahe or nil
-func (c *Cache) Get(key string) interface{} {
+func (c *cache) Get(key string) interface{} {
 	c.RLock()
 	item, present := c.store[key]
 	c.RUnlock()
@@ -58,26 +53,39 @@ func (c *Cache) Get(key string) interface{} {
 }
 
 // Set add new element in cache
-func (c *Cache) Set(key string, value interface{}) {
+func (c *cache) Set(key string, value interface{}) {
+	c.RLock()
+	ttl := c.ttl
+	c.RUnlock()
+
 	i := &item{
 		value:   value,
-		expires: time.Now().Add(c.ttl),
+		expires: time.Now().Add(ttl),
 	}
 	c.Lock()
 	c.store[key] = i
+	if !c.cleanerPresent {
+		c.cleanerPresent = true
+		go c.cleaner()
+	}
 	c.Unlock()
+
 }
 
 // Delete add new element in cache
-func (c *Cache) Delete(key string) {
+func (c *cache) Delete(key string) {
 	c.Lock()
 	delete(c.store, key)
 	c.Unlock()
 }
 
-func (c *Cache) cleaner() {
+func (c *cache) cleaner() {
+	var interval time.Duration
 	for {
-		time.Sleep(c.interval)
+		c.RLock()
+		interval = c.interval
+		c.RUnlock()
+		time.Sleep(interval)
 		var staleItems []string
 		c.RLock()
 		for key, item := range c.store {

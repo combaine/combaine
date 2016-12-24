@@ -88,7 +88,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 	}.Encode()
 
 	for _, jhost := range js.JHosts {
-		cached := globalCache.Get(js.Host)
+		cached := GlobalCache.Get(js.Host)
 		if cached == nil {
 			url := fmt.Sprintf(getChecksURL, jhost, query)
 			logger.Infof("%s Query check %s", js.id, url)
@@ -107,7 +107,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 					return nil, errors.New(string(body))
 				}
 				logger.Debugf("%s Juggler response %d: %s", js.id, resp.StatusCode, body)
-				globalCache.Set(js.Host, body)
+				GlobalCache.Set(js.Host, body)
 
 			case context.Canceled, context.DeadlineExceeded:
 				logger.Errf("%s %s", js.id, err)
@@ -203,7 +203,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		// or before return in case updateCheck ends with error
 		if cleanCache {
 			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
-			globalCache.Delete(js.Host)
+			GlobalCache.Delete(js.Host)
 		}
 	}()
 	for _, c := range services {

@@ -8,38 +8,37 @@ import (
 )
 
 func TestCacheSetGetDelete(t *testing.T) {
-	globalCache.ttl = time.Millisecond * 10
+	GlobalCache.ttl = time.Millisecond * 10
 	key := "check_url"
 	val := []byte("response")
-	globalCache.Set(key, val)
-	resp := globalCache.Get(key)
+	GlobalCache.Set(key, val)
+	resp := GlobalCache.Get(key)
 	assert.NotNil(t, resp)
 	assert.Equal(t, val, resp.([]byte))
-	globalCache.Delete(key)
-	resp = globalCache.Get(key)
+	GlobalCache.Delete(key)
+	resp = GlobalCache.Get(key)
 	assert.Nil(t, resp)
 
 	// expiration item test
-	globalCache.Set(key, val)
+	GlobalCache.Set(key, val)
 	time.Sleep(time.Millisecond * 15)
-	assert.Nil(t, globalCache.Get(key))
-	assert.Nil(t, globalCache.Get(key))
+	assert.Nil(t, GlobalCache.Get(key))
+	assert.Nil(t, GlobalCache.Get(key))
 }
 
 func TestCacheWithCleanupInterval(t *testing.T) {
 
-	cache := &Cache{
-		ttl:   time.Minute,
-		store: make(map[string]*item),
+	myCache := &cache{
+		ttl:      time.Minute * 10,
+		interval: time.Minute * 20,
+		store:    make(map[string]*item),
 	}
-
-	cache.ttl = time.Millisecond * 10
-	defaultCleanInterval = time.Millisecond * 20
-	cache.RunCleaner()
+	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20)
 
 	val := []byte("response")
-	cache.Set("key1", val)
-	cache.Set("key2", val)
+	go myCache.Set("key1", val)
+	myCache.Set("key1", val)
+	myCache.Set("key2", val)
 
 	cases := []struct {
 		sleep   time.Duration
@@ -48,17 +47,25 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 	}{
 		{time.Millisecond * 15, true, "should be present"},
 		{time.Millisecond * 15, true, "should be stil present"}, // item stale but present
-		{time.Millisecond, false, "should be absent"},           // cleaner remove item
+		{time.Millisecond * 1, false, "should be absent"},       // cleaner remove item
 	}
 	for _, c := range cases {
-		cache.RLock()
-		_, ok := cache.store["key1"]
-		cache.RUnlock()
+		myCache.RLock()
+		_, ok := myCache.store["key1"]
+		myCache.RUnlock()
 		assert.Equal(t, c.present, ok, c.message)
 		time.Sleep(c.sleep)
 	}
+	time.Sleep(time.Millisecond * 15)
 
-	cache.RLock()
-	assert.Len(t, cache.store, 0)
-	cache.RUnlock()
+	myCache.RLock()
+	assert.Len(t, myCache.store, 0)
+	myCache.RUnlock()
+}
+
+func TestTuneCache(t *testing.T) {
+	sConf, _ := GetSenderConfig()
+	GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
+	assert.Equal(t, sConf.CacheTTL, GlobalCache.ttl)
+	assert.Equal(t, sConf.CacheCleanInterval, GlobalCache.interval)
 }
