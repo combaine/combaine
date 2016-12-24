@@ -67,62 +67,76 @@ type jugglerEvent struct {
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
-	var hostChecks jugglerResponse
-	var flap map[string]map[string]*jugglerFlapConfig
+	var (
+		hostChecks jugglerResponse
+		flap       map[string]map[string]*jugglerFlapConfig
+		body       []byte
+		rerr       error
+	)
 
 	var jerrors []error
 	if len(js.Tags) == 0 {
 		js.Tags = []string{"combaine"}
-		logger.Warnf("%s Set query tags to default %s", js.id, js.Tags)
+		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
 	}
+	//do=1&include_children=true&tag_name=combaine&host_name={js.Host}
 	query := url.Values{
 		"do":               {"1"},
 		"include_children": {"true"},
 		"tag_name":         js.Tags,
-	}
-	for _, jhost := range js.JHosts {
-		//do=1&include_children=true&tag_name=combaine&host_name=
-		query.Set("host_name", js.Host)
-		url := fmt.Sprintf(getChecksURL, jhost, query.Encode())
-		logger.Infof("%s Query check %s", js.id, url)
+		"host_name":        {js.Host},
+	}.Encode()
 
-		resp, err := httpclient.Get(ctx, url)
-		switch err {
-		case nil:
-			body, rerr := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			if rerr != nil {
-				logger.Errf("%s %s", js.id, rerr)
-				jerrors = append(jerrors, fmt.Errorf("failed to read respose from %s: %s", jhost, rerr))
+	for _, jhost := range js.JHosts {
+		cached := globalCache.Get(js.Host)
+		if cached == nil {
+			url := fmt.Sprintf(getChecksURL, jhost, query)
+			logger.Infof("%s Query check %s", js.id, url)
+
+			resp, err := httpclient.Get(ctx, url)
+			switch err {
+			case nil:
+				body, rerr = ioutil.ReadAll(resp.Body)
+				resp.Body.Close()
+				if rerr != nil {
+					logger.Errf("%s %s", js.id, rerr)
+					jerrors = append(jerrors, fmt.Errorf("failed to read respose %s: %s", jhost, rerr))
+					continue
+				}
+				if resp.StatusCode != http.StatusOK {
+					return nil, errors.New(string(body))
+				}
+				logger.Debugf("%s Juggler response %d: %s", js.id, resp.StatusCode, body)
+				globalCache.Set(js.Host, body)
+
+			case context.Canceled, context.DeadlineExceeded:
+				logger.Errf("%s %s", js.id, err)
+				return nil, err
+			default:
+				logger.Errf("%s %s", js.id, err)
+				jerrors = append(jerrors, fmt.Errorf("host %s failed with %s", jhost, err))
 				continue
 			}
-			logger.Debugf("%s Juggler response %d: %s", js.id, resp.StatusCode, body)
-
-			if resp.StatusCode != http.StatusOK {
-				return nil, errors.New(string(body))
-			}
-			if err := json.Unmarshal(body, &hostChecks); err != nil {
-				return nil, fmt.Errorf("Failed to Unmarshal hostChecks: %s", err)
-			}
-			if err := json.Unmarshal(body, &flap); err != nil {
-				return nil, fmt.Errorf("Failed to Unmarshal flaps: %s", err)
-			}
-			for c, v := range flap[js.Host] {
-				if v.StableTime != 0 || v.CriticalTime != 0 || v.BoostTime != 0 {
-					chk := hostChecks[js.Host][c]
-					chk.Flap = v
-					hostChecks[js.Host][c] = chk
-				}
-			}
-			return hostChecks, nil
-		case context.Canceled, context.DeadlineExceeded:
-			logger.Errf("%s %s", js.id, err)
-			return nil, err
-		default:
-			logger.Errf("%s %s", js.id, err)
-			jerrors = append(jerrors, fmt.Errorf("host %s failed with %s", jhost, err))
-			continue
+		} else {
+			body = cached.([]byte)
+			logger.Infof("%s Use cached check for: %s", js.id, js.Host)
+			logger.Debugf("%s Cached check content: %s", js.id, body)
 		}
+
+		if err := json.Unmarshal(body, &hostChecks); err != nil {
+			return nil, fmt.Errorf("Failed to Unmarshal hostChecks: %s", err)
+		}
+		if err := json.Unmarshal(body, &flap); err != nil {
+			return nil, fmt.Errorf("Failed to Unmarshal flaps: %s", err)
+		}
+		for c, v := range flap[js.Host] {
+			if v.StableTime != 0 || v.CriticalTime != 0 || v.BoostTime != 0 {
+				chk := hostChecks[js.Host][c]
+				chk.Flap = v
+				hostChecks[js.Host][c] = chk
+			}
+		}
+		return hostChecks, nil
 	}
 	return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 }
@@ -183,8 +197,18 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			services[t.Service] = check
 		}
 	}
+	cleanCache := false
+	defer func() {
+		// defer because cached item should be deleted after all check updated
+		// or before return in case updateCheck ends with error
+		if cleanCache {
+			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
+			globalCache.Delete(js.Host)
+		}
+	}()
 	for _, c := range services {
 		if c.Update {
+			cleanCache = true
 			if err := js.updateCheck(ctx, c); err != nil {
 				return err
 			}
