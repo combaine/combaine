@@ -67,8 +67,6 @@ type jugglerEvent struct {
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
-	var hostChecks jugglerResponse
-	var flap map[string]map[string]*jugglerFlapConfig
 
 	var jerrors []error
 	if len(js.Tags) == 0 {
@@ -101,9 +99,12 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 			if resp.StatusCode != http.StatusOK {
 				return nil, errors.New(string(body))
 			}
+
+			var hostChecks jugglerResponse
 			if err := json.Unmarshal(body, &hostChecks); err != nil {
 				return nil, fmt.Errorf("Failed to Unmarshal hostChecks: %s", err)
 			}
+			var flap map[string]map[string]*jugglerFlapConfig
 			if err := json.Unmarshal(body, &flap); err != nil {
 				return nil, fmt.Errorf("Failed to Unmarshal flaps: %s", err)
 			}
@@ -164,6 +165,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureFlap(&check)
 			// tags
 			js.ensureTags(&check)
+			if check.Description != js.Description {
+				check.Update = true
+				check.Description = js.Description
+				logger.Debugf("%s Check outdated, description differ: %s != %s", js.id, check.Description, js.Description)
+			}
 		}
 		// add children
 		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
