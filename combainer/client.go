@@ -153,9 +153,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:         aggTasks,
 	}
 
-	cl.Log.Info("Session parametrs have been updated successfully")
-	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("Current session parametrs. %q", sp)
-
+	cl.Log.WithField("config", config).Info("Session parametrs have been updated successfully")
 	return sp, nil
 }
 
