@@ -62,8 +62,8 @@ func (c *cache) Get(ctx context.Context, key string, f fetcher, id, q string, ho
 		close(item.ready)
 	} else {
 		c.Unlock()
-		logger.Debugf("%s Use cached check for %s", id, key)
 		<-item.ready
+		logger.Debugf("%s Use cached check for %s", id, key)
 	}
 	c.Lock()
 	if !c.cleanerPresent {
