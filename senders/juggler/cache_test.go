@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,22 +9,32 @@ import (
 )
 
 func TestCacheSetGetDelete(t *testing.T) {
-	GlobalCache.ttl = time.Millisecond * 10
-	key := "check_url"
-	val := []byte("response")
-	GlobalCache.Set(key, val)
-	resp := GlobalCache.Get(key)
-	assert.NotNil(t, resp)
-	assert.Equal(t, val, resp.([]byte))
-	GlobalCache.Delete(key)
-	resp = GlobalCache.Get(key)
-	assert.Nil(t, resp)
+	ctx := context.Background()
+	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
+		return []byte(hosts[0]), nil
+	}
 
-	// expiration item test
-	GlobalCache.Set(key, val)
+	id := "Test cache id"
+	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10)
+	key := "check_url"
+	val := []string{"response"}
+	resp, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", val)
+	assert.Len(t, resp, len(val[0]))
+	assert.Equal(t, []byte(val[0]), resp)
+	GlobalCache.Delete(key)
+	resp, _ = GlobalCache.Get(ctx, key, checkFetcher, id, "q", val)
+	assert.Len(t, resp, len(val[0]))
+
+	// expiration without cleaner test
+	a, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"One"})
+	time.Sleep(time.Millisecond * 8)
+	b, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"Two"})
+	assert.Equal(t, a, b)
+	// expiration with cleaner test
+	a, _ = GlobalCache.Get(ctx, "key3", checkFetcher, id, "q", []string{"One"})
 	time.Sleep(time.Millisecond * 15)
-	assert.Nil(t, GlobalCache.Get(key))
-	assert.Nil(t, GlobalCache.Get(key))
+	b, _ = GlobalCache.Get(ctx, "key3", checkFetcher, id, "q", []string{"Two"})
+	assert.NotEqual(t, a, b)
 }
 
 func TestCacheWithCleanupInterval(t *testing.T) {
@@ -31,14 +42,13 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 	myCache := &cache{
 		ttl:      time.Minute * 10,
 		interval: time.Minute * 20,
-		store:    make(map[string]*item),
+		store:    make(map[string]*itemType),
+	}
+	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
+		return []byte(hosts[0]), nil
 	}
 	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20)
-
-	val := []byte("response")
-	go myCache.Set("key1", val)
-	myCache.Set("key1", val)
-	myCache.Set("key2", val)
+	myCache.Get(context.TODO(), "key1", checkFetcher, "Test cache id", "q", []string{"val"})
 
 	cases := []struct {
 		sleep   time.Duration

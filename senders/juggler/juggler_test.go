@@ -371,6 +371,7 @@ func TestEnsureCheck(t *testing.T) {
 		assert.NoError(t, err)
 		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
 		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
+		js.Tags = []string{} // reset tags here for coverage purpose
 		for service, tags := range c.tags {
 			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
 		}
