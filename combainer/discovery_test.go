@@ -49,7 +49,7 @@ func TestPredefineFetcher(t *testing.T) {
 	testCfg = configs.PluginConfig{
 		"type": "predefine",
 		"Clusters": map[string]map[string][]string{
-			"Group1": map[string][]string{
+			"Group1": {
 				"DC1": {"dc1-host1", "dc1-host2"},
 				"DC2": {"dc2-host1", "dc2-host2"},
 			},
