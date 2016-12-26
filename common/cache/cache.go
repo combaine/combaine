@@ -4,22 +4,20 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common/configs"
 )
 
 func init() {
 	RegisterCache("InMemory", NewInMemoryCache)
-	RegisterCache("Cocaine", NewCocaineCache)
 }
 
-type CacheConstructor func(*configs.PluginConfig) (Cache, error)
+// Constructor type for func that return new cache
+type Constructor func(*configs.PluginConfig) (Cache, error)
 
-var (
-	factory map[string]CacheConstructor = make(map[string]CacheConstructor)
-)
+var factory = make(map[string]Constructor)
 
-func RegisterCache(name string, f CacheConstructor) {
+// RegisterCache perform registration of new cache in cache factory
+func RegisterCache(name string, f Constructor) {
 	_, ok := factory[name]
 	if ok {
 		panic(fmt.Sprintf("`%s` has been already registered", name))
@@ -27,6 +25,7 @@ func RegisterCache(name string, f CacheConstructor) {
 	factory[name] = f
 }
 
+// NewCache build and return new cache by Constructor from factory
 func NewCache(name string, config *configs.PluginConfig) (Cache, error) {
 	f, ok := factory[name]
 	if ok {
@@ -35,16 +34,19 @@ func NewCache(name string, config *configs.PluginConfig) (Cache, error) {
 	return nil, fmt.Errorf("no cache pluign named %s", name)
 }
 
+// Cache interface that shoud implement cache
 type Cache interface {
 	Put(namespace, key string, data []byte) error
 	Get(namespace, key string) ([]byte, error)
 }
 
+// InMemory is a simplest in memory cache
 type InMemory struct {
 	sync.Mutex
 	data map[string][]byte
 }
 
+// NewInMemoryCache build and return new instance of InMemory cache
 func NewInMemoryCache(config *configs.PluginConfig) (Cache, error) {
 	c := &InMemory{
 		data: make(map[string][]byte),
@@ -52,13 +54,15 @@ func NewInMemoryCache(config *configs.PluginConfig) (Cache, error) {
 	return c, nil
 }
 
+// Put place data in cache
 func (i *InMemory) Put(namespace, key string, data []byte) error {
 	i.Lock()
-	defer i.Unlock()
 	i.data[namespace+key] = data
+	i.Unlock()
 	return nil
 }
 
+// Get return data from cache
 func (i *InMemory) Get(namespace, key string) ([]byte, error) {
 	i.Lock()
 	defer i.Unlock()
@@ -67,43 +71,4 @@ func (i *InMemory) Get(namespace, key string) ([]byte, error) {
 		return nil, fmt.Errorf("No such key `%s` in namespace `%s`", key, namespace)
 	}
 	return data, nil
-}
-
-type CocaineCache struct {
-	storage *cocaine.Service
-}
-
-func NewCocaineCache(config *configs.PluginConfig) (Cache, error) {
-	storage, err := cocaine.NewService("storage")
-	if err != nil {
-		return nil, err
-	}
-
-	c := &CocaineCache{
-		storage: storage,
-	}
-
-	return c, nil
-}
-
-func (c *CocaineCache) Put(namespace, key string, value []byte) error {
-	res, ok := <-c.storage.Call("write", namespace, key, []byte(value))
-	if !ok {
-		return nil
-	}
-	return res.Err()
-}
-
-func (c *CocaineCache) Get(namespace, key string) ([]byte, error) {
-	res := <-c.storage.Call("read", namespace, key)
-
-	if err := res.Err(); err != nil {
-		return nil, err
-	}
-
-	var z []byte
-	if err := res.Extract(&z); err != nil {
-		return nil, err
-	}
-	return z, nil
 }
