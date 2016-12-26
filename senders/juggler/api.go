@@ -67,11 +67,6 @@ type jugglerEvent struct {
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
-	var (
-		hostChecks jugglerResponse
-		flap       map[string]map[string]*jugglerFlapConfig
-	)
-
 	if len(js.Tags) == 0 {
 		js.Tags = []string{"combaine"}
 		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
@@ -120,9 +115,11 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	var hostChecks jugglerResponse
 	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
 		return nil, fmt.Errorf("Failed to Unmarshal hostChecks: %s", err)
 	}
+	var flap map[string]map[string]*jugglerFlapConfig
 	if err := json.Unmarshal(cJSON, &flap); err != nil {
 		return nil, fmt.Errorf("Failed to Unmarshal flaps: %s", err)
 	}
@@ -173,6 +170,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureFlap(&check)
 			// tags
 			js.ensureTags(&check)
+			if check.Description != js.Description {
+				check.Update = true
+				check.Description = js.Description
+				logger.Debugf("%s Check outdated, description differ: %s != %s", js.id, check.Description, js.Description)
+			}
 		}
 		// add children
 		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
