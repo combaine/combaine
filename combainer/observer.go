@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -20,12 +19,12 @@ import (
 
 // StatInfo contains stats about main operations (aggregating and parsing)
 type StatInfo struct {
-	ParsingSuccess   int
-	ParsingFailed    int
-	ParsingTotal     int
-	AggregateSuccess int
-	AggregateFailed  int
-	AggregateTotal   int
+	ParsingSuccess   int64
+	ParsingFailed    int64
+	ParsingTotal     int64
+	AggregateSuccess int64
+	AggregateFailed  int64
+	AggregateTotal   int64
 	Heartbeated      int64
 }
 
@@ -110,7 +109,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			limit,
 		},
 		Clients:  stats,
-		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
+		Watchers: GlobalObserver.WatchersCount,
 	}); err != nil {
 		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return

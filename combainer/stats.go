@@ -1,52 +1,40 @@
 package combainer
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type clientStats struct {
-	sync.RWMutex
-	successParsing   int
-	failedParsing    int
-	successAggregate int
-	failedAggregate  int
+	successParsing   int64
+	failedParsing    int64
+	successAggregate int64
+	failedAggregate  int64
 	last             int64
 }
 
 func (cs *clientStats) AddSuccessParsing() {
-	cs.Lock()
-	cs.successParsing++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
+	atomic.AddInt64(&cs.successParsing, 1)
+	atomic.StoreInt64(&cs.last, time.Now().Unix())
 }
 
 func (cs *clientStats) AddFailedParsing() {
-	cs.Lock()
-	cs.failedParsing++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
+	atomic.AddInt64(&cs.failedParsing, 1)
+	atomic.StoreInt64(&cs.last, time.Now().Unix())
 }
 
 func (cs *clientStats) AddSuccessAggregate() {
-	cs.Lock()
-	cs.successAggregate++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
+	atomic.AddInt64(&cs.successAggregate, 1)
+	atomic.StoreInt64(&cs.last, time.Now().Unix())
 }
 
 func (cs *clientStats) AddFailedAggregate() {
-	cs.Lock()
-	cs.failedAggregate++
-	cs.last = time.Now().Unix()
-	cs.Unlock()
+	atomic.AddInt64(&cs.failedAggregate, 1)
+	atomic.StoreInt64(&cs.last, time.Now().Unix())
 }
 
-func (cs *clientStats) GetStats() (info *StatInfo) {
-	cs.RLock()
-	defer cs.RUnlock()
-
-	info = &StatInfo{
+func (cs *clientStats) GetStats() *StatInfo {
+	return &StatInfo{
 		ParsingSuccess:   cs.successParsing,
 		ParsingFailed:    cs.failedParsing,
 		ParsingTotal:     cs.successParsing + cs.failedParsing,
@@ -55,5 +43,4 @@ func (cs *clientStats) GetStats() (info *StatInfo) {
 		AggregateTotal:   cs.successAggregate + cs.failedAggregate,
 		Heartbeated:      cs.last,
 	}
-	return
 }
