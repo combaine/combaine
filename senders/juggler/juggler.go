@@ -18,8 +18,8 @@ type Sender struct {
 	state *lua.LState
 }
 
-// NewJugglerSender return sender object with specified config
-func NewJugglerSender(conf *Config, id string) (*Sender, error) {
+// NewSender return sender object with specified config
+func NewSender(conf *Config, id string) (*Sender, error) {
 	return &Sender{
 		Config: conf,
 		id:     id,
@@ -45,6 +45,10 @@ func (js *Sender) Send(ctx context.Context, data []tasks.AggregationResult) erro
 	jEvents, err := js.runPlugin()
 	if err != nil {
 		return fmt.Errorf("runPlugin: %s", err)
+	}
+	if len(jEvents) == 0 {
+		logger.Infof("%s Nothing to send", js.id)
+		return nil
 	}
 	checks, err := js.getCheck(ctx)
 	if err != nil {

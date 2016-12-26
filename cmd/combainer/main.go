@@ -12,14 +12,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/combaine/combaine/combainer/server"
 	"github.com/combaine/combaine/common/formatter"
 )
 
-const (
-	defaultConfigsPath = "/etc/combaine"
-)
+const defaultConfigsPath = "/etc/combaine"
 
 type logrusLevelFlag logrus.Level
 
@@ -44,16 +41,16 @@ var (
 	endpoint    string
 	profiler    string
 	logoutput   string
-	ConfigsPath string
+	configsPath string
 	period      uint
 	active      bool
-	loglevel    logrusLevelFlag = logrusLevelFlag(logrus.InfoLevel)
+	loglevel    = logrusLevelFlag(logrus.InfoLevel)
 )
 
 func init() {
 	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
-	flag.StringVar(&ConfigsPath, "configspath", defaultConfigsPath, "path to root of configs")
+	flag.StringVar(&configsPath, "configspath", defaultConfigsPath, "path to root of configs")
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
@@ -118,7 +115,7 @@ func main() {
 	flag.Parse()
 	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	cfg := server.CombaineServerConfig{
-		ConfigsPath:  ConfigsPath,
+		ConfigsPath:  configsPath,
 		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
 		Active:       active,

@@ -46,7 +46,7 @@ func DefaultJugglerTestConfig() *Config {
 
 	testConf := "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	sConf, err := GetJugglerSenderConfig()
+	sConf, err := GetSenderConfig()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load juggler sender config %s: %s", testConf, err))
 	}
@@ -81,20 +81,19 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 // Tests
 
 func TestGetJugglerSenderConfig(t *testing.T) {
-	_, _ = GetJugglerSenderConfig() // just coverage )
 	testConf := "testdata/config/nonExistingJugglerConfig.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err := GetJugglerSenderConfig()
+	conf, err := GetSenderConfig()
 	assert.Error(t, err)
 
 	testConf = "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err = GetJugglerSenderConfig()
+	conf, err = GetSenderConfig()
 	assert.Equal(t, conf.Hosts[0], "host1")
 
 	testConf = "testdata/config/without_fronts.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err = GetJugglerSenderConfig()
+	conf, err = GetSenderConfig()
 	assert.Equal(t, conf.Frontend, conf.Hosts)
 	assert.Equal(t, conf.PluginsDir, defaultPluginsDir)
 
@@ -115,7 +114,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 
 	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
 	js.state = l
@@ -131,7 +130,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 func TestRunPlugin(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
 	jconf.Plugin = "correct"
@@ -158,7 +157,7 @@ func TestRunPlugin(t *testing.T) {
 func TestQueryLuaTable(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
 	jconf.Plugin = "test"
@@ -181,13 +180,13 @@ func TestGetCheck(t *testing.T) {
 	jconf.JHosts = []string{"localhost:3333"}
 	jconf.JFrontend = []string{ts.Listener.Addr().String()}
 
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 	_, err = js.getCheck(context.TODO())
 	assert.Error(t, err)
 
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
-	js, err = NewJugglerSender(jconf, "Test ID")
+	js, err = NewSender(jconf, "Test ID")
 	cases := []struct {
 		name      string
 		exists    bool
@@ -266,7 +265,7 @@ func TestEnsureCheck(t *testing.T) {
 	jconf.JFrontend = []string{ts.Listener.Addr().String()}
 	jconf.Plugin = "test_ensure_check"
 
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
 	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
@@ -285,6 +284,7 @@ func TestEnsureCheck(t *testing.T) {
 		assert.NoError(t, err)
 		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
 		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
+		js.Tags = []string{} // reset tags here for coverage purpose
 		for service, tags := range c.tags {
 			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
 		}
@@ -301,10 +301,8 @@ func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{
-		IgnoreNoData: 1,
+	jconf.AggregatorKWArgs = aggKWArgs{IgnoreNoData: 1,
 		Limits: []map[string]interface{}{
-			{"crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1},
 			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		}}
 
@@ -332,19 +330,18 @@ func TestSendEvent(t *testing.T) {
 	cases := []string{"hostname_from_config", "deadline", "frontend"}
 	for _, c := range cases {
 		jconf.Host = c
-		if c != "deadline" {
-			js, err := NewJugglerSender(jconf, "Test ID")
-			assert.NoError(t, err)
-			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
-		} else {
-			jconf.Host = "Frontend"
-			js, err := NewJugglerSender(jconf, "Test ID")
+		if c == "deadline" {
+			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			ctx, cancel := context.WithTimeout(context.Background(), 1)
 			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, data)), context.DeadlineExceeded.Error())
 			cancel()
+		} else {
+			js, err := NewSender(jconf, "Test ID")
+			assert.NoError(t, err)
+			err = js.Send(context.TODO(), data)
+			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
 		}
 	}
 }

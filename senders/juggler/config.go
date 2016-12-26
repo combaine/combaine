@@ -3,6 +3,7 @@ package juggler
 import (
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/combaine/combaine/common/configs"
 	yaml "gopkg.in/yaml.v2"
@@ -41,14 +42,16 @@ type Config struct {
 // SenderConfig contains configuration loaded from combaine's config file
 // placed in defaultConfigPath
 type SenderConfig struct {
-	PluginsDir string   `yaml:"plugins_dir"`
-	Hosts      []string `yaml:"juggler_hosts"`
-	Frontend   []string `yaml:"juggler_frontend"`
+	CacheTTL           time.Duration `yaml:"cache_ttl"`
+	CacheCleanInterval time.Duration `yaml:"cache_clean_interval"`
+	PluginsDir         string        `yaml:"plugins_dir"`
+	Hosts              []string      `yaml:"juggler_hosts"`
+	Frontend           []string      `yaml:"juggler_frontend"`
 }
 
-// GetJugglerSenderConfig read yaml file with two arrays of hosts
+// GetSenderConfig read yaml file with two arrays of hosts
 // if juggler_frontend not defined, use juggler_hosts as frontend
-func GetJugglerSenderConfig() (conf SenderConfig, err error) {
+func GetSenderConfig() (conf SenderConfig, err error) {
 	var path = os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
 		path = defaultConfigPath
@@ -68,6 +71,15 @@ func GetJugglerSenderConfig() (conf SenderConfig, err error) {
 	if conf.PluginsDir == "" {
 		conf.PluginsDir = defaultPluginsDir
 	}
+
+	if conf.CacheTTL == 0 {
+		conf.CacheTTL = 60
+	}
+	if conf.CacheCleanInterval == 0 {
+		conf.CacheCleanInterval = conf.CacheTTL * 5
+	}
+	conf.CacheTTL *= time.Second
+	conf.CacheCleanInterval *= time.Second
 	return conf, nil
 }
 

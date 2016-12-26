@@ -153,9 +153,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:         aggTasks,
 	}
 
-	cl.Log.Info("Session parametrs have been updated successfully")
-	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("Current session parametrs. %q", sp)
-
+	cl.Log.WithField("config", config).Info("Session parametrs have been updated successfully")
 	return sp, nil
 }
 
@@ -220,7 +218,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.Id = uniqueID
 
-		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to parsing, content: %q", i+1, totalTasksAmount, task)
+		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to parsing", i+1, totalTasksAmount)
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
@@ -242,7 +240,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 		task.Id = uniqueID
 		task.ParsingResult = &parsingResult
 
-		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to aggregate, content: %q", i+1, totalTasksAmount, task)
+		cl.Log.WithFields(contextFields).Debugf("Send task number %d/%d to aggregate", i+1, totalTasksAmount)
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
