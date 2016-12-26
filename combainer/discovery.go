@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/httpclient"
@@ -17,7 +18,7 @@ import (
 )
 
 func init() {
-	if err := RegisterFetcherLoader("http", newHttpFetcher); err != nil {
+	if err := RegisterFetcherLoader("http", newHTTPFetcher); err != nil {
 		panic(err)
 	}
 	if err := RegisterFetcherLoader("predefine", newPredefineFetcher); err != nil {
@@ -25,17 +26,17 @@ func init() {
 	}
 }
 
-const (
-	fetcherCacheNamespace = "simpleFetcherCacheNamespace"
-)
+const fetcherCacheNamespace = "simpleFetcherCacheNamespace"
 
+// FetcherLoader is type of function is responsible for loading fetchers
 type FetcherLoader func(*Context, map[string]interface{}) (HostFetcher, error)
 
 var (
-	fetchers   map[string]FetcherLoader = make(map[string]FetcherLoader)
-	httpClient                          = httpclient.NewClientWithTimeout(1*time.Second, 3*time.Second)
+	fetchers   = make(map[string]FetcherLoader)
+	httpClient = httpclient.NewClientWithTimeout(1*time.Second, 3*time.Second)
 )
 
+// RegisterFetcherLoader register new fetcher loader function
 func RegisterFetcherLoader(name string, f FetcherLoader) error {
 	_, ok := fetchers[name]
 	if ok {
@@ -46,6 +47,7 @@ func RegisterFetcherLoader(name string, f FetcherLoader) error {
 	return nil
 }
 
+// LoadHostFetcher create, configure and return new hosts fetcher
 func LoadHostFetcher(context *Context, config configs.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
@@ -60,25 +62,18 @@ func LoadHostFetcher(context *Context, config configs.PluginConfig) (HostFetcher
 	return initializer(context, config)
 }
 
+// HostFetcher interface
 type HostFetcher interface {
 	Fetch(group string) (hosts.Hosts, error)
 }
 
-type SimpleFetcher struct {
-	SimpleFetcherConfig
-	*Context
-}
-
-type SimpleFetcherConfig struct {
-	Separator string
-	BasicUrl  string
-}
-
+// PredefineFetcher is map[string /*datacenter name*/][]string /*list of hosts*/
 type PredefineFetcher struct {
 	mutex sync.Mutex
 	PredefineFetcherConfig
 }
 
+// PredefineFetcherConfig filled from combainer config
 type PredefineFetcherConfig struct {
 	Clusters map[string]hosts.Hosts
 }
@@ -98,6 +93,7 @@ func newPredefineFetcher(_ *Context, config map[string]interface{}) (HostFetcher
 	return f, nil
 }
 
+// Fetch return hosts list from PredefineFetcher or error
 func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -108,10 +104,22 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	return hosts, nil
 }
 
-// newHttpFetcher return list of hosts
-// fethed from http discovery service
+// SimpleFetcher recive plain text with tab separated fields
+// it expect format `fqdn\tdatacenter`
+type SimpleFetcher struct {
+	SimpleFetcherConfig
+	*Context
+}
+
+// SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
+type SimpleFetcherConfig struct {
+	Separator string
+	BasicURL  string `mapstructure:"BasicUrl"`
+}
+
+// newHTTPFetcher return list of hosts fethed from http discovery service
 // context used for provide combainer Cache
-func newHttpFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
+func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -128,8 +136,13 @@ func newHttpFetcher(context *Context, config map[string]interface{}) (HostFetche
 	return f, nil
 }
 
+// Fetch resolve the group name in the list of hosts
 func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
-	url := fmt.Sprintf(s.BasicUrl, groupname)
+	log := logrus.WithField("source", "SimpleFetcher")
+	if !strings.Contains(s.BasicURL, `%s`) {
+		return nil, common.ErrMissingFormatSpecifier
+	}
+	url := fmt.Sprintf(s.BasicURL, groupname)
 	resp, err := httpClient.Get(url)
 	var body []byte
 	if err != nil {
@@ -159,8 +172,8 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
 			} else {
 				log.Debugf("Put in cache %s: %q", groupname, body)
-				if put_err := s.Cache.Put(fetcherCacheNamespace, groupname, body); put_err != nil {
-					log.Warnf("Put error: %s", put_err)
+				if putErr := s.Cache.Put(fetcherCacheNamespace, groupname, body); putErr != nil {
+					log.Warnf("Put error: %s", putErr)
 				}
 			}
 		}
@@ -171,15 +184,15 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	items := strings.TrimSuffix(string(body), "\n")
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
-		if len(temp) != 2 {
-			log.Infof("Wrong input string %s", temp)
+		if len(temp) != 2 || temp[1] == "" {
+			log.Errorf("Wrong input string %q", temp)
 			continue
 		}
 		dc, host := temp[0], temp[1]
 		fetchedHosts[dc] = append(fetchedHosts[dc], host)
 	}
 	if len(fetchedHosts) == 0 {
-		return fetchedHosts, fmt.Errorf("No hosts")
+		return fetchedHosts, common.ErrNoHosts
 	}
 	return fetchedHosts, nil
 }
