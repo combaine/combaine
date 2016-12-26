@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -109,7 +110,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			limit,
 		},
 		Clients:  stats,
-		Watchers: GlobalObserver.WatchersCount,
+		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
 	}); err != nil {
 		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return

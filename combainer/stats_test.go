@@ -21,4 +21,15 @@ func TestStat(t *testing.T) {
 	assert.EqualValues(t, s.failedParsing, 1)
 	stats = s.GetStats()
 	assert.EqualValues(t, stats.ParsingTotal, 2)
+	for i := 0; i < 10; i++ {
+		go s.AddSuccessParsing()
+	}
+	for i := 0; i < 10; i++ {
+		go s.AddSuccessParsing()
+		s.AddFailedParsing()
+	}
+	for i := 0; i < 10; i++ {
+		stats = s.GetStats()
+	}
+	_ = stats
 }

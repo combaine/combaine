@@ -35,12 +35,12 @@ func (cs *clientStats) AddFailedAggregate() {
 
 func (cs *clientStats) GetStats() *StatInfo {
 	return &StatInfo{
-		ParsingSuccess:   cs.successParsing,
-		ParsingFailed:    cs.failedParsing,
-		ParsingTotal:     cs.successParsing + cs.failedParsing,
-		AggregateSuccess: cs.successAggregate,
-		AggregateFailed:  cs.failedAggregate,
-		AggregateTotal:   cs.successAggregate + cs.failedAggregate,
-		Heartbeated:      cs.last,
+		ParsingSuccess:   atomic.LoadInt64(&cs.successParsing),
+		ParsingFailed:    atomic.LoadInt64(&cs.failedParsing),
+		ParsingTotal:     atomic.LoadInt64(&cs.successParsing) + atomic.LoadInt64(&cs.failedParsing),
+		AggregateSuccess: atomic.LoadInt64(&cs.successAggregate),
+		AggregateFailed:  atomic.LoadInt64(&cs.failedAggregate),
+		AggregateTotal:   atomic.LoadInt64(&cs.successAggregate) + atomic.LoadInt64(&cs.failedAggregate),
+		Heartbeated:      atomic.LoadInt64(&cs.last),
 	}
 }
