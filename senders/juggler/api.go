@@ -170,7 +170,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureFlap(&check)
 			// tags
 			js.ensureTags(&check)
-			if check.Description != js.Description {
+			// description
+			if js.Description == "" {
+				js.Description = js.CheckName
+			}
+			if check.Description != js.Description && js.Description != "" {
 				check.Update = true
 				check.Description = js.Description
 				logger.Debugf("%s Check outdated, description differ: %s != %s", js.id, check.Description, js.Description)

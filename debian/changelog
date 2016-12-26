@@ -1,3 +1,12 @@
+combaine (0.9.1) trusty; urgency=medium
+
+  * [Lockserver] fix logic lock and unlock
+  * [solomon] overwrite service name from config
+  * [juggler] use ttl cache for checks
+  * [parsingApp] removed
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 26 Dec 2016 12:52:30 +0300
+
 combaine (0.9.0) trusty; urgency=medium
 
   * [Senders] juggler rewrite in go

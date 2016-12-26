@@ -24,7 +24,7 @@ func TestPluginSimple(t *testing.T) {
 	jconf.PluginsDir = "../../plugins/juggler"
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
-	js, err := NewJugglerSender(jconf, "Test ID")
+	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
 	cases := []struct {
