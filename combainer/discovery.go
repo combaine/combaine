@@ -1,7 +1,6 @@
 package combainer
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/httpclient"
@@ -67,19 +67,6 @@ type HostFetcher interface {
 	Fetch(group string) (hosts.Hosts, error)
 }
 
-// SimpleFetcher recive plain text with tab separated fields
-// it expect format `fqdn\tdatacenter`
-type SimpleFetcher struct {
-	SimpleFetcherConfig
-	*Context
-}
-
-// SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
-type SimpleFetcherConfig struct {
-	Separator string
-	BasicURL  string `mapstructure:"BasicUrl"`
-}
-
 // PredefineFetcher is map[string /*datacenter name*/][]string /*list of hosts*/
 type PredefineFetcher struct {
 	mutex sync.Mutex
@@ -117,6 +104,19 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	return hosts, nil
 }
 
+// SimpleFetcher recive plain text with tab separated fields
+// it expect format `fqdn\tdatacenter`
+type SimpleFetcher struct {
+	SimpleFetcherConfig
+	*Context
+}
+
+// SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
+type SimpleFetcherConfig struct {
+	Separator string
+	BasicURL  string `mapstructure:"BasicUrl"`
+}
+
 // newHTTPFetcher return list of hosts fethed from http discovery service
 // context used for provide combainer Cache
 func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
@@ -140,7 +140,7 @@ func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetche
 func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	log := logrus.WithField("source", "SimpleFetcher")
 	if !strings.Contains(s.BasicURL, `%s`) {
-		return nil, errors.New(`Missing format specifier '%s' in BasicUrl`)
+		return nil, common.ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
 	resp, err := httpClient.Get(url)
@@ -192,7 +192,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		fetchedHosts[dc] = append(fetchedHosts[dc], host)
 	}
 	if len(fetchedHosts) == 0 {
-		return fetchedHosts, errors.New("No hosts")
+		return fetchedHosts, common.ErrNoHosts
 	}
 	return fetchedHosts, nil
 }
