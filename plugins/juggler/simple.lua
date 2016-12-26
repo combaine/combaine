@@ -174,7 +174,7 @@ function run()
             break -- higher level event set on fire, no need continue checks
           end
         end
-        if idx == 5 then -- idx 5 == "DEFAULT"
+        if not config.withoutDefaultState and idx == 5 then -- idx 5 == "DEFAULT"
           log.info(fmt("%s.%s set default status 'OK'", data.Tags.name, checkName))
           result[#result+1] = {
             tags = data.Tags,

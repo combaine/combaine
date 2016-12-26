@@ -123,8 +123,10 @@ func dumperToLuaValue(value reflect.Value) (ret lua.LValue, err error) {
 		ret = lua.LNumber(value.Uint())
 	case reflect.String:
 		ret = lua.LString(value.String())
+	case reflect.Bool:
+		ret = lua.LBool(value.Bool())
 	default:
-		err = fmt.Errorf("value %s is Not a Number or String: %v", value.Kind(), value)
+		err = fmt.Errorf("Unexpected value %s: %v", value.Kind(), value)
 	}
 	return
 }

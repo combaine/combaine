@@ -24,6 +24,10 @@ func TestPluginSimple(t *testing.T) {
 	jconf.PluginsDir = "../../plugins/juggler"
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
+	jconf.JPluginConfig = map[string]interface{}{
+		"withoutDefaultState": true,
+	}
+
 	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
@@ -36,14 +40,8 @@ func TestPluginSimple(t *testing.T) {
 
 		{[]string{"${agg}['b'] >= 1"}, true},
 
-		{[]string{"${agg}.get('b',0)>2", "${agg}.get('b_c.a.c-d', 0)>3"}, true},
-
 		{[]string{"${agg}['t'][4] > VAR2"}, false},
 		{[]string{"${agg}['t'][1] > 444"}, false},
-
-		{[]string{"(${agg}['a.b'] - ${agg}.get('n',0) ) <= 5",
-			"(${agg}['a']-${agg}.get('n',0) ) <= 6",
-			"(${agg}['a'] - ${agg}.get('a.b',   0) ) <= 7"}, true},
 
 		{[]string{"${agg}['a'] + ${agg}['b'] <=8"}, false},
 		{[]string{"${agg}['a'] - ${agg}['b'] - ${agg}['c'] <13009"}, true},
@@ -81,8 +79,8 @@ func TestPluginSimple(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		jconf.CRIT = c.checks
-		l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
+		js.CRIT = c.checks
+		l, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
 		assert.NoError(t, err)
 		if err != nil {
 			t.FailNow()
