@@ -19,10 +19,10 @@ type itemType struct {
 // cache is ttl cache for juggler api responses about checks
 type cache struct {
 	sync.RWMutex
-	ttl            time.Duration
-	interval       time.Duration
-	store          map[string]*itemType
-	cleanerPresent bool
+	ttl        time.Duration
+	interval   time.Duration
+	store      map[string]*itemType
+	runCleaner sync.Once
 }
 
 // GlobalCache is singleton for juggler sender
@@ -65,17 +65,16 @@ func (c *cache) Get(ctx context.Context, key string, f fetcher, id, q string, ho
 		<-item.ready
 		logger.Debugf("%s Use cached check for %s", id, key)
 	}
-	c.Lock()
-	if !c.cleanerPresent {
-		c.cleanerPresent = true
+	c.runCleaner.Do(func() {
 		logger.Debugf("%s run cache cleaner", id)
 		go c.cleaner()
-	}
+	})
 	if time.Now().Sub(item.expires) >= 0 {
 		logger.Debugf("%s remove stale cached check for %s", id, key)
+		c.Lock()
 		delete(c.store, key)
+		c.Unlock()
 	}
-	c.Unlock()
 	return item.value, item.err
 }
 
