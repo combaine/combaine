@@ -1,3 +1,9 @@
+combaine (0.9.3) trusty; urgency=medium
+
+  * [discovery] fix fix httpfetcher
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 27 Dec 2016 05:20:29 +0300
+
 combaine (0.9.2) trusty; urgency=medium
 
   * [discovery] fix httpfetcher
