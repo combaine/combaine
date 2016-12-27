@@ -184,7 +184,8 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	items := strings.TrimSuffix(string(body), "\n")
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
-		if len(temp) != 2 || temp[1] == "" {
+		// expect index 0 - datacenter, 1 - fqdn
+		if len(temp) != 2 || temp[0] == "" {
 			log.Errorf("Wrong input string %q", temp)
 			continue
 		}

@@ -73,6 +73,7 @@ func TestHttpFetcher(t *testing.T) {
 			payload := strings.Join([]string{
 				"",
 				"notValidHost",
+				"\tnotValidHost",
 				"DC1\tdc1-host1",
 				"DC1\tdc1-host2",
 				"DC2\tdc2-host1",
@@ -114,6 +115,8 @@ func TestHttpFetcher(t *testing.T) {
 	assert.Error(t, err)
 
 	fdc1, err := hFetcher.Fetch("group1")
+	// only 2 datacenter should be present in parsed result
+	assert.Len(t, fdc1, 2)
 	t.Logf("Hosts from cacahe %v", fdc1)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "dc1-host1", fdc1["DC1"][1])
