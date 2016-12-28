@@ -21,7 +21,7 @@ func TestStat(t *testing.T) {
 	s.AddFailedParsing()
 	assert.EqualValues(t, s.failedParsing, 1)
 	stats = s.GetStats()
-	assert.EqualValues(t, stats.ParsingFailed, 2)
+	assert.EqualValues(t, stats.ParsingTotal, 2)
 	for i := 0; i < 10; i++ {
 		go s.AddSuccessParsing()
 	}
@@ -39,7 +39,7 @@ func TestStat(t *testing.T) {
 			s.AddFailedParsing()
 			wg.Done()
 		}()
-		s.AddFailedConnectParsing()
+		s.AddFailedParsing()
 	}
 	wg.Wait()
 
