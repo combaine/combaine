@@ -1,3 +1,9 @@
+combaine (0.9.4) trusty; urgency=medium
+
+  * [client] fix FailedAggregate counting
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 28 Dec 2016 16:31:40 +0700
+
 combaine (0.9.3) trusty; urgency=medium
 
   * [discovery] fix fix httpfetcher

@@ -349,7 +349,7 @@ func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.Aggregatin
 		cl.Log.WithFields(
 			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
 		).Error("grpcDial error")
-		cl.clientStats.AddFailedParsing()
+		cl.clientStats.AddFailedAggregate()
 		return
 	}
 	defer conn.Close()

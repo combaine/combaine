@@ -1,6 +1,7 @@
 package combainer
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,16 +21,28 @@ func TestStat(t *testing.T) {
 	s.AddFailedParsing()
 	assert.EqualValues(t, s.failedParsing, 1)
 	stats = s.GetStats()
-	assert.EqualValues(t, stats.ParsingTotal, 2)
+	assert.EqualValues(t, stats.ParsingFailed, 2)
 	for i := 0; i < 10; i++ {
 		go s.AddSuccessParsing()
 	}
-	for i := 0; i < 10; i++ {
-		go s.AddSuccessParsing()
-		s.AddFailedParsing()
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			s.AddSuccessParsing()
+			wg.Done()
+		}()
+		s.AddSuccessParsing()
+
+		wg.Add(1)
+		go func() {
+			s.AddFailedParsing()
+			wg.Done()
+		}()
+		s.AddFailedConnectParsing()
 	}
-	for i := 0; i < 10; i++ {
-		stats = s.GetStats()
-	}
-	_ = stats
+	wg.Wait()
+
+	stats = s.GetStats()
+	assert.EqualValues(t, stats.ParsingTotal, 4012)
 }
