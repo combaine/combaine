@@ -1,3 +1,9 @@
+combaine (0.9.5) trusty; urgency=medium
+
+  * [deps] update memberlist
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 10 Jan 2017 13:23:56 +0300
+
 combaine (0.9.4) trusty; urgency=medium
 
   * [client] fix FailedAggregate counting
