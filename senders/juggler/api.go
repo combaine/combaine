@@ -55,7 +55,7 @@ type jugglerCheck struct {
 
 type aggKWArgs struct {
 	IgnoreNoData int                      `codec:"ignore_nodata" json:"ignore_nodata"`
-	Limits       []map[string]interface{} `codec:"limits" json:"limits"`
+	Limits       []map[string]interface{} `codec:"limits,omitempty" json:"limits,omitempty"`
 }
 
 type jugglerEvent struct {
