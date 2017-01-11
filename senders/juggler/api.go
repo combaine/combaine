@@ -148,6 +148,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			childSet[c.Host+":"+serviceName] = struct{}{}
 		}
 	}
+	updated := make(map[string]struct{})
 	for _, t := range triggers {
 		check, ok := services[t.Service]
 		if !ok {
@@ -160,8 +161,12 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		}
 		t.Tags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
 
-		if t.Tags["type"] == "metahost" {
+		// ensure check only once, but we cannot use there check for metahost's trigger
+		// because user may specify filter 'type: host' and want triggers only for hosts
+		if _, ok := updated[t.Service]; !ok {
+			updated[t.Service] = struct{}{}
 			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
+
 			// aggregator
 			js.ensureAggregator(&check)
 			// methods
