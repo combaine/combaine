@@ -1,3 +1,10 @@
+combaine (0.9.6) trusty; urgency=medium
+
+  * [deps] update gopher-lua
+  * [juggler] fix ensure check, and ensure ttl
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 11 Jan 2017 14:31:14 +0300
+
 combaine (0.9.5) trusty; urgency=medium
 
   * [deps] update memberlist
