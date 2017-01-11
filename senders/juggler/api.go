@@ -46,6 +46,7 @@ type jugglerCheck struct {
 	Description      string                 `json:"description"`
 	Aggregator       string                 `json:"aggregator"`
 	AggregatorKWArgs aggKWArgs              `json:"aggregator_kwargs"`
+	TTL              int                    `json:"ttl"`
 	Tags             []string               `json:"tags"`
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
@@ -167,6 +168,8 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			updated[t.Service] = struct{}{}
 			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
 
+			// ttl
+			js.ensureTTL(&check)
 			// aggregator
 			js.ensureAggregator(&check)
 			// methods
@@ -176,14 +179,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			// tags
 			js.ensureTags(&check)
 			// description
-			if js.Description == "" {
-				js.Description = js.CheckName
-			}
-			if check.Description != js.Description && js.Description != "" {
-				check.Update = true
-				check.Description = js.Description
-				logger.Debugf("%s Check outdated, description differ: %s != %s", js.id, check.Description, js.Description)
-			}
+			js.ensureDescription(&check)
 		}
 		// add children
 		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
@@ -221,6 +217,28 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		}
 	}
 	return nil
+}
+
+func (js *Sender) ensureTTL(c *jugglerCheck) {
+	if js.TTL == 0 {
+		js.TTL = 900 // default juggler ttl
+	}
+	if c.TTL != js.TTL {
+		c.Update = true
+		logger.Debugf("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
+		c.TTL = js.TTL
+	}
+}
+
+func (js *Sender) ensureDescription(c *jugglerCheck) {
+	if js.Description == "" {
+		js.Description = js.CheckName
+	}
+	if c.Description != js.Description && js.Description != "" {
+		c.Update = true
+		logger.Debugf("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
+		c.Description = js.Description
+	}
 }
 
 func (js *Sender) ensureAggregator(c *jugglerCheck) {

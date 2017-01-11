@@ -24,6 +24,7 @@ type Config struct {
 	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
 	AggregatorKWArgs aggKWArgs                    `codec:"aggregator_kwargs"`
+	TTL              int                          `codec:"ttl"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
 	Tags             []string                     `codec:"tags"`
