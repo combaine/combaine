@@ -254,10 +254,6 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) {
 		for i, v := range js.AggregatorKWArgs.Limits {
 			for k, jv := range v {
 				if cv, ok := c.AggregatorKWArgs.Limits[i][k]; ok {
-					if byteVal, ok := jv.([]byte); ok {
-						jv = string(byteVal) // for check below update 'jv'
-						v[k] = jv            // json encode []bytes in base64, but there string need
-					}
 					if fmt.Sprintf("%v", cv) != fmt.Sprintf("%v", jv) {
 						aggregatorOutdated = true
 						break CHECK

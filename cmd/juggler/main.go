@@ -20,6 +20,17 @@ type senderTask struct {
 	Config juggler.Config
 }
 
+func stringifyAggregatorLimits(limits []map[string]interface{}) {
+	for _, v := range limits {
+		for k, iv := range v {
+			if byteVal, ok := iv.([]byte); ok {
+				iv = string(byteVal) // json encode []bytes in base64, but there string expected
+				v[k] = iv
+			}
+		}
+	}
+}
+
 func send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
@@ -30,6 +41,8 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
 		return
 	}
+	// common.Unpack unpack some strings as []byte, need convert it
+	stringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
 
 	sConf, err := juggler.GetSenderConfig()
 	if err != nil {
