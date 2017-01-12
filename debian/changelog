@@ -1,3 +1,9 @@
+combaine (0.9.7) trusty; urgency=medium
+
+  * [juggler] stringifyAggregatorLimits
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 12 Jan 2017 17:45:37 +0300
+
 combaine (0.9.6) trusty; urgency=medium
 
   * [deps] update gopher-lua
