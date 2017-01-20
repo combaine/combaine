@@ -53,6 +53,7 @@ profile.out
 debian/*.debhelper*
 debian/*.substvar*
 debian/files
+debian/tmp
 debian/combaine-core/
 debian/combaine-presetting/
 debian/combaine-worker-ubic/

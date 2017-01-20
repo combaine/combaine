@@ -31,8 +31,8 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 	// common.Unpack unpack some strings as []byte, need convert it
-	juggler.stringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
-	task.Config.Tags = juggler.ensureDefaultTag(task.Config.Tags)
+	juggler.StringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
+	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
 	sConf, err := juggler.GetSenderConfig()
 	if err != nil {

@@ -50,7 +50,9 @@ type SenderConfig struct {
 	Frontend           []string      `yaml:"juggler_frontend"`
 }
 
-func stringifyAggregatorLimits(limits []map[string]interface{}) {
+// StringifyAggregatorLimits check all AggregatorLimits values
+// and convert it to sting
+func StringifyAggregatorLimits(limits []map[string]interface{}) {
 	for _, v := range limits {
 		for k, iv := range v {
 			if byteVal, ok := iv.([]byte); ok {
@@ -62,8 +64,8 @@ func stringifyAggregatorLimits(limits []map[string]interface{}) {
 	}
 }
 
-// ensureDefaultTag add default tag "combaine" if it not present in tags
-func ensureDefaultTag(jtags []string) []string {
+// EnsureDefaultTag add default tag "combaine" if it not present in tags
+func EnsureDefaultTag(jtags []string) []string {
 	for _, t := range jtags {
 		if t == "combaine" {
 			return jtags
