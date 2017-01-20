@@ -1,3 +1,9 @@
+combaine (0.9.8) trusty; urgency=medium
+
+  * [juggler] EnsureDefaultTags
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 20 Jan 2017 08:17:15 +0300
+
 combaine (0.9.7) trusty; urgency=medium
 
   * [juggler] stringifyAggregatorLimits
