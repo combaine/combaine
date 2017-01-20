@@ -107,19 +107,19 @@
 		},
 		{
 			"ImportPath": "github.com/yuin/gopher-lua",
-			"Rev": "33ebc07735566cd0c3c4b69e2839d522cc389852"
+			"Rev": "66c871e454fcf10251c61bf8eff02d0978cae75a"
 		},
 		{
 			"ImportPath": "github.com/yuin/gopher-lua/ast",
-			"Rev": "33ebc07735566cd0c3c4b69e2839d522cc389852"
+			"Rev": "66c871e454fcf10251c61bf8eff02d0978cae75a"
 		},
 		{
 			"ImportPath": "github.com/yuin/gopher-lua/parse",
-			"Rev": "33ebc07735566cd0c3c4b69e2839d522cc389852"
+			"Rev": "66c871e454fcf10251c61bf8eff02d0978cae75a"
 		},
 		{
 			"ImportPath": "github.com/yuin/gopher-lua/pm",
-			"Rev": "33ebc07735566cd0c3c4b69e2839d522cc389852"
+			"Rev": "66c871e454fcf10251c61bf8eff02d0978cae75a"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
