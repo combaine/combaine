@@ -50,6 +50,28 @@ type SenderConfig struct {
 	Frontend           []string      `yaml:"juggler_frontend"`
 }
 
+func stringifyAggregatorLimits(limits []map[string]interface{}) {
+	for _, v := range limits {
+		for k, iv := range v {
+			if byteVal, ok := iv.([]byte); ok {
+				// json encode []bytes in base64, but there string expected
+				iv = string(byteVal)
+				v[k] = iv
+			}
+		}
+	}
+}
+
+// ensureDefaultTag add default tag "combaine" if it not present in tags
+func ensureDefaultTag(jtags []string) []string {
+	for _, t := range jtags {
+		if t == "combaine" {
+			return jtags
+		}
+	}
+	return append(jtags, "combaine")
+}
+
 // GetSenderConfig read yaml file with two arrays of hosts
 // if juggler_frontend not defined, use juggler_hosts as frontend
 func GetSenderConfig() (conf SenderConfig, err error) {
