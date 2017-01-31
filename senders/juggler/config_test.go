@@ -9,8 +9,8 @@ import (
 
 func TestStringifyLimits(t *testing.T) {
 	cases := []map[string]interface{}{
-		map[string]interface{}{"bytes": []byte("here"), "str": "s"},
-		map[string]interface{}{"all": "str", "ing": "here"},
+		{"bytes": []byte("here"), "str": "s"},
+		{"all": "str", "ing": "here"},
 	}
 
 	StringifyAggregatorLimits(cases)
@@ -23,7 +23,7 @@ func TestStringifyLimits(t *testing.T) {
 
 func TestEnsureDefaultTags(t *testing.T) {
 	cases := [][]string{
-		[]string{},
+		{},
 		{"combaine"},
 		{"combaine", "someOtherTag"},
 		{"someOtherTag"},
