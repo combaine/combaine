@@ -1,3 +1,9 @@
+combaine (0.9.10) trusty; urgency=medium
+
+  * [Razladki] use ":" as separator inside items
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 10 Mar 2017 16:04:02 +0700
+
 combaine (0.9.9) trusty; urgency=medium
 
   * version bump
