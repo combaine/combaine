@@ -83,7 +83,7 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 
 	var queryItems = make(map[string]map[string]string)
 	for aggname, title := range r.Items {
-		items := strings.SplitN(aggname, ".", 2)
+		items := strings.SplitN(aggname, ":", 2)
 		mName := ""
 		if len(items) > 1 {
 			mName = items[1]

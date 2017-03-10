@@ -23,11 +23,12 @@ func TestSend(t *testing.T) {
 	defer ts.Close()
 	testConfig := Config{
 		Items: map[string]string{
-			"40x":      "testvalue",
-			"20x.MAP1": "testvalue",
-			"20x.MP2":  "testvalue",
-			"20x.MP3":  "testvalue",
-			"30x":      "testvalue"},
+			"40x":              "testvalue",
+			"20x:MAP1.2xx":     "testvalue", // map in map not supported
+			"20x:MP2":          "testvalue",
+			"20x:MP3":          "testvalue",
+			"some.agg.20x:MP2": "testvalue",
+			"30x":              "testvalue"},
 		Project: "CombaineTest",
 		Host:    ts.Listener.Addr().String(),
 	}
@@ -39,12 +40,20 @@ func TestSend(t *testing.T) {
 			Result: 2000},
 		{Tags: map[string]string{"type": "datacenter", "name": "DC1", "metahost": "host3", "aggregate": "20x"},
 			Result: map[string]interface{}{
-				"MAP1": []interface{}{201, 301, 401},
+				"MAP1": map[string]interface{}{
+					"2xx": 201,
+					"3xx": 301,
+					"4xx": 401,
+				},
 				"MAP2": []interface{}{202, 302, 402},
 			}},
 		{Tags: map[string]string{"type": "host", "name": "host4", "metahost": "host4", "aggregate": "20x"},
 			Result: map[string]interface{}{
 				"MP1": 1000,
+				"MP2": 1002,
+			}},
+		{Tags: map[string]string{"type": "host", "name": "host5", "metahost": "host5", "aggregate": "some.agg.20x"},
+			Result: map[string]interface{}{
 				"MP2": 1002,
 			}},
 		{Tags: map[string]string{"type": "metahost", "name": "host2", "metahost": "host2", "aggregate": "30x"},
@@ -61,10 +70,12 @@ func TestSend(t *testing.T) {
 		Params: map[string]Param{
 			"host1_40x": {Value: "2000", Meta: Meta{Title: "testvalue"}},
 			"host4_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host5_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
 		},
 		Alarms: map[string]Alarm{
 			"host1_40x": {Meta: Meta{Title: "testvalue"}},
 			"host4_MP2": {Meta: Meta{Title: "testvalue"}},
+			"host5_MP2": {Meta: Meta{Title: "testvalue"}},
 		},
 	}
 
