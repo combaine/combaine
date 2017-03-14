@@ -1,3 +1,9 @@
+combaine (0.9.11) trusty; urgency=medium
+
+  * [Razladki] support nested map
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 14 Mar 2017 16:24:42 +0700
+
 combaine (0.9.10) trusty; urgency=medium
 
   * [Razladki] use ":" as separator inside items
