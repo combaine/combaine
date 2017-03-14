@@ -73,6 +73,23 @@ func NewSender(cfg *Config, id string) (*Sender, error) {
 	}, nil
 }
 
+func extractValue(rv reflect.Value, key string) (reflect.Value, string) {
+	keys := strings.Split(key, ".")
+
+	for _, k := range keys {
+		switch rv.Kind() {
+		case reflect.Map:
+			rv = rv.MapIndex(reflect.ValueOf(k))
+			if rv.IsValid() {
+				rv = reflect.ValueOf(rv.Interface())
+			}
+		default:
+			return rv, k
+		}
+	}
+	return rv, ""
+}
+
 func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result, error) {
 	logger.Debugf("%s Data to send: %v", r.id, data)
 	res := result{
@@ -124,8 +141,18 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 			}
 
 			for key, title := range metrics {
-				key := reflect.ValueOf(key)
-				mapVal := rv.MapIndex(key)
+				var mapVal reflect.Value
+				var keyStop string
+
+				if strings.IndexByte(key, '.') > 0 { // 0 - avoid key starts with dot
+					mapVal, keyStop = extractValue(rv, key)
+					if keyStop != "" {
+						logger.Errf("Unexpected '%s: %v', expect map", keyStop, mapVal)
+						continue
+					}
+				} else {
+					mapVal = rv.MapIndex(reflect.ValueOf(key))
+				}
 				if !mapVal.IsValid() {
 					continue
 				}

@@ -24,10 +24,10 @@ func TestSend(t *testing.T) {
 	testConfig := Config{
 		Items: map[string]string{
 			"40x":              "testvalue",
-			"20x:MAP1.2xx":     "testvalue", // map in map not supported
 			"20x:MP2":          "testvalue",
 			"20x:MP3":          "testvalue",
-			"some.agg.20x:MP2": "testvalue",
+			"20x:MAP1.2xx":     "MapInMap",
+			"some.agg.20x:dot": "agg_with_dot",
 			"30x":              "testvalue"},
 		Project: "CombaineTest",
 		Host:    ts.Listener.Addr().String(),
@@ -54,7 +54,7 @@ func TestSend(t *testing.T) {
 			}},
 		{Tags: map[string]string{"type": "host", "name": "host5", "metahost": "host5", "aggregate": "some.agg.20x"},
 			Result: map[string]interface{}{
-				"MP2": 1002,
+				"dot": 1002,
 			}},
 		{Tags: map[string]string{"type": "metahost", "name": "host2", "metahost": "host2", "aggregate": "30x"},
 			Result: []int{20, 30, 40}},
@@ -68,14 +68,16 @@ func TestSend(t *testing.T) {
 	expected := &result{
 		Timestamp: 123,
 		Params: map[string]Param{
-			"host1_40x": {Value: "2000", Meta: Meta{Title: "testvalue"}},
-			"host4_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
-			"host5_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host1_40x":          {Value: "2000", Meta: Meta{Title: "testvalue"}},
+			"host4_MP2":          {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host3-DC1_MAP1.2xx": {Value: "201", Meta: Meta{Title: "MapInMap"}},
+			"host5_dot":          {Value: "1002", Meta: Meta{Title: "agg_with_dot"}},
 		},
 		Alarms: map[string]Alarm{
-			"host1_40x": {Meta: Meta{Title: "testvalue"}},
-			"host4_MP2": {Meta: Meta{Title: "testvalue"}},
-			"host5_MP2": {Meta: Meta{Title: "testvalue"}},
+			"host1_40x":          {Meta: Meta{Title: "testvalue"}},
+			"host4_MP2":          {Meta: Meta{Title: "testvalue"}},
+			"host3-DC1_MAP1.2xx": {Meta: Meta{Title: "MapInMap"}},
+			"host5_dot":          {Meta: Meta{Title: "agg_with_dot"}},
 		},
 	}
 
