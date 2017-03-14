@@ -144,7 +144,7 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 				var mapVal reflect.Value
 				var keyStop string
 
-				if strings.ContainsRune(key, '.') {
+				if strings.IndexByte(key, '.') > 0 { // 0 - avoid key starts with dot
 					mapVal, keyStop = extractValue(rv, key)
 					if keyStop != "" {
 						logger.Errf("Unexpected '%s: %v', expect map", keyStop, mapVal)
