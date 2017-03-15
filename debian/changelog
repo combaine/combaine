@@ -1,3 +1,9 @@
+combaine (0.9.12) trusty; urgency=medium
+
+  * [Razladki] Revert support nested map
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 15 Mar 2017 12:40:56 +0700
+
 combaine (0.9.11) trusty; urgency=medium
 
   * [Razladki] support nested map
