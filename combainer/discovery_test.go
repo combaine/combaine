@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/hosts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,16 +70,14 @@ func TestHttpFetcher(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/fetch/group1":
-			payload := strings.Join([]string{
-				"",
-				"notValidHost",
-				"\tnotValidHost",
-				"dcA\thost1-in-dcA",
-				"dcA\thost2-in-dcA",
-				"dcB\thost1-in-dcB",
-				"dcB\thost2-in-dcB\n",
-			}, "\n")
-			fmt.Fprint(w, payload)
+			payload := []byte("\n" +
+				"notValidHost\n" +
+				"\tnotValidHost\n" +
+				"dcA\thost1-in-dcA\n" +
+				"dcA\thost2-in-dcA\n" +
+				"dcB\thost1-in-dcB\n" +
+				"dcB\thost2-in-dcB\n")
+			w.Write(payload)
 		case "/fetch/group1-json":
 			payload := []byte(`[
 				{ "root_datacenter_name": "dcA" },
@@ -89,21 +87,22 @@ func TestHttpFetcher(t *testing.T) {
 				{ "fqdn": "host1-in-dcB", "root_datacenter_name": "dcB" },
 				{ "fqdn": "host2-in-dcB", "root_datacenter_name": "dcB" }
 			]`)
-			fmt.Fprint(w, payload)
+			w.Write(payload)
 		case "/fetch/group1-qjson":
-			payload := []byte(`[
-				{ "root_datacenter_name": "dcA" },
-				{ "fqdn": "", "root_datacenter_name": "dcA" },
-				{ "fqdn": "host1-in-dcA", "root_datacenter_name": "DC1" },
-				{ "fqdn": "host2-in-dcA", "root_datacenter_name": "DC1" },
-				{ "fqdn": "host1-in-dcB", "root_datacenter_name": "DC2" },
-				{ "fqdn": "host2-in-dcB", "root_datacenter_name": "DC2" }
-			]`)
-			fmt.Fprint(w, payload)
+			payload := []byte(`{
+				"group":"group1",
+				"children":[
+					"dcA-host1-in-dcA",
+					"dcA-host2-in-dcA",
+					"dcB-host1-in-dcB",
+					"dcB-host2-in-dcB"
+				]
+			}`)
+			w.Write(payload)
 		case "/fetch/group2":
-			fmt.Fprintln(w, "")
+			w.Write([]byte("\n"))
 		case "/fetch/group3":
-			fmt.Fprintln(w, "some")
+			w.Write([]byte("some\n"))
 			return
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -112,6 +111,11 @@ func TestHttpFetcher(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	var (
+		Failed = true
+		Ok     = false
+	)
+
 	cases := []struct {
 		config  configs.PluginConfig
 		query   string
@@ -119,25 +123,35 @@ func TestHttpFetcher(t *testing.T) {
 		errType error
 	}{
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
-			"Missing Format", true, common.ErrMissingFormatSpecifier,
+			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
-			"NotInCache", true, nil,
+			"NotInCache", Failed, nil,
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
-			"NotInCache", true, nil,
+			"NotInCache", Failed, nil,
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
-			"group1", true, nil,
+			"group1", Ok, nil,
 		},
-		{configs.PluginConfig{"type": "json", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
-			"group1-json", true, nil,
+		{
+			configs.PluginConfig{
+				"type":     "http",
+				"Format":   "json",
+				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
+			},
+			"group1-json", Ok, nil,
 		},
-		{configs.PluginConfig{"type": "qjson", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
-			"group1-qjson", true, nil,
+		{
+			configs.PluginConfig{
+				"type":     "http",
+				"Format":   "qjson",
+				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
+			},
+			"group1-qjson", Ok, nil,
 		},
 	}
-	expect := map[string][]string{
+	expect := hosts.Hosts{
 		"dcA": {"host1-in-dcA", "host2-in-dcA"},
 		"dcB": {"host1-in-dcB", "host2-in-dcB"},
 	}
@@ -153,7 +167,7 @@ func TestHttpFetcher(t *testing.T) {
 			}
 		} else {
 			assert.Len(t, resp, 2)
-			assert.Equal(t, resp, expect)
+			assert.Equal(t, expect, resp)
 		}
 	}
 }

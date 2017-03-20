@@ -22,12 +22,6 @@ func init() {
 	if err := RegisterFetcherLoader("http", newHTTPFetcher); err != nil {
 		panic(err)
 	}
-	if err := RegisterFetcherLoader("json", newHTTPFetcher); err != nil {
-		panic(err)
-	}
-	if err := RegisterFetcherLoader("qjson", newHTTPFetcher); err != nil {
-		panic(err)
-	}
 	if err := RegisterFetcherLoader("predefine", newPredefineFetcher); err != nil {
 		panic(err)
 	}
@@ -252,14 +246,38 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 		}
 		parsed[dc] = append(parsed[dc], fqdn)
 	}
-	parsed = make(hosts.Hosts)
 	if len(parsed) == 0 {
 		return parsed, common.ErrNoHosts
 	}
 	return parsed, nil
 }
 
+type qResp struct {
+	Group    string   `json:"group"`
+	Children []string `json:"children"`
+}
+
 func (s *SimpleFetcher) parseQJSON(body []byte) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "SimpleFetcher.parseQJSON")
+
+	var resp qResp
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("Failed to parse Qloud json body: %s", err)
+	}
+
 	parsed := make(hosts.Hosts)
+	for _, dcAndHost := range resp.Children {
+		temp := strings.SplitN(dcAndHost, "-", 2)
+		// expect index 0 - datacenter, 1 - fqdn
+		if len(temp) != 2 || temp[0] == "" {
+			log.Errorf("Wrong input string %q", dcAndHost)
+			continue
+		}
+		dc, host := temp[0], temp[1]
+		parsed[dc] = append(parsed[dc], host)
+	}
+	if len(parsed) == 0 {
+		return parsed, common.ErrNoHosts
+	}
 	return parsed, nil
 }
