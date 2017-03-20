@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/hosts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,20 +70,39 @@ func TestHttpFetcher(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/fetch/group1":
-			payload := strings.Join([]string{
-				"",
-				"notValidHost",
-				"\tnotValidHost",
-				"DC1\tdc1-host1",
-				"DC1\tdc1-host2",
-				"DC2\tdc2-host1",
-				"DC2\tdc2-host2",
-			}, "\n")
-			fmt.Fprint(w, payload)
+			payload := []byte("\n" +
+				"notValidHost\n" +
+				"\tnotValidHost\n" +
+				"dcA\thost1-in-dcA\n" +
+				"dcA\thost2-in-dcA\n" +
+				"dcB\thost1-in-dcB\n" +
+				"dcB\thost2-in-dcB\n")
+			w.Write(payload)
+		case "/fetch/group1-json":
+			payload := []byte(`[
+				{ "root_datacenter_name": "dcA" },
+				{ "fqdn": "", "root_datacenter_name": "dcA" },
+				{ "fqdn": "host1-in-dcA", "root_datacenter_name": "dcA" },
+				{ "fqdn": "host2-in-dcA", "root_datacenter_name": "dcA" },
+				{ "fqdn": "host1-in-dcB", "root_datacenter_name": "dcB" },
+				{ "fqdn": "host2-in-dcB", "root_datacenter_name": "dcB" }
+			]`)
+			w.Write(payload)
+		case "/fetch/group1-qjson":
+			payload := []byte(`{
+				"group":"group1",
+				"children":[
+					"dcA-host1-in-dcA",
+					"dcA-host2-in-dcA",
+					"dcB-host1-in-dcB",
+					"dcB-host2-in-dcB"
+				]
+			}`)
+			w.Write(payload)
 		case "/fetch/group2":
-			fmt.Fprintln(w, "")
+			w.Write([]byte("\n"))
 		case "/fetch/group3":
-			fmt.Fprintln(w, "some")
+			w.Write([]byte("some\n"))
 			return
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -92,50 +111,63 @@ func TestHttpFetcher(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	testCfg = configs.PluginConfig{"type": "http", "BasicUrl": 1}
-	_, err := LoadHostFetcher(testCtx, testCfg)
-	assert.Error(t, err)
+	var (
+		Failed = true
+		Ok     = false
+	)
 
-	testCfg = configs.PluginConfig{
-		"type":     "http",
-		"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()),
+	cases := []struct {
+		config  configs.PluginConfig
+		query   string
+		err     bool
+		errType error
+	}{
+		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
+			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
+		},
+		{configs.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
+			"NotInCache", Failed, nil,
+		},
+		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+			"NotInCache", Failed, nil,
+		},
+		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+			"group1", Ok, nil,
+		},
+		{
+			configs.PluginConfig{
+				"type":     "http",
+				"Format":   "json",
+				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
+			},
+			"group1-json", Ok, nil,
+		},
+		{
+			configs.PluginConfig{
+				"type":     "http",
+				"Format":   "qjson",
+				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
+			},
+			"group1-qjson", Ok, nil,
+		},
 	}
-	hFetcher, err := LoadHostFetcher(testCtx, testCfg)
-	assert.NoError(t, err)
-	_, err = hFetcher.Fetch("Missing Format")
-	assert.Equal(t, err, common.ErrMissingFormatSpecifier)
-
-	testCfg = configs.PluginConfig{
-		"type":     "http",
-		"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
+	expect := hosts.Hosts{
+		"dcA": {"host1-in-dcA", "host2-in-dcA"},
+		"dcB": {"host1-in-dcB", "host2-in-dcB"},
 	}
-	hFetcher, err = LoadHostFetcher(testCtx, testCfg)
-	assert.NoError(t, err)
-	_, err = hFetcher.Fetch("NotInCache")
-	assert.Error(t, err)
-
-	fdc1, err := hFetcher.Fetch("group1")
-	// only 2 datacenter should be present in parsed result
-	assert.Len(t, fdc1, 2)
-	t.Logf("Hosts from cacahe %v", fdc1)
-	assert.NoError(t, err)
-	assert.NotEqual(t, "dc1-host1", fdc1["DC1"][1])
-	assert.Equal(t, "dc1-host2", fdc1["DC1"][1])
-
-	hosts, err := hFetcher.Fetch("group2")
-	assert.Equal(t, err, common.ErrNoHosts)
-	assert.Len(t, hosts, 0)
-
-	hosts, err = hFetcher.Fetch("group3")
-	assert.Error(t, err)
-	assert.Len(t, hosts, 0)
-
-	testCfg = configs.PluginConfig{
-		"type":     "http",
-		"BasicUrl": "http://not-exists:9999/fetch/%s",
+	for _, c := range cases {
+		hFetcher, err := LoadHostFetcher(testCtx, c.config)
+		assert.NoError(t, err, "Failed to load host fetcher")
+		resp, err := hFetcher.Fetch(c.query)
+		if c.err {
+			if c.errType != nil {
+				assert.Equal(t, err, c.errType)
+			} else {
+				assert.Error(t, err, fmt.Sprintf("Test filed for %s", c.query))
+			}
+		} else {
+			assert.Len(t, resp, 2)
+			assert.Equal(t, expect, resp)
+		}
 	}
-	hFetcher, err = LoadHostFetcher(testCtx, testCfg)
-	hosts, err = hFetcher.Fetch("miss")
-	assert.Error(t, err)
-	assert.Len(t, hosts, 0)
 }

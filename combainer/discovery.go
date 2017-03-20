@@ -1,6 +1,7 @@
 package combainer
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -114,6 +115,8 @@ type SimpleFetcher struct {
 // SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
 type SimpleFetcherConfig struct {
 	Separator string
+	Format    string
+	Options   map[string]string
 	BasicURL  string `mapstructure:"BasicUrl"`
 }
 
@@ -127,6 +130,15 @@ func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetche
 
 	if fetcherConfig.Separator == "" {
 		fetcherConfig.Separator = "\t"
+	}
+	if fetcherConfig.Options == nil {
+		fetcherConfig.Options = make(map[string]string)
+	}
+	if _, ok := fetcherConfig.Options["fqdn_key_name"]; !ok {
+		fetcherConfig.Options["fqdn_key_name"] = "fqdn"
+	}
+	if _, ok := fetcherConfig.Options["dc_key_name"]; !ok {
+		fetcherConfig.Options["dc_key_name"] = "root_datacenter_name"
 	}
 
 	f := &SimpleFetcher{
@@ -180,20 +192,92 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	}
 
 	// Body parsing
-	fetchedHosts := make(hosts.Hosts)
+	switch s.Format {
+	case "json":
+		return s.parseJSON(body)
+	case "qjson":
+		return s.parseQJSON(body)
+	default:
+		return s.parseTSV(body)
+	}
+}
+
+func (s *SimpleFetcher) parseTSV(body []byte) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "SimpleFetcher.parseTSV")
+	parsed := make(hosts.Hosts)
 	items := strings.TrimSuffix(string(body), "\n")
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
 		// expect index 0 - datacenter, 1 - fqdn
 		if len(temp) != 2 || temp[0] == "" {
-			log.Errorf("Wrong input string %q", temp)
+			log.Errorf("Wrong input string %q", dcAndHost)
 			continue
 		}
 		dc, host := temp[0], temp[1]
-		fetchedHosts[dc] = append(fetchedHosts[dc], host)
+		parsed[dc] = append(parsed[dc], host)
 	}
-	if len(fetchedHosts) == 0 {
-		return fetchedHosts, common.ErrNoHosts
+	if len(parsed) == 0 {
+		return parsed, common.ErrNoHosts
 	}
-	return fetchedHosts, nil
+	return parsed, nil
+}
+
+func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "SimpleFetcher.parseJSON")
+
+	var resp []map[string]string
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("Failed to parse json body: %s", err)
+	}
+
+	parsed := make(hosts.Hosts)
+	var fqdn string
+	var dc string
+	var ok bool
+
+	for _, dcAndHost := range resp {
+		if fqdn, ok = dcAndHost[s.Options["fqdn_key_name"]]; !ok || fqdn == "" {
+			log.Errorf("Wrong fqdn in host description '%s'", dcAndHost)
+			continue
+		}
+		if dc, ok = dcAndHost[s.Options["dc_key_name"]]; !ok || dc == "" {
+			log.Errorf("Wrong dc in host description '%s'", dcAndHost)
+			continue
+		}
+		parsed[dc] = append(parsed[dc], fqdn)
+	}
+	if len(parsed) == 0 {
+		return parsed, common.ErrNoHosts
+	}
+	return parsed, nil
+}
+
+type qResp struct {
+	Group    string   `json:"group"`
+	Children []string `json:"children"`
+}
+
+func (s *SimpleFetcher) parseQJSON(body []byte) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "SimpleFetcher.parseQJSON")
+
+	var resp qResp
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("Failed to parse Qloud json body: %s", err)
+	}
+
+	parsed := make(hosts.Hosts)
+	for _, dcAndHost := range resp.Children {
+		temp := strings.SplitN(dcAndHost, "-", 2)
+		// expect index 0 - datacenter, 1 - fqdn
+		if len(temp) != 2 || temp[0] == "" {
+			log.Errorf("Wrong input string %q", dcAndHost)
+			continue
+		}
+		dc, host := temp[0], temp[1]
+		parsed[dc] = append(parsed[dc], host)
+	}
+	if len(parsed) == 0 {
+		return parsed, common.ErrNoHosts
+	}
+	return parsed, nil
 }
