@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/combaine/combaine/combainer"
 	"github.com/hashicorp/memberlist"
@@ -59,14 +58,14 @@ func (s *CombaineServer) connectSerf() error {
 // nodeJoin is used to handle join events on the serf cluster
 func (s *CombaineServer) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		s.log.WithField("source", "Serf").Infof("Serf join event, new combainer %s", m.Name)
+		s.log.WithField("source", "Serf").Infof("Serf join event from %s", m.Name)
 	}
 }
 
 // nodeFailed is used to handle fail events on the serf cluster
 func (s *CombaineServer) nodeFailed(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		s.log.WithField("source", "Serf").Infof("Serf failed event, combainer %s", m.Name)
+		s.log.WithField("source", "Serf").Infof("Serf failed event from %s", m.Name)
 	}
 }
 
@@ -81,22 +80,14 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 	conf.MemberlistConfig = memberlist.DefaultWANConfig()
 
 	ips, err := net.LookupIP(conf.MemberlistConfig.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup Serf: %s", err)
-	}
-	if len(ips) == 0 {
+	if err != nil || len(ips) == 0 {
 		return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
 	for _, ip := range ips {
-		if ip.IsGlobalUnicast() {
-			ipStr := ip.String()
-			if strings.Contains(ipStr, ":") {
-				// pick first non local ipv6 address
-				// TODO (sakateka) neeed make pick deterministic way
-				s.log.Infof("Advertise Serf address: %s", ips[0].String())
-				conf.MemberlistConfig.AdvertiseAddr = ips[0].String()
-				break
-			}
+		if len(ip) == ip.IPv6len && ip.IsGlobalUnicast() {
+			conf.MemberlistConfig.AdvertiseAddr = ip.String()
+			s.log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
+			break
 		}
 	}
 
