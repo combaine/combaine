@@ -84,7 +84,7 @@ func (s *CombaineServer) setupSerf() (*serf.Serf, error) {
 		return nil, fmt.Errorf("failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
 	for _, ip := range ips {
-		if len(ip) == ip.IPv6len && ip.IsGlobalUnicast() {
+		if len(ip) == net.IPv6len && ip.IsGlobalUnicast() {
 			conf.MemberlistConfig.AdvertiseAddr = ip.String()
 			s.log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
 			break
