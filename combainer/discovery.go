@@ -266,15 +266,14 @@ func (s *SimpleFetcher) parseQJSON(body []byte) (hosts.Hosts, error) {
 	}
 
 	parsed := make(hosts.Hosts)
-	for _, dcAndHost := range resp.Children {
-		temp := strings.SplitN(dcAndHost, "-", 2)
-		// expect index 0 - datacenter, 1 - fqdn
-		if len(temp) != 2 || temp[0] == "" {
-			log.Errorf("Wrong input string %q", dcAndHost)
+	for _, fqdn := range resp.Children {
+		dash := strings.IndexByte(fqdn, '-')
+		if dash == -1 {
+			log.Errorf("Wrong input string %q", fqdn)
 			continue
 		}
-		dc, host := temp[0], temp[1]
-		parsed[dc] = append(parsed[dc], host)
+		dc := fqdn[:dash]
+		parsed[dc] = append(parsed[dc], fqdn)
 	}
 	if len(parsed) == 0 {
 		return parsed, common.ErrNoHosts

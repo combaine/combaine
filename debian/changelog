@@ -1,3 +1,9 @@
+combaine (0.9.14) trusty; urgency=medium
+
+  * [discovery] fix qjson parsing
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 28 Mar 2017 21:36:43 +0700
+
 combaine (0.9.13) trusty; urgency=medium
 
   * [discovery] SimpleFetcher qloud json

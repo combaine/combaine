@@ -73,29 +73,29 @@ func TestHttpFetcher(t *testing.T) {
 			payload := []byte("\n" +
 				"notValidHost\n" +
 				"\tnotValidHost\n" +
-				"dcA\thost1-in-dcA\n" +
-				"dcA\thost2-in-dcA\n" +
-				"dcB\thost1-in-dcB\n" +
-				"dcB\thost2-in-dcB\n")
+				"dcA\thost1.in.dcA\n" +
+				"dcA\thost2.in.dcA\n" +
+				"dcB\thost1.in.dcB\n" +
+				"dcB\thost2.in.dcB\n")
 			w.Write(payload)
 		case "/fetch/group1-json":
 			payload := []byte(`[
 				{ "root_datacenter_name": "dcA" },
 				{ "fqdn": "", "root_datacenter_name": "dcA" },
-				{ "fqdn": "host1-in-dcA", "root_datacenter_name": "dcA" },
-				{ "fqdn": "host2-in-dcA", "root_datacenter_name": "dcA" },
-				{ "fqdn": "host1-in-dcB", "root_datacenter_name": "dcB" },
-				{ "fqdn": "host2-in-dcB", "root_datacenter_name": "dcB" }
+				{ "fqdn": "host1.in.dcA", "root_datacenter_name": "dcA" },
+				{ "fqdn": "host2.in.dcA", "root_datacenter_name": "dcA" },
+				{ "fqdn": "host1.in.dcB", "root_datacenter_name": "dcB" },
+				{ "fqdn": "host2.in.dcB", "root_datacenter_name": "dcB" }
 			]`)
 			w.Write(payload)
 		case "/fetch/group1-qjson":
 			payload := []byte(`{
 				"group":"group1",
 				"children":[
-					"dcA-host1-in-dcA",
-					"dcA-host2-in-dcA",
-					"dcB-host1-in-dcB",
-					"dcB-host2-in-dcB"
+					"dcA-host1.in.dcA",
+					"dcA-host2.in.dcA",
+					"dcB-host1.in.dcB",
+					"dcB-host2.in.dcB"
 				]
 			}`)
 			w.Write(payload)
@@ -121,18 +121,23 @@ func TestHttpFetcher(t *testing.T) {
 		query   string
 		err     bool
 		errType error
+		expect  hosts.Hosts
 	}{
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
 			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
+			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
 			"NotInCache", Failed, nil,
+			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"NotInCache", Failed, nil,
+			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1", Ok, nil,
+			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{
 			configs.PluginConfig{
@@ -141,6 +146,7 @@ func TestHttpFetcher(t *testing.T) {
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
 			},
 			"group1-json", Ok, nil,
+			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{
 			configs.PluginConfig{
@@ -149,11 +155,8 @@ func TestHttpFetcher(t *testing.T) {
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
 			},
 			"group1-qjson", Ok, nil,
+			hosts.Hosts{"dcA": {"dcA-host1.in.dcA", "dcA-host2.in.dcA"}, "dcB": {"dcB-host1.in.dcB", "dcB-host2.in.dcB"}},
 		},
-	}
-	expect := hosts.Hosts{
-		"dcA": {"host1-in-dcA", "host2-in-dcA"},
-		"dcB": {"host1-in-dcB", "host2-in-dcB"},
 	}
 	for _, c := range cases {
 		hFetcher, err := LoadHostFetcher(testCtx, c.config)
@@ -167,7 +170,7 @@ func TestHttpFetcher(t *testing.T) {
 			}
 		} else {
 			assert.Len(t, resp, 2)
-			assert.Equal(t, expect, resp)
+			assert.Equal(t, c.expect, resp)
 		}
 	}
 }
