@@ -1,4 +1,4 @@
-package combainer
+package discovery
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/httpclient"
@@ -30,7 +31,7 @@ func init() {
 const fetcherCacheNamespace = "simpleFetcherCacheNamespace"
 
 // FetcherLoader is type of function is responsible for loading fetchers
-type FetcherLoader func(*Context, map[string]interface{}) (HostFetcher, error)
+type FetcherLoader func(cache.Cache, map[string]interface{}) (HostFetcher, error)
 
 var (
 	fetchers   = make(map[string]FetcherLoader)
@@ -49,7 +50,7 @@ func RegisterFetcherLoader(name string, f FetcherLoader) error {
 }
 
 // LoadHostFetcher create, configure and return new hosts fetcher
-func LoadHostFetcher(context *Context, config configs.PluginConfig) (HostFetcher, error) {
+func LoadHostFetcher(cache cache.Cache, config configs.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get type of HostFetcher: %s", err)
@@ -60,7 +61,7 @@ func LoadHostFetcher(context *Context, config configs.PluginConfig) (HostFetcher
 		return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
 	}
 
-	return initializer(context, config)
+	return initializer(cache, config)
 }
 
 // HostFetcher interface
@@ -81,8 +82,8 @@ type PredefineFetcherConfig struct {
 
 // newPredefineFetcher return list of hosts defined
 // in user or server level combainer's config,
-// context parameter ignored because cache not need this
-func newPredefineFetcher(_ *Context, config map[string]interface{}) (HostFetcher, error) {
+// cache ignored because cache not need this
+func newPredefineFetcher(_ cache.Cache, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig PredefineFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -107,9 +108,10 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 // SimpleFetcher recive plain text with tab separated fields
 // it expect format `fqdn\tdatacenter`
+// or json configured by Format config
 type SimpleFetcher struct {
 	SimpleFetcherConfig
-	*Context
+	Cache cache.Cache
 }
 
 // SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
@@ -121,8 +123,7 @@ type SimpleFetcherConfig struct {
 }
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
-// context used for provide combainer Cache
-func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetcher, error) {
+func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -143,7 +144,7 @@ func newHTTPFetcher(context *Context, config map[string]interface{}) (HostFetche
 
 	f := &SimpleFetcher{
 		SimpleFetcherConfig: fetcherConfig,
-		Context:             context,
+		Cache:               cache,
 	}
 	return f, nil
 }

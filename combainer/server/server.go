@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/hashicorp/serf/serf"
 	"github.com/talbright/go-zookeeper/zk"
 
 	"github.com/combaine/combaine/combainer"
+	"github.com/combaine/combaine/combainer/cluster"
+	"github.com/combaine/combaine/combainer/discovery"
 	"github.com/combaine/combaine/combainer/lockserver"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
@@ -36,15 +37,11 @@ func trap() {
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig configs.CombainerConfig
-	context         *combainer.Context
+	repository      configs.Repository
 
-	// serfEventCh is used to receive events from the serf cluster
-	serfEventCh chan serf.Event
-	// instance of Serf
-	Serf       *serf.Serf
+	serf       *cluster.Serf
 	shutdownCh chan struct{}
 
-	configs.Repository
 	cache.Cache
 	log *logrus.Entry
 }
@@ -89,43 +86,34 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 	log.Infof("Initialized combainer cache type: %s", cacheType)
 
-	context := &combainer.Context{
-		Cache:  cacher,
-		Serf:   nil,
-		Logger: logrus.StandardLogger(),
-	}
-
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
-		Repository:      repository,
-		serfEventCh:     make(chan serf.Event, 256),
-		shutdownCh:      make(chan struct{}),
+		repository:      repository,
 		Cache:           cacher,
-		context:         context,
 		log:             log,
 	}
 
-	server.Serf, err = server.setupSerf()
+	server.serf, err = cluster.New(combainerConfig.MainSection.SerfConfig)
 	if err != nil {
-		if server.Serf != nil {
-			server.Serf.Shutdown()
-		}
-		log.Fatalf("Failed to start serf: %s", err)
+		return nil, err
 	}
-	server.context.Serf = server.Serf
-
 	return server, nil
-}
-
-// GetContext return servers context
-func (c *CombaineServer) GetContext() *combainer.Context {
-	return c.context
 }
 
 // GetRepository return repository of configs
 func (c *CombaineServer) GetRepository() configs.Repository {
-	return c.Repository
+	return c.repository
+}
+
+// GetSerf return cluster serf instance
+func (c *CombaineServer) GetSerf() *cluster.Serf {
+	return c.serf
+}
+
+// GetCache return combainer cache
+func (c *CombaineServer) GetCache() cache.Cache {
+	return c.Cache
 }
 
 // Serve run main event loop
@@ -139,11 +127,20 @@ func (c *CombaineServer) Serve() error {
 		}
 	}()
 
-	// run Serf instance and monitor for this events
-	if err := c.connectSerf(); err != nil {
+	f, err := discovery.LoadHostFetcher(c.Cache, c.CombainerConfig.CloudSection.HostFetcher)
+	if err != nil {
+		return err
+	}
+	hostsByDc, err := f.Fetch(c.CombainerConfig.MainSection.CloudGroup)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch cloud group: %s", err)
+	}
+	hosts := hostsByDc.RemoteHosts()
+
+	if err := c.serf.Connect(hosts); err != nil {
 		c.log.Errorf("Failed to connectSerf: %s", err)
 	}
-	go c.serfEventHandler()
+	go c.serf.EventHandler()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
@@ -154,7 +151,7 @@ func (c *CombaineServer) Serve() error {
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
 	sig := <-sigWatcher
 	c.log.Info("Got signal:", sig)
-	close(c.shutdownCh)
+	close(c.serf.ShutdownCh)
 	return nil
 }
 
@@ -186,7 +183,7 @@ LOCKSERVER_LOOP:
 			case <-next:
 				next = time.After(c.Configuration.Period)
 
-				configs, err := c.Repository.ListParsingConfigs()
+				configs, err := c.repository.ListParsingConfigs()
 				if err != nil {
 					ilog.WithField("error", err).Error("unable to list parsing configs")
 					continue DISPATCH_LOOP
@@ -221,13 +218,13 @@ LOCKSERVER_LOOP:
 							defer trap()
 							defer DLS.Unlock(name)
 
-							if !c.Repository.ParsingConfigIsExists(name) {
+							if !c.repository.ParsingConfigIsExists(name) {
 								llog.Error("config doesn't exist")
 								return nil
 							}
 
 							llog.Info("creating new client")
-							cl, err := combainer.NewClient(c.context, c.Repository)
+							cl, err := combainer.NewClient(c.Cache, c.serf, c.repository)
 							if err != nil {
 								llog.Errorf("can't create client %s", err)
 								return nil

@@ -10,11 +10,13 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
+	"github.com/combaine/combaine/combainer/cluster"
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 )
 
@@ -145,7 +147,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
 	aggregationConfigs, err := GetAggregationConfigs(repo, &parsingCfg)
 	if err != nil {
-		log.Errorf("Unable to read aggregation configs: %s", err)
+		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return
 	}
 
@@ -172,7 +174,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetContext(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetSerf(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -195,22 +197,20 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
 
-	logger := log.New()
-	logger.Level = log.DebugLevel
-	logger.Formatter = s.GetContext().Logger.Formatter
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	logger.Formatter = &logrus.TextFormatter{
+		ForceColors:    true,
+		DisableSorting: true,
+	}
 	logger.Out = w
 
-	ctx := &Context{
-		Logger: logger,
-		Cache:  s.GetContext().Cache,
-		Serf:   s.GetContext().Serf,
-	}
-
-	cl, err := NewClient(ctx, s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetSerf(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	cl.Log = logger.WithField("client", "launch")
 
 	ID := GenerateSessionId()
 	err = cl.Dispatch(name, ID, false)
@@ -225,8 +225,9 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 
 // ServerContext contains server context with repository
 type ServerContext interface {
-	GetContext() *Context
 	GetRepository() configs.Repository
+	GetCache() cache.Cache
+	GetSerf() *cluster.Serf
 }
 
 func attachServer(s ServerContext,

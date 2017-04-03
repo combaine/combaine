@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,13 +17,7 @@ func TestNewClient(t *testing.T) {
 	repo, err := configs.NewFilesystemRepository(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
 
-	context := &Context{
-		Cache:  nil,
-		Serf:   nil,
-		Logger: logrus.StandardLogger(),
-	}
-
-	c, err := NewClient(context, repo)
+	c, err := NewClient(nil, nil, repo)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
 	assert.NotEmpty(t, c.ID)
 }

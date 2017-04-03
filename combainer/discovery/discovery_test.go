@@ -1,4 +1,4 @@
-package combainer
+package discovery
 
 import (
 	"fmt"
@@ -13,38 +13,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testCache, _ = cache.NewInMemoryCache(nil)
 var (
-	pluginCfg = configs.PluginConfig{}
-	testCtx   = &Context{
-		Cache: testCache,
-	}
-	testCfg = configs.PluginConfig{}
+	testCache, _ = cache.NewInMemoryCache(nil)
+	pluginCfg    = configs.PluginConfig{}
+	testCfg      = configs.PluginConfig{}
 )
 
 func TestRegisterFetcherLoader(t *testing.T) {
 	pdf := &PredefineFetcher{}
-	f := func(context *Context, config map[string]interface{}) (HostFetcher, error) {
+	f := func(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
 		return pdf, nil
 	}
 	assert.NoError(t, RegisterFetcherLoader("test", f))
 	assert.Error(t, RegisterFetcherLoader("test", f))
-	_, err := LoadHostFetcher(testCtx, testCfg)
+	_, err := LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "nonRegistered"
-	_, err = LoadHostFetcher(testCtx, testCfg)
+	_, err = LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "test"
-	nf, err := LoadHostFetcher(testCtx, testCfg)
+	nf, err := LoadHostFetcher(testCache, testCfg)
 	assert.NoError(t, err)
 	assert.Equal(t, nf, pdf)
 }
 
 func TestPredefineFetcher(t *testing.T) {
 	testCfg = configs.PluginConfig{"type": "predefine", "Clusters": 1}
-	_, err := LoadHostFetcher(testCtx, testCfg)
+	_, err := LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
 	testCfg = configs.PluginConfig{
 		"type": "predefine",
@@ -55,7 +52,7 @@ func TestPredefineFetcher(t *testing.T) {
 			},
 		},
 	}
-	pFetcher, err := LoadHostFetcher(testCtx, testCfg)
+	pFetcher, err := LoadHostFetcher(testCache, testCfg)
 	assert.NoError(t, err)
 	_, err = pFetcher.Fetch("NotInCache")
 	assert.Error(t, err)
@@ -156,7 +153,7 @@ func TestHttpFetcher(t *testing.T) {
 		"dcB": {"host1-in-dcB", "host2-in-dcB"},
 	}
 	for _, c := range cases {
-		hFetcher, err := LoadHostFetcher(testCtx, c.config)
+		hFetcher, err := LoadHostFetcher(testCache, c.config)
 		assert.NoError(t, err, "Failed to load host fetcher")
 		resp, err := hFetcher.Fetch(c.query)
 		if c.err {
