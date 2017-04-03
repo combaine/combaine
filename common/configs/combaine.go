@@ -1,9 +1,11 @@
 package configs
 
-// Describes Main section in combaine.yaml
+import "errors"
+
+// MainSection describes Main section in combaine.yaml
 type MainSection struct {
-	SerfConfig       SerfConfig `yaml:"Serf"`
-	ParallelParsings int        `yaml:"ParallelParsings"`
+	ClusterConfig    ClusterConfig `yaml:"Cluster"`
+	ParallelParsings int           `yaml:"ParallelParsings"`
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
 	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
@@ -13,13 +15,15 @@ type MainSection struct {
 	Cache PluginConfig `yaml:"Cache,omitempty"`
 }
 
-type SerfConfig struct {
+// ClusterConfig about serf and raft
+type ClusterConfig struct {
 	SnapshotPath string `yaml:"SnapshotPath"`
 	BindAddr     string `yaml:"BindAddr"`
 }
 
+// LockServerSection zk related section
 type LockServerSection struct {
-	Id string `yaml:"app_id"`
+	ID string `yaml:"app_id"`
 	// Array of Zookeeper hosts
 	Hosts []string `yaml:"host"`
 	Name  string   `yaml:"name"`
@@ -27,6 +31,7 @@ type LockServerSection struct {
 	Timeout uint `yaml:"timeout"`
 }
 
+// CloudSection configure fetchers and discovery
 type CloudSection struct {
 	// Default DataFetcher
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
@@ -35,28 +40,22 @@ type CloudSection struct {
 	HostFetcher PluginConfig `yaml:"HostFetcher"`
 }
 
+// CombainerSection about combainer daemon configs
 type CombainerSection struct {
 	LockServerSection `yaml:"Lockserver"`
 	MainSection       `yaml:"Main"`
 }
 
+// CombainerConfig container for all other configs
 type CombainerConfig struct {
 	CombainerSection `yaml:"Combainer"`
 	CloudSection     `yaml:"cloud_config"`
 }
 
-type ConfigurationError struct {
-	message string
-}
-
-func (c *ConfigurationError) Error() string {
-	return c.message
-}
-
+// VerifyCombainerConfig check combainer config
 func VerifyCombainerConfig(cfg *CombainerConfig) error {
 	if cfg.MainSection.IterationDuration <= 0 {
-		return &ConfigurationError{"MINIMUM_PERIOD must be positive"}
+		return errors.New("MINIMUM_PERIOD must be positive")
 	}
-
 	return nil
 }

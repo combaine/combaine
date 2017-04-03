@@ -34,19 +34,19 @@ type Client struct {
 	ID         string
 	repository configs.Repository
 	Cache      cache.Cache
-	serf       *cluster.Serf
+	cluster    *cluster.Cluster
 	Log        *logrus.Entry
 	clientStats
 }
 
 // NewClient returns new client
-func NewClient(cache cache.Cache, serf *cluster.Serf, repo configs.Repository) (*Client, error) {
+func NewClient(cache cache.Cache, cluster *cluster.Cluster, repo configs.Repository) (*Client, error) {
 	id := GenerateSessionId()
 	cl := &Client{
 		ID:         id,
 		repository: repo,
 		Cache:      cache,
-		serf:       serf,
+		cluster:    cluster,
 		Log:        logrus.WithField("client", id),
 	}
 	return cl, nil
@@ -187,8 +187,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(dispatchFields).Info("Start new iteration")
-	serfMembers := cl.serf.Members()
-	hosts := make([]string, 0, len(serfMembers))
+	hosts := cl.cluster.Members()
 	if len(hosts) == 0 {
 		cl.Log.WithFields(
 			logrus.Fields{"session": uniqueID, "config": parsingConfigName},

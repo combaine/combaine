@@ -72,7 +72,7 @@ func NewLockServer(config configs.LockServerSection) (*LockServer, error) {
 
 // Lock try create ephemeral node and lock it
 func (ls *LockServer) Lock(node string) error {
-	path := filepath.Join("/", ls.LockServerSection.Id, node)
+	path := filepath.Join("/", ls.LockServerSection.ID, node)
 	ls.log.Debugf("Locking %s", path)
 	content, err := os.Hostname()
 	if err != nil {
@@ -94,7 +94,7 @@ func (ls *LockServer) Lock(node string) error {
 
 // Unlock try remove owned ephemeral node
 func (ls *LockServer) Unlock(node string) error {
-	path := filepath.Join("/", ls.LockServerSection.Id, node)
+	path := filepath.Join("/", ls.LockServerSection.ID, node)
 	ls.log.Infof("Unlocking %s", path)
 	if exists, state, err := ls.Conn.Exists(path); err == nil && exists {
 		if state.EphemeralOwner == ls.Conn.SessionID() {
@@ -107,7 +107,7 @@ func (ls *LockServer) Unlock(node string) error {
 
 // Watch watch events from ephemeral node
 func (ls *LockServer) Watch(node string) (<-chan zk.Event, error) {
-	path := filepath.Join("/", ls.LockServerSection.Id, node)
+	path := filepath.Join("/", ls.LockServerSection.ID, node)
 	_, _, w, err := ls.Conn.GetW(path)
 	return w, err
 }

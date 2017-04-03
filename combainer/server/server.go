@@ -39,7 +39,7 @@ type CombaineServer struct {
 	CombainerConfig configs.CombainerConfig
 	repository      configs.Repository
 
-	serf       *cluster.Serf
+	cluster    *cluster.Cluster
 	shutdownCh chan struct{}
 
 	cache.Cache
@@ -94,7 +94,7 @@ func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
 		log:             log,
 	}
 
-	server.serf, err = cluster.New(combainerConfig.MainSection.SerfConfig)
+	server.cluster, err = cluster.New(combainerConfig.MainSection.ClusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +106,9 @@ func (c *CombaineServer) GetRepository() configs.Repository {
 	return c.repository
 }
 
-// GetSerf return cluster serf instance
-func (c *CombaineServer) GetSerf() *cluster.Serf {
-	return c.serf
+// GetCluster return cluster cluster instance
+func (c *CombaineServer) GetCluster() *cluster.Cluster {
+	return c.cluster
 }
 
 // GetCache return combainer cache
@@ -137,10 +137,10 @@ func (c *CombaineServer) Serve() error {
 	}
 	hosts := hostsByDc.RemoteHosts()
 
-	if err := c.serf.Connect(hosts); err != nil {
-		c.log.Errorf("Failed to connectSerf: %s", err)
+	if err := c.cluster.Connect(hosts); err != nil {
+		c.log.Errorf("Failed to connect cluster: %s", err)
 	}
-	go c.serf.EventHandler()
+	go c.cluster.EventHandler()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
@@ -151,7 +151,7 @@ func (c *CombaineServer) Serve() error {
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
 	sig := <-sigWatcher
 	c.log.Info("Got signal:", sig)
-	close(c.serf.ShutdownCh)
+	close(c.cluster.ShutdownCh)
 	return nil
 }
 
@@ -224,7 +224,7 @@ LOCKSERVER_LOOP:
 							}
 
 							llog.Info("creating new client")
-							cl, err := combainer.NewClient(c.Cache, c.serf, c.repository)
+							cl, err := combainer.NewClient(c.Cache, c.cluster, c.repository)
 							if err != nil {
 								llog.Errorf("can't create client %s", err)
 								return nil

@@ -11,7 +11,7 @@ import (
 func TestNewLockServer(t *testing.T) {
 	cfg := configs.LockServerSection{
 		Hosts:   []string{"localhost:2181"},
-		Id:      "MyID",
+		ID:      "MyID",
 		Name:    "TestName",
 		Timeout: 5,
 	}

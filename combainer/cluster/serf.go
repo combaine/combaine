@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-// Serf is wrapper for access cluster members
-type Serf struct {
+// Cluster is wrapper for access cluster members
+type Cluster struct {
 	serfEventCh chan serf.Event
 	serf        *serf.Serf
 	ShutdownCh  chan struct{}
@@ -18,8 +18,8 @@ type Serf struct {
 }
 
 // Members return alive serf members
-func (s *Serf) Members() []string {
-	members := s.serf.Members()
+func (c *Cluster) Members() []string {
+	members := c.serf.Members()
 	hosts := make([]string, 0, len(members))
 	for _, m := range members {
 		// that return only alive nodes
@@ -31,59 +31,59 @@ func (s *Serf) Members() []string {
 }
 
 // EventHandler is used to handle events from the serf cluster
-func (s *Serf) EventHandler() {
+func (c *Cluster) EventHandler() {
 	for {
 		select {
-		case e := <-s.serfEventCh:
+		case e := <-c.serfEventCh:
 			switch e.EventType() {
 			case serf.EventMemberJoin:
-				s.nodeJoin(e.(serf.MemberEvent))
+				c.nodeJoin(e.(serf.MemberEvent))
 			case serf.EventMemberLeave, serf.EventMemberFailed:
-				s.nodeFailed(e.(serf.MemberEvent))
+				c.nodeFailed(e.(serf.MemberEvent))
 			case serf.EventMemberUpdate, serf.EventMemberReap,
 				serf.EventUser, serf.EventQuery: // Ignore
 			default:
-				s.log.Warnf("unhandled event: %#v", e)
+				c.log.Warnf("unhandled event: %#v", e)
 			}
 
-		case <-s.ShutdownCh:
+		case <-c.ShutdownCh:
 			return
 		}
 	}
 }
 
 // Connect is used to attempt join to existing serf cluster.
-func (s *Serf) Connect(initHosts []string) error {
-	s.log.Infof("Connect to Serf cluster: %s", initHosts)
-	n, err := s.serf.Join(initHosts, true)
+func (c *Cluster) Connect(initHosts []string) error {
+	c.log.Infof("Connect to Serf cluster: %s", initHosts)
+	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
-		s.log.Infof("Combainer joined to Serf cluster: %d nodes", n)
+		c.log.Infof("Combainer joined to cluster: %d nodes", n)
 	}
 	if err != nil {
-		s.log.Errorf("Combainer error joining to Serf cluster: %d nodes", n)
+		c.log.Errorf("Combainer error joining to cluster: %d nodes", n)
 		return err
 	}
 	return nil
 }
 
 // nodeJoin is used to handle join events on the serf cluster
-func (s *Serf) nodeJoin(me serf.MemberEvent) {
+func (c *Cluster) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		logrus.WithField("source", "Serf").Infof("Serf join event from %s", m.Name)
 	}
 }
 
 // nodeFailed is used to handle fail events on the serf cluster
-func (s *Serf) nodeFailed(me serf.MemberEvent) {
+func (c *Cluster) nodeFailed(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		s.log.Infof("Serf failed event from %s", m.Name)
+		c.log.Infof("Serf failed event from %s", m.Name)
 	}
 }
 
-// New create and initialize Serf instance
-func New(cfg configs.SerfConfig) (*Serf, error) {
+// New create and initialize Cluster instance
+func New(cfg configs.ClusterConfig) (*Cluster, error) {
 	var err error
-	log := logrus.WithField("source", "Serf")
+	log := logrus.WithField("source", "Cluster")
 	conf := serf.DefaultConfig()
 	conf.Init()
 	// set tags here
@@ -116,19 +116,19 @@ func New(cfg configs.SerfConfig) (*Serf, error) {
 	}
 
 	// run Serf instance and monitor for this events
-	serfInstance, err := serf.Create(conf)
+	cSerf, err := serf.Create(conf)
 	if err != nil {
-		if serfInstance != nil {
-			serfInstance.Shutdown()
+		if cSerf != nil {
+			cSerf.Shutdown()
 		}
 		log.Fatalf("Failed to start serf: %s", err)
 		return nil, err
 	}
-	s := &Serf{
+	c := &Cluster{
 		serfEventCh: eventCh,
 		ShutdownCh:  make(chan struct{}),
-		serf:        serfInstance,
+		serf:        cSerf,
 		log:         log,
 	}
-	return s, nil
+	return c, nil
 }

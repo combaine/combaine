@@ -174,7 +174,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetCache(), s.GetSerf(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetCluster(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -205,7 +205,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Out = w
 
-	cl, err := NewClient(s.GetCache(), s.GetSerf(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetCluster(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -227,7 +227,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 type ServerContext interface {
 	GetRepository() configs.Repository
 	GetCache() cache.Cache
-	GetSerf() *cluster.Serf
+	GetCluster() *cluster.Cluster
 }
 
 func attachServer(s ServerContext,
