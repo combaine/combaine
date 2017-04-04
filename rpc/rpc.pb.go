@@ -47,6 +47,20 @@ func (m *TimeFrame) String() string            { return proto.CompactTextString(
 func (*TimeFrame) ProtoMessage()               {}
 func (*TimeFrame) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+func (m *TimeFrame) GetPrevious() int64 {
+	if m != nil {
+		return m.Previous
+	}
+	return 0
+}
+
+func (m *TimeFrame) GetCurrent() int64 {
+	if m != nil {
+		return m.Current
+	}
+	return 0
+}
+
 type ParsingTask struct {
 	Id    string     `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
 	Frame *TimeFrame `protobuf:"bytes,2,opt,name=frame" json:"frame,omitempty"`
@@ -66,9 +80,44 @@ func (m *ParsingTask) String() string            { return proto.CompactTextStrin
 func (*ParsingTask) ProtoMessage()               {}
 func (*ParsingTask) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
+func (m *ParsingTask) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
 func (m *ParsingTask) GetFrame() *TimeFrame {
 	if m != nil {
 		return m.Frame
+	}
+	return nil
+}
+
+func (m *ParsingTask) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *ParsingTask) GetParsingConfigName() string {
+	if m != nil {
+		return m.ParsingConfigName
+	}
+	return ""
+}
+
+func (m *ParsingTask) GetEncodedParsingConfig() []byte {
+	if m != nil {
+		return m.EncodedParsingConfig
+	}
+	return nil
+}
+
+func (m *ParsingTask) GetEncodedAggregationConfigs() []byte {
+	if m != nil {
+		return m.EncodedAggregationConfigs
 	}
 	return nil
 }
@@ -111,9 +160,51 @@ func (m *AggregatingTask) String() string            { return proto.CompactTextS
 func (*AggregatingTask) ProtoMessage()               {}
 func (*AggregatingTask) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
+func (m *AggregatingTask) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
 func (m *AggregatingTask) GetFrame() *TimeFrame {
 	if m != nil {
 		return m.Frame
+	}
+	return nil
+}
+
+func (m *AggregatingTask) GetConfig() string {
+	if m != nil {
+		return m.Config
+	}
+	return ""
+}
+
+func (m *AggregatingTask) GetParsingConfigName() string {
+	if m != nil {
+		return m.ParsingConfigName
+	}
+	return ""
+}
+
+func (m *AggregatingTask) GetEncodedParsingConfig() []byte {
+	if m != nil {
+		return m.EncodedParsingConfig
+	}
+	return nil
+}
+
+func (m *AggregatingTask) GetEncodedAggregationConfig() []byte {
+	if m != nil {
+		return m.EncodedAggregationConfig
+	}
+	return nil
+}
+
+func (m *AggregatingTask) GetEncodedHosts() []byte {
+	if m != nil {
+		return m.EncodedHosts
 	}
 	return nil
 }
@@ -147,7 +238,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion3
+const _ = grpc.SupportPackageIsVersion4
 
 // Client API for Worker service
 
@@ -243,14 +334,14 @@ var _Worker_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: fileDescriptor0,
+	Metadata: "rpc.proto",
 }
 
 func init() { proto.RegisterFile("rpc.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
 	// 428 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xbc, 0x93, 0x4f, 0x6f, 0xd4, 0x30,
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x93, 0x4f, 0x6f, 0xd4, 0x30,
 	0x10, 0xc5, 0x9b, 0xec, 0x9f, 0x36, 0xb3, 0x7f, 0x68, 0xa7, 0x55, 0x65, 0xc2, 0x65, 0x15, 0x2e,
 	0x2b, 0x81, 0x7c, 0x58, 0x40, 0x45, 0x08, 0x21, 0x55, 0x2c, 0x88, 0x13, 0xaa, 0xac, 0x4a, 0x1c,
 	0x57, 0x26, 0x71, 0x43, 0xb4, 0xad, 0x1d, 0xd9, 0xce, 0x4a, 0xfd, 0xac, 0x7c, 0x12, 0x6e, 0x28,

@@ -286,7 +286,6 @@ func TestNetSend(t *testing.T) {
 	reconnectInterval = 5
 	err = gc.Send(cases[1].data, 3)
 	assert.Error(t, err)
-	assert.Contains(t, fmt.Sprintf("%v", err), "context deadline exceeded after 3 attempts")
 
 	gc = Sender{fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
 	err = gc.Send(cases[1].data, 1)
