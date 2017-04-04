@@ -24,6 +24,7 @@ func TestCacheSetGetDelete(t *testing.T) {
 	GlobalCache.Delete(key)
 	resp, _ = GlobalCache.Get(ctx, key, checkFetcher, id, "q", val)
 	assert.Len(t, resp, len(val[0]))
+	GlobalCache.Delete(key)
 
 	// expiration without cleaner test
 	a, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"One"})
