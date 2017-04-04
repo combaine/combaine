@@ -187,7 +187,7 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(dispatchFields).Info("Start new iteration")
-	hosts := cl.cluster.Members()
+	hosts := cl.cluster.Hosts()
 	if len(hosts) == 0 {
 		cl.Log.WithFields(
 			logrus.Fields{"session": uniqueID, "config": parsingConfigName},

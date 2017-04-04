@@ -137,10 +137,9 @@ func (c *CombaineServer) Serve() error {
 	}
 	hosts := hostsByDc.RemoteHosts()
 
-	if err := c.cluster.Connect(hosts); err != nil {
+	if err := c.cluster.Bootstrap(hosts); err != nil {
 		c.log.Errorf("Failed to connect cluster: %s", err)
 	}
-	go c.cluster.EventHandler()
 
 	if c.Configuration.Active {
 		c.log.Info("start task distribution")
