@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"encoding/json"
 	"net"
 	"time"
 
@@ -139,4 +140,13 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 		c.log.Infof("removed raft peer: %v", addr)
 	}
 	return nil
+}
+
+func (c *Cluster) raftApply(command *fsmCommand) error {
+	state, err := json.Marshal(command)
+	if err != nil {
+		return err
+	}
+	f := c.raft.Apply(state, raftTimeout)
+	return f.Error()
 }

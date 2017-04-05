@@ -9,18 +9,42 @@ import (
 
 type fsm Cluster
 
-// RaftCommandType describe storage operation
-type RaftCommandType int
+// RaftCmdType describe storage operation
+type RaftCmdType int
 
 const (
-	addConfig RaftCommandType = iota
-	deleteConfig
+	addConfig RaftCmdType = iota
+	removeConfig
 )
 
 // fsmCommand contains cluster storage operation with data
 type fsmCommand struct {
-	Cmd  RaftCommandType  `json:"type"`
-	Data *json.RawMessage `json:"data"`
+	Type   RaftCmdType `json:"type"`
+	Host   string      `json:"host"`
+	Config string      `json:"config"`
+}
+
+// Apply command received over raft
+func (c *fsm) Apply(l *raft.Log) interface{} {
+	defer func() {
+		if r := recover(); r != nil {
+			c.log.Errorf("Error while applying raft command: %v", r)
+		}
+	}()
+
+	var cmd fsmCommand
+	if err := json.Unmarshal(l.Data, &cmd); err != nil {
+		c.log.Errorf("json unmarshal: bad raft command: %v", err)
+		return nil
+	}
+	c.log.WithField("source", "fsm").Debugf("Apply cmd %+v", cmd)
+	switch cmd.Type {
+	case addConfig:
+		// TODO
+	case removeConfig:
+		// TODO
+	}
+	return nil
 }
 
 // Restore fsm from snapshot
@@ -42,9 +66,4 @@ func (f *FSMSnapshot) Release() {}
 // Snapshot create fsm snapshot
 func (c *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	return &FSMSnapshot{}, nil
-}
-
-// Apply change fsm state
-func (c *fsm) Apply(l *raft.Log) interface{} {
-	return nil
 }
