@@ -3,6 +3,8 @@ package cluster
 import (
 	"encoding/json"
 	"io"
+	"sync"
+	"time"
 
 	"github.com/hashicorp/raft"
 )
@@ -40,9 +42,10 @@ func (c *fsm) Apply(l *raft.Log) interface{} {
 	c.log.WithField("source", "fsm").Debugf("Apply cmd %+v", cmd)
 	switch cmd.Type {
 	case addConfig:
-		// TODO
+		c.store.Put(cmd.Host, cmd.Config)
+		// TODO: run new client, resolve case when two or more client run in parallel
 	case removeConfig:
-		// TODO
+		c.store.Remove(cmd.Host, cmd.Config)
 	}
 	return nil
 }
@@ -66,4 +69,63 @@ func (f *FSMSnapshot) Release() {}
 // Snapshot create fsm snapshot
 func (c *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	return &FSMSnapshot{}, nil
+}
+
+// NewFSMStore create new fsm storage
+func NewFSMStore() *FSMStore {
+	return &FSMStore{store: make(map[string]map[string]int64)}
+}
+
+// FSMStore contains dispached congis
+type FSMStore struct {
+	sync.RWMutex
+	store map[string]map[string]int64
+}
+
+// List return configs assigned to host
+func (s *FSMStore) List(host string) []string {
+	s.RLock()
+	defer s.RUnlock()
+
+	if hostConfigs, ok := s.store[host]; ok {
+		configs := make([]string, 0, len(hostConfigs))
+		for n := range hostConfigs {
+			configs = append(configs, n)
+		}
+		return configs
+	}
+	return nil
+}
+
+// Get return unixtime, true when config added to store,
+// or 0, false if configs not present
+func (s *FSMStore) Get(host, config string) (int64, bool) {
+	s.RLock()
+	defer s.RUnlock()
+
+	if hostConfigs, ok := s.store[host]; ok {
+		if ts, ok := hostConfigs[config]; ok {
+			return ts, true
+		}
+	}
+	return 0, false
+}
+
+// Put assign new config to host
+func (s *FSMStore) Put(host, config string) {
+	s.Lock()
+	defer s.Unlock()
+
+	if _, ok := s.store[host]; !ok {
+		s.store[host] = make(map[string]int64)
+	}
+	s.store[host][config] = time.Now().Unix()
+}
+
+// Remove remove config from host's store
+func (s *FSMStore) Remove(host, config string) {
+	s.Lock()
+	defer s.Unlock()
+
+	delete(s.store[host], config)
 }

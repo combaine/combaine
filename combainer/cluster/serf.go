@@ -83,6 +83,7 @@ func New(cfg configs.ClusterConfig) (*Cluster, error) {
 
 		m: &sync.Mutex{},
 
+		store:  NewFSMStore(),
 		log:    log,
 		config: &cfg,
 	}
@@ -108,9 +109,10 @@ type Cluster struct {
 	m          *sync.Mutex
 	raft       *raft.Raft
 	transport  *raft.NetworkTransport
-	store      *raftboltdb.BoltStore
+	raftStore  *raftboltdb.BoltStore
 	raftConfig *raft.Config
 
+	store          *FSMStore
 	updateInterval time.Duration
 	log            *logrus.Entry
 	config         *configs.ClusterConfig
@@ -159,14 +161,15 @@ func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 		return errors.Wrap(err, "bolt store failed")
 	}
 
-	c.store = boltStore
+	c.raftStore = boltStore
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
+	c.raftConfig.LogOutput = c.log.Logger.Writer()
 	c.updateInterval = interval
 
 	raft, err := raft.NewRaft(c.raftConfig, (*fsm)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
 	if err != nil {
-		c.store.Close()
+		boltStore.Close()
 		c.transport.Close()
 		return errors.Wrap(err, "raft failed")
 	}
@@ -295,7 +298,7 @@ func (c *Cluster) Shutdown() {
 	if err := future.Error(); err != nil {
 		c.log.Errorf("failed to shutdown raft: %s", err)
 	}
-	if err := c.store.Close(); err != nil {
-		c.log.Errorf("failed to close store: %s", err)
+	if err := c.raftStore.Close(); err != nil {
+		c.log.Errorf("failed to close raftStore: %s", err)
 	}
 }
