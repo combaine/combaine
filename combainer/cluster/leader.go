@@ -8,9 +8,10 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-// monitorLeadership is used to monitor if we acquire or lose our role as the
+// Run is used to monitor if we acquire or lose our role as the
 // leader in the Raft cluster.
-func (c *Cluster) monitorLeadership() {
+// If we are leader then we distribute tasks over cluster
+func (c *Cluster) Run() {
 	var stopCh chan struct{}
 	for {
 		select {
@@ -33,10 +34,11 @@ func (c *Cluster) monitorLeadership() {
 // leaderLoop runs as long as we are the leader to run maintainence duties
 func (c *Cluster) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
+	update := time.After(c.updateInterval)
 
 RECONCILE:
 	reconcileCh = nil
-	interval := time.After(c.updateInterval)
+	interval := time.After(60 * time.Second)
 
 	barrier := c.raft.Barrier(0)
 	if err := barrier.Error(); err != nil {
@@ -46,10 +48,10 @@ RECONCILE:
 
 	if err := c.reconcile(); err != nil {
 		c.log.WithField("source", "Raft").Errorf("failed to reconcile: %v", err)
-		goto WAIT
+	} else {
+		reconcileCh = c.reconcileCh
 	}
-
-	reconcileCh = c.reconcileCh
+	goto WAIT
 
 WAIT:
 	for {
@@ -60,6 +62,12 @@ WAIT:
 			return
 		case <-interval:
 			goto RECONCILE
+		case <-update:
+			update = time.After(c.updateInterval)
+
+			if err := c.distributeTasks(); err != nil {
+				c.log.WithField("source", "Raft").Errorf("failed to distributeTasks: %v", err)
+			}
 		case member := <-reconcileCh:
 			if c.IsLeader() {
 				c.reconcileMember(member)
@@ -96,7 +104,7 @@ func (c *Cluster) reconcileMember(member serf.Member) error {
 	switch member.Status {
 	case serf.StatusAlive:
 		err = c.addRaftPeer(member)
-	case serf.StatusLeft, StatusReap:
+	case serf.StatusLeft, statusReap:
 		err = c.removeRaftPeer(member)
 	}
 	if err != nil {

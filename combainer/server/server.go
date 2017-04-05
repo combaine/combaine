@@ -141,10 +141,8 @@ func (c *CombaineServer) Serve() error {
 		c.log.Errorf("Failed to connect cluster: %s", err)
 	}
 
-	if c.Configuration.Active {
-		c.log.Info("start task distribution")
-		go c.distributeTasks()
-	}
+	c.log.Info("start task distribution")
+	go c.cluster.Run()
 
 	sigWatcher := make(chan os.Signal, 1)
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)

@@ -46,6 +46,5 @@ func (c *fsm) Snapshot() (raft.FSMSnapshot, error) {
 
 // Apply change fsm state
 func (c *fsm) Apply(l *raft.Log) interface{} {
-
 	return nil
 }

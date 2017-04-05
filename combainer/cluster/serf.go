@@ -23,9 +23,9 @@ const (
 	retainRaftSnapshot = 2
 	raftStateDirectory = "raft/"
 
-	// StatusReap is used to update the status of a node if we
+	// statusReap is used to update the status of a node if we
 	// are handling a EventMemberReap
-	StatusReap = serf.MemberStatus(-1)
+	statusReap = serf.MemberStatus(-1)
 )
 
 // New create and initialize Cluster instance
@@ -255,7 +255,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		// Change the status if this is a reap event
 		if isReap {
-			m.Status = StatusReap
+			m.Status = statusReap
 		}
 		select {
 		case c.reconcileCh <- m:
