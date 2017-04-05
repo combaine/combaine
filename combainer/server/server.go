@@ -137,7 +137,7 @@ func (c *CombaineServer) Serve() error {
 	}
 	hosts := hostsByDc.RemoteHosts()
 
-	if err := c.cluster.Bootstrap(hosts); err != nil {
+	if err := c.cluster.Bootstrap(hosts, c.Configuration.Period); err != nil {
 		c.log.Errorf("Failed to connect cluster: %s", err)
 	}
 
@@ -150,7 +150,7 @@ func (c *CombaineServer) Serve() error {
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
 	sig := <-sigWatcher
 	c.log.Info("Got signal:", sig)
-	close(c.cluster.ShutdownCh)
+	c.cluster.Shutdown()
 	return nil
 }
 
