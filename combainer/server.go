@@ -39,8 +39,8 @@ type CombaineServerConfig struct {
 	Active bool
 }
 
-// NewCombainer create new combaine server
-func NewCombainer(config CombaineServerConfig) (*CombaineServer, error) {
+// New create new combainer server
+func New(config CombaineServerConfig) (*CombaineServer, error) {
 	log := logrus.WithField("source", "server")
 	repository, err := configs.NewFilesystemRepository(config.ConfigsPath)
 	if err != nil {
@@ -119,6 +119,7 @@ func (c *CombaineServer) Serve() error {
 
 	if err := c.cluster.Bootstrap(hosts, c.Configuration.Period); err != nil {
 		c.log.Errorf("Failed to connect cluster: %s", err)
+		return err
 	}
 
 	c.log.Info("start task distribution")

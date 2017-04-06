@@ -121,10 +121,12 @@ func main() {
 		Active:       active,
 	}
 
-	cmb, err := combainer.NewCombainer(cfg)
+	cmb, err := combainer.New(cfg)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
-	cmb.Serve()
+	if err = cmb.Serve(); err != nil {
+		logrus.Fatal(err)
+	}
 }

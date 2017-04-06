@@ -31,6 +31,9 @@ case $1 in
 		echo "Deploy solomon"
 		cd /usr/lib/yandex/combaine/core-apps/solomon/
 		./deploy.sh
+
+        mkdir -vp  /var/spool/combainer
+        chown -vRf cocaine /var/spool/combainer
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

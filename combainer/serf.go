@@ -55,8 +55,10 @@ func NewCluster(cache cache.Cache, repo configs.Repository, cfg configs.ClusterC
 	if err != nil || len(ips) == 0 {
 		return nil, errors.Wrapf(err, "failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
+	var raftAdvertiseIP net.IP
 	for _, ip := range ips {
 		if len(ip) == net.IPv6len && ip.IsGlobalUnicast() {
+			raftAdvertiseIP = ip
 			conf.MemberlistConfig.AdvertiseAddr = ip.String()
 			log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
 			break
@@ -81,11 +83,12 @@ func NewCluster(cache cache.Cache, repo configs.Repository, cfg configs.ClusterC
 		shutdownCh: make(chan struct{}),
 		leaderCh:   make(chan bool, 1),
 
-		store:  NewFSMStore(),
-		log:    log,
-		cache:  cache,
-		repo:   repo,
-		config: &cfg,
+		raftAdvertiseIP: raftAdvertiseIP,
+		store:           NewFSMStore(),
+		log:             log,
+		cache:           cache,
+		repo:            repo,
+		config:          &cfg,
 	}
 	return c, nil
 }
@@ -106,10 +109,11 @@ type Cluster struct {
 	shutdownCh chan struct{}
 	leaderCh   chan bool
 
-	raft       *raft.Raft
-	transport  *raft.NetworkTransport
-	raftStore  *raftboltdb.BoltStore
-	raftConfig *raft.Config
+	raftAdvertiseIP net.IP
+	raft            *raft.Raft
+	transport       *raft.NetworkTransport
+	raftStore       *raftboltdb.BoltStore
+	raftConfig      *raft.Config
 
 	store          *FSMStore
 	updateInterval time.Duration
@@ -134,7 +138,11 @@ func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 		return err
 	}
 	c.transport, err = raft.NewTCPTransport(
-		c.config.RaftAddr, nil, raftPool, raftTimeout, c.log.Logger.Writer(),
+		c.config.RaftAddr,
+		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
+		raftPool,
+		raftTimeout,
+		c.log.Logger.Writer(),
 	)
 	if err != nil {
 		return errors.Wrap(err, "tcp transport failed")
@@ -270,7 +278,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 
 func validateConfig(cfg *configs.ClusterConfig) error {
 	if cfg.BindAddr == "" {
-		cfg.BindAddr = "::"
+		cfg.BindAddr = "[::]"
 	}
 	if cfg.RaftPort == 0 {
 		cfg.RaftPort = raftPort
