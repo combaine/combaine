@@ -1,10 +1,10 @@
 package combainer
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -129,16 +129,22 @@ type Cluster struct {
 // leader dispatch new configs every interval time.
 func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 	c.log.Infof("Connect to Serf cluster: %s", initHosts)
+CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
 		c.log.Infof("Combainer joined to cluster: %d nodes", n)
 	}
+	// NOTE: doc from serf.Join
+	// Join joins an existing Serf cluster. Returns the number of nodes
+	// successfully contacted. The returned error will be non-nil only in the
+	// case that no nodes could be contacted.
 	if err != nil {
 		c.log.Errorf("Combainer error joining to cluster: %d nodes", n)
-		return err
+		time.Sleep(interval)
+		goto CONNECT
 	}
 	c.transport, err = raft.NewTCPTransport(
-		c.config.RaftAddr,
+		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
 		raftPool,
 		raftTimeout,
@@ -150,7 +156,7 @@ func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 
 	var peersAddrs []string
 	for _, m := range c.Members() {
-		addr := net.JoinHostPort(m.Addr.String(), fmt.Sprintf("%d", c.config.RaftPort))
+		addr := net.JoinHostPort(m.Addr.String(), strconv.Itoa(c.config.RaftPort))
 		peersAddrs = append(peersAddrs, addr)
 	}
 	raftPeers := raft.NewJSONPeers(c.config.RaftState, c.transport)
@@ -278,7 +284,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 
 func validateConfig(cfg *configs.ClusterConfig) error {
 	if cfg.BindAddr == "" {
-		cfg.BindAddr = "[::]"
+		cfg.BindAddr = "::"
 	}
 	if cfg.RaftPort == 0 {
 		cfg.RaftPort = raftPort

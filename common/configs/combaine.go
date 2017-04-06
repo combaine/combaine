@@ -20,7 +20,6 @@ type ClusterConfig struct {
 	SnapshotPath string `yaml:"SnapshotPath"`
 	DataDir      string `yaml:"DataDir"`
 	BindAddr     string `yaml:"BindAddr"`
-	RaftAddr     string `yaml:"RaftAddr"`
 	RaftPort     int    `yaml:"RaftPort"`
 	RaftState    string `yaml:"-"`
 }
