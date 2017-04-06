@@ -158,9 +158,6 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 // Dispatch does one iteration of tasks dispatching
 func (cl *Client) Dispatch(hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
-	GlobalObserver.RegisterClient(cl, parsingConfigName)
-	defer GlobalObserver.UnregisterClient(parsingConfigName)
-
 	if uniqueID == "" {
 		uniqueID = GenerateSessionId()
 	}

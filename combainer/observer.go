@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -40,7 +39,6 @@ type info struct {
 	GoRoutines int
 	Files      OpenFiles
 	Clients    map[string]*StatInfo
-	Watchers   int32
 }
 
 // GlobalObserver is storage for client registations
@@ -51,8 +49,7 @@ var GlobalObserver = Observer{
 // Observer object with registered clients
 type Observer struct {
 	sync.RWMutex
-	clients       map[string]*Client // map active clients to configs
-	WatchersCount int32
+	clients map[string]*Client // map active clients to configs
 }
 
 // RegisterClient register client in Observer
@@ -110,8 +107,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			getNumberOfOpenfiles(),
 			limit,
 		},
-		Clients:  stats,
-		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
+		Clients: stats,
 	}); err != nil {
 		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return

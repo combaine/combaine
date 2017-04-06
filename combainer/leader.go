@@ -52,7 +52,6 @@ RECONCILE:
 	} else {
 		reconcileCh = c.reconcileCh
 	}
-	goto WAIT
 
 WAIT:
 	for {

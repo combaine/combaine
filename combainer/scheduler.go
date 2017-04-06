@@ -49,7 +49,7 @@ func (c *Cluster) distributeTasks() error {
 			host = hosts[next%len(hosts)]
 			next++
 		}
-		cmd := fsmCommand{Type: cmdAddConfig, Host: host, Config: cfg}
+		cmd := fsmCommand{Type: cmdAssignConfig, Host: host, Config: cfg}
 		if err := c.raftApply(cmd); err != nil {
 			return errors.Wrapf(err, "Failed to assign config '%s' to host '%s'", cfg, host)
 		}
@@ -68,6 +68,9 @@ RECLIENT:
 		time.Sleep(c.updateInterval)
 		goto RECLIENT
 	}
+	GlobalObserver.RegisterClient(cl, config)
+	defer GlobalObserver.UnregisterClient(config)
+
 	for {
 		select {
 		case <-stopCh:
