@@ -1,14 +1,14 @@
-package cluster
+package combainer
 
 import (
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -28,8 +28,8 @@ const (
 	statusReap = serf.MemberStatus(-1)
 )
 
-// New create and initialize Cluster instance
-func New(cfg configs.ClusterConfig) (*Cluster, error) {
+// NewCluster create and initialize Cluster instance
+func NewCluster(cache cache.Cache, repo configs.Repository, cfg configs.ClusterConfig) (*Cluster, error) {
 	err := validateConfig(&cfg)
 	if err != nil {
 		return nil, err
@@ -81,10 +81,10 @@ func New(cfg configs.ClusterConfig) (*Cluster, error) {
 		shutdownCh: make(chan struct{}),
 		leaderCh:   make(chan bool, 1),
 
-		m: &sync.Mutex{},
-
 		store:  NewFSMStore(),
 		log:    log,
+		cache:  cache,
+		repo:   repo,
 		config: &cfg,
 	}
 	return c, nil
@@ -106,7 +106,6 @@ type Cluster struct {
 	shutdownCh chan struct{}
 	leaderCh   chan bool
 
-	m          *sync.Mutex
 	raft       *raft.Raft
 	transport  *raft.NetworkTransport
 	raftStore  *raftboltdb.BoltStore
@@ -115,6 +114,8 @@ type Cluster struct {
 	store          *FSMStore
 	updateInterval time.Duration
 	log            *logrus.Entry
+	cache          cache.Cache
+	repo           configs.Repository
 	config         *configs.ClusterConfig
 }
 

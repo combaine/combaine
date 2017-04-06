@@ -18,7 +18,7 @@ const (
 	COMBAINER_PATH           = "/etc/combaine/combaine.yaml"
 )
 
-// var GenerateSessionId = uuid.New
+// GenerateSessionId = uuid.New
 func GenerateSessionId() string {
 	var buf = make([]byte, 0, 16)
 	buf = strconv.AppendInt(buf, time.Now().UnixNano(), 10)

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/combaine/combaine/combainer/server"
+	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common/formatter"
 )
 
@@ -114,14 +114,14 @@ func initializeLogger(loglevel logrus.Level, output string) {
 func main() {
 	flag.Parse()
 	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
-	cfg := server.CombaineServerConfig{
+	cfg := combainer.CombaineServerConfig{
 		ConfigsPath:  configsPath,
 		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
 		Active:       active,
 	}
 
-	cmb, err := server.NewCombainer(cfg)
+	cmb, err := combainer.NewCombainer(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,10 +1,9 @@
-package cluster
+package combainer
 
 import (
 	"encoding/json"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/raft"
 )
@@ -42,8 +41,10 @@ func (c *fsm) Apply(l *raft.Log) interface{} {
 	c.log.WithField("source", "fsm").Debugf("Apply cmd %+v", cmd)
 	switch cmd.Type {
 	case addConfig:
-		c.store.Put(cmd.Host, cmd.Config)
-		// TODO: run new client, resolve case when two or more client run in parallel
+		stopCh := c.store.Put(cmd.Host, cmd.Config)
+		if cmd.Host == c.Name {
+			go c.handleTask(cmd.Config, stopCh)
+		}
 	case removeConfig:
 		c.store.Remove(cmd.Host, cmd.Config)
 	}
@@ -73,13 +74,13 @@ func (c *fsm) Snapshot() (raft.FSMSnapshot, error) {
 
 // NewFSMStore create new fsm storage
 func NewFSMStore() *FSMStore {
-	return &FSMStore{store: make(map[string]map[string]int64)}
+	return &FSMStore{store: make(map[string]map[string]chan struct{})}
 }
 
 // FSMStore contains dispached congis
 type FSMStore struct {
 	sync.RWMutex
-	store map[string]map[string]int64
+	store map[string]map[string]chan struct{}
 }
 
 // List return configs assigned to host
@@ -99,27 +100,29 @@ func (s *FSMStore) List(host string) []string {
 
 // Get return unixtime, true when config added to store,
 // or 0, false if configs not present
-func (s *FSMStore) Get(host, config string) (int64, bool) {
+func (s *FSMStore) Get(host, config string) (chan struct{}, bool) {
 	s.RLock()
 	defer s.RUnlock()
 
 	if hostConfigs, ok := s.store[host]; ok {
-		if ts, ok := hostConfigs[config]; ok {
-			return ts, true
+		if stopCh, ok := hostConfigs[config]; ok {
+			return stopCh, true
 		}
 	}
-	return 0, false
+	return nil, false
 }
 
 // Put assign new config to host
-func (s *FSMStore) Put(host, config string) {
+func (s *FSMStore) Put(host, config string) chan struct{} {
 	s.Lock()
 	defer s.Unlock()
 
 	if _, ok := s.store[host]; !ok {
-		s.store[host] = make(map[string]int64)
+		s.store[host] = make(map[string]chan struct{})
 	}
-	s.store[host][config] = time.Now().Unix()
+	stopCh := make(chan struct{})
+	s.store[host][config] = stopCh
+	return stopCh
 }
 
 // Remove remove config from host's store
@@ -127,5 +130,10 @@ func (s *FSMStore) Remove(host, config string) {
 	s.Lock()
 	defer s.Unlock()
 
-	delete(s.store[host], config)
+	if hostConfigs, ok := s.store[host]; ok {
+		if stopCh, ok := hostConfigs[config]; ok {
+			close(stopCh)
+			delete(s.store[host], config)
+		}
+	}
 }

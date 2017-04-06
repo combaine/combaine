@@ -17,7 +17,7 @@ func TestNewClient(t *testing.T) {
 	repo, err := configs.NewFilesystemRepository(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
 
-	c, err := NewClient(nil, nil, repo)
+	c, err := NewClient(nil, repo)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
 	assert.NotEmpty(t, c.ID)
 }

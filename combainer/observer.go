@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
-	"github.com/combaine/combaine/combainer/cluster"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
@@ -174,7 +173,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetCache(), s.GetCluster(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -205,7 +204,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Out = w
 
-	cl, err := NewClient(s.GetCache(), s.GetCluster(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -213,7 +212,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	cl.Log = logger.WithField("client", "launch")
 
 	ID := GenerateSessionId()
-	err = cl.Dispatch(name, ID, false)
+	err = cl.Dispatch(s.GetHosts(), name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
@@ -227,7 +226,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 type ServerContext interface {
 	GetRepository() configs.Repository
 	GetCache() cache.Cache
-	GetCluster() *cluster.Cluster
+	GetHosts() []string
 }
 
 func attachServer(s ServerContext,

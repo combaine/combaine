@@ -12,8 +12,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/combaine/combaine/combainer/cluster"
-	"github.com/combaine/combaine/combainer/discovery"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
@@ -34,19 +32,17 @@ type Client struct {
 	ID         string
 	repository configs.Repository
 	Cache      cache.Cache
-	cluster    *cluster.Cluster
 	Log        *logrus.Entry
 	clientStats
 }
 
 // NewClient returns new client
-func NewClient(cache cache.Cache, cluster *cluster.Cluster, repo configs.Repository) (*Client, error) {
+func NewClient(cache cache.Cache, repo configs.Repository) (*Client, error) {
 	id := GenerateSessionId()
 	cl := &Client{
 		ID:         id,
 		repository: repo,
 		Cache:      cache,
-		cluster:    cluster,
 		Log:        logrus.WithField("client", id),
 	}
 	return cl, nil
@@ -87,7 +83,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	cl.Log.Infof("updating config metahost: %s", parsingConfig.Metahost)
 
-	hostFetcher, err := discovery.LoadHostFetcher(cl.Cache, parsingConfig.HostFetcher)
+	hostFetcher, err := LoadHostFetcher(cl.Cache, parsingConfig.HostFetcher)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("Unable to construct SimpleFetcher")
 		return
@@ -162,7 +158,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 }
 
 // Dispatch does one iteration of tasks dispatching
-func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait bool) error {
+func (cl *Client) Dispatch(hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
 	GlobalObserver.RegisterClient(cl, parsingConfigName)
 	defer GlobalObserver.UnregisterClient(parsingConfigName)
 
@@ -187,7 +183,6 @@ func (cl *Client) Dispatch(parsingConfigName string, uniqueID string, shouldWait
 	defer cancelFunc()
 
 	cl.Log.WithFields(dispatchFields).Info("Start new iteration")
-	hosts := cl.cluster.Hosts()
 	if len(hosts) == 0 {
 		cl.Log.WithFields(
 			logrus.Fields{"session": uniqueID, "config": parsingConfigName},

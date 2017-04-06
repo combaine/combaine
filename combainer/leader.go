@@ -1,4 +1,4 @@
-package cluster
+package combainer
 
 import (
 	"encoding/json"
@@ -67,6 +67,7 @@ WAIT:
 			update = time.After(c.updateInterval)
 
 			if err := c.distributeTasks(); err != nil {
+				// update = nil // TODO if distributeTasks return error we lost leadership?
 				c.log.WithField("source", "Raft").Errorf("failed to distributeTasks: %v", err)
 			}
 		case member := <-reconcileCh:
