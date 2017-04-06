@@ -14,8 +14,8 @@ type fsm Cluster
 type RaftCmdType int
 
 const (
-	addConfig RaftCmdType = iota
-	removeConfig
+	cmdAddConfig RaftCmdType = iota
+	cmdRemoveConfig
 )
 
 // fsmCommand contains cluster storage operation with data
@@ -40,12 +40,12 @@ func (c *fsm) Apply(l *raft.Log) interface{} {
 	}
 	c.log.WithField("source", "fsm").Debugf("Apply cmd %+v", cmd)
 	switch cmd.Type {
-	case addConfig:
+	case cmdAddConfig:
 		stopCh := c.store.Put(cmd.Host, cmd.Config)
 		if cmd.Host == c.Name {
 			go c.handleTask(cmd.Config, stopCh)
 		}
-	case removeConfig:
+	case cmdRemoveConfig:
 		c.store.Remove(cmd.Host, cmd.Config)
 	}
 	return nil

@@ -9,15 +9,16 @@ import (
 )
 
 const (
-	parsing_suffix    = "parsing"
-	aggregatio_suffix = "aggregate"
-	combaine_config   = "combaine.yaml"
+	parsingSuffix   = "parsing"
+	aggregateSuffix = "aggregate"
+	combaineConfig  = "combaine.yaml"
 )
 
 var (
-	config_suffixes = []string{".yaml", ".json"}
+	configSuffixes = []string{".yaml", ".json"}
 )
 
+// Repository interface to access to combainer's parsing and aggregations configs
 type Repository interface {
 	GetAggregationConfig(name string) (EncodedConfig, error)
 	GetParsingConfig(name string) (EncodedConfig, error)
@@ -27,16 +28,17 @@ type Repository interface {
 	ListAggregationConfigs() ([]string, error)
 }
 
+// NewFilesystemRepository implement Repository interface
 func NewFilesystemRepository(basepath string) (Repository, error) {
-	_, err := NewCombaineConfig(path.Join(basepath, combaine_config))
+	_, err := NewCombaineConfig(path.Join(basepath, combaineConfig))
 	if err != nil {
 		return nil, fmt.Errorf("unable to load combaine.yaml: %s", err)
 	}
 
 	f := &filesystemRepository{
 		basepath:        basepath,
-		parsingpath:     path.Join(basepath, parsing_suffix),
-		aggregationpath: path.Join(basepath, aggregatio_suffix),
+		parsingpath:     path.Join(basepath, parsingSuffix),
+		aggregationpath: path.Join(basepath, aggregateSuffix),
 	}
 
 	return f, nil
@@ -49,7 +51,7 @@ type filesystemRepository struct {
 }
 
 func (f *filesystemRepository) GetAggregationConfig(name string) (config EncodedConfig, err error) {
-	for _, suffix := range config_suffixes {
+	for _, suffix := range configSuffixes {
 		fpath := path.Join(f.aggregationpath, name+suffix)
 		if config, err = NewAggregationConfig(fpath); err != nil {
 			continue
@@ -60,7 +62,7 @@ func (f *filesystemRepository) GetAggregationConfig(name string) (config Encoded
 }
 
 func (f *filesystemRepository) GetParsingConfig(name string) (config EncodedConfig, err error) {
-	for _, suffix := range config_suffixes {
+	for _, suffix := range configSuffixes {
 		fpath := path.Join(f.parsingpath, name+suffix)
 		if config, err = NewParsingConfig(fpath); err != nil {
 			continue
@@ -71,7 +73,7 @@ func (f *filesystemRepository) GetParsingConfig(name string) (config EncodedConf
 }
 
 func (f *filesystemRepository) GetCombainerConfig() (cfg CombainerConfig) {
-	cfg, _ = NewCombaineConfig(path.Join(f.basepath, combaine_config))
+	cfg, _ = NewCombaineConfig(path.Join(f.basepath, combaineConfig))
 	return cfg
 }
 
@@ -84,7 +86,7 @@ func (f *filesystemRepository) ListAggregationConfigs() ([]string, error) {
 }
 
 func (f *filesystemRepository) ParsingConfigIsExists(name string) bool {
-	for _, suffix := range config_suffixes {
+	for _, suffix := range configSuffixes {
 		fpath := path.Join(f.parsingpath, name+suffix)
 		if _, err := os.Stat(fpath); err == nil {
 			return true
@@ -109,7 +111,7 @@ func lsConfigs(filepath string) (list []string, err error) {
 }
 
 func isConfig(name string) bool {
-	for _, suffix := range config_suffixes {
+	for _, suffix := range configSuffixes {
 		if strings.HasSuffix(name, suffix) {
 			return true
 		}

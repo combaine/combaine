@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -156,5 +157,36 @@ func TestNameStack(t *testing.T) {
 			assert.Equal(t, c.name, n)
 		}
 		assert.Equal(t, strings.Join(*ns, "."), c.expected)
+	}
+}
+
+func TestGetRandomString(t *testing.T) {
+	cases := []struct {
+		hosts []string
+		empty bool
+	}{
+		{[]string{}, true},
+		{[]string{"host1", "host2", "host3", "host4", "host5", "hosts6"}, false},
+	}
+
+	for _, c := range cases {
+		if c.empty {
+			assert.Equal(t, "", GetRandomString(c.hosts))
+		} else {
+			cur, prev := "", ""
+			random := 0
+			for i := 0; i < 10; i++ {
+				cur = GetRandomString(c.hosts)
+				assert.NotEqual(t, "", cur)
+				if i != 0 && cur != prev {
+					random++
+				}
+				prev = cur
+			}
+			if random < 3 {
+				log.Fatal("random very predictable")
+			}
+			log.Printf("Got %d random hosts", random)
+		}
 	}
 }

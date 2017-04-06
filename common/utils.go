@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 
 	"github.com/ugorji/go/codec"
 
@@ -93,4 +94,13 @@ func GetSubgroupName(tags map[string]string) (string, error) {
 		subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
 	}
 	return subgroup, nil
+}
+
+// GetRandomString return random string from given array of strings
+func GetRandomString(input []string) string {
+	max := len(input)
+	if max == 0 {
+		return ""
+	}
+	return input[rand.Intn(max)]
 }

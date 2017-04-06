@@ -143,7 +143,7 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 	return nil
 }
 
-func (c *Cluster) raftApply(command *fsmCommand) error {
+func (c *Cluster) raftApply(command fsmCommand) error {
 	state, err := json.Marshal(command)
 	if err != nil {
 		return err

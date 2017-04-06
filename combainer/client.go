@@ -2,7 +2,6 @@ package combainer
 
 import (
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -253,14 +252,6 @@ func (cl *Client) Dispatch(hosts []string, parsingConfigName string, uniqueID st
 	return nil
 }
 
-func getRandomHost(input []string) string {
-	max := len(input)
-	if max == 0 {
-		return ""
-	}
-	return input[rand.Intn(max)]
-}
-
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("empty list of hosts")
@@ -268,7 +259,7 @@ func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, er
 RETURN:
 	for range hosts {
 		// TODO: port must be got from autodiscovery
-		address := fmt.Sprintf("%s:10052", getRandomHost(hosts))
+		address := fmt.Sprintf("%s:10052", common.GetRandomString(hosts))
 		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
 		conn, err = grpc.DialContext(tctx, address,
 			grpc.WithInsecure(),
