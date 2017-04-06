@@ -4,9 +4,11 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/combaine/combaine/aggregating"
 	"github.com/combaine/combaine/common/servicecacher"
@@ -20,10 +22,14 @@ import (
 
 var cacher = servicecacher.NewCacher(servicecacher.NewService)
 
-var endpoint string
+var (
+	endpoint  string
+	logoutput string
+)
 
 func init() {
 	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
+	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
 	flag.Parse()
 }
 
@@ -45,6 +51,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	rawFile, err := os.OpenFile(logoutput, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatalf("failed to open logoutput %s: %v", logoutput, err)
+	}
+	var logger grpclog.Logger = log.New(rawFile, "", log.LstdFlags)
+	grpclog.SetLogger(logger)
 	s := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 	rpc.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)

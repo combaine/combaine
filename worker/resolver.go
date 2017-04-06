@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"golang.org/x/net/context"
@@ -19,8 +18,8 @@ type Resolver interface {
 type resolverV11 struct{}
 
 func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (Worker, error) {
-	for {
-		host := fmt.Sprintf("%s:10053", getRandomHost(name, hosts))
+	for range hosts {
+		host := fmt.Sprintf("%s:10053", common.GetRandomString(hosts))
 		select {
 		case r := <-resolve(name, host):
 			err, app := r.Err, r.App
@@ -34,16 +33,12 @@ func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (
 			return nil, common.ErrAppUnavailable
 		}
 	}
+	return nil, common.ErrAppUnavailable
 }
 
 // NewResolverV11 returns Resolver for Cocaine V11
 func NewResolverV11() Resolver {
 	return resolverV11{}
-}
-
-func getRandomHost(app string, input []string) string {
-	max := len(input)
-	return input[rand.Intn(max)]
 }
 
 type resolveInfo struct {
