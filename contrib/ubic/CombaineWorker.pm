@@ -1,11 +1,11 @@
-package Ubic::Service::Combainer;
+package Ubic::Service::CombaineWorker;
 
 # ABSTRACT: run cocaine as Ubic service
 
 =head1 SYNOPSIS
 
     # /etc/ubic/service/combainer.ini:
-        module = Ubic::Service::Combainer
+        module = Ubic::Service::CombaineWorker
         [options]
         user = cocaine
         rlimit_nofile = 65535
@@ -51,7 +51,7 @@ sub new {
     if (defined $params->{rlimit_core})   { $ulimits->{"RLIMIT_CORE"} = $params->{rlimit_core}; undef $params->{rlimit_core}; };
 
     my $bin = [
-        "/usr/bin/combainer -loglevel=DEBUG -logoutput='/var/log/cocaine-core/combainer.log'",
+        "/usr/bin/combaine-worker",
     ];
 
     return $class->SUPER::new({
@@ -59,9 +59,9 @@ sub new {
         user => 'root',
         ulimit => $ulimits || {},
         daemon_user => 'cocaine',
-        ubic_log => '/var/log/ubic/combainer/ubic.log',
-        stdout => "/var/log/ubic/combainer/stdout.log",
-        stderr => "/var/log/ubic/combainer/stderr.log",
+        ubic_log => '/var/log/ubic/combaine-worker/ubic.log',
+        stdout => '/var/log/ubic/combaine-worker/stdout.log',
+        stderr => '/var/log/cocaine-core/worker.log',
     });
 }
 
@@ -69,9 +69,8 @@ sub start_impl {
     my $self = shift;
 
     Ubic::Service::Shared::Dirs::directory_checker("/var/run/combaine", $self->{"daemon_user"} );
-    Ubic::Service::Shared::Dirs::directory_checker("/var/spool/combainer", $self->{"daemon_user"} );
     Ubic::Service::Shared::Dirs::directory_checker("/var/log/cocaine-core", $self->{"daemon_user"} );
-    Ubic::Service::Shared::Dirs::directory_checker("/var/log/ubic/combainer", $self->{"daemon_user"} );
+    Ubic::Service::Shared::Dirs::directory_checker("/var/log/ubic/combaine-worker", $self->{"daemon_user"} );
     $self->SUPER::start_impl(@_);
 }
 

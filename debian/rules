@@ -24,6 +24,10 @@ DEB_DESTDIR=$(CPWD)/debian/tmp/
 %:
 	dh $@
 
+override_dh_installdeb:
+	dh_installdeb
+	find ${CURDIR}/debian/*/DEBIAN -name conffiles -delete
+
 override_dh_auto_build:
 	mkdir -p ${CPWD}/debian/tmp/go/src/github.com/combaine
 	ln -s ${CPWD} ${CPWD}/debian/tmp/go/src/github.com/combaine/combaine

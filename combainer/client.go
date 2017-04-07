@@ -2,14 +2,12 @@ package combainer
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 
 	"github.com/Sirupsen/logrus"
 
@@ -41,15 +39,11 @@ type Client struct {
 func NewClient(cache cache.Cache, repo configs.Repository) (*Client, error) {
 	id := GenerateSessionId()
 
-	cLog := logrus.WithField("client", id)
-	var logger grpclog.Logger = log.New(cLog.Logger.Writer(), "", log.LstdFlags)
-	grpclog.SetLogger(logger)
-
 	cl := &Client{
 		ID:         id,
 		repository: repo,
 		Cache:      cache,
-		Log:        cLog,
+		Log:        logrus.WithField("client", id),
 	}
 	return cl, nil
 }

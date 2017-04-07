@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/grpclog"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common/formatter"
@@ -54,6 +56,11 @@ func init() {
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+
+	flag.Parse()
+	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	var logger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)
+	grpclog.SetLogger(logger)
 }
 
 var (
@@ -112,8 +119,6 @@ func initializeLogger(loglevel logrus.Level, output string) {
 }
 
 func main() {
-	flag.Parse()
-	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	cfg := combainer.CombaineServerConfig{
 		ConfigsPath:  configsPath,
 		Period:       time.Duration(period) * time.Second,
