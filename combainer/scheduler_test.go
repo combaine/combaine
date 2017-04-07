@@ -43,6 +43,9 @@ func TestDistributeTasks(t *testing.T) {
 
 	cl := &Cluster{repo: repo}
 	cl.log = logrus.WithField("source", "test")
+
+	assert.NoError(t, cl.distributeTasks([]string{}))
+
 	cases := map[string]map[string]map[string]chan struct{}{
 		"EmptyMap": make(map[string]map[string]chan struct{}),
 		"FullMap": {
@@ -110,4 +113,37 @@ func TestDistributeTasks(t *testing.T) {
 			}
 		}
 	}
+
+	repo = &dummyRepo{"c01", "c02", "c03", "c04", "c05", "c06", "c07"}
+	hosts = []string{"host1", "host2", "host3"}
+
+	cl = &Cluster{repo: repo}
+	cl.log = logrus.WithField("source", "test")
+	cases = map[string]map[string]map[string]chan struct{}{
+		"EmptyMap": make(map[string]map[string]chan struct{}),
+		"FullMap": {
+			"host1": {"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch},
+			"host2": {"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch},
+			"host3": {},
+		},
+	}
+	for n, c := range cases {
+		t.Logf("Test for %s", n)
+		cl.store = &FSMStore{store: c}
+		cl.distributeTasks(hosts)
+		a := len(cl.store.store["host1"])
+		assert.Equal(t, a > 2, a < 5, "Test failed 3 < host1(%d) < 5 host1(%d), host2(%d), host3(%d)", a,
+			len(cl.store.store["host1"]),
+			len(cl.store.store["host2"]),
+			len(cl.store.store["host3"]),
+		)
+		configSet := make(map[string]string)
+		for h := range cl.store.store {
+			for cfg := range cl.store.store[h] {
+				assert.True(t, configSet[cfg] == "", "Dubilcate dispatching %s for %s and %s", cfg, h, configSet[cfg])
+				configSet[cfg] = h
+			}
+		}
+	}
+
 }
