@@ -45,8 +45,8 @@ func TestDistributeTasks(t *testing.T) {
 	cl.log = logrus.WithField("source", "test")
 	cases := map[string]map[string]map[string]chan struct{}{
 		"EmptyMap": make(map[string]map[string]chan struct{}),
-		"FullMap": map[string]map[string]chan struct{}{
-			"host1": map[string]chan struct{}{
+		"FullMap": {
+			"host1": {
 				"c10": make(ch), "c11": make(ch), "c12": make(ch), "c13": make(ch),
 				"c14": make(ch), "c15": make(ch), "c16": make(ch), "c17": make(ch),
 				"c18": make(ch), "c19": make(ch), "c20": make(ch), "c21": make(ch),
@@ -54,12 +54,12 @@ func TestDistributeTasks(t *testing.T) {
 				"c26": make(ch), "c27": make(ch), "c28": make(ch), "c29": make(ch),
 				"c30": make(ch),
 			},
-			"host2": map[string]chan struct{}{
+			"host2": {
 				"c04": make(ch), "c05": make(ch), "c06": make(ch),
 				"c07": make(ch), "c08": make(ch), "c09": make(ch),
 				"c77": make(ch), "c88": make(ch), "c99": make(ch),
 			},
-			"host3": map[string]chan struct{}{
+			"host3": {
 				"c01": make(ch), "c02": make(ch), "c03": make(ch),
 			},
 		},
