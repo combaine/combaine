@@ -3,6 +3,7 @@ package combainer
 import (
 	"encoding/json"
 	"io"
+	"strconv"
 	"sync"
 
 	"github.com/hashicorp/raft"
@@ -130,8 +131,35 @@ func (s *FSMStore) Remove(host, config string) {
 
 	if hostConfigs, ok := s.store[host]; ok {
 		if stopCh, ok := hostConfigs[config]; ok {
-			close(stopCh)
-			delete(s.store[host], config)
+			if stopCh != nil {
+				close(stopCh)
+			}
+			delete(hostConfigs, config)
 		}
 	}
+}
+
+// Dump FSM store keys
+func (s *FSMStore) Dump() map[string][]string {
+	s.RLock()
+	defer s.RUnlock()
+	dump := make(map[string][]string, len(s.store))
+	for k := range s.store {
+		for cfg := range s.store[k] {
+			dump[k] = append(dump[k], cfg)
+		}
+	}
+	return dump
+}
+
+// DistributionStatistic dump number of configs assigned to hosts
+func (s *FSMStore) DistributionStatistic() [][2]string {
+	s.RLock()
+	defer s.RUnlock()
+
+	dump := make([][2]string, 0, len(s.store))
+	for k := range s.store {
+		dump = append(dump, [2]string{k, strconv.Itoa(len(s.store[k]))})
+	}
+	return dump
 }

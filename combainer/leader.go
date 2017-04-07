@@ -66,7 +66,7 @@ WAIT:
 		case <-update:
 			update = time.After(c.updateInterval)
 
-			if err := c.distributeTasks(); err != nil {
+			if err := c.distributeTasks(c.Hosts()); err != nil {
 				// update = nil // TODO if distributeTasks return error we lost leadership?
 				c.log.WithField("source", "Raft").Errorf("failed to distributeTasks: %v", err)
 			}

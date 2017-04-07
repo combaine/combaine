@@ -123,6 +123,9 @@ type Cluster struct {
 	config         *configs.ClusterConfig
 }
 
+type ClusterInterface interface {
+}
+
 // Bootstrap is used to attempt join to existing serf cluster.
 // and bootstrap the Raft agent using cluster as FSM.
 // Updates leadership are returned on leaderCh,
