@@ -39,7 +39,7 @@ func TestDistributeTasks(t *testing.T) {
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
 	}
 	hosts := []string{"host1", "host2", "host3"}
-	type ch chan struct{}
+	var ch chan struct{}
 
 	cl := &Cluster{repo: repo}
 	cl.log = logrus.WithField("source", "test")
@@ -47,21 +47,48 @@ func TestDistributeTasks(t *testing.T) {
 		"EmptyMap": make(map[string]map[string]chan struct{}),
 		"FullMap": {
 			"host1": {
-				"c10": make(ch), "c11": make(ch), "c12": make(ch), "c13": make(ch),
-				"c14": make(ch), "c15": make(ch), "c16": make(ch), "c17": make(ch),
-				"c18": make(ch), "c19": make(ch), "c20": make(ch), "c21": make(ch),
-				"c22": make(ch), "c23": make(ch), "c24": make(ch), "c25": make(ch),
-				"c26": make(ch), "c27": make(ch), "c28": make(ch), "c29": make(ch),
-				"c30": make(ch),
+				"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch,
+				"c15": ch, "c16": ch, "c17": ch, "c18": ch, "c19": ch,
+				"c20": ch, "c21": ch, "c22": ch, "c23": ch, "c24": ch,
+				"c25": ch, "c26": ch, "c27": ch, "c28": ch, "c29": ch,
 			},
 			"host2": {
-				"c04": make(ch), "c05": make(ch), "c06": make(ch),
-				"c07": make(ch), "c08": make(ch), "c09": make(ch),
-				"c77": make(ch), "c88": make(ch), "c99": make(ch),
+				"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch,
+				"c77": ch, "c88": ch, "c99": ch, // faked configs
 			},
-			"host3": {
-				"c01": make(ch), "c02": make(ch), "c03": make(ch),
+			"host3": {"c01": ch, "c02": ch, "c03": ch, "c09": ch, "c30": ch},
+		},
+		"PartialMap": {
+			"host1": {
+				"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch,
+				"c26": ch, "c27": ch, "c28": ch, "c29": ch, "c30": ch,
 			},
+			"host2": {"c04": ch, "c05": ch, "c06": ch},
+			"host3": {"c01": ch, "c02": ch, "c03": ch},
+		},
+		"OneEmptyMap": {
+			"host1": {
+				"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c26": ch,
+				"c27": ch, "c28": ch, "c29": ch, "c30": ch,
+			},
+			"host2": {
+				"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch, "c09": ch,
+				// faked configs
+				"c77": ch, "c88": ch, "c99": ch,
+			},
+			"host3": {},
+		},
+		"FirstFullMap": {
+			"host1": {
+				"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch,
+				"c15": ch, "c16": ch, "c17": ch, "c18": ch, "c19": ch,
+				"c20": ch, "c21": ch, "c22": ch, "c23": ch, "c24": ch,
+				"c25": ch, "c26": ch, "c27": ch, "c28": ch, "c29": ch,
+				"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch,
+				"c09": ch, "c30": ch, "c01": ch, "c02": ch, "c03": ch,
+			},
+			"host2": {"c77": ch, "c88": ch, "c99": ch}, // faked configs
+			"host3": {},
 		},
 	}
 

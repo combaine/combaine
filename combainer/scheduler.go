@@ -108,7 +108,7 @@ ALMOST_FAIR_BALANCER:
 			}
 		} else {
 			// rebalance assigned configs
-			if state.qty[overloadedHost]-state.mean <= 1 {
+			if state.qty[overloadedHost]-state.mean <= 0 {
 				overloadedIndex--
 				overloadedHost = state.hosts[overloadedIndex]
 			}
@@ -124,7 +124,7 @@ ALMOST_FAIR_BALANCER:
 
 			for _, cfg := range c.store.List(overloadedHost) {
 				toRelase--
-				if toRelase <= 0 {
+				if toRelase < 0 {
 					break
 				}
 				if err := releaseConfig(c, overloadedHost, cfg); err != nil {
