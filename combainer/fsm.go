@@ -141,8 +141,8 @@ func (s *FSMStore) Remove(host, config string) {
 
 // Dump FSM store keys
 func (s *FSMStore) Dump() map[string][]string {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	dump := make(map[string][]string, len(s.store))
 	for k := range s.store {
 		for cfg := range s.store[k] {
@@ -154,8 +154,8 @@ func (s *FSMStore) Dump() map[string][]string {
 
 // DistributionStatistic dump number of configs assigned to hosts
 func (s *FSMStore) DistributionStatistic() [][2]string {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	dump := make([][2]string, 0, len(s.store))
 	for k := range s.store {
