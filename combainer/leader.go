@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/pkg/errors"
 )
 
 // Run is used to monitor if we acquire or lose our role as the
@@ -116,6 +117,8 @@ func (c *Cluster) reconcileMember(member serf.Member) error {
 }
 
 func (c *Cluster) addRaftPeer(m serf.Member) error {
+	c.log.Infof("Add raft peer %+v", m)
+
 	addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
 
 	future := c.raft.AddPeer(addr)
@@ -130,6 +133,15 @@ func (c *Cluster) addRaftPeer(m serf.Member) error {
 }
 
 func (c *Cluster) removeRaftPeer(m serf.Member) error {
+
+	c.log.Infof("Remove raft peer %+v", m)
+	for _, cfg := range c.store.List(m.Name) {
+		cmd := FSMCommand{Type: cmdRemoveConfig, Host: m.Name, Config: cfg}
+		if err := c.raftApply(cmd); err != nil {
+			return errors.Wrapf(err, "Failed to remove config '%s' from host '%s'", cfg, m.Name)
+		}
+	}
+
 	addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
 
 	future := c.raft.RemovePeer(addr)
@@ -142,7 +154,7 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 	return nil
 }
 
-func (c *Cluster) raftApply(command fsmCommand) error {
+func (c *Cluster) raftApply(command FSMCommand) error {
 	state, err := json.Marshal(command)
 	if err != nil {
 		return err

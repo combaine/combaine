@@ -2,12 +2,14 @@ package combainer
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/Sirupsen/logrus"
 
@@ -38,11 +40,16 @@ type Client struct {
 // NewClient returns new client
 func NewClient(cache cache.Cache, repo configs.Repository) (*Client, error) {
 	id := GenerateSessionId()
+
+	cLog := logrus.WithField("client", id)
+	var logger grpclog.Logger = log.New(cLog.Logger.Writer(), "", log.LstdFlags)
+	grpclog.SetLogger(logger)
+
 	cl := &Client{
 		ID:         id,
 		repository: repo,
 		Cache:      cache,
-		Log:        logrus.WithField("client", id),
+		Log:        cLog,
 	}
 	return cl, nil
 }
@@ -157,14 +164,15 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 }
 
 // Dispatch does one iteration of tasks dispatching
-func (cl *Client) Dispatch(hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
+func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
 	if uniqueID == "" {
 		uniqueID = GenerateSessionId()
 	}
 
 	dispatchFields := logrus.Fields{
-		"session": uniqueID,
-		"config":  parsingConfigName}
+		"iteration": iteration,
+		"session":   uniqueID,
+		"config":    parsingConfigName}
 
 	sessionParameters, err := cl.updateSessionParams(parsingConfigName)
 	if err != nil {

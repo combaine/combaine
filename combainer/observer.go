@@ -208,7 +208,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	cl.Log = logger.WithField("client", "launch")
 
 	ID := GenerateSessionId()
-	err = cl.Dispatch(s.GetHosts(), name, ID, false)
+	err = cl.Dispatch("launch", s.GetHosts(), name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {

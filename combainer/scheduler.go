@@ -29,7 +29,7 @@ func (c *Cluster) distributeTasks() error {
 			if _, ok := configSet[cfg]; ok {
 				delete(configSet, cfg)
 			} else {
-				cmd := fsmCommand{Type: cmdRemoveConfig, Host: host, Config: cfg}
+				cmd := FSMCommand{Type: cmdRemoveConfig, Host: host, Config: cfg}
 				if err := c.raftApply(cmd); err != nil {
 					return errors.Wrapf(err, "Failed to remove config '%s' from host '%s'", cfg, host)
 				}
@@ -49,7 +49,7 @@ func (c *Cluster) distributeTasks() error {
 			host = hosts[next%len(hosts)]
 			next++
 		}
-		cmd := fsmCommand{Type: cmdAssignConfig, Host: host, Config: cfg}
+		cmd := FSMCommand{Type: cmdAssignConfig, Host: host, Config: cfg}
 		if err := c.raftApply(cmd); err != nil {
 			return errors.Wrapf(err, "Failed to assign config '%s' to host '%s'", cfg, host)
 		}
@@ -57,7 +57,7 @@ func (c *Cluster) distributeTasks() error {
 	return nil
 }
 
-func (c *fsm) handleTask(config string, stopCh chan struct{}) {
+func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	var iteration uint64
 	log := c.log.WithField("config", config)
 
@@ -79,10 +79,9 @@ RECLIENT:
 		}
 
 		iteration++
-		ilog := log.WithField("iteration", strconv.FormatUint(iteration, 10))
 		hosts := (*Cluster)(c).Hosts()
-		if err = cl.Dispatch(hosts, config, genUniqueID, shouldWait); err != nil {
-			ilog.Errorf("Dispatch error %s", err)
+		if err = cl.Dispatch(strconv.FormatUint(iteration, 10), hosts, config, genUniqueID, shouldWait); err != nil {
+			log.WithField("iteration", strconv.FormatUint(iteration, 10)).Errorf("Dispatch error %s", err)
 			time.Sleep(c.updateInterval)
 		}
 	}

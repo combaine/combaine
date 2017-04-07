@@ -35,7 +35,7 @@ func NewCluster(cache cache.Cache, repo configs.Repository, cfg configs.ClusterC
 		return nil, err
 	}
 
-	log := logrus.WithField("source", "Cluster")
+	log := logrus.WithField("source", "cluster")
 	conf := serf.DefaultConfig()
 	conf.Init()
 	// set tags here
@@ -124,11 +124,11 @@ type Cluster struct {
 }
 
 // Bootstrap is used to attempt join to existing serf cluster.
-// and bootstrap the Raft agent using cluster as fsm.
+// and bootstrap the Raft agent using cluster as FSM.
 // Updates leadership are returned on leaderCh,
 // leader dispatch new configs every interval time.
 func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
-	c.log.Infof("Connect to Serf cluster: %s", initHosts)
+	c.log.Infof("Bootstrap cluster, connect Serf nodes: %s", initHosts)
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
@@ -143,6 +143,8 @@ CONNECT:
 		time.Sleep(interval)
 		goto CONNECT
 	}
+
+	c.log.Info("Create raft transport")
 	c.transport, err = raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
@@ -159,19 +161,22 @@ CONNECT:
 		addr := net.JoinHostPort(m.Addr.String(), strconv.Itoa(c.config.RaftPort))
 		peersAddrs = append(peersAddrs, addr)
 	}
-	raftPeers := raft.NewJSONPeers(c.config.RaftState, c.transport)
+	c.log.Infof("Set raft peers %v", peersAddrs)
+	raftPeers := raft.NewJSONPeers(c.config.RaftStateDir, c.transport)
 	if err = raftPeers.SetPeers(peersAddrs); err != nil {
 		return err
 	}
 
+	c.log.Info("Create snapshot store")
 	snapshots, err := raft.NewFileSnapshotStore(
-		c.config.RaftState, retainRaftSnapshot, c.log.Logger.Writer(),
+		c.config.RaftStateDir, retainRaftSnapshot, c.log.Logger.Writer(),
 	)
 	if err != nil {
 		return err
 	}
 
-	boltStore, err := raftboltdb.NewBoltStore(filepath.Join(c.config.RaftState, "raft.db"))
+	c.log.Info("Create raft log store")
+	boltStore, err := raftboltdb.NewBoltStore(filepath.Join(c.config.RaftStateDir, "raft.db"))
 	if err != nil {
 		return errors.Wrap(err, "bolt store failed")
 	}
@@ -180,9 +185,11 @@ CONNECT:
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
+	c.raftConfig.StartAsLeader = c.config.StartAsLeader
 	c.updateInterval = interval
 
-	raft, err := raft.NewRaft(c.raftConfig, (*fsm)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
+	c.log.Info("Create raft")
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
 	if err != nil {
 		boltStore.Close()
 		c.transport.Close()
@@ -292,8 +299,8 @@ func validateConfig(cfg *configs.ClusterConfig) error {
 	if cfg.DataDir == "" {
 		cfg.DataDir = "/var/spool/combainer"
 	}
-	cfg.RaftState = filepath.Join(cfg.DataDir, raftStateDirectory)
-	if err := os.MkdirAll(cfg.RaftState, 0755); err != nil {
+	cfg.RaftStateDir = filepath.Join(cfg.DataDir, raftStateDirectory)
+	if err := os.MkdirAll(cfg.RaftStateDir, 0755); err != nil {
 		return errors.Wrap(err, "failed to make data directory")
 	}
 
@@ -302,6 +309,7 @@ func validateConfig(cfg *configs.ClusterConfig) error {
 
 // Shutdown try gracefully shutdown raft cluster
 func (c *Cluster) Shutdown() {
+	c.log.Info("Shutdown cluster")
 	if c.shutdownCh != nil {
 		close(c.shutdownCh)
 		c.shutdownCh = nil

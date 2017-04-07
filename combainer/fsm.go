@@ -8,34 +8,35 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-type fsm Cluster
+// FSM is cluster state
+type FSM Cluster
 
 const (
 	cmdAssignConfig = "AssignConfig"
 	cmdRemoveConfig = "RemoveConfig"
 )
 
-// fsmCommand contains cluster storage operation with data
-type fsmCommand struct {
+// FSMCommand contains cluster storage operation with data
+type FSMCommand struct {
 	Type   string `json:"type"`
 	Host   string `json:"host"`
 	Config string `json:"config"`
 }
 
 // Apply command received over raft
-func (c *fsm) Apply(l *raft.Log) interface{} {
+func (c *FSM) Apply(l *raft.Log) interface{} {
 	defer func() {
 		if r := recover(); r != nil {
 			c.log.Errorf("Error while applying raft command: %v", r)
 		}
 	}()
 
-	var cmd fsmCommand
+	var cmd FSMCommand
 	if err := json.Unmarshal(l.Data, &cmd); err != nil {
 		c.log.Errorf("json unmarshal: bad raft command: %v", err)
 		return nil
 	}
-	c.log.WithField("source", "fsm").Debugf("Apply cmd %+v", cmd)
+	c.log.WithField("source", "FSM").Debugf("Apply cmd %+v", cmd)
 	switch cmd.Type {
 	case cmdAssignConfig:
 		stopCh := c.store.Put(cmd.Host, cmd.Config)
@@ -48,8 +49,8 @@ func (c *fsm) Apply(l *raft.Log) interface{} {
 	return nil
 }
 
-// Restore fsm from snapshot
-func (c *fsm) Restore(rc io.ReadCloser) error {
+// Restore FSM from snapshot
+func (c *FSM) Restore(rc io.ReadCloser) error {
 	return nil
 }
 
@@ -64,12 +65,12 @@ func (f *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
 // Release ...
 func (f *FSMSnapshot) Release() {}
 
-// Snapshot create fsm snapshot
-func (c *fsm) Snapshot() (raft.FSMSnapshot, error) {
+// Snapshot create FSM snapshot
+func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
 	return &FSMSnapshot{}, nil
 }
 
-// NewFSMStore create new fsm storage
+// NewFSMStore create new FSM storage
 func NewFSMStore() *FSMStore {
 	return &FSMStore{store: make(map[string]map[string]chan struct{})}
 }

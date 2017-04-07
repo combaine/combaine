@@ -3,7 +3,6 @@ my $service = Ubic::Service::SimpleDaemon->new(
     name => 'combaine-worker',
     daemon_user => 'cocaine',
     auto_start => 1,
-    ubic_log => '/var/log/ubic/combaine-worker.log',
     stdout => '/var/log/cocaine-core/worker.log',
     stderr => '/var/log/cocaine-core/worker.log',
     bin => '/usr/bin/combaine-worker -logoutput=/var/log/cocaine-core/worker.log',
