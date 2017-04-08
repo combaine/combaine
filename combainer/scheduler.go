@@ -52,7 +52,7 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 }
 
 func (c *Cluster) distributeTasks(hosts []string) error {
-	c.log.Debug("distributeTasks to ", hosts)
+	c.log.Debug("Distribute tasks to ", hosts)
 	configs, err := c.repo.ListParsingConfigs()
 	if err != nil {
 		return errors.Wrap(err, "Failed to list parsing config")
@@ -119,7 +119,7 @@ ALMOST_FAIR_BALANCER:
 			wantage++
 			state.remainder--
 		}
-		c.log.Debugf("Rebalance host %s (wantage %d, has %d)", host, wantage, state.qty[host])
+		c.log.Infof("Rebalance host %s (wantage %d, has %d)", host, wantage, state.qty[host])
 
 		if len(configSet) > 0 {
 			// distribute free configs

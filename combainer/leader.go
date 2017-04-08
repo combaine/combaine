@@ -36,11 +36,16 @@ func (c *Cluster) Run() {
 // leaderLoop runs as long as we are the leader to run maintainence duties
 func (c *Cluster) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
-	update := time.After(c.updateInterval)
+
+	updateTicker := time.NewTicker(c.updateInterval)
+	reconcileTicker := time.NewTicker(60 * time.Second)
+	defer func() {
+		updateTicker.Stop()
+		reconcileTicker.Stop()
+	}()
 
 RECONCILE:
 	reconcileCh = nil
-	interval := time.After(60 * time.Second)
 
 	barrier := c.raft.Barrier(0)
 	if err := barrier.Error(); err != nil {
@@ -61,13 +66,11 @@ WAIT:
 			return
 		case <-c.shutdownCh:
 			return
-		case <-interval:
+		case <-reconcileTicker.C:
 			goto RECONCILE
-		case <-update:
-			update = time.After(c.updateInterval)
-
+		case <-updateTicker.C:
 			if err := c.distributeTasks(c.Hosts()); err != nil {
-				// update = nil // TODO if distributeTasks return error we lost leadership?
+				// updateTicker.Stop() // TODO if distributeTasks return error we lost leadership?
 				c.log.WithField("source", "Raft").Errorf("failed to distributeTasks: %v", err)
 			}
 		case member := <-reconcileCh:
@@ -117,24 +120,19 @@ func (c *Cluster) reconcileMember(member serf.Member) error {
 }
 
 func (c *Cluster) addRaftPeer(m serf.Member) error {
-	c.log.Infof("Add raft peer %+v", m)
-
 	addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
 
 	future := c.raft.AddPeer(addr)
 	if err := future.Error(); err != nil && err != raft.ErrKnownPeer {
-		c.log.Errorf("failed to add raft peer: %v", err)
+		c.log.Errorf("Failed to add raft peer: %v", err)
 		return err
 	} else if err == nil {
-		c.log.Infof("added raft peer: %v", addr)
+		c.log.Infof("Added raft peer: %+v", m)
 	}
 	return nil
-
 }
 
 func (c *Cluster) removeRaftPeer(m serf.Member) error {
-
-	c.log.Infof("Remove raft peer %+v", m)
 	for _, cfg := range c.store.List(m.Name) {
 		cmd := FSMCommand{Type: cmdRemoveConfig, Host: m.Name, Config: cfg}
 		if err := c.raftApply(cmd); err != nil {
@@ -146,10 +144,10 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 
 	future := c.raft.RemovePeer(addr)
 	if err := future.Error(); err != nil && err != raft.ErrUnknownPeer {
-		c.log.Errorf("failed to remove raft peer: %v", err)
+		c.log.Errorf("Failed to remove raft peer: %v", err)
 		return err
 	} else if err == nil {
-		c.log.Infof("removed raft peer: %v", addr)
+		c.log.Infof("Removed raft peer: %+v", m)
 	}
 	return nil
 }

@@ -98,7 +98,9 @@ func (c *CombaineServer) GetCache() cache.Cache {
 
 // Serve run main event loop
 func (c *CombaineServer) Serve() error {
-	c.log.Info("starting REST API")
+	defer c.cluster.Shutdown()
+
+	c.log.Info("Starting REST API")
 	router := GetRouter(c)
 	go func() {
 		err := http.ListenAndServe(c.Configuration.RestEndpoint, router)
@@ -129,6 +131,5 @@ func (c *CombaineServer) Serve() error {
 	signal.Notify(sigWatcher, os.Interrupt, os.Kill)
 	sig := <-sigWatcher
 	c.log.Info("Got signal:", sig)
-	c.cluster.Shutdown()
 	return nil
 }

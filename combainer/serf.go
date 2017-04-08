@@ -102,8 +102,7 @@ type Cluster struct {
 	serf    *serf.Serf
 
 	// reconcileCh is used to pass events from the serf handler
-	// into the leader manager. Mostly used to handle when servers
-	// join/leave from the region.
+	// into the leader manager. Mostly used to handle when servers join/leave.
 	reconcileCh chan serf.Member
 
 	shutdownCh chan struct{}
@@ -121,9 +120,6 @@ type Cluster struct {
 	cache          cache.Cache
 	repo           configs.Repository
 	config         *configs.ClusterConfig
-}
-
-type ClusterInterface interface {
 }
 
 // Bootstrap is used to attempt join to existing serf cluster.
@@ -194,8 +190,6 @@ CONNECT:
 	c.log.Info("Create raft")
 	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
 	if err != nil {
-		boltStore.Close()
-		c.transport.Close()
 		return errors.Wrap(err, "raft failed")
 	}
 	c.raft = raft
@@ -317,14 +311,19 @@ func (c *Cluster) Shutdown() {
 		close(c.shutdownCh)
 		c.shutdownCh = nil
 	}
-	if err := c.transport.Close(); err != nil {
-		c.log.Errorf("failed to close raft transport %v", err)
+	if c.raft != nil {
+		if err := c.raft.Shutdown().Error(); err != nil {
+			c.log.Errorf("failed to shutdown raft: %s", err)
+		}
 	}
-	future := c.raft.Shutdown()
-	if err := future.Error(); err != nil {
-		c.log.Errorf("failed to shutdown raft: %s", err)
+	if c.transport != nil {
+		if err := c.transport.Close(); err != nil {
+			c.log.Errorf("failed to close raft transport %v", err)
+		}
 	}
-	if err := c.raftStore.Close(); err != nil {
-		c.log.Errorf("failed to close raftStore: %s", err)
+	if c.raftStore != nil {
+		if err := c.raftStore.Close(); err != nil {
+			c.log.Errorf("failed to close raftStore: %s", err)
+		}
 	}
 }
