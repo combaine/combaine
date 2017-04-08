@@ -31,6 +31,26 @@ func min(a, b int) int {
 	return b
 }
 
+func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
+	var (
+		found     bool
+		deadNodes []string
+	)
+	for i := range stats {
+		found = false
+		for _, h := range alive {
+			if h == stats[i][0] {
+				found = true
+			}
+		}
+		if !found {
+			deadNodes = append(deadNodes, stats[i][0])
+			stats[i][0] += " (dead)"
+		}
+	}
+	return deadNodes, stats
+}
+
 func (c *Cluster) distributeTasks(hosts []string) error {
 	c.log.Debug("distributeTasks to ", hosts)
 	configs, err := c.repo.ListParsingConfigs()
@@ -47,6 +67,19 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		c.log.Warnf("cluster is empty, there is nowhere to distribute configs")
 		return nil
 	}
+	curStat := c.store.DistributionStatistic()
+	deadNodes, curStat := markDeadNodes(hosts, curStat)
+	c.log.Debugf("Current FSM store stats %v", curStat)
+
+	// Release configs from deadNodes
+	for _, host := range deadNodes {
+		for _, cfg := range c.store.List(host) {
+			if err := releaseConfig(c, host, cfg); err != nil {
+				return err
+			}
+		}
+	}
+
 	state := &balance{
 		hosts:     hosts,
 		qty:       make(map[string]int, clusterSize),
@@ -68,7 +101,6 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 	}
 
 	sort.Sort(state)
-	c.log.Debugf("Current distribution: %+v", state)
 
 	overloadedIndex := clusterSize - 1
 
@@ -140,7 +172,9 @@ ALMOST_FAIR_BALANCER:
 			}
 		}
 	}
-	c.log.Debugf("Rebalanced FSM store stats %v", c.store.DistributionStatistic())
+	curStat = c.store.DistributionStatistic()
+	_, curStat = markDeadNodes(hosts, curStat)
+	c.log.Debugf("Rebalanced FSM store stats %v", curStat)
 	return nil
 }
 

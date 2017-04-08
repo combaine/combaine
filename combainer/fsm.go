@@ -118,10 +118,16 @@ func (s *FSMStore) Put(host, config string) chan struct{} {
 
 	if _, ok := s.store[host]; !ok {
 		s.store[host] = make(map[string]chan struct{})
+	} else {
+		// stop previously runned clients
+		if oldStopCh := s.store[host][config]; oldStopCh != nil {
+			close(oldStopCh)
+		}
 	}
-	stopCh := make(chan struct{})
-	s.store[host][config] = stopCh
-	return stopCh
+
+	newStopCh := make(chan struct{})
+	s.store[host][config] = newStopCh
+	return newStopCh
 }
 
 // Remove remove config from host's store
