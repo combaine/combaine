@@ -125,6 +125,8 @@ func TestDistributeTasks(t *testing.T) {
 			len(cl.store.store["host2"]),
 			len(cl.store.store["host3"]),
 		)
+		assert.Equal(t, 0, len(cl.store.store["host3"]), "Dead node has configs")
+
 		configSet := make(map[string]string)
 		for h := range cl.store.store {
 			for cfg := range cl.store.store[h] {
