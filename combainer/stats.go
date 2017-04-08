@@ -34,13 +34,24 @@ func (cs *clientStats) AddFailedAggregate() {
 }
 
 func (cs *clientStats) GetStats() *StatInfo {
+	sPar := atomic.LoadInt64(&cs.successParsing)
+	fPar := atomic.LoadInt64(&cs.failedParsing)
+	sAgg := atomic.LoadInt64(&cs.successAggregate)
+	fAgg := atomic.LoadInt64(&cs.failedAggregate)
 	return &StatInfo{
-		ParsingSuccess:   atomic.LoadInt64(&cs.successParsing),
-		ParsingFailed:    atomic.LoadInt64(&cs.failedParsing),
-		ParsingTotal:     atomic.LoadInt64(&cs.successParsing) + atomic.LoadInt64(&cs.failedParsing),
-		AggregateSuccess: atomic.LoadInt64(&cs.successAggregate),
-		AggregateFailed:  atomic.LoadInt64(&cs.failedAggregate),
-		AggregateTotal:   atomic.LoadInt64(&cs.successAggregate) + atomic.LoadInt64(&cs.failedAggregate),
+		ParsingSuccess:   sPar,
+		ParsingFailed:    fPar,
+		ParsingTotal:     sPar + fPar,
+		AggregateSuccess: sAgg,
+		AggregateFailed:  fAgg,
+		AggregateTotal:   sAgg + fAgg,
 		Heartbeated:      atomic.LoadInt64(&cs.last),
 	}
+}
+
+func (cs *clientStats) CopyStats(to *clientStats) {
+	atomic.StoreInt64(&to.successParsing, atomic.LoadInt64(&cs.successParsing))
+	atomic.StoreInt64(&to.failedParsing, atomic.LoadInt64(&cs.failedParsing))
+	atomic.StoreInt64(&to.successAggregate, atomic.LoadInt64(&cs.successAggregate))
+	atomic.StoreInt64(&to.failedAggregate, atomic.LoadInt64(&cs.failedAggregate))
 }

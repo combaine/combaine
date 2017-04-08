@@ -20,12 +20,9 @@ cloud_config:
   DataFetcher: {logname: nginx/access.log, timetail_port: 3132, timetail_url: '/timetail?log=',
     type: timetail}
   agave_hosts: ["agave01g.media.yandex.net", "agave01e.media.yandex.net"]
-  HostFetcher: {
-    type: "predefine",
-    Clusters: {
-      "combaine-cloud": {
-        "IVA": ["host1-IVA", "host2-IVA"],
+  HostFetcher:
+    type: "predefine"
+    Clusters:
+      "combaine-cloud":
+        "IVA": ["host1-IVA", "host2-IVA"]
         "UGR": ["host1-ugr", "localhost"]
-      }
-    }
-  }

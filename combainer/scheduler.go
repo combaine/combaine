@@ -206,7 +206,7 @@ RECLIENT:
 		goto RECLIENT
 	}
 	GlobalObserver.RegisterClient(cl, config)
-	defer GlobalObserver.UnregisterClient(config)
+	defer GlobalObserver.UnregisterClient(cl.ID, config)
 
 	for {
 		select {

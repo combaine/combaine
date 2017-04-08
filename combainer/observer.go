@@ -53,25 +53,25 @@ type Observer struct {
 }
 
 // RegisterClient register client in Observer
+// ReRegister client is UnregisterClient for previously
+// registered client, but all stats are copied
 func (o *Observer) RegisterClient(cl *Client, config string) {
 	o.RWMutex.Lock()
+	if oldCl, ok := o.clients[config]; ok {
+		oldCl.CopyStats(&cl.clientStats)
+	}
 	o.clients[config] = cl
 	o.RWMutex.Unlock()
 }
 
 // UnregisterClient unregister client in Observer
-func (o *Observer) UnregisterClient(config string) {
+// Deregister only a yourself by checking id
+func (o *Observer) UnregisterClient(id string, config string) {
 	o.RWMutex.Lock()
-	delete(o.clients, config)
+	if cl, ok := o.clients[config]; ok && cl.ID == id {
+		delete(o.clients, config)
+	}
 	o.RWMutex.Unlock()
-}
-
-// HasClient check registration of client
-func (o *Observer) HasClient(config string) bool {
-	o.RLock()
-	_, ok := o.clients[config]
-	o.RUnlock()
-	return ok
 }
 
 // GetClientsStats return map with client stats

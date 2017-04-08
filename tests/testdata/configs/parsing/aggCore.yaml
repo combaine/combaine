@@ -1,6 +1,13 @@
 groups: [test-combainer]
 metahost: test-combainer
 agg_configs: [aggCore]
+Combainer:
+    ParallelParsings: 1
+HostFetcher:
+    type: "predefine"
+    Clusters:
+      "test-combainer":
+        "DC1": ["host1-DC1", "host2-DC1"]
 DataFetcher:
   timetail_url: "/timetail?pattern=app_resources&log_ts="
   type: dummy
