@@ -8,7 +8,6 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/senders/solomon"
 )
 
@@ -29,7 +28,7 @@ var (
 
 type solomonTask struct {
 	ID       string `codec:"Id"`
-	Data     []tasks.AggregationResult
+	Data     []common.AggregationResult
 	Config   solomon.Config
 	CurrTime uint64
 	PrevTime uint64

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 )
 
 var fLock sync.Mutex
@@ -17,7 +17,7 @@ func Register(name string, f func(map[string]interface{}) (Fetcher, error)) {
 }
 
 type Fetcher interface {
-	Fetch(task *tasks.FetcherTask) ([]byte, error)
+	Fetch(task *common.FetcherTask) ([]byte, error)
 }
 
 func NewFetcher(name string, cfg map[string]interface{}) (f Fetcher, err error) {

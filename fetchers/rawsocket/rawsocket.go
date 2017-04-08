@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/parsing"
 )
 
@@ -27,7 +27,7 @@ type tcpSocketFetcher struct {
 	port interface{}
 }
 
-func (t *tcpSocketFetcher) Fetch(task *tasks.FetcherTask) (res []byte, err error) {
+func (t *tcpSocketFetcher) Fetch(task *common.FetcherTask) (res []byte, err error) {
 	return get(task.Target, fmt.Sprintf("%d", t.port))
 }
 

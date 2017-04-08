@@ -1,4 +1,4 @@
-package formatter
+package logger
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 // const format = "02/01/2006 15:04:05"
 const format = time.RFC3339
 
+// CombaineFormatter log formatter for combaine
 type CombaineFormatter struct{}
 
 func getLevel(lvl logrus.Level) string {
@@ -24,11 +25,14 @@ func getLevel(lvl logrus.Level) string {
 		return "WARN"
 	case logrus.ErrorLevel, logrus.FatalLevel:
 		return "ERROR"
+	case logrus.PanicLevel:
+		return "PANIC"
 	default:
 		return lvl.String()
 	}
 }
 
+// Format build log entry in bytes.Buffer
 func (f *CombaineFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	var keys = make([]string, 0, len(entry.Data))
 	for key := range entry.Data {

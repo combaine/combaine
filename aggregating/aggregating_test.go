@@ -14,7 +14,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/servicecacher"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 )
@@ -130,7 +129,7 @@ func TestAggregating(t *testing.T) {
 			case "send":
 				shouldSendToSenders--
 
-				var payload tasks.SenderPayload
+				var payload common.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
 					_, ok := expectSenders[v.Tags["name"]]

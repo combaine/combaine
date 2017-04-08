@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -26,7 +26,7 @@ func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTabl
 	return table, nil
 }
 
-func dataToLuaTable(l *lua.LState, in []tasks.AggregationResult) (*lua.LTable, error) {
+func dataToLuaTable(l *lua.LState, in []common.AggregationResult) (*lua.LTable, error) {
 	out := l.NewTable()
 	for _, item := range in {
 		table := l.NewTable()
@@ -205,7 +205,7 @@ func LoadPlugin(id, dir, name string) (*lua.LState, error) {
 
 // preparePluginEnv add data from aggregate task as global variable in lua
 // plugin. Also inject juggler conditions from juggler configs and plugin config
-func (js *Sender) preparePluginEnv(data []tasks.AggregationResult) error {
+func (js *Sender) preparePluginEnv(data []common.AggregationResult) error {
 	ltable, err := dataToLuaTable(js.state, data)
 	if err != nil {
 		return fmt.Errorf("Failed to convert AggregationResult to lua table: %s", err)

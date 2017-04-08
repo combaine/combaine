@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSend(t *testing.T) {
-	data := []tasks.AggregationResult{
+	data := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "hosts-group-1",
 			"metahost": "meta.host.name", "aggregate": "cbb"},
 			Result: map[string]interface{}{
@@ -47,7 +47,7 @@ func TestSend(t *testing.T) {
 			Result: map[string]interface{}{}},
 	}
 
-	testQ := func(cfg *Config, data []tasks.AggregationResult) []string {
+	testQ := func(cfg *Config, data []common.AggregationResult) []string {
 		s, err := NewCBBClient(cfg, "testCbbClient")
 		if err != nil {
 			t.Logf("Unexpected error %s", err)
@@ -79,7 +79,7 @@ func TestSend(t *testing.T) {
 	testConfig.Items = []string{"cbb.5xx"}
 	testConfig.Description = "Text"
 	testConfig.Path = "path"
-	dataOneIP := []tasks.AggregationResult{
+	dataOneIP := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "hosts-group-1",
 			"metahost": "meta.host.name", "aggregate": "cbb"},
 			Result: map[string]interface{}{

@@ -8,7 +8,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 )
 
 const (
@@ -122,7 +121,7 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 	return
 }
 
-func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, output io.Writer) (err error) {
+func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(common.NameStack, 0, 3)
 
 	for _, aggItem := range data {
@@ -157,7 +156,7 @@ func (g *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64, 
 }
 
 // Send proxy send operation to all graphite endpoints
-func (g *Sender) Send(data []tasks.AggregationResult, timestamp uint64) error {
+func (g *Sender) Send(data []common.AggregationResult, timestamp uint64) error {
 	if len(data) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send", g.id)
 	}

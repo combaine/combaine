@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/tasks"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -54,8 +53,8 @@ func TestTimeout(t *testing.T) {
 
 	target, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
 
-	task := &tasks.FetcherTask{
-		CommonTask: tasks.CommonTask{Id: "ID"},
+	task := &common.FetcherTask{
+		CommonTask: common.CommonTask{Id: "ID"},
 		Target:     target,
 	}
 
@@ -83,8 +82,8 @@ func TestNonTimeout(t *testing.T) {
 
 	target, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
 
-	task := &tasks.FetcherTask{
-		CommonTask: tasks.CommonTask{Id: "ID"},
+	task := &common.FetcherTask{
+		CommonTask: common.CommonTask{Id: "ID"},
 		Target:     target,
 	}
 

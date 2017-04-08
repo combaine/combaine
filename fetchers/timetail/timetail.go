@@ -8,9 +8,9 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/parsing"
 )
 
@@ -45,7 +45,7 @@ type TimetailConfig struct {
 	ReadTimeout int    `mapstructure:"read_timeout"`
 }
 
-func (t *Timetail) Fetch(task *tasks.FetcherTask) ([]byte, error) {
+func (t *Timetail) Fetch(task *common.FetcherTask) ([]byte, error) {
 	period := t.Offset + (task.CurrTime - task.PrevTime)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d",

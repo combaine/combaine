@@ -6,7 +6,6 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/senders/juggler"
 )
 
@@ -16,7 +15,7 @@ var logger *cocaine.Logger
 
 type senderTask struct {
 	ID     string `codec:"Id"`
-	Data   []tasks.AggregationResult
+	Data   []common.AggregationResult
 	Config juggler.Config
 }
 

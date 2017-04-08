@@ -1,10 +1,11 @@
-package formatter
+package logger
 
 import (
 	"testing"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 var fields = logrus.Fields{
@@ -23,8 +24,25 @@ var entry = &logrus.Entry{
 
 func TestMain(t *testing.T) {
 	f := CombaineFormatter{}
-	r, _ := f.Format(entry)
-	t.Logf("%s", r)
+
+	cases := []struct {
+		level  logrus.Level
+		expect string
+	}{
+		{logrus.DebugLevel, "DEBUG"},
+		{logrus.InfoLevel, "INFO"},
+		{logrus.WarnLevel, "WARN"},
+		{logrus.ErrorLevel, "ERROR"},
+		{logrus.FatalLevel, "ERROR"},
+		{logrus.PanicLevel, "PANIC"},
+		{33, "unknown"},
+	}
+	for _, c := range cases {
+		entry.Level = c.level
+		r, _ := f.Format(entry)
+		assert.Contains(t, string(r), c.expect)
+		t.Logf("%s", r)
+	}
 }
 
 func BenchmarkFormatter(b *testing.B) {

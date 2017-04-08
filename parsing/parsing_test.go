@@ -10,7 +10,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/servicecacher"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +32,7 @@ type fether struct {
 	c configs.PluginConfig
 }
 
-func (f *fether) Fetch(task *tasks.FetcherTask) ([]byte, error) {
+func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
 	fch <- string(f.c["timetail_url"].([]byte))
 	return common.Pack(*task)
 }
@@ -108,7 +107,7 @@ func TestParsing(t *testing.T) {
 
 			var r map[string]interface{}
 			assert.NoError(t, common.Unpack(k[1].([]byte), &r))
-			var payload tasks.FetcherTask
+			var payload common.FetcherTask
 			assert.NoError(t, common.Unpack(r["token"].([]byte), &payload))
 
 			key := payload.Target

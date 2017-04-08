@@ -8,9 +8,9 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/parsing"
 )
 
@@ -82,7 +82,7 @@ func NewHttpFetcher(cfg map[string]interface{}) (t parsing.Fetcher, err error) {
 	}, nil
 }
 
-func (t *HttpFetcher) Fetch(task *tasks.FetcherTask) ([]byte, error) {
+func (t *HttpFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	logger.Infof("%s HTTPFetcher config: %v", task.Id, t.httpFetcherConfig)
 	url := fmt.Sprintf("http://%s:%d%s",
 		task.Target,

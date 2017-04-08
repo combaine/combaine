@@ -15,7 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/combainer"
-	"github.com/combaine/combaine/common/formatter"
+	"github.com/combaine/combaine/common/logger"
 )
 
 const defaultConfigsPath = "/etc/combaine"
@@ -98,7 +98,7 @@ func rotateFile() error {
 
 func initializeLogger(loglevel logrus.Level, output string) {
 	outputPath = output
-	formatter := &formatter.CombaineFormatter{}
+	formatter := &logger.CombaineFormatter{}
 	logrus.SetLevel(loglevel)
 	logrus.SetFormatter(formatter)
 

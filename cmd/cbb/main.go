@@ -10,7 +10,6 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/senders/cbb"
 )
 
@@ -23,7 +22,7 @@ var logger *cocaine.Logger
 
 type cbbTask struct {
 	ID       string `codec:"Id"`
-	Data     []tasks.AggregationResult
+	Data     []common.AggregationResult
 	Config   cbb.Config
 	CurrTime uint64
 	PrevTime uint64

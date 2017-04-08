@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 )
 
 // Config contains aggregation config and local sender configs
@@ -78,7 +78,7 @@ func (c *Sender) makeURLValues(ip string, code string, desc string) url.Values {
 	return val
 }
 
-func (c *Sender) send(data []tasks.AggregationResult, timestamp uint64) ([]string, error) {
+func (c *Sender) send(data []common.AggregationResult, timestamp uint64) ([]string, error) {
 	logger.Debugf("%s Data to send: %v", c.id, data)
 	var requests []string
 
@@ -152,7 +152,7 @@ func (c *Sender) send(data []tasks.AggregationResult, timestamp uint64) ([]strin
 }
 
 // Send send task to cbb api
-func (c *Sender) Send(ctx context.Context, data []tasks.AggregationResult, timestamp uint64) error {
+func (c *Sender) Send(ctx context.Context, data []common.AggregationResult, timestamp uint64) error {
 	requests, err := c.send(data, timestamp)
 	if err != nil {
 		return err

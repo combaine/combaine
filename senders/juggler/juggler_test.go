@@ -14,11 +14,11 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
-var data []tasks.AggregationResult
+var data []common.AggregationResult
 var ts *httptest.Server
 
 func DefaultJugglerTestConfig() *Config {
@@ -351,7 +351,7 @@ func TestMain(m *testing.M) {
 	if yerr != nil {
 		panic(yerr)
 	}
-	//var data []tasks.AggregationResult is global
+	//var data []common.AggregationResult is global
 	if yerr := yaml.Unmarshal([]byte(dataYaml), &data); yerr != nil {
 		panic(yerr)
 	}
