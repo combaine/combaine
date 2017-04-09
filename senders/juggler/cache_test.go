@@ -31,11 +31,6 @@ func TestCacheSetGetDelete(t *testing.T) {
 	time.Sleep(time.Millisecond * 8)
 	b, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"Two"})
 	assert.Equal(t, a, b)
-	// expiration with cleaner test
-	a, _ = GlobalCache.Get(ctx, "key3", checkFetcher, id, "q", []string{"One"})
-	time.Sleep(time.Millisecond * 15)
-	b, _ = GlobalCache.Get(ctx, "key3", checkFetcher, id, "q", []string{"Two"})
-	assert.NotEqual(t, a, b)
 }
 
 func TestCacheWithCleanupInterval(t *testing.T) {
