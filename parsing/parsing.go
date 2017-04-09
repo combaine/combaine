@@ -8,16 +8,15 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
-
-	"github.com/combaine/combaine/common/servicecacher"
 
 	"github.com/combaine/combaine/rpc"
 )
 
 var (
-	cacher = servicecacher.NewCacher(servicecacher.NewService)
+	cacher = cache.NewServiceCacher(cache.NewService)
 )
 
 func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingConfig) ([]byte, error) {
@@ -49,7 +48,7 @@ func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingCo
 }
 
 // Do distribute tasks accross cluster
-func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher) (*rpc.ParsingResult, error) {
+func Do(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceCacher) (*rpc.ParsingResult, error) {
 	logger.Infof("%s start parsing", task.Id)
 
 	var parsingConfig = task.GetParsingConfig()
@@ -88,7 +87,7 @@ func Do(ctx context.Context, task *rpc.ParsingTask, cacher servicecacher.Cacher)
 			}
 			wg.Add(1)
 			// TODO: use Context instead of deadline
-			go func(app servicecacher.Service, k string, v interface{}, deadline time.Duration) {
+			go func(app cache.Service, k string, v interface{}, deadline time.Duration) {
 				defer wg.Done()
 
 				/* Task structure */

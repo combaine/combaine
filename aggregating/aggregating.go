@@ -8,13 +8,13 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/rpc"
 )
 
-func enqueue(method string, app servicecacher.Service, payload *[]byte) (interface{}, error) {
+func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, error) {
 
 	var rawRes interface{}
 
@@ -33,7 +33,7 @@ func enqueue(method string, app servicecacher.Service, payload *[]byte) (interfa
 }
 
 func aggregating(id string, ch chan *common.AggregationResult, res *common.AggregationResult,
-	c configs.PluginConfig, d []interface{}, app servicecacher.Service, wg *sync.WaitGroup) {
+	c configs.PluginConfig, d []interface{}, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
@@ -52,7 +52,7 @@ func aggregating(id string, ch chan *common.AggregationResult, res *common.Aggre
 }
 
 // Do send tasks to cluster
-func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cacher) error {
+func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCacher) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()

@@ -2,11 +2,25 @@ package cache
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInMemory(t *testing.T) {
 	data := []byte{100, 102}
-	m, _ := NewInMemoryCache(nil)
+	_, err := NewCache("NotExist", nil)
+	assert.Error(t, err)
+
+	m, _ := NewCache("InMemory", nil)
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("ReRegister cache not panic")
+			}
+		}()
+		RegisterCache("InMemory", NewInMemoryCache)
+	}()
+
 	if err := m.Put("A", "A", data); err != nil {
 		t.Fatalf("unable to put to InMemory cache: %s", err)
 	}

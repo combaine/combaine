@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/combaine/combaine/aggregating"
-	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/parsing"
 	"github.com/combaine/combaine/rpc"
 
@@ -18,7 +18,7 @@ import (
 	_ "github.com/combaine/combaine/fetchers/timetail"
 )
 
-var cacher = servicecacher.NewCacher(servicecacher.NewService)
+var cacher = cache.NewServiceCacher(cache.NewService)
 
 var endpoint string
 

@@ -1,4 +1,4 @@
-package servicecacher
+package cache
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 func TestServicecacher(t *testing.T) {
 	t.Log("Start")
-	c := NewCacher(func(n string, a ...interface{}) (Service, error) {
+	c := NewServiceCacher(func(n string, a ...interface{}) (Service, error) {
 		return tests.NewService(n, a...)
 	})
 

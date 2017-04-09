@@ -8,8 +8,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
-	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
@@ -130,8 +130,8 @@ func TestParsing(t *testing.T) {
 	}()
 
 	t.Log("start parsing")
-	cacher := servicecacher.NewCacher(
-		func(n string, a ...interface{}) (servicecacher.Service, error) {
+	cacher := cache.NewServiceCacher(
+		func(n string, a ...interface{}) (cache.Service, error) {
 			return tests.NewService(n, a...)
 		})
 	res, err := Do(context.Background(), &parsingTask, cacher)

@@ -12,8 +12,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/configs"
-	"github.com/combaine/combaine/common/servicecacher"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 )
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	cacher            = servicecacher.NewCacher(NewService)
+	cacher            = cache.NewServiceCacher(NewService)
 	repo              configs.Repository
 	pcfg              configs.EncodedConfig
 	acfg              configs.EncodedConfig
@@ -32,7 +32,7 @@ var (
 	aggregationConfig configs.AggregationConfig
 )
 
-func NewService(n string, a ...interface{}) (servicecacher.Service, error) {
+func NewService(n string, a ...interface{}) (cache.Service, error) {
 	return tests.NewService(n, a...)
 }
 
@@ -104,7 +104,7 @@ func TestAggregating(t *testing.T) {
 
 		shouldSendToSenders := 2
 
-		for r := range tests.Spy { // r == []interface{servicecacher.Service, []byte}
+		for r := range tests.Spy { // r == []interface{cache.Service, []byte}
 			method := string(r[0].(string))
 			if method == "stop" {
 				break
