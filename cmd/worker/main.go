@@ -13,9 +13,7 @@ import (
 	"github.com/combaine/combaine/parsing"
 	"github.com/combaine/combaine/rpc"
 
-	_ "github.com/combaine/combaine/fetchers/httpfetcher"
-	_ "github.com/combaine/combaine/fetchers/rawsocket"
-	_ "github.com/combaine/combaine/fetchers/timetail"
+	_ "github.com/combaine/combaine/fetchers"
 )
 
 var cacher = cache.NewServiceCacher(cache.NewService)

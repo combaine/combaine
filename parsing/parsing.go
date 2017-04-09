@@ -9,7 +9,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
 
 	"github.com/combaine/combaine/rpc"
@@ -19,7 +18,7 @@ var (
 	cacher = cache.NewServiceCacher(cache.NewService)
 )
 
-func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingConfig) ([]byte, error) {
+func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *common.ParsingConfig) ([]byte, error) {
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
 		return nil, err
@@ -32,8 +31,8 @@ func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *configs.ParsingCo
 	}
 
 	fetcherTask := common.FetcherTask{
-		Target:     task.Host,
-		CommonTask: common.CommonTask{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
+		Target: task.Host,
+		Task:   common.Task{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
 	}
 
 	startTm := time.Now()

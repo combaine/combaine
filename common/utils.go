@@ -1,9 +1,12 @@
 package common
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
+	"time"
 
 	"github.com/ugorji/go/codec"
 
@@ -103,4 +106,13 @@ func GetRandomString(input []string) string {
 		return ""
 	}
 	return input[rand.Intn(max)]
+}
+
+// GenerateSessionID = uuid.New
+func GenerateSessionID() string {
+	var buf = make([]byte, 0, 16)
+	buf = strconv.AppendInt(buf, time.Now().UnixNano(), 10)
+	buf = strconv.AppendInt(buf, rand.Int63(), 10)
+	val := md5.Sum(buf)
+	return fmt.Sprintf("%x", string(val[:]))
 }

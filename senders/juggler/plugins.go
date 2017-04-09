@@ -7,14 +7,13 @@ import (
 	"strconv"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
 	lua "github.com/yuin/gopher-lua"
 )
 
 type dumperFunc func(reflect.Value) (lua.LValue, error)
 
-func jPluginConfigToLuaTable(l *lua.LState, in configs.PluginConfig) (*lua.LTable, error) {
+func jPluginConfigToLuaTable(l *lua.LState, in common.PluginConfig) (*lua.LTable, error) {
 	table := l.NewTable()
 	for name, value := range in {
 		val, err := toLuaValue(l, value, dumperToLuaValue)

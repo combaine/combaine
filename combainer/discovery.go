@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/mitchellh/mapstructure"
@@ -40,28 +40,24 @@ var (
 
 // RegisterFetcherLoader register new fetcher loader function
 func RegisterFetcherLoader(name string, f FetcherLoader) error {
-	_, ok := fetchers[name]
-	if ok {
+	if _, ok := fetchers[name]; ok {
 		return fmt.Errorf("HostFetcher `%s` is already registered", name)
 	}
-
 	fetchers[name] = f
 	return nil
 }
 
 // LoadHostFetcher create, configure and return new hosts fetcher
-func LoadHostFetcher(cache cache.Cache, config configs.PluginConfig) (HostFetcher, error) {
+func LoadHostFetcher(cache cache.Cache, config common.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get type of HostFetcher: %s", err)
+		return nil, errors.Wrap(err, "unable to get type of HostFetcher")
 	}
 
-	initializer, ok := fetchers[name]
-	if !ok {
-		return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
+	if initializer, ok := fetchers[name]; ok {
+		return initializer(cache, config)
 	}
-
-	return initializer(cache, config)
+	return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
 }
 
 // HostFetcher interface

@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterClient(t *testing.T) {
-	c1, _ := NewClient(&cache.InMemory{}, tests.NewRepo([]string{}))
+	c1, _ := NewClient(&cache.InMemory{}, repo)
 
 	GlobalObserver.RegisterClient(c1, "singleConfig")
 	c1.AddSuccessAggregate()
@@ -19,7 +18,7 @@ func TestRegisterClient(t *testing.T) {
 	assert.EqualValues(t, c1.successAggregate, 1)
 	assert.EqualValues(t, stats["singleConfig"].AggregateTotal, 2)
 
-	c2, _ := NewClient(&cache.InMemory{}, tests.NewRepo([]string{}))
+	c2, _ := NewClient(&cache.InMemory{}, repo)
 	GlobalObserver.RegisterClient(c2, "singleConfig") // ReRegister client for config c1
 	stats = GlobalObserver.GetClientsStats()
 	assert.EqualValues(t, c2.failedAggregate, 1)

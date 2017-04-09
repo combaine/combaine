@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
 const repopath = "../tests/testdata/configs"
 
+var repo, repoErr = common.NewFilesystemRepository(repopath)
+
 func TestNewClient(t *testing.T) {
-	repo, err := configs.NewFilesystemRepository(repopath)
-	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
+	assert.Nil(t, repoErr, fmt.Sprintf("Unable to create repo %s", repoErr))
 
 	c, err := NewClient(nil, repo)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
@@ -47,7 +48,6 @@ func TestDialContext(t *testing.T) {
 }
 
 func TestUpdateSessionParams(t *testing.T) {
-	repo, _ := configs.NewFilesystemRepository(repopath)
 	cl, err := NewClient(nil, repo)
 	sessionParams, err := cl.updateSessionParams("nop")
 	assert.Nil(t, sessionParams)
@@ -57,7 +57,7 @@ func TestUpdateSessionParams(t *testing.T) {
 	assert.Nil(t, sessionParams)
 	assert.Error(t, err)
 
-	var pCfg configs.ParsingConfig
+	var pCfg common.ParsingConfig
 	encPCfg, _ := cl.repository.GetParsingConfig("aggCore")
 	assert.NoError(t, encPCfg.Decode(&pCfg))
 
@@ -70,4 +70,10 @@ func TestUpdateSessionParams(t *testing.T) {
 	t.Log("Fetched hosts", predefinedHosts)
 	assert.Equal(t, len(sessionParams.PTasks), len(predefinedHosts["DC1"]))
 	assert.Equal(t, sessionParams.ParallelParsings, pCfg.ParallelParsings)
+}
+
+func TestGenerateSessionTimeFrame(t *testing.T) {
+	parsingTime, wholeTime := generateSessionTimeFrame(10)
+	assert.Equal(t, parsingTime, time.Duration(8*time.Second))
+	assert.Equal(t, wholeTime, time.Duration(10*time.Second))
 }

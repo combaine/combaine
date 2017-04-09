@@ -9,7 +9,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/rpc"
 )
@@ -33,7 +32,7 @@ func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, er
 }
 
 func aggregating(id string, ch chan *common.AggregationResult, res *common.AggregationResult,
-	c configs.PluginConfig, d []interface{}, app cache.Service, wg *sync.WaitGroup) {
+	c common.PluginConfig, d []interface{}, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
@@ -180,7 +179,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 		}
 
 		sendersWg.Add(1)
-		go func(g *sync.WaitGroup, n string, i configs.PluginConfig) {
+		go func(g *sync.WaitGroup, n string, i common.PluginConfig) {
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
@@ -194,7 +193,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 				return
 			}
 			senderPayload := common.SenderPayload{
-				CommonTask: common.CommonTask{
+				Task: common.Task{
 					CurrTime: task.Frame.Current,
 					PrevTime: task.Frame.Previous,
 					Id:       task.Id,

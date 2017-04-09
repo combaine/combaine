@@ -5,12 +5,11 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStat(t *testing.T) {
-	c1, _ := NewClient(&cache.InMemory{}, tests.NewRepo([]string{}))
+	c1, _ := NewClient(&cache.InMemory{}, repo)
 
 	c1.AddSuccessAggregate()
 	assert.EqualValues(t, c1.successAggregate, 1)
@@ -49,7 +48,7 @@ func TestStat(t *testing.T) {
 	stats = c1.GetStats()
 	assert.EqualValues(t, stats.ParsingTotal, 4012)
 
-	c2, _ := NewClient(&cache.InMemory{}, tests.NewRepo([]string{}))
+	c2, _ := NewClient(&cache.InMemory{}, repo)
 	c1.CopyStats(&c2.clientStats)
 	c2.clientStats.last = stats.Heartbeated
 	assert.EqualValues(t, stats, c2.GetStats())

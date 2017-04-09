@@ -1,4 +1,4 @@
-package configs
+package common
 
 import (
 	"fmt"
@@ -14,12 +14,11 @@ func TestUtilityFunctions(t *testing.T) {
 }
 
 func TestRepository(t *testing.T) {
-	const repopath = "../../tests/testdata/configs"
+	const repopath = "../tests/testdata/configs"
 
 	var (
-		expectedPcfg      = []string{"aggCore", "img_status"}
-		expectedAggcfg    = []string{"aggCore", "badaggCore", "http_ok", "notPerHostaggCore"}
-		expectedLockHosts = []string{"localhost:2181"}
+		expectedPcfg   = []string{"aggCore", "img_status"}
+		expectedAggcfg = []string{"aggCore", "badaggCore", "http_ok", "notPerHostaggCore"}
 	)
 
 	_, err := NewFilesystemRepository("/not_existing/dir/")
@@ -34,8 +33,6 @@ func TestRepository(t *testing.T) {
 	assert.Equal(t, expectedAggcfg, la, "")
 
 	cmbCg := repo.GetCombainerConfig()
-	assert.Equal(t, expectedLockHosts, cmbCg.LockServerSection.Hosts, "")
-
 	if len(cmbCg.CloudSection.HostFetcher) == 0 {
 		t.Fatal("section isn't supposed to empty")
 	}

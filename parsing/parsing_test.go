@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 	"github.com/stretchr/testify/assert"
@@ -24,12 +23,12 @@ const (
 
 var fch = make(chan string, 2) // do not block fetcher
 
-func NewDummyFetcher(cfg map[string]interface{}) (Fetcher, error) {
+func NewDummyFetcher(cfg common.PluginConfig) (Fetcher, error) {
 	return &fether{c: cfg}, nil
 }
 
 type fether struct {
-	c configs.PluginConfig
+	c common.PluginConfig
 }
 
 func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
@@ -43,25 +42,25 @@ func TestParsing(t *testing.T) {
 	Register("dummy", NewDummyFetcher)
 	t.Log("dummy fetcher registered")
 
-	repo, err := configs.NewFilesystemRepository(repoPath)
+	repo, err := common.NewFilesystemRepository(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
 	pcfg, err := repo.GetParsingConfig(aggConf)
 	assert.NoError(t, err, "unable to read parsingCfg %s: %s", aggConf, err)
-	var parsingConfig configs.ParsingConfig
+	var parsingConfig common.ParsingConfig
 	assert.NoError(t, pcfg.Decode(&parsingConfig))
 
 	acfg, err := repo.GetAggregationConfig(aggConf)
 	assert.NoError(t, err, "unable to read aggCfg %s: %s", aggConf, err)
-	var aggregationConfig1 configs.AggregationConfig
+	var aggregationConfig1 common.AggregationConfig
 	assert.NoError(t, acfg.Decode(&aggregationConfig1))
 
 	acfg, err = repo.GetAggregationConfig(moreConf)
 	assert.NoError(t, err, "unable to read aggCfg %s: %s", moreConf, err)
-	var aggregationConfig2 configs.AggregationConfig
+	var aggregationConfig2 common.AggregationConfig
 	assert.NoError(t, acfg.Decode(&aggregationConfig2))
 
 	encParsingConfig, _ := common.Pack(parsingConfig)
-	encAggregationConfigs, _ := common.Pack(map[string]configs.AggregationConfig{
+	encAggregationConfigs, _ := common.Pack(map[string]common.AggregationConfig{
 		aggConf:  aggregationConfig1,
 		moreConf: aggregationConfig2,
 	})

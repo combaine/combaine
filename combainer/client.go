@@ -13,7 +13,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/rpc"
 )
@@ -29,15 +28,15 @@ type sessionParams struct {
 // Client is a distributor of tasks across the computation grid
 type Client struct {
 	ID         string
-	repository configs.Repository
+	repository common.Repository
 	Cache      cache.Cache
 	Log        *logrus.Entry
 	clientStats
 }
 
 // NewClient returns new client
-func NewClient(cache cache.Cache, repo configs.Repository) (*Client, error) {
-	id := GenerateSessionId()
+func NewClient(cache cache.Cache, repo common.Repository) (*Client, error) {
+	id := common.GenerateSessionID()
 
 	cl := &Client{
 		ID:         id,
@@ -67,7 +66,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		return nil, err
 	}
 
-	var parsingConfig configs.ParsingConfig
+	var parsingConfig common.ParsingConfig
 	if err = encodedParsingConfig.Decode(&parsingConfig); err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to decode parsingConfig")
 		return nil, err
@@ -75,7 +74,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	cfg := cl.repository.GetCombainerConfig()
 	parsingConfig.UpdateByCombainerConfig(&cfg)
-	aggregationConfigs, err := GetAggregationConfigs(cl.repository, &parsingConfig)
+	aggregationConfigs, err := common.GetAggregationConfigs(cl.repository, &parsingConfig)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to read aggregation configs")
 		return nil, err
@@ -143,7 +142,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		})
 	}
 
-	parsingTime, wholeTime = GenerateSessionTimeFrame(parsingConfig.IterationDuration)
+	parsingTime, wholeTime = generateSessionTimeFrame(parsingConfig.IterationDuration)
 
 	sp = &sessionParams{
 		ParallelParsings: parallelParsings,
@@ -160,7 +159,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 // Dispatch does one iteration of tasks dispatching
 func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
 	if uniqueID == "" {
-		uniqueID = GenerateSessionId()
+		uniqueID = common.GenerateSessionID()
 	}
 
 	dispatchFields := logrus.Fields{
@@ -345,4 +344,10 @@ func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.Aggregatin
 		return
 	}
 	cl.clientStats.AddSuccessAggregate()
+}
+
+func generateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
+	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second
+	wholeTime := time.Duration(sessionDuration) * time.Second
+	return parsingTime, wholeTime
 }

@@ -6,12 +6,22 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/combaine/combaine/tests"
+	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
+
+type dummyRepo []string
+
+func newTestRepo(repo []string) *dummyRepo                                              { return (*dummyRepo)(&repo) }
+func (d *dummyRepo) ListParsingConfigs() ([]string, error)                              { return []string(*d), nil }
+func (d *dummyRepo) ListAggregationConfigs() (l []string, e error)                      { return l, e }
+func (d *dummyRepo) GetAggregationConfig(name string) (c common.EncodedConfig, e error) { return c, e }
+func (d *dummyRepo) GetParsingConfig(name string) (c common.EncodedConfig, e error)     { return c, e }
+func (d *dummyRepo) GetCombainerConfig() (c common.CombainerConfig)                     { return c }
+func (d *dummyRepo) ParsingConfigIsExists(name string) bool                             { return true }
 
 func TestDistributeTasks(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
@@ -96,7 +106,7 @@ func TestDistributeTasks(t *testing.T) {
 		},
 	}
 
-	repo := tests.NewRepo([]string{
+	repo := newTestRepo([]string{
 		"c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10",
 		"c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20",
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
@@ -164,7 +174,7 @@ func TestDistributeTasks(t *testing.T) {
 		},
 	}
 
-	repo = tests.NewRepo([]string{"c01", "c02", "c03", "c04", "c05", "c06", "c07"})
+	repo = newTestRepo([]string{"c01", "c02", "c03", "c04", "c05", "c06", "c07"})
 	cl = &Cluster{repo: repo}
 	cl.log = logrus.WithField("source", "test")
 	hosts = []string{"host1", "host2", "host3"}

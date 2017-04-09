@@ -190,3 +190,18 @@ func TestGetRandomString(t *testing.T) {
 		}
 	}
 }
+
+func TestGenSessionID(t *testing.T) {
+	id1 := GenerateSessionID()
+	id2 := GenerateSessionID()
+	t.Logf("%s %s", id1, id2)
+	if id1 == id2 {
+		t.Fatal("the same id")
+	}
+}
+
+func BenchmarkGenSessionID(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		GenerateSessionID()
+	}
+}

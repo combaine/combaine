@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -29,7 +29,7 @@ const (
 )
 
 // NewCluster create and initialize Cluster instance
-func NewCluster(cache cache.Cache, repo configs.Repository, cfg configs.ClusterConfig) (*Cluster, error) {
+func NewCluster(cache cache.Cache, repo common.Repository, cfg common.ClusterConfig) (*Cluster, error) {
 	err := validateConfig(&cfg)
 	if err != nil {
 		return nil, err
@@ -118,8 +118,8 @@ type Cluster struct {
 	updateInterval time.Duration
 	log            *logrus.Entry
 	cache          cache.Cache
-	repo           configs.Repository
-	config         *configs.ClusterConfig
+	repo           common.Repository
+	config         *common.ClusterConfig
 }
 
 // Bootstrap is used to attempt join to existing serf cluster.
@@ -286,7 +286,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 	}
 }
 
-func validateConfig(cfg *configs.ClusterConfig) error {
+func validateConfig(cfg *common.ClusterConfig) error {
 	if cfg.BindAddr == "" {
 		cfg.BindAddr = "::"
 	}

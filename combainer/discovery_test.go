@@ -8,15 +8,14 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
 	testCache, _ = cache.NewInMemoryCache(nil)
-	pluginCfg    = configs.PluginConfig{}
-	testCfg      = configs.PluginConfig{}
+	pluginCfg    = common.PluginConfig{}
+	testCfg      = common.PluginConfig{}
 )
 
 func TestRegisterFetcherLoader(t *testing.T) {
@@ -40,10 +39,10 @@ func TestRegisterFetcherLoader(t *testing.T) {
 }
 
 func TestPredefineFetcher(t *testing.T) {
-	testCfg = configs.PluginConfig{"type": "predefine", "Clusters": 1}
+	testCfg = common.PluginConfig{"type": "predefine", "Clusters": 1}
 	_, err := LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
-	testCfg = configs.PluginConfig{
+	testCfg = common.PluginConfig{
 		"type": "predefine",
 		"Clusters": map[string]map[string][]string{
 			"Group1": {
@@ -114,25 +113,25 @@ func TestHttpFetcher(t *testing.T) {
 	)
 
 	cases := []struct {
-		config  configs.PluginConfig
+		config  common.PluginConfig
 		query   string
 		err     bool
 		errType error
 	}{
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
 			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
 			"NotInCache", Failed, nil,
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"NotInCache", Failed, nil,
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1", Ok, nil,
 		},
 		{
-			configs.PluginConfig{
+			common.PluginConfig{
 				"type":     "http",
 				"Format":   "json",
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
@@ -140,7 +139,7 @@ func TestHttpFetcher(t *testing.T) {
 			"group1-json", Ok, nil,
 		},
 		{
-			configs.PluginConfig{
+			common.PluginConfig{
 				"type":     "http",
 				"Format":   "qjson",
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",

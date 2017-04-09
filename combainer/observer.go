@@ -15,7 +15,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -126,7 +125,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	name := mux.Vars(r)["name"]
 	repo := s.GetRepository()
 	combainerCfg := repo.GetCombainerConfig()
-	var parsingCfg configs.ParsingConfig
+	var parsingCfg common.ParsingConfig
 	cfg, err := repo.GetParsingConfig(name)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
@@ -140,7 +139,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
-	aggregationConfigs, err := GetAggregationConfigs(repo, &parsingCfg)
+	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg)
 	if err != nil {
 		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return
@@ -207,7 +206,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 	cl.Log = logger.WithField("client", "launch")
 
-	ID := GenerateSessionId()
+	ID := common.GenerateSessionID()
 	err = cl.Dispatch("launch", s.GetHosts(), name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
@@ -220,7 +219,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 
 // ServerContext contains server context with repository
 type ServerContext interface {
-	GetRepository() configs.Repository
+	GetRepository() common.Repository
 	GetCache() cache.Cache
 	GetHosts() []string
 }

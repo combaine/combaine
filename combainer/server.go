@@ -9,15 +9,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 )
 
 // CombaineServer main combaine object
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
-	CombainerConfig configs.CombainerConfig
-	repository      configs.Repository
+	CombainerConfig common.CombainerConfig
+	repository      common.Repository
 
 	cluster    *Cluster
 	shutdownCh chan struct{}
@@ -42,14 +42,14 @@ type CombaineServerConfig struct {
 // New create new combainer server
 func New(config CombaineServerConfig) (*CombaineServer, error) {
 	log := logrus.WithField("source", "server")
-	repository, err := configs.NewFilesystemRepository(config.ConfigsPath)
+	repository, err := common.NewFilesystemRepository(config.ConfigsPath)
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
 	log.Info("filesystemRepository initialized")
 
 	combainerConfig := repository.GetCombainerConfig()
-	if err = configs.VerifyCombainerConfig(&combainerConfig); err != nil {
+	if err = common.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
 	log.Info("Combainer configs is valid: OK")
@@ -82,7 +82,7 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 }
 
 // GetRepository return repository of configs
-func (c *CombaineServer) GetRepository() configs.Repository {
+func (c *CombaineServer) GetRepository() common.Repository {
 	return c.repository
 }
 
