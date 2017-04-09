@@ -30,7 +30,7 @@ func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) {
 	PluginConfigsUpdate(&config.CloudSection.HostFetcher, &p.HostFetcher)
 	p.HostFetcher = config.CloudSection.HostFetcher
 
-	if p.Metahost == "" {
+	if p.Metahost == "" && len(p.Groups) > 0 {
 		p.Metahost = p.Groups[0]
 	}
 }

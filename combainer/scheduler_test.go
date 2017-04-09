@@ -1,25 +1,51 @@
 package combainer
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/tests"
+	"github.com/hashicorp/raft"
+	"github.com/hashicorp/serf/serf"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDistributeTasks(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	assignConfig = func(c *Cluster, host, config string) error {
-		t.Logf("Assign config to host %s:%s", host, config)
-		c.store.Put(host, config)
-		return nil
+
+	assignConfig = func(c *Cluster, host, config string) (err error) {
+		cmd := FSMCommand{Type: cmdAssignConfig, Host: host, Config: config}
+		log := &raft.Log{}
+		if log.Data, err = json.Marshal(cmd); err != nil {
+			return errors.Wrapf(err, "Failed to assign config '%s' to host '%s'", config, host)
+		}
+		(*FSM)(c).Apply(log)
+		return err
 	}
-	releaseConfig = func(c *Cluster, host, config string) error {
-		t.Logf("Release config from host %s:%s", host, config)
-		c.store.Remove(host, config)
-		return nil
+
+	releaseConfig = func(c *Cluster, host, config string) (err error) {
+		cmd := FSMCommand{Type: cmdRemoveConfig, Host: host, Config: config}
+		log := &raft.Log{}
+		if log.Data, err = json.Marshal(cmd); err != nil {
+			return errors.Wrapf(err, "Failed to release config '%s' from host '%s'", config, host)
+		}
+		(*FSM)(c).Apply(log)
+		return err
 	}
+	//assignConfig = func(c *Cluster, host, config string) error {
+	//	t.Logf("Assign config to host %s:%s", host, config)
+	//	c.store.Put(host, config)
+	//	return nil
+	//}
+	//releaseConfig = func(c *Cluster, host, config string) error {
+	//	t.Logf("Release config from host %s:%s", host, config)
+	//	c.store.Remove(host, config)
+	//	return nil
+	//}
+
 	var ch chan struct{}
 	cases := map[string]map[string]map[string]chan struct{}{
 		"EmptyMap": make(map[string]map[string]chan struct{}),
@@ -75,7 +101,10 @@ func TestDistributeTasks(t *testing.T) {
 		"c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20",
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
 	})
-	cl := &Cluster{repo: repo}
+	conf := serf.DefaultConfig()
+	conf.Init()
+	cSerf, _ := serf.Create(conf)
+	cl := &Cluster{repo: repo, Name: "host1", serf: cSerf, updateInterval: 5 * time.Second}
 	cl.log = logrus.WithField("source", "test")
 	assert.NoError(t, cl.distributeTasks([]string{}))
 
@@ -83,7 +112,9 @@ func TestDistributeTasks(t *testing.T) {
 	// Even configs
 	for n, c := range cases {
 		t.Logf("Test for %s", n)
-		cl.store = &FSMStore{store: c}
+		fsmStore := NewFSMStore()
+		fsmStore.store = c
+		cl.store = fsmStore
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1"])
 		assert.Equal(t, a > 8, a < 12, "Test failed 8 < host1(%d) < 12 host1(%d), host2(%d), host3(%d)", a,

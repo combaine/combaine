@@ -99,17 +99,17 @@ func (s *FSMStore) List(host string) []string {
 
 // Get return unixtime, true when config added to store,
 // or 0, false if configs not present
-func (s *FSMStore) Get(host, config string) (chan struct{}, bool) {
-	s.RLock()
-	defer s.RUnlock()
-
-	if hostConfigs, ok := s.store[host]; ok {
-		if stopCh, ok := hostConfigs[config]; ok {
-			return stopCh, true
-		}
-	}
-	return nil, false
-}
+//func (s *FSMStore) Get(host, config string) (chan struct{}, bool) {
+//	s.RLock()
+//	defer s.RUnlock()
+//
+//	if hostConfigs, ok := s.store[host]; ok {
+//		if stopCh, ok := hostConfigs[config]; ok {
+//			return stopCh, true
+//		}
+//	}
+//	return nil, false
+//}
 
 // Put assign new config to host
 func (s *FSMStore) Put(host, config string) chan struct{} {
@@ -146,17 +146,17 @@ func (s *FSMStore) Remove(host, config string) {
 }
 
 // Dump FSM store keys
-func (s *FSMStore) Dump() map[string][]string {
-	s.RLock()
-	defer s.RUnlock()
-	dump := make(map[string][]string, len(s.store))
-	for k := range s.store {
-		for cfg := range s.store[k] {
-			dump[k] = append(dump[k], cfg)
-		}
-	}
-	return dump
-}
+//func (s *FSMStore) Dump() map[string][]string {
+//	s.RLock()
+//	defer s.RUnlock()
+//	dump := make(map[string][]string, len(s.store))
+//	for k := range s.store {
+//		for cfg := range s.store[k] {
+//			dump[k] = append(dump[k], cfg)
+//		}
+//	}
+//	return dump
+//}
 
 // DistributionStatistic dump number of configs assigned to hosts
 func (s *FSMStore) DistributionStatistic() [][2]string {
