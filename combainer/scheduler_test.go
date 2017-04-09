@@ -8,7 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -111,10 +110,7 @@ func TestDistributeTasks(t *testing.T) {
 		"c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20",
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
 	})
-	conf := serf.DefaultConfig()
-	conf.Init()
-	cSerf, _ := serf.Create(conf)
-	cl := &Cluster{repo: repo, Name: "host1", serf: cSerf, updateInterval: 5 * time.Second}
+	cl := &Cluster{repo: repo, Name: "host1", updateInterval: 3600 * time.Hour}
 	cl.log = logrus.WithField("source", "test")
 	assert.NoError(t, cl.distributeTasks([]string{}))
 
@@ -175,8 +171,7 @@ func TestDistributeTasks(t *testing.T) {
 	}
 
 	repo = newTestRepo([]string{"c01", "c02", "c03", "c04", "c05", "c06", "c07"})
-	cl = &Cluster{repo: repo}
-	cl.log = logrus.WithField("source", "test")
+	cl.repo = repo
 	hosts = []string{"host1", "host2", "host3"}
 	for n, c := range cases {
 		t.Logf("Test for %s", n)

@@ -199,6 +199,9 @@ CONNECT:
 
 // Hosts return names of alive serf members
 func (c *Cluster) Hosts() []string {
+	if c.serf == nil {
+		return nil
+	}
 	all := c.serf.Members()
 	alive := make([]string, 0, len(all))
 	for _, m := range all {
