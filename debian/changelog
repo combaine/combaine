@@ -1,3 +1,9 @@
+combaine (0.10.2) trusty; urgency=medium
+
+  * [client] remove excessive debug log
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 11 Apr 2017 00:42:51 +0700
+
 combaine (0.10.1) trusty; urgency=medium
 
   * [fetchers] fix context cancel

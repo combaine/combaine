@@ -206,8 +206,6 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.Id = uniqueID
 
-		cl.Log.WithFields(dispatchFields).Debugf("Send task number %d/%d to parsing", i+1, totalTasksAmount)
-
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
 		go func(t rpc.ParsingTask) {
@@ -228,7 +226,6 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 		task.Id = uniqueID
 		task.ParsingResult = &parsingResult
 
-		cl.Log.WithFields(dispatchFields).Debugf("Send task number %d/%d to aggregate", i+1, totalTasksAmount)
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
