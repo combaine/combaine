@@ -14,10 +14,6 @@ import (
 	"github.com/combaine/combaine/rpc"
 )
 
-var (
-	cacher = cache.NewServiceCacher(cache.NewService)
-)
-
 func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *common.ParsingConfig) ([]byte, error) {
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
