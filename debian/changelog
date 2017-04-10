@@ -1,3 +1,13 @@
+combaine (0.10.0) trusty; urgency=medium
+
+  * [Lockserver] removed
+  * [raft] new task scheduler with raft and serf
+  * [deps] update all dependency
+  * [fetchers] merged into single package
+  * [configs] merged into common package
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 10 Apr 2017 16:55:34 +0700
+
 combaine (0.9.14) trusty; urgency=medium
 
   * [discovery] fix qjson parsing
