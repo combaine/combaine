@@ -8,14 +8,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/servicecacher"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/rpc"
 )
 
-func enqueue(method string, app servicecacher.Service, payload *[]byte) (interface{}, error) {
+func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, error) {
 
 	var rawRes interface{}
 
@@ -33,8 +31,8 @@ func enqueue(method string, app servicecacher.Service, payload *[]byte) (interfa
 	return rawRes, nil
 }
 
-func aggregating(id string, ch chan *tasks.AggregationResult, res *tasks.AggregationResult,
-	c configs.PluginConfig, d []interface{}, app servicecacher.Service, wg *sync.WaitGroup) {
+func aggregating(id string, ch chan *common.AggregationResult, res *common.AggregationResult,
+	c common.PluginConfig, d []interface{}, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
@@ -53,7 +51,7 @@ func aggregating(id string, ch chan *tasks.AggregationResult, res *tasks.Aggrega
 }
 
 // Do send tasks to cluster
-func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cacher) error {
+func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCacher) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()
@@ -66,7 +64,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 	var aggWg sync.WaitGroup
 
 	meta := parsingConfig.Metahost
-	ch := make(chan *tasks.AggregationResult)
+	ch := make(chan *common.AggregationResult)
 
 	initCap := len(aggregationConfig.Data) * len(Hosts)
 	for name, cfg := range aggregationConfig.Data {
@@ -110,7 +108,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 				}
 
 				logger.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
-				hostAggRes := &tasks.AggregationResult{
+				hostAggRes := &common.AggregationResult{
 					Tags: map[string]string{
 						"type":      "host",
 						"aggregate": name,
@@ -128,7 +126,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 			}
 
 			logger.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
-			groupAggRes := &tasks.AggregationResult{
+			groupAggRes := &common.AggregationResult{
 				Tags: map[string]string{
 					"type":      "datacenter",
 					"aggregate": name,
@@ -146,7 +144,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 		}
 
 		logger.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
-		metaAggRes := &tasks.AggregationResult{
+		metaAggRes := &common.AggregationResult{
 			Tags: map[string]string{
 				"type":      "metahost",
 				"aggregate": name,
@@ -163,7 +161,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 		close(ch)
 	}()
 
-	var result []tasks.AggregationResult
+	var result []common.AggregationResult
 	for item := range ch {
 		result = append(result, *item)
 	}
@@ -181,7 +179,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 		}
 
 		sendersWg.Add(1)
-		go func(g *sync.WaitGroup, n string, i configs.PluginConfig) {
+		go func(g *sync.WaitGroup, n string, i common.PluginConfig) {
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
@@ -194,8 +192,8 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher servicecacher.Cac
 				logger.Errf("%s skip sender %s %s for %s", task.Id, task.Config, senderType, err)
 				return
 			}
-			senderPayload := tasks.SenderPayload{
-				CommonTask: tasks.CommonTask{
+			senderPayload := common.SenderPayload{
+				Task: common.Task{
 					CurrTime: task.Frame.Current,
 					PrevTime: task.Frame.Previous,
 					Id:       task.Id,

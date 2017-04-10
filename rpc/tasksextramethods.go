@@ -4,34 +4,33 @@ package rpc
 
 import (
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 )
 
 // GetParsingConfig decodes transported ParsingConfig from msgpack
-func (t *ParsingTask) GetParsingConfig() configs.ParsingConfig {
-	var config configs.ParsingConfig
+func (t *ParsingTask) GetParsingConfig() common.ParsingConfig {
+	var config common.ParsingConfig
 	common.Unpack(t.EncodedParsingConfig, &config)
 	return config
 }
 
 // GetAggregationConfigs decodes transported configs from msgpack
-func (t *ParsingTask) GetAggregationConfigs() map[string]configs.AggregationConfig {
-	var result map[string]configs.AggregationConfig
+func (t *ParsingTask) GetAggregationConfigs() map[string]common.AggregationConfig {
+	var result map[string]common.AggregationConfig
 	common.Unpack(t.EncodedAggregationConfigs, &result)
 	return result
 }
 
 // GetParsingConfig decodes transported ParsingConfig from msgpack
-func (t *AggregatingTask) GetParsingConfig() configs.ParsingConfig {
-	var config configs.ParsingConfig
+func (t *AggregatingTask) GetParsingConfig() common.ParsingConfig {
+	var config common.ParsingConfig
 	common.Unpack(t.EncodedParsingConfig, &config)
 	return config
 }
 
 // GetAggregationConfig decodes transported AggregationConfig from msgpack
-func (t *AggregatingTask) GetAggregationConfig() configs.AggregationConfig {
-	var config configs.AggregationConfig
+func (t *AggregatingTask) GetAggregationConfig() common.AggregationConfig {
+	var config common.AggregationConfig
 	common.Unpack(t.EncodedAggregationConfig, &config)
 	return config
 }

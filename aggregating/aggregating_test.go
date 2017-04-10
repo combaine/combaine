@@ -12,9 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/configs"
-	"github.com/combaine/combaine/common/servicecacher"
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 )
@@ -25,21 +23,21 @@ const (
 )
 
 var (
-	cacher            = servicecacher.NewCacher(NewService)
-	repo              configs.Repository
-	pcfg              configs.EncodedConfig
-	acfg              configs.EncodedConfig
-	parsingConfig     configs.ParsingConfig
-	aggregationConfig configs.AggregationConfig
+	cacher            = cache.NewServiceCacher(NewService)
+	repo              common.Repository
+	pcfg              common.EncodedConfig
+	acfg              common.EncodedConfig
+	parsingConfig     common.ParsingConfig
+	aggregationConfig common.AggregationConfig
 )
 
-func NewService(n string, a ...interface{}) (servicecacher.Service, error) {
+func NewService(n string, a ...interface{}) (cache.Service, error) {
 	return tests.NewService(n, a...)
 }
 
 func TestInit(t *testing.T) {
 	var err error
-	repo, err = configs.NewFilesystemRepository(repoPath)
+	repo, err = common.NewFilesystemRepository(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
 	pcfg, err = repo.GetParsingConfig(cfgName)
 	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)
@@ -105,7 +103,7 @@ func TestAggregating(t *testing.T) {
 
 		shouldSendToSenders := 2
 
-		for r := range tests.Spy { // r == []interface{servicecacher.Service, []byte}
+		for r := range tests.Spy { // r == []interface{cache.Service, []byte}
 			method := string(r[0].(string))
 			if method == "stop" {
 				break
@@ -130,7 +128,7 @@ func TestAggregating(t *testing.T) {
 			case "send":
 				shouldSendToSenders--
 
-				var payload tasks.SenderPayload
+				var payload common.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
 					_, ok := expectSenders[v.Tags["name"]]

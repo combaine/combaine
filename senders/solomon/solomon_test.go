@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -111,7 +111,7 @@ func TestSolomonClientSendNil(t *testing.T) {
 	cli, _ := NewSender(Config{API: "api.addr"}, "id")
 
 	// bad task
-	task := []tasks.AggregationResult{
+	task := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 			Result: []int{}},
 	}
@@ -119,7 +119,7 @@ func TestSolomonClientSendNil(t *testing.T) {
 	assert.Contains(t, fmt.Sprintf("%v", err), "Value of group should be dict")
 
 	// empty task
-	task = []tasks.AggregationResult{
+	task = []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 			Result: make(map[string]interface{})},
 	}
@@ -136,7 +136,7 @@ func TestSolomonClientSendArray(t *testing.T) {
 	dropJobs(JobQueue)
 	cli, _ := NewSender(Config{}, "_id")
 
-	task := []tasks.AggregationResult{
+	task := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 			Result: map[string]interface{}{"ArrOv": []interface{}{20, 30.0}}},
 	}
@@ -149,7 +149,7 @@ func TestSolomonClientSendArray(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(JobQueue))
 
-	task = []tasks.AggregationResult{
+	task = []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 			Result: map[string]interface{}{"ArrOv": []interface{}{"20", uint(30)}}},
 	}
@@ -162,39 +162,39 @@ func TestSolomonClientSendArray(t *testing.T) {
 func TestSolomonClientSendNotANumber(t *testing.T) {
 	dropJobs(JobQueue)
 	cases := []struct {
-		task     []tasks.AggregationResult
+		task     []common.AggregationResult
 		expected string
 	}{
 		// hmm, actually sender cannot parse not common types of numbers
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 				Result: map[string]interface{}{"map": map[string]interface{}{"MAPMAP1": map[string]interface{}{"MoMv1": true}}}}},
 			"Not a Number"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: []string{"test", "test"}}}},
 			`strconv.ParseFloat: parsing "test": invalid syntax: test`},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: map[string]bool{"test": false}}}},
 			"Not a Number"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Not a Number"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "datacenter", "name": "grp", "metahost": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Not a Number"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Failed to get data tag 'name'"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"name": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Failed to get data tag 'type'"},
-		{[]tasks.AggregationResult{
+		{[]common.AggregationResult{
 			{Tags: map[string]string{"type": "datacenter", "name": "grp", "aggregate": "app"},
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Failed to get data tag 'metahost'"},
@@ -221,7 +221,7 @@ func TestSolomonInternalSend(t *testing.T) {
 		id:     "testId",
 	}
 
-	simpleOneItemData := []tasks.AggregationResult{
+	simpleOneItemData := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "hostName", "metahost": "hostName", "aggregate": "serviceName.With.Dot"},
 			Result: map[string]interface{}{"sensorName": 17}},
 	}
@@ -269,7 +269,7 @@ func TestSolomonInternalSend(t *testing.T) {
 		},
 		id: "TESTID",
 	}
-	app1Data := []tasks.AggregationResult{
+	app1Data := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "group1", "metahost": "group1", "aggregate": "app1"},
 			Result: map[string]interface{}{"ArrayOv": []int{20, 30, 40}}},
 		{Tags: map[string]string{"type": "host", "name": "group2", "metahost": "group2", "aggregate": "app1"},

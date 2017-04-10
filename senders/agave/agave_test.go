@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/combaine/combaine/common/tasks"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +38,7 @@ func TestSend(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	data := []tasks.AggregationResult{
+	data := []common.AggregationResult{
 		{Tags: map[string]string{"type": "host", "name": "host1", "metahost": "host1", "aggregate": "20x"},
 			Result: 2000},
 		{Tags: map[string]string{"type": "datacenter", "name": "DC1", "metahost": "host3", "aggregate": "20x"},

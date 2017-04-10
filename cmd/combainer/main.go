@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/grpclog"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/combaine/combaine/combainer/server"
-	"github.com/combaine/combaine/common/formatter"
+	"github.com/combaine/combaine/combainer"
+	"github.com/combaine/combaine/common/logger"
 )
 
 const defaultConfigsPath = "/etc/combaine"
@@ -54,6 +56,11 @@ func init() {
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+
+	flag.Parse()
+	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	var logger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)
+	grpclog.SetLogger(logger)
 }
 
 var (
@@ -91,7 +98,7 @@ func rotateFile() error {
 
 func initializeLogger(loglevel logrus.Level, output string) {
 	outputPath = output
-	formatter := &formatter.CombaineFormatter{}
+	formatter := &logger.CombaineFormatter{}
 	logrus.SetLevel(loglevel)
 	logrus.SetFormatter(formatter)
 
@@ -112,19 +119,19 @@ func initializeLogger(loglevel logrus.Level, output string) {
 }
 
 func main() {
-	flag.Parse()
-	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
-	cfg := server.CombaineServerConfig{
+	cfg := combainer.CombaineServerConfig{
 		ConfigsPath:  configsPath,
 		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
 		Active:       active,
 	}
 
-	cmb, err := server.NewCombainer(cfg)
+	cmb, err := combainer.New(cfg)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
-	cmb.Serve()
+	if err = cmb.Serve(); err != nil {
+		logrus.Fatal(err)
+	}
 }

@@ -3,61 +3,23 @@ package combainer
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
+const repopath = "../tests/testdata/configs"
+
+var repo, repoErr = common.NewFilesystemRepository(repopath)
+
 func TestNewClient(t *testing.T) {
-	const repopath = "../tests/testdata/configs"
+	assert.Nil(t, repoErr, fmt.Sprintf("Unable to create repo %s", repoErr))
 
-	repo, err := configs.NewFilesystemRepository(repopath)
-	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
-
-	context := &Context{
-		Cache:  nil,
-		Serf:   nil,
-		Logger: logrus.StandardLogger(),
-	}
-
-	c, err := NewClient(context, repo)
+	c, err := NewClient(nil, repo)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
 	assert.NotEmpty(t, c.ID)
-}
-
-func TestGetRandomHost(t *testing.T) {
-	cases := []struct {
-		hosts []string
-		empty bool
-	}{
-		{[]string{}, true},
-		{[]string{"host1", "host2", "host3", "host4", "host5", "hosts6"}, false},
-	}
-
-	for _, c := range cases {
-		if c.empty {
-			assert.Equal(t, "", getRandomHost(c.hosts))
-		} else {
-			cur, prev := "", ""
-			random := 0
-			for i := 0; i < 10; i++ {
-				cur = getRandomHost(c.hosts)
-				assert.NotEqual(t, "", cur)
-				if i != 0 && cur != prev {
-					random++
-				}
-				prev = cur
-			}
-			if random < 5 {
-				log.Fatal("random very predictable")
-			}
-			log.Printf("Got %d random hosts", random)
-		}
-	}
 }
 
 func TestDialContext(t *testing.T) {
@@ -83,4 +45,35 @@ func TestDialContext(t *testing.T) {
 		}
 		cancel()
 	}
+}
+
+func TestUpdateSessionParams(t *testing.T) {
+	cl, err := NewClient(nil, repo)
+	sessionParams, err := cl.updateSessionParams("nop")
+	assert.Nil(t, sessionParams)
+	assert.Error(t, err)
+
+	sessionParams, err = cl.updateSessionParams("img_status")
+	assert.Nil(t, sessionParams)
+	assert.Error(t, err)
+
+	var pCfg common.ParsingConfig
+	encPCfg, _ := cl.repository.GetParsingConfig("aggCore")
+	assert.NoError(t, encPCfg.Decode(&pCfg))
+
+	sessionParams, err = cl.updateSessionParams("aggCore")
+	assert.NoError(t, err)
+	assert.Equal(t, len(sessionParams.AggTasks), 1)
+	f, err := LoadHostFetcher(nil, pCfg.HostFetcher)
+	assert.NoError(t, err, "Faied to load PredefineFetcher")
+	predefinedHosts, err := f.Fetch(pCfg.Groups[0])
+	t.Log("Fetched hosts", predefinedHosts)
+	assert.Equal(t, len(sessionParams.PTasks), len(predefinedHosts["DC1"]))
+	assert.Equal(t, sessionParams.ParallelParsings, pCfg.ParallelParsings)
+}
+
+func TestGenerateSessionTimeFrame(t *testing.T) {
+	parsingTime, wholeTime := generateSessionTimeFrame(10)
+	assert.Equal(t, parsingTime, time.Duration(8*time.Second))
+	assert.Equal(t, wholeTime, time.Duration(10*time.Second))
 }

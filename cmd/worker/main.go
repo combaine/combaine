@@ -9,22 +9,19 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/combaine/combaine/aggregating"
-	"github.com/combaine/combaine/common/servicecacher"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/parsing"
 	"github.com/combaine/combaine/rpc"
 
-	_ "github.com/combaine/combaine/fetchers/httpfetcher"
-	_ "github.com/combaine/combaine/fetchers/rawsocket"
-	_ "github.com/combaine/combaine/fetchers/timetail"
+	_ "github.com/combaine/combaine/fetchers"
 )
 
-var cacher = servicecacher.NewCacher(servicecacher.NewService)
+var cacher = cache.NewServiceCacher(cache.NewService)
 
 var endpoint string
 
 func init() {
 	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
-	flag.Parse()
 }
 
 type server struct{}
@@ -41,6 +38,7 @@ func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (
 }
 
 func main() {
+	flag.Parse()
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common/cache"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -39,7 +38,6 @@ type info struct {
 	GoRoutines int
 	Files      OpenFiles
 	Clients    map[string]*StatInfo
-	Watchers   int32
 }
 
 // GlobalObserver is storage for client registations
@@ -50,30 +48,29 @@ var GlobalObserver = Observer{
 // Observer object with registered clients
 type Observer struct {
 	sync.RWMutex
-	clients       map[string]*Client // map active clients to configs
-	WatchersCount int32
+	clients map[string]*Client // map active clients to configs
 }
 
 // RegisterClient register client in Observer
+// ReRegister client is UnregisterClient for previously
+// registered client, but all stats are copied
 func (o *Observer) RegisterClient(cl *Client, config string) {
 	o.RWMutex.Lock()
+	if oldCl, ok := o.clients[config]; ok {
+		oldCl.CopyStats(&cl.clientStats)
+	}
 	o.clients[config] = cl
 	o.RWMutex.Unlock()
 }
 
 // UnregisterClient unregister client in Observer
-func (o *Observer) UnregisterClient(config string) {
+// Deregister only a yourself by checking id
+func (o *Observer) UnregisterClient(id string, config string) {
 	o.RWMutex.Lock()
-	delete(o.clients, config)
+	if cl, ok := o.clients[config]; ok && cl.ID == id {
+		delete(o.clients, config)
+	}
 	o.RWMutex.Unlock()
-}
-
-// HasClient check registration of client
-func (o *Observer) HasClient(config string) bool {
-	o.RLock()
-	_, ok := o.clients[config]
-	o.RUnlock()
-	return ok
 }
 
 // GetClientsStats return map with client stats
@@ -109,8 +106,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			getNumberOfOpenfiles(),
 			limit,
 		},
-		Clients:  stats,
-		Watchers: atomic.LoadInt32(&GlobalObserver.WatchersCount),
+		Clients: stats,
 	}); err != nil {
 		fmt.Fprintf(w, `{"error": "unable to dump json %s"`, err)
 		return
@@ -129,7 +125,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	name := mux.Vars(r)["name"]
 	repo := s.GetRepository()
 	combainerCfg := repo.GetCombainerConfig()
-	var parsingCfg configs.ParsingConfig
+	var parsingCfg common.ParsingConfig
 	cfg, err := repo.GetParsingConfig(name)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
@@ -143,9 +139,9 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
-	aggregationConfigs, err := GetAggregationConfigs(repo, &parsingCfg)
+	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg)
 	if err != nil {
-		log.Errorf("Unable to read aggregation configs: %s", err)
+		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return
 	}
 
@@ -172,7 +168,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetContext(), s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -195,25 +191,23 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
 
-	logger := log.New()
-	logger.Level = log.DebugLevel
-	logger.Formatter = s.GetContext().Logger.Formatter
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	logger.Formatter = &logrus.TextFormatter{
+		ForceColors:    true,
+		DisableSorting: true,
+	}
 	logger.Out = w
 
-	ctx := &Context{
-		Logger: logger,
-		Cache:  s.GetContext().Cache,
-		Serf:   s.GetContext().Serf,
-	}
-
-	cl, err := NewClient(ctx, s.GetRepository())
+	cl, err := NewClient(s.GetCache(), s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	cl.Log = logger.WithField("client", "launch")
 
-	ID := GenerateSessionId()
-	err = cl.Dispatch(name, ID, false)
+	ID := common.GenerateSessionID()
+	err = cl.Dispatch("launch", s.GetHosts(), name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
@@ -225,8 +219,9 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 
 // ServerContext contains server context with repository
 type ServerContext interface {
-	GetContext() *Context
-	GetRepository() configs.Repository
+	GetRepository() common.Repository
+	GetCache() cache.Cache
+	GetHosts() []string
 }
 
 func attachServer(s ServerContext,

@@ -15,7 +15,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 )
 
 var (
@@ -162,7 +161,7 @@ func (s *Sender) dumpMap(sensors *[]sensor, name string, rv reflect.Value, times
 	return err
 }
 
-func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) ([]solomonPush, error) {
+func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64) ([]solomonPush, error) {
 	var (
 		groups []solomonPush
 		err    error
@@ -223,7 +222,7 @@ func (s *Sender) sendInternal(data []tasks.AggregationResult, timestamp uint64) 
 }
 
 // Send parse data, build and send http request to solomon api
-func (s *Sender) Send(task []tasks.AggregationResult, timestamp uint64) error {
+func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 	if len(task) == 0 {
 		return fmt.Errorf("Empty data. Nothing to send")
 	}

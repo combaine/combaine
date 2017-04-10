@@ -5,7 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -31,7 +32,7 @@ type Config struct {
 	Flap             *jugglerFlapConfig           `codec:"flap"`
 	Variables        map[string]string            `codec:"variables"`
 	ChecksOptions    map[string]jugglerFlapConfig `codec:"checks_options"`
-	JPluginConfig    configs.PluginConfig         `codec:"config"`
+	JPluginConfig    common.PluginConfig          `codec:"config"`
 	JHosts           []string                     `codec:"juggler_hosts"`
 	JFrontend        []string                     `codec:"juggler_frontend"`
 	OK               []string                     `codec:"OK"`
@@ -122,7 +123,7 @@ func DefaultConfig() *Config {
 		Tags:             []string{"combaine"},
 		Flap:             nil,
 		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
-		JPluginConfig:    configs.PluginConfig{},
+		JPluginConfig:    common.PluginConfig{},
 		JHosts:           []string{},
 		JFrontend:        []string{},
 		OK:               []string{},

@@ -1,2 +1,3 @@
-contrib/ubic/combaine-worker /etc/ubic/service
-contrib/init.d/combaine-worker /etc/init.d/combaine-worker
+contrib/ubic/combaine-worker.ini /etc/ubic/service
+contrib/init.d/combaine-worker /etc/init.d
+contrib/ubic/CombaineWorker.pm /usr/share/perl5/Ubic/Service

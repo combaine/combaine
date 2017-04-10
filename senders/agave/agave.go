@@ -17,7 +17,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 )
 
 const (
@@ -51,7 +50,7 @@ type Config struct {
 }
 
 // Send get task data and send all metrics to agave hosts, specified via config
-func (as *Sender) Send(ctx context.Context, data []tasks.AggregationResult) error {
+func (as *Sender) Send(ctx context.Context, data []common.AggregationResult) error {
 
 	repacked, err := as.send(data)
 	if err != nil {
@@ -86,7 +85,7 @@ func (as *Sender) Send(ctx context.Context, data []tasks.AggregationResult) erro
 	return nil
 }
 
-func (as *Sender) send(data []tasks.AggregationResult) (map[string][]string, error) {
+func (as *Sender) send(data []common.AggregationResult) (map[string][]string, error) {
 	// Repack data by subgroups
 	logger.Debugf("%s Data to send: %v", as.id, data)
 	var repacked = make(map[string][]string)

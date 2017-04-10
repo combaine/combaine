@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/combaine/combaine/common/configs"
+	"github.com/combaine/combaine/common"
 )
 
 func init() {
@@ -12,7 +12,7 @@ func init() {
 }
 
 // Constructor type for func that return new cache
-type Constructor func(*configs.PluginConfig) (Cache, error)
+type Constructor func(*common.PluginConfig) (Cache, error)
 
 var factory = make(map[string]Constructor)
 
@@ -26,7 +26,7 @@ func RegisterCache(name string, f Constructor) {
 }
 
 // NewCache build and return new cache by Constructor from factory
-func NewCache(name string, config *configs.PluginConfig) (Cache, error) {
+func NewCache(name string, config *common.PluginConfig) (Cache, error) {
 	f, ok := factory[name]
 	if ok {
 		return f(config)
@@ -47,7 +47,7 @@ type InMemory struct {
 }
 
 // NewInMemoryCache build and return new instance of InMemory cache
-func NewInMemoryCache(config *configs.PluginConfig) (Cache, error) {
+func NewInMemoryCache(config *common.PluginConfig) (Cache, error) {
 	c := &InMemory{
 		data: make(map[string][]byte),
 	}

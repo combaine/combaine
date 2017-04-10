@@ -1,1 +1,4 @@
 usr/bin/combainer
+contrib/ubic/combainer.ini /etc/ubic/service
+contrib/init.d/combainer /etc/init.d
+contrib/ubic/Combainer.pm /usr/share/perl5/Ubic/Service

@@ -8,41 +8,47 @@ import (
 )
 
 func TestStat(t *testing.T) {
-	s := clientStats{}
-	s.AddSuccessAggregate()
-	assert.EqualValues(t, s.successAggregate, 1)
-	s.AddFailedAggregate()
-	assert.EqualValues(t, s.failedAggregate, 1)
-	stats := s.GetStats()
+	c1 := &clientStats{}
+
+	c1.AddSuccessAggregate()
+	assert.EqualValues(t, c1.successAggregate, 1)
+	c1.AddFailedAggregate()
+	assert.EqualValues(t, c1.failedAggregate, 1)
+	stats := c1.GetStats()
 	assert.EqualValues(t, stats.AggregateTotal, 2)
 
-	s.AddSuccessParsing()
-	assert.EqualValues(t, s.successParsing, 1)
-	s.AddFailedParsing()
-	assert.EqualValues(t, s.failedParsing, 1)
-	stats = s.GetStats()
+	c1.AddSuccessParsing()
+	assert.EqualValues(t, c1.successParsing, 1)
+	c1.AddFailedParsing()
+	assert.EqualValues(t, c1.failedParsing, 1)
+	stats = c1.GetStats()
 	assert.EqualValues(t, stats.ParsingTotal, 2)
 	for i := 0; i < 10; i++ {
-		go s.AddSuccessParsing()
+		go c1.AddSuccessParsing()
 	}
 	var wg sync.WaitGroup
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func() {
-			s.AddSuccessParsing()
+			c1.AddSuccessParsing()
 			wg.Done()
 		}()
-		s.AddSuccessParsing()
+		c1.AddSuccessParsing()
 
 		wg.Add(1)
 		go func() {
-			s.AddFailedParsing()
+			c1.AddFailedParsing()
 			wg.Done()
 		}()
-		s.AddFailedParsing()
+		c1.AddFailedParsing()
 	}
 	wg.Wait()
 
-	stats = s.GetStats()
+	stats = c1.GetStats()
 	assert.EqualValues(t, stats.ParsingTotal, 4012)
+
+	c2 := &clientStats{}
+	c1.CopyStats(c2)
+	c2.last = stats.Heartbeated
+	assert.EqualValues(t, stats, c2.GetStats())
 }

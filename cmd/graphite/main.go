@@ -5,7 +5,6 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/tasks"
 	"github.com/combaine/combaine/senders/graphite"
 )
 
@@ -27,7 +26,7 @@ var (
 
 type graphiteTask struct {
 	ID       string `codec:"Id"`
-	Data     []tasks.AggregationResult
+	Data     []common.AggregationResult
 	Config   graphite.Config
 	CurrTime uint64
 	PrevTime uint64

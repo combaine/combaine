@@ -13,7 +13,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/common/tasks"
 )
 
 // Config containse fields from compbainer task config
@@ -73,7 +72,7 @@ func NewSender(cfg *Config, id string) (*Sender, error) {
 	}, nil
 }
 
-func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result, error) {
+func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*result, error) {
 	logger.Debugf("%s Data to send: %v", r.id, data)
 	res := result{
 		Timestamp: timestamp,
@@ -153,7 +152,7 @@ func (r *Sender) send(data []tasks.AggregationResult, timestamp uint64) (*result
 }
 
 // Send perform request to razladki service
-func (r *Sender) Send(ctx context.Context, data []tasks.AggregationResult, timestamp uint64) error {
+func (r *Sender) Send(ctx context.Context, data []common.AggregationResult, timestamp uint64) error {
 	res, err := r.send(data, timestamp)
 	if err != nil {
 		return err

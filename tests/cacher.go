@@ -4,8 +4,22 @@ import (
 	"fmt"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/combaine/combaine/common"
+	"github.com/ugorji/go/codec"
 )
+
+var (
+	mh codec.MsgpackHandle
+	h  = &mh
+)
+
+func pack(input interface{}) (buf []byte, err error) {
+	err = codec.NewEncoderBytes(&buf, h).Encode(input)
+	return
+}
+
+func unpack(data []byte, res interface{}) error {
+	return codec.NewDecoderBytes(data, h).Decode(res)
+}
 
 type Service interface {
 	Call(name string, args ...interface{}) chan cocaine.ServiceResult
@@ -21,11 +35,11 @@ type serviceResult struct {
 }
 
 func (sr serviceResult) Extract(i interface{}) error {
-	b, _ := common.Pack([]byte("returnError"))
+	b, _ := pack([]byte("returnError"))
 	if string(sr.data) == string(b) {
 		return fmt.Errorf("extract error")
 	}
-	return common.Unpack(sr.data, i)
+	return unpack(sr.data, i)
 }
 
 func (sr serviceResult) Err() error {
@@ -40,7 +54,7 @@ func (ts *tService) Call(name string, args ...interface{}) chan cocaine.ServiceR
 	Spy <- args
 	ch := make(chan cocaine.ServiceResult)
 
-	data, err := common.Pack(args[1].([]byte)) // double pack
+	data, err := pack(args[1].([]byte)) // double pack
 
 	// if user want put some error
 	select {

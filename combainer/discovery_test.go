@@ -8,45 +8,41 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/configs"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/stretchr/testify/assert"
 )
 
-var testCache, _ = cache.NewInMemoryCache(nil)
 var (
-	pluginCfg = configs.PluginConfig{}
-	testCtx   = &Context{
-		Cache: testCache,
-	}
-	testCfg = configs.PluginConfig{}
+	testCache, _ = cache.NewInMemoryCache(nil)
+	pluginCfg    = common.PluginConfig{}
+	testCfg      = common.PluginConfig{}
 )
 
 func TestRegisterFetcherLoader(t *testing.T) {
 	pdf := &PredefineFetcher{}
-	f := func(context *Context, config map[string]interface{}) (HostFetcher, error) {
+	f := func(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
 		return pdf, nil
 	}
 	assert.NoError(t, RegisterFetcherLoader("test", f))
 	assert.Error(t, RegisterFetcherLoader("test", f))
-	_, err := LoadHostFetcher(testCtx, testCfg)
+	_, err := LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "nonRegistered"
-	_, err = LoadHostFetcher(testCtx, testCfg)
+	_, err = LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "test"
-	nf, err := LoadHostFetcher(testCtx, testCfg)
+	nf, err := LoadHostFetcher(testCache, testCfg)
 	assert.NoError(t, err)
 	assert.Equal(t, nf, pdf)
 }
 
 func TestPredefineFetcher(t *testing.T) {
-	testCfg = configs.PluginConfig{"type": "predefine", "Clusters": 1}
-	_, err := LoadHostFetcher(testCtx, testCfg)
+	testCfg = common.PluginConfig{"type": "predefine", "Clusters": 1}
+	_, err := LoadHostFetcher(testCache, testCfg)
 	assert.Error(t, err)
-	testCfg = configs.PluginConfig{
+	testCfg = common.PluginConfig{
 		"type": "predefine",
 		"Clusters": map[string]map[string][]string{
 			"Group1": {
@@ -55,7 +51,7 @@ func TestPredefineFetcher(t *testing.T) {
 			},
 		},
 	}
-	pFetcher, err := LoadHostFetcher(testCtx, testCfg)
+	pFetcher, err := LoadHostFetcher(testCache, testCfg)
 	assert.NoError(t, err)
 	_, err = pFetcher.Fetch("NotInCache")
 	assert.Error(t, err)
@@ -117,30 +113,30 @@ func TestHttpFetcher(t *testing.T) {
 	)
 
 	cases := []struct {
-		config  configs.PluginConfig
+		config  common.PluginConfig
 		query   string
 		err     bool
 		errType error
 		expect  hosts.Hosts
 	}{
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
 			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
 			"NotInCache", Failed, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"NotInCache", Failed, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{configs.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1", Ok, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{
-			configs.PluginConfig{
+			common.PluginConfig{
 				"type":     "http",
 				"Format":   "json",
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
@@ -149,7 +145,7 @@ func TestHttpFetcher(t *testing.T) {
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{
-			configs.PluginConfig{
+			common.PluginConfig{
 				"type":     "http",
 				"Format":   "qjson",
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
@@ -159,7 +155,7 @@ func TestHttpFetcher(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		hFetcher, err := LoadHostFetcher(testCtx, c.config)
+		hFetcher, err := LoadHostFetcher(testCache, c.config)
 		assert.NoError(t, err, "Failed to load host fetcher")
 		resp, err := hFetcher.Fetch(c.query)
 		if c.err {
