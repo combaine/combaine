@@ -27,7 +27,7 @@ use Params::Validate qw(:all);
 use Ubic::Service::Shared::Dirs;
 
 my %opt2arg = ();
-for my $arg (qw(rlimit_nofile rlimit_core))
+for my $arg (qw(rlimit_nofile rlimit_core log_level))
 {
     my $opt = $arg;
     $opt2arg{$opt} = $arg;
@@ -44,14 +44,31 @@ sub new {
         rlimit_core => {   type => SCALAR,
                            regex => qr/^\-?\d+$/,
                            optional => 1 },
+        log_level => {   type => SCALAR,
+                           regex => qr/^(DEBUG|INFO|ERROR)$/,
+                           optional => 1 },
     });
 
     my $ulimits;
-    if (defined $params->{rlimit_nofile}) { $ulimits->{"RLIMIT_NOFILE"} = $params->{rlimit_nofile}; undef $params->{rlimit_nofile};  };
-    if (defined $params->{rlimit_core})   { $ulimits->{"RLIMIT_CORE"} = $params->{rlimit_core}; undef $params->{rlimit_core}; };
+    if (defined $params->{rlimit_nofile}) {
+     $ulimits->{"RLIMIT_NOFILE"} = $params->{rlimit_nofile};
+     undef $params->{rlimit_nofile};
+    } else {
+     $ulimits->{"RLIMIT_NOFILE"} = 65535;
+    };
+    if (defined $params->{rlimit_core}) {
+    $ulimits->{"RLIMIT_CORE"} = $params->{rlimit_core};
+    undef $params->{rlimit_core};
+    } else {
+    $ulimits->{"RLIMIT_CORE"} = -1;
+    };
+
+    if (!defined $params->{log_level}) {
+    $params->{log_level} = "INFO";
+    };
 
     my $bin = [
-        "/usr/bin/combainer -loglevel=DEBUG -logoutput='/var/log/cocaine-core/combainer.log'",
+        "/usr/bin/combainer -loglevel=".$params->{log_level}." -logoutput='/var/log/cocaine-core/combainer.log'",
     ];
 
     return $class->SUPER::new({
