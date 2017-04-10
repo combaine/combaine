@@ -1,3 +1,9 @@
+combaine (0.10.1) trusty; urgency=medium
+
+  * [fetchers] fix context cancel
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 10 Apr 2017 17:51:38 +0700
+
 combaine (0.10.0) trusty; urgency=medium
 
   * [Lockserver] removed

@@ -49,8 +49,8 @@ func (t *timetailFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	logger.Infof("%s Requested URL: %s, timeout %v", task.Id, url, t.Timeout)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
+	defer cancel()
 	resp, err := httpclient.Get(ctx, url)
-	cancel()
 	if err != nil {
 		return nil, err
 	}

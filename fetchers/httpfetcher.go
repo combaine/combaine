@@ -49,15 +49,12 @@ func (t *httpFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	logger.Infof("%s requested URL: %s, timeout %v", task.Id, url, t.Timeout)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
+	defer cancel()
 	resp, err := httpclient.Get(ctx, url)
-	cancel()
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return body, err
 }
