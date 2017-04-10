@@ -200,7 +200,7 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 
 	cl.Log.WithFields(dispatchFields).Infof("Send %d tasks to parsing", totalTasksAmount)
 	var wg sync.WaitGroup
-	for i, task := range sessionParameters.PTasks {
+	for _, task := range sessionParameters.PTasks {
 		// Description of task
 		task.Frame.Previous = startTime.Unix()
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
@@ -220,7 +220,7 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 	// Aggregation phase
 	totalTasksAmount = len(sessionParameters.AggTasks)
 	cl.Log.WithFields(dispatchFields).Infof("Send %d tasks to aggregate", totalTasksAmount)
-	for i, task := range sessionParameters.AggTasks {
+	for _, task := range sessionParameters.AggTasks {
 		task.Frame.Previous = startTime.Unix()
 		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
 		task.Id = uniqueID
