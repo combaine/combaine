@@ -23,19 +23,22 @@ func TestStat(t *testing.T) {
 	assert.EqualValues(t, c1.failedParsing, 1)
 	stats = c1.GetStats()
 	assert.EqualValues(t, stats.ParsingTotal, 2)
+	wg := &sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
-		go c1.AddSuccessParsing()
-	}
-	var wg sync.WaitGroup
-	for i := 0; i < 1000; i++ {
 		wg.Add(1)
+		go func() {
+			c1.AddSuccessParsing()
+			wg.Done()
+		}()
+	}
+	for i := 0; i < 1000; i++ {
+		wg.Add(2)
 		go func() {
 			c1.AddSuccessParsing()
 			wg.Done()
 		}()
 		c1.AddSuccessParsing()
 
-		wg.Add(1)
 		go func() {
 			c1.AddFailedParsing()
 			wg.Done()
