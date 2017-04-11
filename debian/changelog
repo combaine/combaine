@@ -1,4 +1,4 @@
-combaine (0.10.3ubuntu1) UNRELEASED; urgency=medium
+combaine (0.10.4) trusty; urgency=medium
 
   * [combainer] configurable grpc tracing
 
