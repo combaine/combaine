@@ -15,6 +15,8 @@ import (
 const (
 	// Well-known field to explore plugin name
 	typeKey = "type"
+	// DefaultConfigsPath default directory with combainer configs
+	DefaultConfigsPath = "/etc/combaine"
 )
 
 // MainSection describes Main section in combaine.yaml
@@ -51,7 +53,8 @@ type CloudSection struct {
 
 // CombainerSection about combainer daemon configs
 type CombainerSection struct {
-	MainSection `yaml:"Main"`
+	MainSection       `yaml:"Main"`
+	EnableGRPCTracing bool `yaml:"EnableGRPCTracing"`
 }
 
 // NewCombaineConfig load conbainer's main config

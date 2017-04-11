@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const repopath = "../tests/testdata/configs"
+
 func TestUtilityFunctions(t *testing.T) {
 	assert.False(t, isConfig("blabla"))
 	assert.True(t, isConfig("blabla.json"))
@@ -14,7 +16,6 @@ func TestUtilityFunctions(t *testing.T) {
 }
 
 func TestRepository(t *testing.T) {
-	const repopath = "../tests/testdata/configs"
 
 	var (
 		expectedPcfg   = []string{"aggCore", "img_status"}
@@ -64,4 +65,8 @@ func TestRepository(t *testing.T) {
 		var decodedCfg AggregationConfig
 		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode aggregation config")
 	}
+}
+
+func TestGRPCTracingIsEnabled(t *testing.T) {
+	assert.False(t, GRPCTracingIsEnabled(repopath))
 }

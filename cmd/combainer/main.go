@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/combainer"
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 )
-
-const defaultConfigsPath = "/etc/combaine"
 
 type logrusLevelFlag logrus.Level
 
@@ -52,12 +52,15 @@ var (
 func init() {
 	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
-	flag.StringVar(&configsPath, "configspath", defaultConfigsPath, "path to root of configs")
+	flag.StringVar(&configsPath, "configspath", common.DefaultConfigsPath, "path to root of configs")
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
 
 	flag.Parse()
+
+	grpc.EnableTracing = common.GRPCTracingIsEnabled(configsPath)
+
 	initializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	var logger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)
 	grpclog.SetLogger(logger)
