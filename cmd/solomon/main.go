@@ -8,6 +8,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders/solomon"
 )
 
@@ -18,7 +19,6 @@ const (
 )
 
 var (
-	logger        *cocaine.Logger
 	defaultFields = []string{
 		"75_prc", "90_prc", "93_prc",
 		"94_prc", "95_prc", "96_prc",
@@ -90,8 +90,8 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	var err error
-	logger, err = cocaine.NewLogger()
+	solomon.InitializeLogger()
+
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
 	}

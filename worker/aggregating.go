@@ -1,4 +1,4 @@
-package aggregating
+package worker
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/rpc"
 )
 
@@ -38,28 +38,28 @@ func aggregating(id string, ch chan *common.AggregationResult, res *common.Aggre
 
 	payload, err := common.Pack([]interface{}{id, c, d})
 	if err != nil {
-		logger.Errf("%s unable to pack data: %s", id, err)
+		logrus.Errorf("%s unable to pack data: %s", id, err)
 		return
 	}
 	data, err := enqueue("aggregate_group", app, &payload)
 	if err != nil {
-		logger.Errf("%s unable to aggregate %s: %s", id, res, err)
+		logrus.Errorf("%s unable to aggregate %s: %s", id, res, err)
 		return
 	}
 	res.Result = data
 	ch <- res
 }
 
-// Do send tasks to cluster
-func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCacher) error {
+// DoAggregating send tasks to cluster
+func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCacher) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()
 	var Hosts = task.GetHosts()
 
-	logger.Infof("%s start aggregating %s", task.Id, task.Config)
-	logger.Debugf("%s aggregation config: %s", task.Id, aggregationConfig)
-	logger.Debugf("%s aggregation hosts: %v", task.Id, Hosts)
+	logrus.Infof("%s start aggregating %s", task.Id, task.Config)
+	logrus.Debugf("%s aggregation config: %s", task.Id, aggregationConfig)
+	logrus.Debugf("%s aggregation hosts: %v", task.Id, Hosts)
 
 	var aggWg sync.WaitGroup
 
@@ -71,13 +71,13 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 		aggParsingResults := make([]interface{}, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
-			logger.Errf("%s unable to get aggregator type for %s %s %s", task.Id, task.Config, name, err)
+			logrus.Errorf("%s unable to get aggregator type for %s %s %s", task.Id, task.Config, name, err)
 			continue
 		}
-		logger.Infof("%s send %s %s to aggregate type %s", task.Id, task.Config, name, aggType)
+		logrus.Infof("%s send %s %s to aggregate type %s", task.Id, task.Config, name, aggType)
 		app, err := cacher.Get(aggType)
 		if err != nil {
-			logger.Errf("%s skip %s aggregator %s type %s %s", task.Id, task.Config, name, aggType, err)
+			logrus.Errorf("%s skip %s aggregator %s type %s %s", task.Id, task.Config, name, aggType, err)
 			continue
 		}
 
@@ -87,7 +87,7 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 				key := fmt.Sprintf("%s;%s", host, name)
 				data, ok := task.ParsingResult.Data[key]
 				if !ok {
-					logger.Warnf("%s unable to aggregte %s, missing result for %s", task.Id, aggType, key)
+					logrus.Warnf("%s unable to aggregte %s, missing result for %s", task.Id, aggType, key)
 					continue
 				}
 
@@ -100,14 +100,14 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 				}
 				v, ok := perHost.(bool)
 				if !ok {
-					logger.Errf("%s 'perHost' support only bool value", task.Id)
+					logrus.Errorf("%s 'perHost' support only bool value", task.Id)
 					continue
 				}
 				if !v {
 					continue
 				}
 
-				logger.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
+				logrus.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
 				hostAggRes := &common.AggregationResult{
 					Tags: map[string]string{
 						"type":      "host",
@@ -121,11 +121,11 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 			}
 
 			if len(subGroupParsingResults) == 0 {
-				logger.Infof("%s %s %s nothing aggregate", task.Id, name, subGroup)
+				logrus.Infof("%s %s %s nothing aggregate", task.Id, name, subGroup)
 				continue
 			}
 
-			logger.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
+			logrus.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
 			groupAggRes := &common.AggregationResult{
 				Tags: map[string]string{
 					"type":      "datacenter",
@@ -139,11 +139,11 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 		}
 
 		if len(aggParsingResults) == 0 {
-			logger.Infof("%s %s %s nothing aggregate", task.Id, task.Config, meta)
+			logrus.Infof("%s %s %s nothing aggregate", task.Id, task.Config, meta)
 			continue
 		}
 
-		logger.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
+		logrus.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
 		metaAggRes := &common.AggregationResult{
 			Tags: map[string]string{
 				"type":      "metahost",
@@ -166,10 +166,10 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 		result = append(result, *item)
 	}
 
-	logger.Infof("%s aggregation completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
+	logrus.Infof("%s aggregation completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
 
 	startTm = time.Now()
-	logger.Infof("%s start sending for %s", task.Id, task.Config)
+	logrus.Infof("%s start sending for %s", task.Id, task.Config)
 
 	var sendersWg sync.WaitGroup
 	for senderName, senderConf := range aggregationConfig.Senders {
@@ -183,13 +183,13 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {
-				logger.Errf("%s unknown sender type %s for %s", task.Id, task.Config, err)
+				logrus.Errorf("%s unknown sender type %s for %s", task.Id, task.Config, err)
 				return
 			}
-			logger.Infof("%s send to sender %s", task.Id, senderType)
+			logrus.Infof("%s send to sender %s", task.Id, senderType)
 			app, err := cacher.Get(senderType)
 			if err != nil {
-				logger.Errf("%s skip sender %s %s for %s", task.Id, task.Config, senderType, err)
+				logrus.Errorf("%s skip sender %s %s for %s", task.Id, task.Config, senderType, err)
 				return
 			}
 			senderPayload := common.SenderPayload{
@@ -202,25 +202,25 @@ func Do(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCach
 				Data:   result,
 			}
 
-			logger.Debugf("%s data to send for %s.%s: %s", task.Id, task.Config, senderType, senderPayload)
+			logrus.Debugf("%s data to send for %s.%s: %s", task.Id, task.Config, senderType, senderPayload)
 			payload, err := common.Pack(senderPayload)
 			if err != nil {
-				logger.Errf("%s unable to pack data for %s.%s: %s", task.Id, task.Config, senderType, err)
+				logrus.Errorf("%s unable to pack data for %s.%s: %s", task.Id, task.Config, senderType, err)
 				return
 			}
 			res, err := enqueue("send", app, &payload)
 			if err != nil {
-				logger.Errf("%s unable to send for %s.%s: %s", task.Id, task.Config, senderType, err)
+				logrus.Errorf("%s unable to send for %s.%s: %s", task.Id, task.Config, senderType, err)
 				return
 			}
-			logger.Infof("%s sender response for %s.%s: %s", task.Id, task.Config, senderType, res)
+			logrus.Infof("%s sender response for %s.%s: %s", task.Id, task.Config, senderType, res)
 		}(&sendersWg, senderName, senderConf)
 	}
 	sendersWg.Wait()
 
-	logger.Debugf("%s result %s", task.Id, result)
-	logger.Infof("%s senders completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
-	logger.Infof("%s Done for %s ", task.Id, task.Config)
+	logrus.Debugf("%s result %s", task.Id, result)
+	logrus.Infof("%s senders completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
+	logrus.Infof("%s Done for %s ", task.Id, task.Config)
 
 	return nil
 }

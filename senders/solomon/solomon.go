@@ -246,6 +246,12 @@ func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 	return nil
 }
 
+// InitializeLogger create cocaine logger
+func InitializeLogger() {
+	failbackToLocal := false
+	logger.MustCreateLogger(failbackToLocal)
+}
+
 // NewSender return new instance of solomon sender
 func NewSender(config Config, id string) (*Sender, error) {
 	return &Sender{Config: config, id: id}, nil

@@ -241,6 +241,12 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 	}
 }
 
+// InitializeLogger create cocaine logger
+func InitializeLogger() {
+	failbackToLocal := false
+	logger.MustCreateLogger(failbackToLocal)
+}
+
 // NewSender return agave sender interface
 func NewSender(id string, config Config) (as *Sender, err error) {
 	logger.Debugf("%s Config: %s", id, config)

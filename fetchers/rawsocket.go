@@ -8,22 +8,22 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/parsing"
+	"github.com/combaine/combaine/worker"
 )
 
 func init() {
-	parsing.Register("tcpsocket", NewTCPSocketFetcher)
+	worker.Register("tcpsocket", NewTCPSocketFetcher)
 }
 
-// tcpSocketFetcher read parsing data from raw tcp socket
+// tcpSocketFetcher read data from raw tcp socket
 type tcpSocketFetcher struct {
 	Port    string `mapstructure:"port"`
 	Timeout int    `mapstructure:"connection_timeout"`
 	d       net.Dialer
 }
 
-// NewTCPSocketFetcher return rawsocket parsing data fetcher
-func NewTCPSocketFetcher(cfg common.PluginConfig) (parsing.Fetcher, error) {
+// NewTCPSocketFetcher return rawsocket data fetcher
+func NewTCPSocketFetcher(cfg common.PluginConfig) (worker.Fetcher, error) {
 	var f tcpSocketFetcher
 	if err := decodeConfig(cfg, &f); err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func NewTCPSocketFetcher(cfg common.PluginConfig) (parsing.Fetcher, error) {
 	return &f, nil
 }
 
-// Fetch dial with timeout and read parsing data without timeout
+// Fetch dial with timeout and read data without timeout
 func (t *tcpSocketFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	ctx, closeF := context.WithTimeout(context.TODO(), time.Duration(t.Timeout)*time.Millisecond)
 	defer closeF()

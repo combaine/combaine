@@ -64,6 +64,12 @@ func (r *result) Push(name, value, title string) {
 	}
 }
 
+// InitializeLogger create cocaine logger
+func InitializeLogger() {
+	failbackToLocal := false
+	logger.MustCreateLogger(failbackToLocal)
+}
+
 // NewSender build new razladki sender
 func NewSender(cfg *Config, id string) (*Sender, error) {
 	return &Sender{

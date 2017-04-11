@@ -18,6 +18,12 @@ type Sender struct {
 	state *lua.LState
 }
 
+// InitializeLogger create cocaine logger
+func InitializeLogger() {
+	failbackToLocal := false
+	logger.MustCreateLogger(failbackToLocal)
+}
+
 // NewSender return sender object with specified config
 func NewSender(conf *Config, id string) (*Sender, error) {
 	return &Sender{
