@@ -80,7 +80,6 @@ sub new {
 
     return $class->SUPER::new({
         bin => $bin,
-        binary => $params->{binary},
         user => 'root',
         ulimit => $ulimits || {},
         daemon_user => 'cocaine',
@@ -92,11 +91,12 @@ sub new {
 
 sub start_impl {
     my $self = shift;
+    my ($binary) = ($self->{"bin"}[0] =~ /^\/[^\s]+\/([^\s]+)\s/);
 
     Ubic::Service::Shared::Dirs::directory_checker("/var/run/combaine", $self->{"daemon_user"} );
-    Ubic::Service::Shared::Dirs::directory_checker("/var/spool/$self->{binary}", $self->{"daemon_user"} );
+    Ubic::Service::Shared::Dirs::directory_checker("/var/spool/$binary", $self->{"daemon_user"} );
     Ubic::Service::Shared::Dirs::directory_checker("/var/log/cocaine-core", $self->{"daemon_user"} );
-    Ubic::Service::Shared::Dirs::directory_checker("/var/log/ubic/$self->{binary}", $self->{"daemon_user"} );
+    Ubic::Service::Shared::Dirs::directory_checker("/var/log/ubic/$binary", $self->{"daemon_user"} );
     $self->SUPER::start_impl(@_);
 }
 
