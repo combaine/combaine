@@ -188,12 +188,6 @@ func (p *PluginConfig) Type() (typeName string, err error) {
 	return
 }
 
-// HasKey check is keys present in plugin config
-func (p *PluginConfig) HasKey(key string) bool {
-	_, ok := (*p)[key]
-	return ok
-}
-
 // PluginConfigsUpdate update target PluginConfig with
 // content from source PluginConfig
 func PluginConfigsUpdate(target *PluginConfig, source *PluginConfig) {
