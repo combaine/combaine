@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
@@ -20,10 +22,7 @@ func init() {
 
 func TestSend(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/update":
-			fmt.Fprintln(w, "200")
-		}
+		fmt.Fprintln(w, "200")
 	}))
 	defer ts.Close()
 
@@ -76,4 +75,44 @@ func TestSend(t *testing.T) {
 
 	err = s.Send(context.Background(), data)
 	assert.NoError(t, err)
+}
+
+func TestSendFailed(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(10 * time.Millisecond)
+		w.WriteHeader(http.StatusGatewayTimeout)
+	}))
+	defer ts.Close()
+
+	testConfig := Config{
+		Items:         []string{"20x"},
+		Hosts:         []string{ts.Listener.Addr().String()},
+		GraphName:     "GraphName",
+		GraphTemplate: "graph_template",
+		Step:          300,
+	}
+	s, err := NewSender("testID", testConfig)
+
+	assert.NoError(t, err)
+
+	data := []common.AggregationResult{
+		{Tags: map[string]string{"type": "host", "name": "host1", "metahost": "host1", "aggregate": "20x"},
+			Result: 2000},
+	}
+
+	ctx := context.Background()
+	err = s.Send(ctx, data)
+	assert.Error(t, err)
+	if err != nil {
+		assert.Contains(t, err.Error(), "Timeout")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Millisecond)
+	err = s.Send(ctx, data)
+	cancel()
+	assert.Error(t, err)
+	if err != nil {
+		assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
+	}
 }
