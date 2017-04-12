@@ -86,7 +86,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	razladki.InitializeLogger()
+	razladki.InitializeLogger(logger.MustCreateLogger)
 
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,

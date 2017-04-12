@@ -78,7 +78,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	juggler.InitializeLogger()
+	juggler.InitializeLogger(logger.MustCreateLogger)
 
 	binds := map[string]cocaine.EventHandler{
 		"send": send,

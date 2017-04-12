@@ -99,7 +99,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	agave.InitializeLogger()
+	agave.InitializeLogger(logger.MustCreateLogger)
 
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,

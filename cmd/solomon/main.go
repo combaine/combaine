@@ -90,7 +90,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	solomon.InitializeLogger()
+	solomon.InitializeLogger(logger.MustCreateLogger)
 
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,

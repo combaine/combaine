@@ -34,10 +34,7 @@ type Sender struct {
 }
 
 // InitializeLogger create cocaine logger
-func InitializeLogger() {
-	failbackToLocal := false
-	logger.MustCreateLogger(failbackToLocal)
-}
+func InitializeLogger(init func()) { init() }
 
 // NewCBBClient return cbb client
 func NewCBBClient(cfg *Config, id string) (*Sender, error) {

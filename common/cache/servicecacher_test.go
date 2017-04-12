@@ -36,4 +36,6 @@ func TestServicecacher(t *testing.T) {
 
 	_, err = NewService("_NonExistingServicetestNewService_")
 	assert.Error(t, err)
+	_, err = NewServiceWithLocalLogger("_NonExistingServicetestNewService_")
+	assert.Error(t, err)
 }

@@ -19,10 +19,7 @@ type Sender struct {
 }
 
 // InitializeLogger create cocaine logger
-func InitializeLogger() {
-	failbackToLocal := false
-	logger.MustCreateLogger(failbackToLocal)
-}
+func InitializeLogger(init func()) { init() }
 
 // NewSender return sender object with specified config
 func NewSender(conf *Config, id string) (*Sender, error) {

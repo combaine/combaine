@@ -70,7 +70,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	graphite.InitializeLogger()
+	graphite.InitializeLogger(logger.MustCreateLogger)
 
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,

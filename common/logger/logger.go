@@ -33,7 +33,7 @@ type Logger interface {
 
 // MustCreateLogger create cocaine logger
 // senders should call this function in init function
-func MustCreateLogger(failback bool) {
+func MustCreateLogger() {
 	var err error
 	for i := 0; i < waitForLogger; i++ {
 		CocaineLog, err = cocaine.NewLogger()
@@ -41,9 +41,6 @@ func MustCreateLogger(failback bool) {
 			return
 		}
 		log.Print("Unable to create Cocaine logger")
-		if failback {
-			CocaineLog = LocalLogger()
-		}
 		time.Sleep(time.Duration(i) * time.Second)
 	}
 	log.Panicf("Unable to create Cocaine logger, but must %v", err)

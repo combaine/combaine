@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	logger.CocaineLog = logger.LocalLogger()
+	InitializeLogger(func() { logger.CocaineLog = logger.LocalLogger() })
 }
 
 type ioWriteFailerCloser struct {

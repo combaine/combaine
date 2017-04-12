@@ -171,10 +171,7 @@ func (g *Sender) Send(data []common.AggregationResult, timestamp uint64) error {
 }
 
 // InitializeLogger create cocaine logger
-func InitializeLogger() {
-	failbackToLocal := false
-	logger.MustCreateLogger(failbackToLocal)
-}
+func InitializeLogger(init func()) { init() }
 
 // NewSender return pointer to sender with specified config
 func NewSender(cfg *Config, id string) (gs *Sender, err error) {

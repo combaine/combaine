@@ -20,7 +20,9 @@ import (
 )
 
 func init() {
-	logger.CocaineLog = logger.LocalLogger()
+	InitializeLogger(func() {
+		logger.CocaineLog = logger.LocalLogger()
+	})
 }
 
 var data []common.AggregationResult

@@ -58,7 +58,6 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 	var Hosts = task.GetHosts()
 
 	logrus.Infof("%s start aggregating %s", task.Id, task.Config)
-	logrus.Debugf("%s aggregation config: %s", task.Id, aggregationConfig)
 	logrus.Debugf("%s aggregation hosts: %v", task.Id, Hosts)
 
 	var aggWg sync.WaitGroup

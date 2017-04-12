@@ -15,7 +15,9 @@ import (
 )
 
 func init() {
-	logger.CocaineLog = logger.LocalLogger()
+	InitializeLogger(func() {
+		logger.CocaineLog = logger.LocalLogger()
+	})
 }
 
 func TestNewWorker(t *testing.T) {

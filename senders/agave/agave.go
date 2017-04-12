@@ -155,8 +155,7 @@ func (as *Sender) send(data []common.AggregationResult) (map[string][]string, er
 				switch value.Kind() {
 				case reflect.Slice, reflect.Array:
 					if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
-						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d",
-							as.id, len(as.Fields), rv.Len())
+						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.id, len(as.Fields), rv.Len())
 						continue
 					}
 					forJoin := make([]string, 0, len(as.Fields))
@@ -242,10 +241,7 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 }
 
 // InitializeLogger create cocaine logger
-func InitializeLogger() {
-	failbackToLocal := false
-	logger.MustCreateLogger(failbackToLocal)
-}
+func InitializeLogger(init func()) { init() }
 
 // NewSender return agave sender interface
 func NewSender(id string, config Config) (as *Sender, err error) {
