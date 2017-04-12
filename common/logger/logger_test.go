@@ -1,12 +1,14 @@
 package logger
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +22,7 @@ func TestLogrusLevelFlag(t *testing.T) {
 }
 
 func TestInitializeLogger(t *testing.T) {
-	tmpfile := "tmp.log"
+	tmpfile := "/tmp/__tmpLogFile.log"
 	InitializeLogger(logrus.DebugLevel, tmpfile)
 	if _, err := os.Stat(tmpfile); os.IsNotExist(err) {
 		t.Fatalf("Failed to initialize logger file %s", tmpfile)
@@ -36,10 +38,13 @@ func TestInitializeLogger(t *testing.T) {
 	assert.True(t, stat.Size() > 10)
 
 	os.Remove(tmpfile) // clean up
+	_, err = os.Stat(tmpfile)
+	assert.True(t, os.IsNotExist(err), fmt.Sprintf("File %s should not exists", tmpfile))
 	err = exec.Command("kill", "-HUP", strconv.Itoa(os.Getpid())).Run()
 	assert.NoError(t, err, "Failed to send SIGHUP yourself")
+	time.Sleep(20 * time.Millisecond)
 	if _, err := os.Stat(tmpfile); os.IsNotExist(err) {
-		t.Fatalf("Failed to rotate logger file %s", tmpfile)
+		t.Fatalf("Failed to rotate logger file %s: %s", tmpfile, err)
 	}
 	Debugf("line3")
 	Infof("line4")
