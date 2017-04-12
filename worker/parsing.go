@@ -38,7 +38,7 @@ func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *common.ParsingCon
 		return nil, err
 	}
 
-	logrus.Debugf("%s Fetch %d bytes from %s: %s", task.Id, len(blob), task.Host, blob)
+	logrus.Debugf("%s Fetch %d bytes from %s: %q", task.Id, len(blob), task.Host, blob)
 	return blob, nil
 }
 
@@ -73,7 +73,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			if err != nil {
 				return nil, err
 			}
-			logrus.Debugf("%s Send to %s %s type %s %v", task.Id, aggLogName, k, aggType, v)
+			logrus.Debugf("%s Send to %s, agg section name %s type %s", task.Id, aggLogName, k, aggType)
 
 			app, err := cacher.Get(aggType)
 			if err != nil {

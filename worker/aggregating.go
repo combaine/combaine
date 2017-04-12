@@ -107,7 +107,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 					continue
 				}
 
-				logrus.Debugf("%s %s data to aggregate host %s: %v", task.Id, task.Config, host, data)
+				logrus.Debugf("%s %s aggregate host %s", task.Id, task.Config, host)
 				hostAggRes := &common.AggregationResult{
 					Tags: map[string]string{
 						"type":      "host",
@@ -125,7 +125,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 				continue
 			}
 
-			logrus.Debugf("%s %s data to aggregate group %s: %v", task.Id, task.Config, subGroup, subGroupParsingResults)
+			logrus.Debugf("%s %s aggregate group %s", task.Id, task.Config, subGroup)
 			groupAggRes := &common.AggregationResult{
 				Tags: map[string]string{
 					"type":      "datacenter",
@@ -143,7 +143,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 			continue
 		}
 
-		logrus.Debugf("%s %s data to aggregate metahost %s: %v", task.Id, task.Config, meta, aggParsingResults)
+		logrus.Debugf("%s %s aggregate metahost %s", task.Id, task.Config, meta)
 		metaAggRes := &common.AggregationResult{
 			Tags: map[string]string{
 				"type":      "metahost",
@@ -170,6 +170,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 
 	startTm = time.Now()
 	logrus.Infof("%s start sending for %s", task.Id, task.Config)
+	logrus.Debugf("%s senders payload: %v", task.Id, result)
 
 	var sendersWg sync.WaitGroup
 	for senderName, senderConf := range aggregationConfig.Senders {
@@ -202,7 +203,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 				Data:   result,
 			}
 
-			logrus.Debugf("%s data to send for %s.%s: %s", task.Id, task.Config, senderType, senderPayload)
+			logrus.Debugf("%s send for %s.%s", task.Id, task.Config, senderType)
 			payload, err := common.Pack(senderPayload)
 			if err != nil {
 				logrus.Errorf("%s unable to pack data for %s.%s: %s", task.Id, task.Config, senderType, err)
@@ -218,7 +219,6 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 	}
 	sendersWg.Wait()
 
-	logrus.Debugf("%s result %s", task.Id, result)
 	logrus.Infof("%s senders completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
 	logrus.Infof("%s Done for %s ", task.Id, task.Config)
 
