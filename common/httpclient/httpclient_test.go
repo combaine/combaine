@@ -30,18 +30,21 @@ func TestMain(t *testing.T) {
 	defer ts.Close()
 
 	ctx, closeF := context.WithTimeout(context.TODO(), 10*time.Millisecond)
+	defer closeF()
 	resp, err := Get(ctx, ts.URL+"/200")
+	if err != nil {
+		t.Fatal(err)
+	}
 	text, _ := ioutil.ReadAll(resp.Body)
-	closeF()
 	resp.Body.Close()
 	assert.Equal(t, "200\n", string(text))
 	assert.NoError(t, err)
 
 	ctx, closeF = context.WithTimeout(context.TODO(), 10*time.Millisecond)
+	defer closeF()
 	req, _ := http.NewRequest("GET", ts.URL+"/200", nil)
 	resp, err = Do(ctx, req)
 	text, _ = ioutil.ReadAll(resp.Body)
-	closeF()
 	resp.Body.Close()
 	assert.Equal(t, "200\n", string(text))
 	assert.NoError(t, err)
