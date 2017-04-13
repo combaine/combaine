@@ -15,8 +15,15 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	InitializeLogger(func() {
+		logger.CocaineLog = logger.LocalLogger()
+	})
+}
 
 var data []common.AggregationResult
 var ts *httptest.Server

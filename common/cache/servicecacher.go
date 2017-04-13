@@ -4,11 +4,17 @@ import (
 	"sync"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/combaine/combaine/common/logger"
 )
 
 // NewService make new cocaine service
 func NewService(n string, a ...interface{}) (Service, error) {
 	return cocaine.NewService(n, a...)
+}
+
+// NewServiceWithLocalLogger make new cocaine service
+func NewServiceWithLocalLogger(n string, a ...interface{}) (Service, error) {
+	return cocaine.NewServiceWithLocalLogger(n, logger.LocalLogger(), a...)
 }
 
 // Service interface to cocaine service

@@ -1,4 +1,4 @@
-package parsing
+package worker
 
 import (
 	"fmt"
@@ -17,7 +17,6 @@ import (
 const (
 	aggConf           = "aggCore"
 	moreConf          = "http_ok"
-	repoPath          = "../tests/testdata/configs"
 	expectedResultLen = 4 // below defined 4 test data
 )
 
@@ -133,7 +132,7 @@ func TestParsing(t *testing.T) {
 		func(n string, a ...interface{}) (cache.Service, error) {
 			return tests.NewService(n, a...)
 		})
-	res, err := Do(context.Background(), &parsingTask, cacher)
+	res, err := DoParsing(context.Background(), &parsingTask, cacher)
 	t.Log("parsing completed")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResultLen, len(res.Data))

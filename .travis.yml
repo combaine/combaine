@@ -5,9 +5,6 @@ sudo: required
 go:
  - 1.8
 
-install:
- - go env
-
 script:
  - make test
  - make build

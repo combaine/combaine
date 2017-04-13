@@ -7,14 +7,14 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
-	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/parsing"
+	"github.com/combaine/combaine/worker"
 )
 
 func init() {
-	parsing.Register("timetail", NewTimetailFetcher)
+	worker.Register("timetail", NewTimetailFetcher)
 }
 
 type timetailFetcher struct {
@@ -26,7 +26,7 @@ type timetailFetcher struct {
 }
 
 // NewTimetailFetcher build new timetail fetcher
-func NewTimetailFetcher(cfg common.PluginConfig) (parsing.Fetcher, error) {
+func NewTimetailFetcher(cfg common.PluginConfig) (worker.Fetcher, error) {
 	var fetcher timetailFetcher
 
 	if err := decodeConfig(cfg, &fetcher); err != nil {
@@ -46,7 +46,7 @@ func (t *timetailFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	period := t.Offset + (task.CurrTime - task.PrevTime)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d", task.Target, t.Port, t.URL, t.Logname, period)
-	logger.Infof("%s Requested URL: %s, timeout %v", task.Id, url, t.Timeout)
+	logrus.Infof("%s Requested URL: %s, timeout %v", task.Id, url, t.Timeout)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
 	defer cancel()
@@ -56,7 +56,7 @@ func (t *timetailFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	logger.Infof("%s Result for URL %s: %d", task.Id, url, resp.StatusCode)
+	logrus.Infof("%s Result for URL %s: %d", task.Id, url, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, err
 }

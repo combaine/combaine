@@ -10,6 +10,7 @@ import (
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders/razladki"
 )
 
@@ -17,8 +18,6 @@ const (
 	defaultConfigPath = "/etc/combaine/razladki.conf"
 	defaultTimeout    = 5 * time.Second
 )
-
-var logger *cocaine.Logger
 
 type razladkiTask struct {
 	ID       string `codec:"Id"`
@@ -87,8 +86,8 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
-	var err error
-	logger, err = cocaine.NewLogger()
+	razladki.InitializeLogger(logger.MustCreateLogger)
+
 	binds := map[string]cocaine.EventHandler{
 		"send": Send,
 	}

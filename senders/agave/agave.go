@@ -155,8 +155,7 @@ func (as *Sender) send(data []common.AggregationResult) (map[string][]string, er
 				switch value.Kind() {
 				case reflect.Slice, reflect.Array:
 					if len(as.Fields) == 0 || len(as.Fields) != value.Len() {
-						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d",
-							as.id, len(as.Fields), rv.Len())
+						logger.Errf("%s Unable to send a slice. Fields len %d, len of value %d", as.id, len(as.Fields), rv.Len())
 						continue
 					}
 					forJoin := make([]string, 0, len(as.Fields))
@@ -206,9 +205,7 @@ func (as *Sender) handleOneItem(ctx context.Context, subgroup string, values str
 
 func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 	for _, host := range as.Hosts {
-		req, _ := http.NewRequest("GET",
-			fmt.Sprintf("http://%s%s", host, url),
-			nil)
+		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s%s", host, url), nil)
 		req.Header = defaultHeaders
 
 		logger.Debugf("%s %s", as.id, req.URL)
@@ -224,14 +221,15 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				logger.Warnf("%s Juggler %s update check response %d: '%q'", as.id, host, resp.StatusCode, body)
-				e <- err
+				logger.Warnf("%s Agave %s update check response %d: '%q'", as.id, host, resp.StatusCode, body)
+				e <- fmt.Errorf("Bad response from agave: %s", resp.Status)
 				continue
 			}
 			logger.Infof("%s %s %d %s", as.id, req.URL, resp.StatusCode, body)
 			return
 		case context.Canceled, context.DeadlineExceeded:
 			logger.Errf("%s %s", as.id, err)
+			e <- err
 			return
 		default:
 			logger.Errf("%s Unable to do request %s", as.id, err)
@@ -240,6 +238,9 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 		}
 	}
 }
+
+// InitializeLogger create cocaine logger
+func InitializeLogger(init func()) { init() }
 
 // NewSender return agave sender interface
 func NewSender(id string, config Config) (as *Sender, err error) {

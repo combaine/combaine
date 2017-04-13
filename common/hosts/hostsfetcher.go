@@ -2,14 +2,12 @@ package hosts
 
 import "os"
 
+// Hosts represent map of the DC to list of the hosts
 type Hosts map[string][]string
 
 func (h *Hosts) getHosts(remote bool) []string {
 	hosts := make([]string, 0)
-	myname, err := os.Hostname()
-	if err != nil {
-		panic(err)
-	}
+	myname, _ := os.Hostname() // ignore this error here
 	for _, hostsInDc := range *h {
 		if remote {
 			for _, host := range hostsInDc {
@@ -33,6 +31,8 @@ func (h *Hosts) AllHosts() []string {
 func (h *Hosts) RemoteHosts() []string {
 	return h.getHosts(true)
 }
+
+// Merge all hosts in all datacenters
 func (h *Hosts) Merge(other *Hosts) {
 	for dc, v := range *other {
 		(*h)[dc] = append((*h)[dc], v...)

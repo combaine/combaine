@@ -12,15 +12,13 @@ try:
     if "default" not in profile.List(s).execute().get():
         try:
             print("Create empty profile")
-            profile.Upload(s, "default",
-                           os.path.dirname(__file__) + "/profile.json").execute().get()
+            profile.Upload(s, "default", os.path.dirname(__file__) + "/profile.json").execute().get()
         except ChokeEvent:
             pass
     if COMBAINE_RUNLIST not in runlist.List(s).execute().get():
         try:
             print("Create empty runlist")
-            runlist.Upload(s, COMBAINE_RUNLIST,
-                           os.path.dirname(__file__) + "/runlist.json").execute().get()
+            runlist.Upload(s, COMBAINE_RUNLIST, os.path.dirname(__file__) + "/runlist.json").execute().get()
         except ChokeEvent:
             pass
 except Exception as err:

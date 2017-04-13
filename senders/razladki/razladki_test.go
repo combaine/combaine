@@ -9,8 +9,15 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	InitializeLogger(func() {
+		logger.CocaineLog = logger.LocalLogger()
+	})
+}
 
 func TestSend(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

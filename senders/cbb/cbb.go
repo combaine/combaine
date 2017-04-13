@@ -33,6 +33,9 @@ type Sender struct {
 	id string
 }
 
+// InitializeLogger create cocaine logger
+func InitializeLogger(init func()) { init() }
+
 // NewCBBClient return cbb client
 func NewCBBClient(cfg *Config, id string) (*Sender, error) {
 	return &Sender{

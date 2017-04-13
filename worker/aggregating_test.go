@@ -1,4 +1,4 @@
-package aggregating
+package worker
 
 import (
 	"fmt"
@@ -17,10 +17,7 @@ import (
 	"github.com/combaine/combaine/tests"
 )
 
-const (
-	cfgName  = "aggCore"
-	repoPath = "../tests/testdata/configs"
-)
+const cfgName = "aggCore"
 
 var (
 	cacher            = cache.NewServiceCacher(NewService)
@@ -149,7 +146,7 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
-	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
 	<-testDone
 }
 
@@ -197,19 +194,19 @@ func TestEnqueue(t *testing.T) {
 		ParsingResult: &rpc.ParsingResult{
 			Data: map[string][]byte{"Host1;appsName": []byte("Host1;appsName")},
 		}}
-	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
 
 	acfg, err = repo.GetAggregationConfig("notPerHost" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
 	encAggregationConfig, _ = common.Pack(aggregationConfig)
 	aggTask.EncodedAggregationConfig = encAggregationConfig
-	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
 
 	aggTask.ParsingResult = &rpc.ParsingResult{
 		Data: map[string][]byte{"H1;appsName": []byte("H1;appsName")},
 	}
-	assert.NoError(t, Do(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
 
 	tests.Spy <- []interface{}{"stop", ""}
 }
