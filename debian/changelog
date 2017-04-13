@@ -1,3 +1,10 @@
+combaine (0.11.0) trusty; urgency=medium
+
+  * [logging] collect all worker logs to single file worker.log
+  * [worker] merge aggregating and parsing with worker
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 13 Apr 2017 22:21:40 +0700
+
 combaine (0.10.6) trusty; urgency=medium
 
   * [build,contrib] checkout from fix_logging branch
