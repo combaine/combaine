@@ -43,7 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
+	s := grpc.NewServer(
+		grpc.MaxMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
+		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
+	)
 	rpc.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)
 }

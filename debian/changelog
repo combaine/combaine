@@ -1,3 +1,9 @@
+combaine (0.10.5) trusty; urgency=medium
+
+  * [worker] set max grpc message size to 128 MB
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 13 Apr 2017 21:26:18 +0700
+
 combaine (0.10.4) trusty; urgency=medium
 
   * [combainer] configurable grpc tracing
