@@ -1,3 +1,9 @@
+combaine (0.10.6) trusty; urgency=medium
+
+  * [build,contrib] checkout from fix_logging branch
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 13 Apr 2017 21:49:43 +0700
+
 combaine (0.10.5) trusty; urgency=medium
 
   * [worker] set max grpc message size to 128 MB
