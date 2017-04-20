@@ -1,3 +1,9 @@
+combaine (0.11.1) trusty; urgency=medium
+
+  * [Razladki] support timings array in metrics
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 20 Apr 2017 23:16:41 +0700
+
 combaine (0.11.0) trusty; urgency=medium
 
   * [logging] collect all worker logs to single file worker.log
