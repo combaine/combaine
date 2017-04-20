@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/combaine/combaine/common"
@@ -20,6 +21,7 @@ type Config struct {
 	Items   map[string]string `codec:"items"`
 	Project string            `codec:"project"`
 	Host    string            `codec:"host"`
+	Fields  []string          `codec:"Fields"`
 }
 
 // Sender main sender object
@@ -97,6 +99,7 @@ func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*resul
 		}
 	}
 
+	name, arrayIdxKey := "", ""
 	for _, item := range data {
 		var root string
 		var metrics map[string]string
@@ -125,8 +128,20 @@ func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*resul
 				continue
 			}
 
-			for key, title := range metrics {
-				key := reflect.ValueOf(key)
+			for keyStr, title := range metrics {
+				arrayIdx := -1
+				key := reflect.ValueOf(keyStr)
+				if strings.IndexByte(keyStr, '[') > 0 && strings.IndexByte(keyStr, ']') == len(keyStr)-1 {
+					splitRes := strings.Split(keyStr, "[")
+					name, arrayIdxKey = splitRes[0], splitRes[1]
+					key = reflect.ValueOf(name)
+					arrayIdxKey = strings.Trim(arrayIdxKey, "]'\"")
+					arrayIdx, err = strconv.Atoi(arrayIdxKey)
+					if err != nil || arrayIdx == -1 {
+						logger.Errf("%s failed to extract index from %s: %v", r.id, keyStr, err)
+						continue
+					}
+				}
 				mapVal := rv.MapIndex(key)
 				if !mapVal.IsValid() {
 					continue
@@ -136,17 +151,32 @@ func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*resul
 
 				switch value.Kind() {
 				case reflect.Slice, reflect.Array:
-					// unsupported
+					if arrayIdx >= value.Len() {
+						logger.Errf("%s idx %d out of range %d:%v", r.id, arrayIdx, value.Len(), value)
+						continue
+					}
+					if len(r.Fields) == 0 || len(r.Fields) != value.Len() {
+						logger.Errf("%s Fields len %d, not match value len %d", r.id, len(r.Fields), value.Len())
+						continue
+					}
+					name = fmt.Sprintf("%s_%s.%s", subgroup, name, r.Fields[arrayIdx])
+					value = value.Index(arrayIdx)
+					if !value.IsValid() {
+						logger.Errf("%s Failed to extract value at %d from %v", r.id, arrayIdx, value)
+						continue
+					}
+					res.Push(name, common.InterfaceToString(value.Interface()), title)
+
 				case reflect.Map:
 					// unsupported
 				default:
-					name := fmt.Sprintf("%s_%s", subgroup, key)
+					name = fmt.Sprintf("%s_%s", subgroup, key)
 					res.Push(name, common.InterfaceToString(value.Interface()), title)
 				}
 			}
 		default:
 			if title, ok := metrics[""]; ok {
-				name := fmt.Sprintf("%s_%s", subgroup, root)
+				name = fmt.Sprintf("%s_%s", subgroup, root)
 				res.Push(name, common.InterfaceToString(item.Result), title)
 			}
 		}

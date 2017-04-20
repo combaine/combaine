@@ -35,9 +35,12 @@ func TestSend(t *testing.T) {
 			"20x:MP2":          "testvalue",
 			"20x:MP3":          "testvalue",
 			"some.agg.20x:MP2": "testvalue",
-			"30x":              "testvalue"},
+			"30x":              "testvalue",
+			"aggWithTimings:aTimings[3]":   "testtimings",
+			"aggWithTimings:aTimings['2']": "testtimings"},
 		Project: "CombaineTest",
 		Host:    ts.Listener.Addr().String(),
+		Fields:  []string{"95_prc", "96_prc", "97_prc", "98_prc", "99_prc"},
 	}
 	s := Sender{Config: &testConfig}
 	s.id = "UNIQID"
@@ -63,6 +66,10 @@ func TestSend(t *testing.T) {
 			Result: map[string]interface{}{
 				"MP2": 1002,
 			}},
+		{Tags: map[string]string{"type": "host", "name": "host6", "metahost": "host6", "aggregate": "aggWithTimings"},
+			Result: map[string]interface{}{
+				"aTimings": []int{10, 20, 30, 40, 50},
+			}},
 		{Tags: map[string]string{"type": "metahost", "name": "host2", "metahost": "host2", "aggregate": "30x"},
 			Result: []int{20, 30, 40}},
 		{Tags: map[string]string{"type": "metahost", "name": "host4", "metahost": "host4", "aggregate": "30x"},
@@ -75,14 +82,18 @@ func TestSend(t *testing.T) {
 	expected := &result{
 		Timestamp: 123,
 		Params: map[string]Param{
-			"host1_40x": {Value: "2000", Meta: Meta{Title: "testvalue"}},
-			"host4_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
-			"host5_MP2": {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host1_40x":             {Value: "2000", Meta: Meta{Title: "testvalue"}},
+			"host4_MP2":             {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host5_MP2":             {Value: "1002", Meta: Meta{Title: "testvalue"}},
+			"host6_aTimings.98_prc": {Value: "40", Meta: Meta{Title: "testtimings"}},
+			"host6_aTimings.97_prc": {Value: "30", Meta: Meta{Title: "testtimings"}},
 		},
 		Alarms: map[string]Alarm{
-			"host1_40x": {Meta: Meta{Title: "testvalue"}},
-			"host4_MP2": {Meta: Meta{Title: "testvalue"}},
-			"host5_MP2": {Meta: Meta{Title: "testvalue"}},
+			"host1_40x":             {Meta: Meta{Title: "testvalue"}},
+			"host4_MP2":             {Meta: Meta{Title: "testvalue"}},
+			"host5_MP2":             {Meta: Meta{Title: "testvalue"}},
+			"host6_aTimings.98_prc": {Meta: Meta{Title: "testtimings"}},
+			"host6_aTimings.97_prc": {Meta: Meta{Title: "testtimings"}},
 		},
 	}
 
@@ -90,6 +101,8 @@ func TestSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_ = expected
+	_ = actual
 	assert.Equal(t, expected, actual)
 
 	mbody, _ := json.Marshal(actual)
