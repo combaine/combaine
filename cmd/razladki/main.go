@@ -19,6 +19,18 @@ const (
 	defaultTimeout    = 5 * time.Second
 )
 
+var defaultFields = []string{
+	"75_prc",
+	"90_prc",
+	"93_prc",
+	"94_prc",
+	"95_prc",
+	"96_prc",
+	"97_prc",
+	"98_prc",
+	"99_prc",
+}
+
 type razladkiTask struct {
 	ID       string `codec:"Id"`
 	Data     []common.AggregationResult
@@ -57,6 +69,10 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return
+	}
+
+	if len(task.Config.Fields) == 0 {
+		task.Config.Fields = defaultFields
 	}
 
 	task.Config.Host, err = getRazladkiHost()
