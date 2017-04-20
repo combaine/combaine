@@ -101,8 +101,6 @@ func TestSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = expected
-	_ = actual
 	assert.Equal(t, expected, actual)
 
 	mbody, _ := json.Marshal(actual)
