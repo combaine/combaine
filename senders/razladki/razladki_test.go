@@ -108,8 +108,6 @@ func TestSend(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 
-	//actual, err := s.send(data, 123)
-
 	mbody, _ := json.Marshal(actual)
 	t.Logf("%s", mbody)
 
