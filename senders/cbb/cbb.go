@@ -115,20 +115,20 @@ func (c *Sender) send(data []common.AggregationResult, timestamp uint64) ([]stri
 
 		subgroup := reflect.ValueOf(item.Result)
 		if subgroup.Kind() != reflect.Map {
-			logger.Debugf("%s CBB support only maps as task data: %v", c.id, subgroup)
+			logger.Errf("%s CBB support only maps as task data: %v", c.id, subgroup)
 			continue
 		} // {4xx: {ip: "some text desc 99%"} ...
 
 		for _, name := range metricsName {
 			codes := subgroup.MapIndex(reflect.ValueOf(name))
 			if !codes.IsValid() {
-				logger.Debugf("%s invalid submap for codes %s: %v", c.id, name, codes)
+				logger.Debugf("%s missing submap for codes %s: %v", c.id, name, codes)
 				continue
 			}
 			ips := reflect.ValueOf(codes.Interface())
 			if ips.Kind() != reflect.Map {
 				// ips -> {ip: "some text desc 99%"}
-				logger.Debugf("%s CBB support only maps as ips data: %v", c.id, ips)
+				logger.Errf("%s CBB support only maps as ips data: %v", c.id, ips)
 				continue
 			}
 
@@ -146,7 +146,7 @@ func (c *Sender) send(data []common.AggregationResult, timestamp uint64) ([]stri
 				val := c.makeURLValues(reflect.ValueOf(ip.Interface()).String(), name, desc)
 				req.RawQuery = val.Encode()
 				url := req.String()
-				logger.Debugf("%s CBB block request: %s", c.id, url)
+				logger.Infof("%s CBB block request: %s", c.id, url)
 				requests = append(requests, url)
 			}
 		}
