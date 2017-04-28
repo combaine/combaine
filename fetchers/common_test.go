@@ -64,10 +64,9 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 
 		c.config["port"], _ = strconv.Atoi(port)
 		f, err := NewTCPSocketFetcher(c.config)
+		assert.NoError(t, err)
 
-		body, err := f.Fetch(&common.FetcherTask{Task: common.Task{Id: "ID"}, Target: target})
-
-		if _, err = f.Fetch(task); c.err {
+		if body, err := f.Fetch(task); c.err {
 			assert.EqualValues(t, context.DeadlineExceeded, err)
 		} else {
 			assert.EqualValues(t, c.expected, body)
