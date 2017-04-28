@@ -16,6 +16,22 @@ type AggregationResult struct {
 	Result interface{}       `codec:"Result" yaml:"Result"`
 }
 
+// ParsingPayload is task for parsing stage
+type ParsingPayload struct {
+	Task
+	Config PluginConfig
+	Meta   map[string]string
+	Data   []byte
+}
+
+// AggregateGropuPayload is task for aggregating stage
+type AggregateGropuPayload struct {
+	Task
+	Config PluginConfig
+	Meta   map[string]string
+	Data   [][]byte
+}
+
 // SenderPayload is task for senders
 type SenderPayload struct {
 	Task

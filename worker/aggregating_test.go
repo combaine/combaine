@@ -109,12 +109,11 @@ func TestAggregating(t *testing.T) {
 			case "aggregate_group":
 				var akeys []string
 
-				var payload []interface{} // []interface{}{id, PluginConfig, [][]byte}
+				var payload common.AggregateGropuPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 
-				tmp := payload[2].([]interface{}) // text for expectAggregatingGroup
-				for _, v := range tmp {
-					akeys = append(akeys, string(v.([]byte)[:5]))
+				for _, v := range payload.Data {
+					akeys = append(akeys, string(v[:5])) // text for expectAggregatingGroup
 				}
 				sort.Strings(akeys)
 				_k := strings.Join(akeys, "")

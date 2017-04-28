@@ -85,13 +85,17 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			go func(app cache.Service, k string, v common.PluginConfig, deadline time.Duration) {
 				defer wg.Done()
 
-				/* Task structure */
 				t, err := common.Pack(map[string]interface{}{
-					"config":   v,
-					"token":    blob,
-					"prevtime": task.Frame.Previous,
-					"currtime": task.Frame.Current,
-					"id":       task.Id,
+					"Config": v,
+					"Data":   blob,
+					// TODO define task structure in common
+					//"Meta": map[string]string{
+					//	"Host": task.Host,
+					//	"Key":  k,
+					//},
+					"PrevTime": task.Frame.Previous,
+					"CurrTime": task.Frame.Current,
+					"Id":       task.Id,
 				})
 				if err != nil {
 					logrus.Errorf("%s Failed to pack task: %s", task.Id, err)

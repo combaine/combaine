@@ -31,19 +31,28 @@ func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, er
 	return rawRes, nil
 }
 
-func aggregating(id string, ch chan *common.AggregationResult, res *common.AggregationResult,
-	c common.PluginConfig, d []interface{}, app cache.Service, wg *sync.WaitGroup) {
+func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res *common.AggregationResult,
+	c common.PluginConfig, d [][]byte, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
-	payload, err := common.Pack([]interface{}{id, c, d})
+	payload, err := common.Pack(common.AggregateGropuPayload{
+		Task: common.Task{
+			CurrTime: t.Frame.Current,
+			PrevTime: t.Frame.Previous,
+			Id:       t.Id,
+		},
+		Config: c,
+		Meta:   res.Tags,
+		Data:   d,
+	})
 	if err != nil {
-		logrus.Errorf("%s unable to pack data: %s", id, err)
+		logrus.Errorf("%s unable to pack data: %s", t.Id, err)
 		return
 	}
 	data, err := enqueue("aggregate_group", app, &payload)
 	if err != nil {
-		logrus.Errorf("%s unable to aggregate %s: %s", id, res, err)
+		logrus.Errorf("%s unable to aggregate %s: %s", t.Id, res, err)
 		return
 	}
 	res.Result = data
@@ -67,7 +76,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 
 	initCap := len(aggregationConfig.Data) * len(Hosts)
 	for name, cfg := range aggregationConfig.Data {
-		aggParsingResults := make([]interface{}, 0, initCap)
+		aggParsingResults := make([][]byte, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
 			logrus.Errorf("%s unable to get aggregator type for %s %s %s", task.Id, task.Config, name, err)
@@ -81,7 +90,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 		}
 
 		for subGroup, hosts := range Hosts {
-			subGroupParsingResults := make([]interface{}, 0, initCap)
+			subGroupParsingResults := make([][]byte, 0, initCap)
 			for _, host := range hosts {
 				key := fmt.Sprintf("%s;%s", host, name)
 				data, ok := task.ParsingResult.Data[key]
@@ -116,7 +125,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 					},
 				}
 				aggWg.Add(1)
-				go aggregating(task.Id, ch, hostAggRes, cfg, []interface{}{data}, app, &aggWg)
+				go aggregating(task, ch, hostAggRes, cfg, [][]byte{data}, app, &aggWg)
 			}
 
 			if len(subGroupParsingResults) == 0 {
@@ -134,7 +143,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 				},
 			}
 			aggWg.Add(1)
-			go aggregating(task.Id, ch, groupAggRes, cfg, subGroupParsingResults, app, &aggWg)
+			go aggregating(task, ch, groupAggRes, cfg, subGroupParsingResults, app, &aggWg)
 		}
 
 		if len(aggParsingResults) == 0 {
@@ -152,7 +161,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 			},
 		}
 		aggWg.Add(1)
-		go aggregating(task.Id, ch, metaAggRes, cfg, aggParsingResults, app, &aggWg)
+		go aggregating(task, ch, metaAggRes, cfg, aggParsingResults, app, &aggWg)
 	}
 
 	go func() {

@@ -106,10 +106,10 @@ func TestParsing(t *testing.T) {
 			var r map[string]interface{}
 			assert.NoError(t, common.Unpack(k[1].([]byte), &r))
 			var payload common.FetcherTask
-			assert.NoError(t, common.Unpack(r["token"].([]byte), &payload))
+			assert.NoError(t, common.Unpack(r["Data"].([]byte), &payload))
 
 			key := payload.Target
-			cfg := r["config"].(map[interface{}]interface{})
+			cfg := r["Config"].(map[interface{}]interface{})
 
 			if tp, ok := cfg["type"]; ok {
 				key += "." + string(tp.([]byte))
@@ -139,8 +139,8 @@ func TestParsing(t *testing.T) {
 	for _, v := range res.Data {
 		var i map[string]interface{}
 		assert.NoError(t, common.Unpack(v, &i))
-		assert.Equal(t, parsingTask.Frame.Current, i["currtime"].(int64))
-		assert.Equal(t, parsingTask.Id, string(i["id"].([]byte)))
+		assert.Equal(t, parsingTask.Frame.Current, i["CurrTime"].(int64))
+		assert.Equal(t, parsingTask.Id, string(i["Id"].([]byte)))
 	}
 
 	<-done // wait parsing complete
