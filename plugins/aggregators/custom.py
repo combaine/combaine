@@ -23,6 +23,7 @@ formatter = logging.Formatter("%(tid)s %(message)s")
 ch.setFormatter(formatter)
 ch.setLevel(logging.DEBUG)
 LOG.addHandler(ch)
+logger = LOG
 
 PATH = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
 sys.path.insert(0, PATH)
@@ -82,28 +83,23 @@ def aggregate_host(request, response):
     try:
         raw = yield request.read()
         task = msgpack.unpackb(raw)
-        tid = task['id']
-        logger = logging.LoggerAdapter(LOG, {"tid": tid})
-        logger.info("Handle task")
-        cfg = task['config']
+        logger = logging.LoggerAdapter(LOG, {"tid": task['Id']})
+
+        payload = task['Data']
+        cfg = task['Config']
         klass_name = cfg['class']
         cfg['logger'] = logger
 
-        # Replace this name
-        payload = task['token']
-
         result = _aggregate_host(klass_name, payload, cfg, task)
+        response.write(msgpack.packb(result))
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
     except Exception as err:  # pylint: disable=broad-except
         response.error(-3, "Exception during handling %s" % repr(err))
         logger.error("Error %s", err)
-    else:
-        response.write(msgpack.packb(result))
     finally:
         response.close()
-        logger.info("Done")
 
 
 def aggregate_group(request, response):
@@ -113,23 +109,21 @@ def aggregate_group(request, response):
     """
     try:
         raw = yield request.read()
-        tid, cfg, data = msgpack.unpackb(raw)
-        logger = logging.LoggerAdapter(LOG, {"tid": tid})
-        logger.debug("Unpack raw data successfully")
-        payload = map(msgpack.unpackb, data)
+        task = msgpack.unpackb(raw)
+        logger = logging.LoggerAdapter(LOG, {'tid': task['Id']})
+        payload = map(msgpack.unpackb, task['Data'])
+        cfg = task['Config']
         klass_name = cfg['class']
         cfg['logger'] = logger
         result = _aggregate_group(klass_name, payload, cfg)
+        logger.info("Aggregation result %s: %s", str(task['Meta']), str(result))
+        response.write(result)
     except KeyError:
         response.error(-100, "There's no class named %s" % klass_name)
         logger.error("class %s is absent", klass_name)
     except Exception as err:  # pylint: disable=broad-except
         response.error(100, repr(err))
         logger.error("Error %s", err)
-    else:
-        logger.info("Result of group aggregation %s", str(result))
-        response.write(result)
-        logger.info("Custom done")
     finally:
         response.close()
 
@@ -138,7 +132,7 @@ def _aggregate_host(klass_name, payload, config, task):
     available = plugin_import()
     klass = available[klass_name]
     handler = klass(config)
-    prevtime, currtime = task["prevtime"], task["currtime"]
+    prevtime, currtime = task["PrevTime"], task["CurrTime"]
     return handler.aggregate_host(payload, prevtime, currtime)
 
 
