@@ -82,18 +82,23 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			}
 			wg.Add(1)
 			// TODO: use Context instead of deadline
-			go func(app cache.Service, k string, v interface{}, deadline time.Duration) {
+			go func(app cache.Service, k string, v common.PluginConfig, deadline time.Duration) {
 				defer wg.Done()
 
 				/* Task structure */
-				t, _ := common.Pack(map[string]interface{}{
+				t, err := common.Pack(map[string]interface{}{
 					"config":   v,
 					"token":    blob,
 					"prevtime": task.Frame.Previous,
 					"currtime": task.Frame.Current,
 					"id":       task.Id,
 				})
+				if err != nil {
+					logrus.Errorf("%s Failed to pack task: %s", task.Id, err)
+					return
+				}
 
+				key := fmt.Sprintf("%s;%s", task.Host, k)
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):
 					if res == nil {
@@ -111,11 +116,10 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 						return
 					}
 
-					key := fmt.Sprintf("%s;%s", task.Host, k)
 					ch <- item{key: key, res: rawRes}
 					logrus.Debugf("%s Write data with key %s", task.Id, key)
 				case <-time.After(deadline):
-					logrus.Errorf("%s Failed task %s", task.Id, deadline)
+					logrus.Errorf("%s Failed task %s: DeadlineExceeded", task.Id, key)
 				}
 			}(app, k, v, time.Second*time.Duration(task.Frame.Current-task.Frame.Previous))
 		}
