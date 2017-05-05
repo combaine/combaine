@@ -50,26 +50,21 @@ end
 
 function extractMetric(q, res)
   local metric = "?"
-  if q:find("%.get%(") then
-    local key = q:match([[.get%(['"]([^'"]+)]])
-    metric = res[key] or 0
-  else
-    local iv = res
-    local key
-    for key in q:gmatch([==[%[['"%s]*([^"'%[%s%]]+)['"%s]*%]]==]) do
-      -- log.debug(fmt("Query %s on %s with key %s", q, iv, key))
-      if key:match("^%-?%d$") then
-        key = tonumber(key)
-        if key < 0
-        then key = #iv -- lua do not support keys -1 like python
-        else key = key + 1 -- lua start index from 1, but python from 0
-        end
+  local iv = res
+  local key
+  for key in q:gmatch([==[%[['"%s]*([^"'%[%s%]]+)['"%s]*%]]==]) do
+    -- log.debug(fmt("Query %s on %s with key %s", q, iv, key))
+    if key:match("^%-?%d$") then
+      key = tonumber(key)
+      if key < 0
+      then key = #iv -- lua do not support keys -1 like python
+      else key = key + 1 -- lua start index from 1, but python from 0
       end
-      iv = iv[key]
-      if not iv then break end -- payload not contains sub table for given key
     end
-    metric = iv or 0
+    iv = iv[key]
+    if not iv then break end -- payload not contains sub table for given key
   end
+  metric = iv or 0
   return metric
 end
 
@@ -98,7 +93,7 @@ function addResult(ev, lvl, tags)
 end
 
 function evalCheck(cases, lvl, d)
-  local pattern = "[$]{"..d.Tags.aggregate.."}"..[=[(?:[[][^]]+[]]|\.get\([^)]+\))+]=]
+  local pattern = "[$]{"..d.Tags.aggregate.."}"..[=[(?:[[][^]]+[]])+]=]
   local STRMpattern = "%${"..d.Tags.aggregate.."}.iteritems%(%)%s+if%s+%(k"
   local anchor = "%s+if[^%.]+%.startswith%('([^']+)'%)%s+and[^%.]+%.endswith%('([^']+)'%)"
 
@@ -144,7 +139,7 @@ function evalCheck(cases, lvl, d)
         if not ok then
           log.error("Error in query "..eval)
         else
-          log.info(fmt( "%s %s trigger test `%s` -> `%s` is %s", d.Tags.name, lvl, c, eval, fire))
+          log.info(fmt("%s %s trigger test `%s` -> `%s` is %s", d.Tags.name, lvl, c, eval, fire))
           if fire then
             -- Checks are coupled with OR logic.
             -- return when one of expressions is evaluated as True
@@ -159,11 +154,14 @@ function evalCheck(cases, lvl, d)
 end
 
 function run()
-  evalVariables()   -- now eval variables
   local result = {}
+  config = config or {}
+
+  evalVariables()   -- now eval variables
+
   for _, data in pairs(payload) do
-    if not data.Tags or not data.Tags.aggregate then
-      log.error("Missing tag 'aggregate'")
+    if config.type and data.Tags.type ~= config.type then
+      log.info(fmt("skip data for %s-%s type %s", data.Tags.metahost, data.Tags.name, data.Tags.type))
     else
       for idx, level in pairs {"CRIT", "WARN", "INFO", "OK", "DEFAULT"} do
         local check = conditions[level]
@@ -171,11 +169,11 @@ function run()
           local res = evalCheck(check, level, data)
           if res then
             result[#result+1] = res
-            break -- higher level event set on fire, no need continue checks
+            break -- pairs {"CRIT... higher level event set on fire, no need continue checks
           end
         end
-        if not config.withoutDefaultState and idx == 5 then -- idx 5 == "DEFAULT"
-          log.info(fmt("%s.%s set default status 'OK'", data.Tags.name, checkName))
+        if idx == 5 then -- idx 5 == "DEFAULT"
+          log.info(fmt("%s: %s.%s set default status 'OK'", data.Tags.aggregate, data.Tags.name, checkName))
           result[#result+1] = {
             tags = data.Tags,
             description = "OK",
