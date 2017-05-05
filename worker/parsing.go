@@ -14,13 +14,13 @@ import (
 	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *common.ParsingConfig) ([]byte, error) {
+func fetchDataFromTarget(log *logrus.Entry, task *rpc.ParsingTask, parsingConfig *common.ParsingConfig) ([]byte, error) {
+	startTm := time.Now()
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
 		return nil, err
 	}
-
-	logrus.Debugf("%s use %s for fetching data", task.Id, fetcherType)
+	log.Debugf("use %s for fetching data", fetcherType)
 	fetcher, err := NewFetcher(fetcherType, parsingConfig.DataFetcher)
 	if err != nil {
 		return nil, err
@@ -31,33 +31,35 @@ func fetchDataFromTarget(task *rpc.ParsingTask, parsingConfig *common.ParsingCon
 		Task:   common.Task{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
 	}
 
-	startTm := time.Now()
 	blob, err := fetcher.Fetch(&fetcherTask)
-	logrus.Infof("%s fetching completed (took %.3f)", task.Id, time.Now().Sub(startTm).Seconds())
+	log.Debugf("fetch %d bytes: %q", len(blob), blob)
+	log.Infof("fetching completed (took %.3f)", time.Now().Sub(startTm).Seconds())
 	if err != nil {
 		return nil, err
 	}
-
-	logrus.Debugf("%s Fetch %d bytes from %s: %q", task.Id, len(blob), task.Host, blob)
 	return blob, nil
 }
 
 // DoParsing distribute tasks accross cluster
 func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceCacher) (*rpc.ParsingResult, error) {
-	logrus.Infof("%s start parsing", task.Id)
+	log := logrus.WithFields(logrus.Fields{
+		"config":  task.ParsingConfigName,
+		"target":  task.Host,
+		"session": task.Id,
+	})
+	log.Debugf("start parsing")
 
 	var parsingConfig = task.GetParsingConfig()
 
-	blob, err := fetchDataFromTarget(task, &parsingConfig)
-	// parsing timings without fetcher time
-	defer func(t time.Time) {
-		logrus.Infof("%s parsing completed (took %.3f)", task.Id, time.Now().Sub(t).Seconds())
-		logrus.Infof("%s %s Done", task.Id, task.ParsingConfigName)
-	}(time.Now())
+	blob, err := fetchDataFromTarget(log, task, &parsingConfig)
 	if err != nil {
-		logrus.Errorf("%s error `%v` occured while fetching data", task.Id, err)
+		log.Errorf("%v", err)
 		return nil, err
 	}
+	// parsing timings without fetcher time
+	defer func(t time.Time) {
+		log.Infof("parsing completed (took %.3f)", time.Now().Sub(t).Seconds())
+	}(time.Now())
 
 	type item struct {
 		key string
@@ -73,11 +75,11 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			if err != nil {
 				return nil, err
 			}
-			logrus.Debugf("%s Send to %s, agg section name %s type %s", task.Id, aggLogName, k, aggType)
+			log.Debugf("send to %s, agg section name %s type %s", aggLogName, k, aggType)
 
 			app, err := cacher.Get(aggType)
 			if err != nil {
-				logrus.Errorf("%s %s %s", task.Id, aggType, err)
+				log.Errorf("%s %s", aggType, err)
 				continue
 			}
 			wg.Add(1)
@@ -98,7 +100,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 					"Id":       task.Id,
 				})
 				if err != nil {
-					logrus.Errorf("%s Failed to pack task: %s", task.Id, err)
+					log.Errorf("failed to pack task: %s", err)
 					return
 				}
 
@@ -106,24 +108,24 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):
 					if res == nil {
-						logrus.Errorf("%s Task failed: %s", task.Id, common.ErrAppCall)
+						log.Errorf("task failed: %s", common.ErrAppCall)
 						return
 					}
 					if res.Err() != nil {
-						logrus.Errorf("%s Task failed: %s", task.Id, res.Err())
+						log.Errorf("task failed: %s", res.Err())
 						return
 					}
 
 					var rawRes []byte
 					if err := res.Extract(&rawRes); err != nil {
-						logrus.Errorf("%s Unable to extract result: %s", task.Id, err.Error())
+						log.Errorf("unable to extract result: %s", err.Error())
 						return
 					}
 
 					ch <- item{key: key, res: rawRes}
-					logrus.Debugf("%s Write data with key %s", task.Id, key)
+					log.Debugf("write data with key %s", key)
 				case <-time.After(deadline):
-					logrus.Errorf("%s Failed task %s: DeadlineExceeded", task.Id, key)
+					log.Errorf("failed task %s: DeadlineExceeded", key)
 				}
 			}(app, k, v, time.Second*time.Duration(task.Frame.Current-task.Frame.Previous))
 		}
