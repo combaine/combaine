@@ -1,3 +1,9 @@
+combaine (0.11.4) trusty; urgency=medium
+
+  * [balancer] distribute new config on fully balanced cluster
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 11 May 2017 01:38:45 +0700
+
 combaine (0.11.3) trusty; urgency=medium
 
   * [worker] actualize logs
