@@ -93,6 +93,7 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 				state.qty[host]++
 				delete(configSet, cfg)
 			} else {
+				c.log.Infof("Release missing config %s", cfg)
 				if err := releaseConfig(c, host, cfg); err != nil {
 					return err
 				}
@@ -102,8 +103,17 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 
 	sort.Sort(state)
 
-	overloadedIndex := clusterSize - 1
+	if err := c.runBalancer(state, configSet, clusterSize-1); err != nil {
+		return errors.Wrap(err, "Balancer error")
+	}
 
+	curStat = c.store.DistributionStatistic()
+	_, curStat = markDeadNodes(hosts, curStat)
+	c.log.Debugf("Rebalanced FSM store stats %v", curStat)
+	return nil
+}
+
+func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, overloadedIndex int) error {
 	var (
 		wantage        int
 		overloadedHost = state.hosts[overloadedIndex]
@@ -111,7 +121,7 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 ALMOST_FAIR_BALANCER:
 	for _, host := range state.hosts {
 		wantage = state.mean - state.qty[host]
-		if wantage <= 0 {
+		if wantage <= 0 && len(configSet) == 0 {
 			// rebalance complete
 			break ALMOST_FAIR_BALANCER
 		}
@@ -172,9 +182,6 @@ ALMOST_FAIR_BALANCER:
 			}
 		}
 	}
-	curStat = c.store.DistributionStatistic()
-	_, curStat = markDeadNodes(hosts, curStat)
-	c.log.Debugf("Rebalanced FSM store stats %v", curStat)
 	return nil
 }
 
@@ -201,6 +208,11 @@ func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 RECLIENT:
 	cl, err := NewClient(c.cache, c.repo)
 	if err != nil {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
 		log.Errorf("can't create client %s", err)
 		time.Sleep(c.updateInterval)
 		goto RECLIENT

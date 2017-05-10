@@ -21,6 +21,7 @@ func (d *dummyRepo) GetAggregationConfig(name string) (c common.EncodedConfig, e
 func (d *dummyRepo) GetParsingConfig(name string) (c common.EncodedConfig, e error)     { return c, e }
 func (d *dummyRepo) GetCombainerConfig() (c common.CombainerConfig)                     { return c }
 func (d *dummyRepo) ParsingConfigIsExists(name string) bool                             { return true }
+func (d *dummyRepo) addConfig(name string)                                              { *d = append(*d, name) }
 
 func TestDistributeTasks(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
@@ -131,9 +132,29 @@ func TestDistributeTasks(t *testing.T) {
 		configSet := make(map[string]string)
 		for h := range cl.store.store {
 			for cfg := range cl.store.store[h] {
-				assert.True(t, configSet[cfg] == "", "Dubilcate dispatching %s for %s and %s", cfg, h, configSet[cfg])
+				assert.True(t, configSet[cfg] == "", "Dublicate dispatching %s for %s and %s", cfg, h, configSet[cfg])
 				configSet[cfg] = h
 			}
+		}
+
+		if n == "FullMap" {
+			t.Log("Trye dispatching new config on fully balanced cluster")
+			bareRepoList, _ := repo.ListParsingConfigs()
+			prevRepo := cl.repo
+			newRepo := make([]string, len(bareRepoList))
+			copy(newRepo, bareRepoList)
+			newRepo = append(newRepo, "c55")
+			cl.repo = newTestRepo(newRepo)
+			cl.log.Infof("New Repo %v", cl.repo)
+			cl.distributeTasks(hosts)
+			present := 0
+			for h := range cl.store.store {
+				if _, ok := cl.store.store[h]["c55"]; ok {
+					present++
+				}
+			}
+			assert.True(t, present == 1, "Failed to dispatch new config c55")
+			cl.repo = prevRepo
 		}
 	}
 
