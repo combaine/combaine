@@ -32,8 +32,8 @@ func TestPluginSimple(t *testing.T) {
 	assert.NoError(t, err)
 
 	cases := []struct {
-		checks []string
-		fire   bool
+		checks     []string
+		expectFire bool
 	}{
 		{[]string{"${agg}['a'] >= VAR_FIRST"}, true},
 		{[]string{"${agg}['a'] >= VAR1"}, true},
@@ -73,9 +73,7 @@ func TestPluginSimple(t *testing.T) {
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3029"}, false},
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3030",
 			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2"}, true},
-		{[]string{
-			"sum([v for k,v in ${agg}.iteritems() if (k.startswith('iter') and k.endswith('d'))]) / sum([v for k,v in ${agg}.iteritems() if (k.startswith('items') and k.endswith('d'))]) > 0.5"},
-			true},
+		{[]string{"sum([v for k,v in ${agg}.iteritems() if (k.startswith('iter') and k.endswith('d'))]) / sum([v for k,v in ${agg}.iteritems() if (k.startswith('items') and k.endswith('d'))]) > 0.5"}, true},
 	}
 
 	for _, c := range cases {
@@ -90,7 +88,13 @@ func TestPluginSimple(t *testing.T) {
 
 		events, err := js.runPlugin()
 		assert.NoError(t, err)
-		t.Logf("%v", events)
-		assert.Equal(t, c.fire, len(events) > 0, fmt.Sprintf("%s", c.checks))
+		t.Logf("%v: %v", c, events)
+		actualFire := false
+		for _, e := range events {
+			if e.Level == "CRIT" {
+				actualFire = true
+			}
+		}
+		assert.Equal(t, c.expectFire, actualFire, fmt.Sprintf("%s", c.checks))
 	}
 }
