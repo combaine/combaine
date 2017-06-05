@@ -1,3 +1,9 @@
+combaine (0.11.6) trusty; urgency=medium
+
+  * [juggler] cleanup logs
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Tue, 06 Jun 2017 00:58:35 +0700
+
 combaine (0.11.5) trusty; urgency=medium
 
   * [juggler] send events in parallel
