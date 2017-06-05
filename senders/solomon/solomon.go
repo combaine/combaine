@@ -277,7 +277,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			// unless the Body is read to completion and is closed.
 			b, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
-			// err is nil and there may occure some http errors includeing timeout
+			// err is nil and there may occure some http errors including timeout
 			if resp.StatusCode == http.StatusOK {
 				sendErr = nil
 				logger.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.id, attempt)
@@ -318,7 +318,7 @@ func newWorker(id int, retry int, interval int) Worker {
 }
 
 // StartWorkers run predefined number of workers,
-// workers concurently wite job from JobQueue
+// workers wait on channel JobQueue
 func StartWorkers(j chan Job, retryInterval int) {
 	for i := 0; i < cap(j); i++ {
 		logger.Debugf("Creating worker %d", i)

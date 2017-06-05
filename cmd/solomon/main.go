@@ -100,7 +100,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go solomon.StartWorkers(solomon.JobQueue, sleepInterval)
+	solomon.StartWorkers(solomon.JobQueue, sleepInterval)
 
 	Worker.Loop(binds)
 }

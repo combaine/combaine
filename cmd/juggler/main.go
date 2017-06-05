@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
@@ -11,6 +12,8 @@ import (
 )
 
 const defaultPlugin = "simple"
+
+var defaultTimeout = 5 * time.Second
 
 type senderTask struct {
 	ID     string `codec:"Id"`
@@ -69,7 +72,9 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	err = jCli.Send(context.Background(), task.Data)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	err = jCli.Send(ctx, task.Data)
 	if err != nil {
 		logger.Errf("%s Sending error %s", task.ID, err)
 		return
