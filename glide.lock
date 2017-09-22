@@ -1,0 +1,141 @@
+hash: 04dd5023d2ea2d926be74ecc3ecbbb040bb32f5562346d0bce298bb88ebc57f7
+updated: 2017-09-23T00:49:52.202799977+07:00
+imports:
+- name: github.com/armon/go-metrics
+  version: 0a12dc6f6b9da6da644031a1b9b5a85478c5ee27
+- name: github.com/boltdb/bolt
+  version: fa5367d20c994db73282594be0146ab221657943
+- name: github.com/cocaine/cocaine-framework-go
+  version: 7cc11dc146d178279f9a6bc2339d1d1d2847d4dc
+  subpackages:
+  - cocaine
+- name: github.com/golang/protobuf
+  version: 130e6b02ab059e7b717a096f397c5b60111cae74
+  subpackages:
+  - proto
+  - ptypes
+  - ptypes/any
+  - ptypes/duration
+  - ptypes/timestamp
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 24fca303ac6da784b9e8269f724ddeb0b2eea5e7
+- name: github.com/hashicorp/errwrap
+  version: 7554cd9344cec97297fa6649b055a8c98c2a1e55
+- name: github.com/hashicorp/go-immutable-radix
+  version: 8aac2701530899b64bdea735a1de8da899815220
+- name: github.com/hashicorp/go-msgpack
+  version: fa3f63826f7c23912c15263591e65d54d080b458
+  subpackages:
+  - codec
+- name: github.com/hashicorp/go-multierror
+  version: 83588e72410abfbe4df460eeb6f30841ae47d4c4
+- name: github.com/hashicorp/go-sockaddr
+  version: 41949a141473f6340abc6ba0fcd0f89da6f6f837
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
+- name: github.com/hashicorp/memberlist
+  version: 687988a0b5daaf7ed5051e5e374aef27f8254822
+- name: github.com/hashicorp/raft
+  version: 3b4d64b29e422f04808b905005eb5a38bf9150e8
+- name: github.com/hashicorp/raft-boltdb
+  version: df631556b57507bd5d0ed4f87468fd93ab025bef
+- name: github.com/hashicorp/serf
+  version: d6574a5bb1226678d7010325fb6c985db20ee458
+  subpackages:
+  - coordinate
+  - serf
+- name: github.com/kr/pretty
+  version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
+- name: github.com/kr/text
+  version: 7cafcd837844e784b526369c9bce262804aebc60
+- name: github.com/miekg/dns
+  version: 689d334b0197696eac0afdaa67224aca9ce93eff
+- name: github.com/mitchellh/mapstructure
+  version: d0303fe809921458f417bcf828397a65db30a7e4
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/satori/go.uuid
+  version: 5bf94b69c6b68ee1b541973bb8e1144db23a194b
+- name: github.com/sean-/seed
+  version: e2103e2c35297fb7e17febb81e49b312087a2372
+- name: github.com/Sirupsen/logrus
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: github.com/ugorji/go
+  version: 54210f4e076c57f351166f0ed60e67d3fca57a36
+  subpackages:
+  - codec
+- name: github.com/yuin/gluare
+  version: d7c94f1a80ede93a621ed100866e6d4745ca8c22
+- name: github.com/yuin/gopher-lua
+  version: eb1c7299435cc746b72514f37f74a5154dfe460f
+  subpackages:
+  - ast
+  - parse
+  - pm
+- name: golang.org/x/crypto
+  version: 7d9177d70076375b9a59c8fde23d52d9c4a7ecd5
+  subpackages:
+  - ssh/terminal
+- name: golang.org/x/net
+  version: 0744d001aa8470aaa53df28d32e5ceeb8af9bd70
+  subpackages:
+  - context
+  - context/ctxhttp
+  - http2
+  - http2/hpack
+  - idna
+  - internal/timeseries
+  - lex/httplex
+  - trace
+- name: golang.org/x/sys
+  version: 429f518978ab01db8bb6f44b66785088e7fba58b
+  subpackages:
+  - unix
+  - windows
+- name: golang.org/x/text
+  version: 1cbadb444a806fd9430d14ad08967ed91da4fa0a
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
+- name: google.golang.org/genproto
+  version: 1e559d0a00eef8a9a43151db4665280bd8dd5886
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3
+  subpackages:
+  - codes
+  - connectivity
+  - credentials
+  - grpclb/grpc_lb_v1/messages
+  - grpclog
+  - internal
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - stats
+  - status
+  - tap
+  - transport
+- name: gopkg.in/yaml.v2
+  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert

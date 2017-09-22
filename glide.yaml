@@ -1,0 +1,42 @@
+package: github.com/combaine/combaine
+import:
+- package: github.com/Sirupsen/logrus
+  version: ^1.0.3
+- package: github.com/cocaine/cocaine-framework-go
+  branch: v0.11
+  subpackages:
+  - cocaine
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto
+- package: github.com/gorilla/mux
+  version: ^1.5.0
+- package: github.com/hashicorp/raft
+- package: github.com/hashicorp/raft-boltdb
+- package: github.com/hashicorp/serf
+  version: ^0.8.1
+  subpackages:
+  - serf
+- package: github.com/kr/pretty
+- package: github.com/mitchellh/mapstructure
+- package: github.com/pkg/errors
+  version: ^0.8.0
+- package: github.com/ugorji/go
+  subpackages:
+  - codec
+- package: github.com/yuin/gluare
+- package: github.com/yuin/gopher-lua
+- package: golang.org/x/net
+  subpackages:
+  - context
+  - context/ctxhttp
+- package: google.golang.org/grpc
+  version: ^1.6.0
+  subpackages:
+  - grpclog
+- package: gopkg.in/yaml.v2
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - assert
