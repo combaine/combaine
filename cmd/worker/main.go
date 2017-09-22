@@ -22,14 +22,17 @@ var (
 	cacher    = cache.NewServiceCacher(cache.NewServiceWithLocalLogger)
 	endpoint  string
 	logoutput string
+	tracing   bool
 	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
 func init() {
 	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
+	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
 	flag.Parse()
+	grpc.EnableTracing = tracing
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	var grpcLogger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)

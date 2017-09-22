@@ -118,12 +118,3 @@ func isConfig(name string) bool {
 	}
 	return false
 }
-
-// GRPCTracingIsEnabled return tracing parameter value from combainer configs
-func GRPCTracingIsEnabled(configdir string) bool {
-	cfg, err := NewCombaineConfig(path.Join(configdir, combaineConfig))
-	if err != nil {
-		return false
-	}
-	return cfg.EnableGRPCTracing
-}

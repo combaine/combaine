@@ -53,8 +53,7 @@ type CloudSection struct {
 
 // CombainerSection about combainer daemon configs
 type CombainerSection struct {
-	MainSection       `yaml:"Main"`
-	EnableGRPCTracing bool `yaml:"EnableGRPCTracing"`
+	MainSection `yaml:"Main"`
 }
 
 // NewCombaineConfig load conbainer's main config
