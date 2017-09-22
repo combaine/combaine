@@ -21,6 +21,7 @@ var (
 	configsPath string
 	period      uint
 	active      bool
+	tracing     bool
 	loglevel    = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
@@ -30,10 +31,10 @@ func init() {
 	flag.StringVar(&configsPath, "configspath", common.DefaultConfigsPath, "path to root of configs")
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
+	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
 	flag.Parse()
-
-	grpc.EnableTracing = common.GRPCTracingIsEnabled(configsPath)
+	grpc.EnableTracing = tracing
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	var grpcLogger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)

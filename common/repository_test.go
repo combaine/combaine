@@ -66,7 +66,3 @@ func TestRepository(t *testing.T) {
 		assert.Nil(t, pcfg.Decode(&decodedCfg), "unable to Decode aggregation config")
 	}
 }
-
-func TestGRPCTracingIsEnabled(t *testing.T) {
-	assert.False(t, GRPCTracingIsEnabled(repopath))
-}
