@@ -1,3 +1,9 @@
+combaine (0.11.9) trusty; urgency=medium
+
+  * [juggler] send all events to all fronts in parallel
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 02 Oct 2017 22:49:26 +0700
+
 combaine (0.11.8) trusty; urgency=medium
 
   * [deploy] always recreate profile

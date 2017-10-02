@@ -70,17 +70,17 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error {
 	var jWg sync.WaitGroup
 	var sendEeventsFailed int32
-	for _, e := range events {
-		jWg.Add(1)
-		go func(event jugglerEvent) {
-			defer jWg.Done()
-			for _, jFront := range js.Config.JFrontend {
-				if err := js.sendEvent(ctx, jFront, event); err != nil {
+	for _, event := range events {
+		for _, jFront := range js.Config.JFrontend {
+			jWg.Add(1)
+			go func(e jugglerEvent, f string) {
+				defer jWg.Done()
+				if err := js.sendEvent(ctx, f, e); err != nil {
 					atomic.AddInt32(&sendEeventsFailed, 1)
-					logger.Errf("%s failed to send juggler Event %s: %s", js.id, event, err)
+					logger.Errf("%s failed to send juggler Event %s: %s", js.id, e, err)
 				}
-			}
-		}(e)
+			}(event, jFront)
+		}
 	}
 	jWg.Wait()
 
