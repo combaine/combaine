@@ -59,10 +59,14 @@ type aggKWArgs struct {
 }
 
 type jugglerEvent struct {
-	Tags        map[string]string
-	Service     string
-	Description string
-	Level       string
+	internalTags map[string]string
+	Host         string   `json:"host"`
+	Service      string   `json:"service"`
+	Status       string   `json:"status"`
+	Description  string   `json:"description"`
+	Instance     string   `json:"instance,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 // getCheck query juggler api for check
@@ -156,11 +160,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
-		subgroup, err := common.GetSubgroupName(t.Tags)
+		subgroup, err := common.GetSubgroupName(t.internalTags)
 		if err != nil {
 			return err
 		}
-		t.Tags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
+		t.internalTags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
 
 		// ensure check only once, but we cannot use there check for metahost's trigger
 		// because user may specify filter 'type: host' and want triggers only for hosts
@@ -182,10 +186,10 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureDescription(&check)
 		}
 		// add children
-		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
+		if _, ok := childSet[t.internalTags["name"]+":"+t.Service]; !ok {
 			check.Update = true
 			child := jugglerChildrenCheck{
-				Host:    t.Tags["name"],
+				Host:    t.internalTags["name"],
 				Type:    "HOST", // FIXME? hardcode, delete?
 				Service: t.Service,
 			}
@@ -406,10 +410,10 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 // sendEvent send juggler event borned by ensureCheck to juggler's
 func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEvent) error {
 	query := url.Values{
-		"status":      {event.Level},
+		"status":      {event.Status},
 		"description": {event.Description},
 		"service":     {event.Service},
-		"host":        {event.Tags["name"]},
+		"host":        {event.Host},
 		"instance":    {""},
 	}
 

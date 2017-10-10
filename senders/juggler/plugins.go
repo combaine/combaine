@@ -152,15 +152,17 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			errs[fmt.Sprintf("Failed to get tags from lua result[%s]", lua.LVAsString(k))] = ""
 			return
 		}
-		je.Tags = make(map[string]string, 0)
+		je.internalTags = make(map[string]string, 0)
 		tags.ForEach(func(tk lua.LValue, tv lua.LValue) {
-			je.Tags[lua.LVAsString(tk)] = lua.LVAsString(tv)
+			je.internalTags[lua.LVAsString(tk)] = lua.LVAsString(tv)
 		})
-		if _, ok := je.Tags["type"]; !ok {
-			name := "UnknownEntity"
-			if entity, ok := je.Tags["name"]; ok {
-				name = entity
-			}
+		name, ok := je.internalTags["name"]
+		if !ok {
+			errs[fmt.Sprintf("Missing tag name in %v", je)] = ""
+			return
+		}
+		je.Host = name
+		if _, ok := je.internalTags["type"]; !ok {
 			errs[fmt.Sprintf("Missing tag type for %s", name)] = ""
 			return
 		}
@@ -171,10 +173,10 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			je.Service = "UnknownServce"
 		}
 		if lvl := lt.RawGetString("level"); lvl != lua.LNil {
-			je.Level = lua.LVAsString(lvl)
+			je.Status = lua.LVAsString(lvl)
 		} else {
 			logger.Errf("%s Missing level in %s plugin result, force status to OK", js.id, js.Plugin)
-			je.Level = "OK"
+			je.Status = "OK"
 			je.Description = fmt.Sprintf("%s (force OK)", je.Description)
 		}
 		events = append(events, je)
