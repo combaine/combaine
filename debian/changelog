@@ -1,3 +1,9 @@
+combaine (0.12.0) trusty; urgency=medium
+
+  * [juggler] implement event batches
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 12 Oct 2017 00:17:32 +0700
+
 combaine (0.11.9) trusty; urgency=medium
 
   * [juggler] send all events to all fronts in parallel
