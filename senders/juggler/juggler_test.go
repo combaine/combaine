@@ -25,7 +25,7 @@ func init() {
 	})
 }
 
-var data []common.AggregationResult
+var data []common.AggregationResult // loaded in TestMain
 var ts *httptest.Server
 
 func DefaultJugglerTestConfig() *Config {

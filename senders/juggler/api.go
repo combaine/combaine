@@ -58,14 +58,14 @@ type aggKWArgs struct {
 }
 
 type jugglerEvent struct {
-	internalTags map[string]string
-	Host         string   `json:"host"`
-	Service      string   `json:"service"`
-	Status       string   `json:"status"`
-	Description  string   `json:"description"`
-	Instance     string   `json:"instance,omitempty"`
-	Version      string   `json:"version,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
+	taskTags    map[string]string
+	Host        string   `json:"host"`
+	Service     string   `json:"service"`
+	Status      string   `json:"status"`
+	Description string   `json:"description"`
+	Instance    string   `json:"instance,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 type jugglerBatchResponse struct {
@@ -173,11 +173,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
-		subgroup, err := common.GetSubgroupName(t.internalTags)
+		subgroup, err := common.GetSubgroupName(t.taskTags)
 		if err != nil {
 			return err
 		}
-		t.internalTags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
+		childName := fmt.Sprintf("%s-%s", js.Host, subgroup)
 
 		// ensure check only once, but we cannot use there check for metahost's trigger
 		// because user may specify filter 'type: host' and want triggers only for hosts
@@ -199,10 +199,10 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureDescription(&check)
 		}
 		// add children
-		if _, ok := childSet[t.internalTags["name"]+":"+t.Service]; !ok {
+		if _, ok := childSet[childName+":"+t.Service]; !ok {
 			check.Update = true
 			child := jugglerChildrenCheck{
-				Host:    t.internalTags["name"],
+				Host:    childName,
 				Type:    "HOST", // FIXME? hardcode, delete?
 				Service: t.Service,
 			}

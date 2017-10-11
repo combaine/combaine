@@ -23,7 +23,7 @@ function run()
     end
     result[#result + 1] = {
         tags = {name="nonExisting", type="host"},
-        description = "check not not present on juggler servers",
+        description = "check not present on juggler servers",
         level = "OK",
         service = "nonExisting",
     }

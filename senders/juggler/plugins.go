@@ -152,17 +152,17 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			errs[fmt.Sprintf("Failed to get tags from lua result[%s]", lua.LVAsString(k))] = ""
 			return
 		}
-		je.internalTags = make(map[string]string, 0)
+		je.taskTags = make(map[string]string, 0)
 		tags.ForEach(func(tk lua.LValue, tv lua.LValue) {
-			je.internalTags[lua.LVAsString(tk)] = lua.LVAsString(tv)
+			je.taskTags[lua.LVAsString(tk)] = lua.LVAsString(tv)
 		})
-		name, ok := je.internalTags["name"]
+		name, ok := je.taskTags["name"]
 		if !ok {
 			errs[fmt.Sprintf("Missing tag name in %v", je)] = ""
 			return
 		}
 		je.Host = name
-		if _, ok := je.internalTags["type"]; !ok {
+		if _, ok := je.taskTags["type"]; !ok {
 			errs[fmt.Sprintf("Missing tag type for %s", name)] = ""
 			return
 		}

@@ -1,0 +1,52 @@
+{
+  "backend": {
+    "upstream_timings": {
+      "refresh_time": 90,
+      "description": "description for check",
+      "tags": [ "combaine" ],
+      "aggregator": "timed_more_than_limit_is_problem",
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          { "crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1 }
+        ]
+      },
+      "ttl": 900,
+      "flap_time": 10,
+      "critical_time": 90,
+      "boost_time": 0,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend-backend-DC3",
+          "type": "HOST",
+          "service": "upstream_timings"
+        }
+      ],
+      "methods": [ "GOLEM" ]
+    },
+    "2xx": {
+      "refresh_time": 90,
+      "description": "2xx",
+      "service": "2xx",
+      "aggregator": "timed_more_than_limit_is_problem",
+      "tags": [ "Yep" ],
+      "aggregator_kwargs": {
+        "ignore_nodata": 1,
+        "limits": [
+          { "crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1 }
+        ]
+      },
+      "ttl": 900,
+      "children": [
+        {
+          "instance": "",
+          "host": "backend",
+          "type": "HOST",
+          "service": "2xx"
+        }
+      ],
+      "methods": [ "GOLEM", "NASA" ]
+    }
+  }
+}

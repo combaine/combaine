@@ -23,6 +23,12 @@ var commonJPluginConfig = map[string]interface{}{
 			"status": "CRIT",
 			"limit":  30,
 		},
+		"test2xx": map[string]interface{}{
+			"type":   "metahost",
+			"query":  "2xx$",
+			"status": "CRIT",
+			"limit":  2000,
+		},
 	},
 }
 
@@ -79,17 +85,22 @@ func TestGetCheck(t *testing.T) {
 
 func TestEnsureCheck(t *testing.T) {
 	cases := []struct {
-		name string
-		tags map[string][]string
+		name      string
+		tags      map[string][]string
+		withError bool
 	}{
 		{"hostname_from_config", map[string][]string{
 			"type2_timings":  {"app", "combaine"},
 			"common_log_err": {"common", "combaine"},
-		}},
+		}, false},
 		{"frontend", map[string][]string{
 			"ssl_handshake_timings": {"app", "front", "core", "combaine"},
 			"4xx": {"combaine"},
-		}},
+		}, false},
+		{"backend", map[string][]string{
+			"2xx": {"Yep", "app", "back", "core", "combaine"},
+		}, false},
+		{"missing", map[string][]string{}, true},
 	}
 
 	jconf := DefaultJugglerTestConfig()
@@ -110,19 +121,33 @@ func TestEnsureCheck(t *testing.T) {
 
 	jEvents, err := js.runPlugin()
 	assert.NoError(t, err)
-	t.Logf("juggler events: %v", jEvents)
+	t.Logf("juggler events: %#v", jEvents)
 
 	ctx := context.TODO()
 	for _, c := range cases {
 		js.Host = c.name
 		checks, err := js.getCheck(ctx)
+		t.Logf("juggler checks: %#v", checks)
+		if c.withError {
+			assert.Error(t, err)
+			continue
+		}
+		if c.name == "backend" {
+			// remove first tag, ensureCheck should add it again
+			js.Tags = c.tags["2xx"][1:]
+			js.ChecksOptions["2xx"] = jugglerFlapConfig{
+				Enable: 1, StableTime: 10, CriticalTime: 3000,
+			}
+		}
 		assert.NoError(t, err)
 		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
 		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
-		js.Tags = []string{} // reset tags here for coverage purpose
 		for service, tags := range c.tags {
 			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
 		}
+		// reset tags here for coverage purpose
+		js.Tags = []string{}
+		js.ChecksOptions = map[string]jugglerFlapConfig{}
 	}
 	// non existing check check
 	js.Host = "someHost"
@@ -161,7 +186,7 @@ func TestSendBatch(t *testing.T) {
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
 			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/6 events")
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/8 events")
 		}
 	}
 }
@@ -194,7 +219,7 @@ func TestSendEvent(t *testing.T) {
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
 			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 8/16 events")
 		}
 	}
 }

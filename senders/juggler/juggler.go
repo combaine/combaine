@@ -167,7 +167,6 @@ SEND_LOOP:
 		switch err {
 		case nil:
 			responseBody, err = ioutil.ReadAll(resp.Body)
-			logger.Errf("Response from JUGGLER %s", responseBody)
 			if err != nil {
 				logger.Errf("%s Failed to read response from %s: %s", js.id, endpoint, err)
 			}
