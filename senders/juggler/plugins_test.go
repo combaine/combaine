@@ -91,7 +91,7 @@ func TestPluginSimple(t *testing.T) {
 		t.Logf("%v: %v", c, events)
 		actualFire := false
 		for _, e := range events {
-			if e.Level == "CRIT" {
+			if e.Status == "CRIT" {
 				actualFire = true
 			}
 		}

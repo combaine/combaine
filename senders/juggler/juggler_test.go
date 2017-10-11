@@ -2,7 +2,7 @@ package juggler
 
 import (
 	"bytes"
-	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +25,7 @@ func init() {
 	})
 }
 
-var data []common.AggregationResult
+var data []common.AggregationResult // loaded in TestMain
 var ts *httptest.Server
 
 func DefaultJugglerTestConfig() *Config {
@@ -86,23 +86,32 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 }
 
 // Tests
-
-func TestGetJugglerSenderConfig(t *testing.T) {
+func TestUpdateTaskConfig(t *testing.T) {
+	// Errors when config not exists
+	os.Setenv("JUGGLER_CONFIG", "")
+	_, err := GetSenderConfig()
+	assert.Error(t, err)
 	testConf := "testdata/config/nonExistingJugglerConfig.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err := GetSenderConfig()
+	_, err = GetSenderConfig()
 	assert.Error(t, err)
 
+	// config exists and tests for config parsing
 	testConf = "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
-	conf, err = GetSenderConfig()
+	conf, err := GetSenderConfig()
+	assert.NoError(t, err)
 	assert.Equal(t, conf.Hosts[0], "host1")
 
 	testConf = "testdata/config/without_fronts.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
 	conf, err = GetSenderConfig()
-	assert.Equal(t, conf.Frontend, conf.Hosts)
+	assert.NoError(t, err)
 	assert.Equal(t, conf.PluginsDir, defaultPluginsDir)
+	var taskConf Config
+	assert.NoError(t, UpdateTaskConfig(&taskConf, conf))
+	assert.NotNil(t, taskConf.JFrontend)
+	assert.Equal(t, taskConf.JFrontend, taskConf.JHosts)
 
 }
 
@@ -182,177 +191,6 @@ func TestQueryLuaTable(t *testing.T) {
 	assert.Len(t, events, 32)
 }
 
-func TestGetCheck(t *testing.T) {
-	jconf := DefaultJugglerTestConfig()
-	jconf.JHosts = []string{"localhost:3333"}
-	jconf.JFrontend = []string{ts.Listener.Addr().String()}
-
-	js, err := NewSender(jconf, "Test ID")
-	assert.NoError(t, err)
-	_, err = js.getCheck(context.TODO())
-	assert.Error(t, err)
-
-	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
-	js, err = NewSender(jconf, "Test ID")
-	cases := []struct {
-		name      string
-		exists    bool
-		len       int
-		withFlaps map[string]*jugglerFlapConfig
-	}{
-		{"hostname_from_config", true, 5, map[string]*jugglerFlapConfig{
-			"type1_timings":  nil,
-			"type2_timings":  {StableTime: 60, CriticalTime: 90},
-			"prod-app_5xx":   nil,
-			"common_log_err": nil,
-			"api_5xx":        nil,
-		}},
-		{"frontend", true, 4, map[string]*jugglerFlapConfig{
-			"upstream_timings":      nil,
-			"ssl_handshake_timings": {StableTime: 60, CriticalTime: 90},
-			"4xx": nil,
-			"2xx": nil,
-		}},
-		{"nonExisting", false, 0, make(map[string]*jugglerFlapConfig)},
-	}
-
-	ctx := context.TODO()
-	for _, c := range cases {
-		js.Host = c.name
-		jugglerResp, err := js.getCheck(ctx)
-		if c.exists {
-			assert.NoError(t, err)
-		} else {
-			assert.Contains(t, fmt.Sprintf("%v", err), "no such file")
-		}
-		assert.Len(t, jugglerResp[js.Host], c.len)
-
-		for k, v := range c.withFlaps {
-			assert.Equal(t, v, jugglerResp[c.name][k].Flap)
-		}
-	}
-}
-
-func TestEnsureCheck(t *testing.T) {
-	cases := []struct {
-		name string
-		tags map[string][]string
-	}{
-		{"hostname_from_config", map[string][]string{
-			"type2_timings":  {"app", "combaine"},
-			"common_log_err": {"common", "combaine"},
-		}},
-		{"frontend", map[string][]string{
-			"ssl_handshake_timings": {"app", "front", "core", "combaine"},
-			"4xx": {"combaine"},
-		}},
-	}
-
-	jconf := DefaultJugglerTestConfig()
-	jconf.Flap = &jugglerFlapConfig{Enable: 1, StableTime: 60}
-	jconf.JPluginConfig = map[string]interface{}{
-		"checks": map[string]interface{}{
-			"testTimings": map[string]interface{}{
-				"type":       "metahost",
-				"query":      ".+_timings$",
-				"percentile": 6, // 97
-				"status":     "WARN",
-				"limit":      0.900, // second
-			},
-			"testErr": map[string]interface{}{
-				"type":   "metahost",
-				"query":  "[4e][xr][xr]$",
-				"status": "CRIT",
-				"limit":  30,
-			},
-		},
-	}
-
-	jconf.JHosts = []string{ts.Listener.Addr().String()}
-	jconf.JFrontend = []string{ts.Listener.Addr().String()}
-	jconf.Plugin = "test_ensure_check"
-
-	js, err := NewSender(jconf, "Test ID")
-	assert.NoError(t, err)
-
-	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
-	assert.NoError(t, err)
-	js.state = state
-	assert.NoError(t, js.preparePluginEnv(data))
-
-	jEvents, err := js.runPlugin()
-	assert.NoError(t, err)
-	t.Logf("juggler events: %v", jEvents)
-
-	ctx := context.TODO()
-	for _, c := range cases {
-		js.Host = c.name
-		checks, err := js.getCheck(ctx)
-		assert.NoError(t, err)
-		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
-		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
-		js.Tags = []string{} // reset tags here for coverage purpose
-		for service, tags := range c.tags {
-			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
-		}
-	}
-	// non existing check check
-	js.Host = "someHost"
-	checks := map[string]map[string]jugglerCheck{"nonExistingHost": {
-		"nonExistingCheck": jugglerCheck{},
-	}}
-	assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
-}
-
-func TestSendEvent(t *testing.T) {
-	jconf := DefaultJugglerTestConfig()
-
-	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{IgnoreNoData: 1,
-		Limits: []map[string]interface{}{
-			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
-		}}
-
-	jconf.JPluginConfig = map[string]interface{}{
-		"checks": map[string]interface{}{
-			"testTimings": map[string]interface{}{
-				"type":       "metahost",
-				"query":      ".+_timings$",
-				"percentile": 6, // 97
-				"status":     "WARN",
-				"limit":      0.900, // second
-			},
-			"testErr": map[string]interface{}{
-				"type":   "metahost",
-				"query":  "[4e][xr][xr]$",
-				"status": "CRIT",
-				"limit":  30,
-			},
-		},
-	}
-	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
-	jconf.JFrontend = []string{"localhost:3333", ts.Listener.Addr().String()}
-	jconf.Plugin = "test_ensure_check"
-
-	cases := []string{"hostname_from_config", "deadline", "frontend"}
-	for _, c := range cases {
-		jconf.Host = c
-		if c == "deadline" {
-			js, err := NewSender(jconf, "Test ID")
-			assert.NoError(t, err)
-			ctx, cancel := context.WithTimeout(context.Background(), 1)
-			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, data)), context.DeadlineExceeded.Error())
-			cancel()
-		} else {
-			js, err := NewSender(jconf, "Test ID")
-			assert.NoError(t, err)
-			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 6/12 events")
-		}
-	}
-}
-
 func TestMain(m *testing.M) {
 	dataYaml, yerr := ioutil.ReadFile("testdata/payload.yaml")
 	if yerr != nil {
@@ -388,9 +226,33 @@ func TestMain(m *testing.M) {
 			}
 			w.WriteHeader(200)
 			io.Copy(w, bytes.NewReader(reqBytes))
-			//fmt.Fprintln(w, reqJSON)
 		case "/juggler-fcgi.py":
 			fmt.Fprintln(w, "OK")
+		case "/events":
+			reqBytes, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				w.WriteHeader(500)
+				fmt.Fprintln(w, err)
+			}
+			w.WriteHeader(200)
+			var jEvents []jugglerEvent
+			err = json.Unmarshal(reqBytes, &jEvents)
+			if err != nil {
+				w.WriteHeader(500)
+				fmt.Fprintln(w, err)
+			}
+			var jResp jugglerBatchResponse
+			for _, e := range jEvents {
+				code := 200
+				if e.Host == "nonExisting" {
+					code = 400
+				}
+				jResp.Events = append(jResp.Events, jugglerBatchEventReport{
+					Message: "error for nonExisting, just test case with error",
+					Code:    code,
+				})
+			}
+			json.NewEncoder(w).Encode(jResp)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintln(w, "Not Found")

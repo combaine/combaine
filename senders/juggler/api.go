@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -59,10 +58,28 @@ type aggKWArgs struct {
 }
 
 type jugglerEvent struct {
-	Tags        map[string]string
-	Service     string
-	Description string
-	Level       string
+	taskTags    map[string]string
+	Host        string   `json:"host"`
+	Service     string   `json:"service"`
+	Status      string   `json:"status"`
+	Description string   `json:"description"`
+	Instance    string   `json:"instance,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+}
+
+type jugglerBatchResponse struct {
+	Events []jugglerBatchEventReport `json:"events"`
+	Error  *jugglerBatchError        `json:"error"`
+}
+type jugglerBatchEventReport struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}
+type jugglerBatchError struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+	Label   string `json:"label"`
 }
 
 // getCheck query juggler api for check
@@ -156,11 +173,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
-		subgroup, err := common.GetSubgroupName(t.Tags)
+		subgroup, err := common.GetSubgroupName(t.taskTags)
 		if err != nil {
 			return err
 		}
-		t.Tags["name"] = fmt.Sprintf("%s-%s", js.Host, subgroup)
+		childName := fmt.Sprintf("%s-%s", js.Host, subgroup)
 
 		// ensure check only once, but we cannot use there check for metahost's trigger
 		// because user may specify filter 'type: host' and want triggers only for hosts
@@ -182,10 +199,10 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureDescription(&check)
 		}
 		// add children
-		if _, ok := childSet[t.Tags["name"]+":"+t.Service]; !ok {
+		if _, ok := childSet[childName+":"+t.Service]; !ok {
 			check.Update = true
 			child := jugglerChildrenCheck{
-				Host:    t.Tags["name"],
+				Host:    childName,
 				Type:    "HOST", // FIXME? hardcode, delete?
 				Service: t.Service,
 			}
@@ -401,36 +418,4 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	}
 	logger.Errf("%s failed to sent update check for %v", js.id, check)
 	return fmt.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
-}
-
-// sendEvent send juggler event borned by ensureCheck to juggler's
-func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEvent) error {
-	query := url.Values{
-		"status":      {event.Level},
-		"description": {event.Description},
-		"service":     {event.Service},
-		"host":        {event.Tags["name"]},
-		"instance":    {""},
-	}
-
-	url := fmt.Sprintf(sendEventURL, front, query.Encode())
-	logger.Debugf("%s Send event %s", js.id, url)
-	resp, err := httpclient.Get(ctx, url)
-	if err != nil {
-		logger.Errf("%s %s", js.id, err)
-		return err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logger.Errf("%s %s", js.id, err)
-		return err
-	}
-	logger.Infof("%s Response %s: %d - %q", js.id, url, resp.StatusCode, body)
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New(string(body))
-	}
-	return nil
 }

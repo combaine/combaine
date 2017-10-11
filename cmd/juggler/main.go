@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
@@ -11,15 +10,13 @@ import (
 	"github.com/combaine/combaine/senders/juggler"
 )
 
-const defaultPlugin = "simple"
-
-var defaultTimeout = 5 * time.Second
-
 type senderTask struct {
 	ID     string `codec:"Id"`
 	Data   []common.AggregationResult
 	Config juggler.Config
 }
+
+var senderConfig *juggler.SenderConfig
 
 func send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
@@ -35,35 +32,11 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	juggler.StringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
 	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
-	sConf, err := juggler.GetSenderConfig()
+	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)
 	if err != nil {
-		logger.Errf("%s Failed to read juggler config %s", task.ID, err)
+		logger.Errf("%s Failed to update task config %s", task.ID, err)
 		return
 	}
-	if sConf.Frontend == nil {
-		sConf.Frontend = sConf.Hosts
-	}
-	if task.Config.JHosts == nil {
-		if sConf.Hosts == nil {
-			logger.Errf("%s juggler hosts not defined", task.ID)
-			return
-		}
-		// if jhosts not in PluginConfig override both jhosts and jfrontend
-		task.Config.JHosts = sConf.Hosts
-		task.Config.JFrontend = sConf.Frontend
-	} else {
-		if task.Config.JFrontend == nil {
-			// jhost is by default used as jfrontend
-			task.Config.JFrontend = task.Config.JHosts
-		}
-	}
-	if task.Config.PluginsDir == "" {
-		task.Config.PluginsDir = sConf.PluginsDir
-	}
-	if task.Config.Plugin == "" {
-		task.Config.Plugin = defaultPlugin
-	}
-	juggler.GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
 	logger.Debugf("%s Task: %v", task.ID, task)
 
 	jCli, err := juggler.NewSender(&task.Config, task.ID)
@@ -72,7 +45,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), juggler.DefaultTimeout)
 	defer cancel()
 	err = jCli.Send(ctx, task.Data)
 	if err != nil {
@@ -83,8 +56,15 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 }
 
 func main() {
+	var err error
+	senderConfig, err = juggler.GetSenderConfig()
+	if err != nil {
+		log.Fatalf("Failed to load sender config %s", err)
+	}
+
 	juggler.InitializeLogger(logger.MustCreateLogger)
 
+	juggler.GlobalCache.TuneCache(senderConfig.CacheTTL, senderConfig.CacheCleanInterval)
 	binds := map[string]cocaine.EventHandler{
 		"send": send,
 	}

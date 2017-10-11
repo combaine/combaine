@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"time"
@@ -12,8 +13,13 @@ import (
 
 const (
 	defaultConfigPath = "/etc/combaine/juggler.yaml"
+	defaultPlugin     = "simple"
 	defaultPluginsDir = "/usr/lib/yandex/combaine/juggler"
+	defaultBatchSize  = 50 // send 50 events in one batch
 )
+
+// default send timout
+var DefaultTimeout = 5 * time.Second
 
 // Config contains config section from combainer's aggregations section
 // also it include defaultConfigPath (or user specified) yaml config
@@ -39,6 +45,8 @@ type Config struct {
 	INFO             []string                     `codec:"INFO"`
 	WARN             []string                     `codec:"WARN"`
 	CRIT             []string                     `codec:"CRIT"`
+	BatchSize        int                          `codec:"batch_size"`
+	BatchEndpoint    string                       `codec:"batch_endpoint"`
 }
 
 // SenderConfig contains configuration loaded from combaine's config file
@@ -49,6 +57,8 @@ type SenderConfig struct {
 	PluginsDir         string        `yaml:"plugins_dir"`
 	Hosts              []string      `yaml:"juggler_hosts"`
 	Frontend           []string      `yaml:"juggler_frontend"`
+	BatchSize          int           `yaml:"batch_size"`
+	BatchEndpoint      string        `yaml:"batch_endpoint"`
 }
 
 // StringifyAggregatorLimits check all AggregatorLimits values
@@ -75,9 +85,9 @@ func EnsureDefaultTag(jtags []string) []string {
 	return append(jtags, "combaine")
 }
 
-// GetSenderConfig read yaml file with two arrays of hosts
-// if juggler_frontend not defined, use juggler_hosts as frontend
-func GetSenderConfig() (conf SenderConfig, err error) {
+// GetSenderConfig read global sender config
+// usual from /etc/combaine/juggler.yaml
+func GetSenderConfig() (*SenderConfig, error) {
 	var path = os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
 		path = defaultConfigPath
@@ -85,28 +95,57 @@ func GetSenderConfig() (conf SenderConfig, err error) {
 
 	rawConfig, err := ioutil.ReadFile(path)
 	if err != nil {
-		return
+		return nil, err
 	}
-	err = yaml.Unmarshal(rawConfig, &conf)
+	var sConf SenderConfig
+	err = yaml.Unmarshal(rawConfig, &sConf)
 	if err != nil {
-		return
+		return nil, err
 	}
-	if len(conf.Frontend) == 0 {
-		conf.Frontend = conf.Hosts
+	if sConf.BatchSize == 0 {
+		sConf.BatchSize = defaultBatchSize
 	}
-	if conf.PluginsDir == "" {
-		conf.PluginsDir = defaultPluginsDir
+	if sConf.PluginsDir == "" {
+		sConf.PluginsDir = defaultPluginsDir
 	}
+	if sConf.CacheTTL == 0 {
+		sConf.CacheTTL = 60
+	}
+	if sConf.CacheCleanInterval == 0 {
+		sConf.CacheCleanInterval = sConf.CacheTTL * 5
+	}
+	sConf.CacheTTL *= time.Second
+	sConf.CacheCleanInterval *= time.Second
+	return &sConf, nil
+}
 
-	if conf.CacheTTL == 0 {
-		conf.CacheTTL = 60
+// UpdateTaskConfig update current task config,
+// set default settings if it need
+func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
+	if len(taskConf.JHosts) == 0 {
+		if len(conf.Hosts) == 0 {
+			return errors.New("juggler hosts not defined")
+		}
+		// if jhosts not in PluginConfig override both jhosts and jfrontend
+		taskConf.JHosts = conf.Hosts
+		taskConf.JFrontend = conf.Frontend
 	}
-	if conf.CacheCleanInterval == 0 {
-		conf.CacheCleanInterval = conf.CacheTTL * 5
+	if len(taskConf.JFrontend) == 0 {
+		taskConf.JFrontend = taskConf.JHosts // jhost is by default used as jfrontend
 	}
-	conf.CacheTTL *= time.Second
-	conf.CacheCleanInterval *= time.Second
-	return conf, nil
+	if taskConf.PluginsDir == "" {
+		taskConf.PluginsDir = conf.PluginsDir
+	}
+	if taskConf.Plugin == "" {
+		taskConf.Plugin = defaultPlugin
+	}
+	if taskConf.BatchSize == 0 {
+		taskConf.BatchSize = conf.BatchSize
+	}
+	if taskConf.BatchEndpoint == "" {
+		taskConf.BatchEndpoint = conf.BatchEndpoint
+	}
+	return nil
 }
 
 // DefaultConfig build default config for sender, it has sanity defaults
@@ -126,6 +165,7 @@ func DefaultConfig() *Config {
 		JPluginConfig:    common.PluginConfig{},
 		JHosts:           []string{},
 		JFrontend:        []string{},
+		BatchEndpoint:    "",
 		OK:               []string{},
 		INFO:             []string{},
 		WARN:             []string{},

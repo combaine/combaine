@@ -2,6 +2,7 @@ package juggler
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -70,7 +71,12 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 }
 
 func TestTuneCache(t *testing.T) {
-	sConf, _ := GetSenderConfig()
+	testConf := "testdata/config/juggler_example.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
+	sConf, err := GetSenderConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 	GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
 	assert.Equal(t, sConf.CacheTTL, GlobalCache.ttl)
 	assert.Equal(t, sConf.CacheCleanInterval, GlobalCache.interval)

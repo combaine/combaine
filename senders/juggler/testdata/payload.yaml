@@ -1,4 +1,12 @@
 - Tags:
+    metahost: backend
+    name: backend
+    type: metahost
+    aggregate: nginx
+  Result:
+    "2xx": 13006.5
+
+- Tags:
     metahost: frontend
     name: frontend
     type: metahost
