@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -67,6 +66,20 @@ type jugglerEvent struct {
 	Instance     string   `json:"instance,omitempty"`
 	Version      string   `json:"version,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
+}
+
+type jugglerBatchResponse struct {
+	Events []jugglerBatchEventReport `json:"events"`
+	Error  *jugglerBatchError        `json:"error"`
+}
+type jugglerBatchEventReport struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}
+type jugglerBatchError struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+	Label   string `json:"label"`
 }
 
 // getCheck query juggler api for check
@@ -405,36 +418,4 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	}
 	logger.Errf("%s failed to sent update check for %v", js.id, check)
 	return fmt.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
-}
-
-// sendEvent send juggler event borned by ensureCheck to juggler's
-func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEvent) error {
-	query := url.Values{
-		"status":      {event.Status},
-		"description": {event.Description},
-		"service":     {event.Service},
-		"host":        {event.Host},
-		"instance":    {""},
-	}
-
-	url := fmt.Sprintf(sendEventURL, front, query.Encode())
-	logger.Debugf("%s Send event %s", js.id, url)
-	resp, err := httpclient.Get(ctx, url)
-	if err != nil {
-		logger.Errf("%s %s", js.id, err)
-		return err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		logger.Errf("%s %s", js.id, err)
-		return err
-	}
-	logger.Infof("%s Response %s: %d - %q", js.id, url, resp.StatusCode, body)
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New(string(body))
-	}
-	return nil
 }
