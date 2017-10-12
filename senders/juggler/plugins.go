@@ -52,7 +52,7 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
 		if s, ok := v.([]byte); ok {
-			return dumper(reflect.ValueOf(fmt.Sprintf("%s", s)))
+			return dumper(reflect.ValueOf(string(s)))
 		}
 		inTable := l.NewTable()
 		for i := 0; i < rv.Len(); i++ {
@@ -184,7 +184,7 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 		} else {
 			logger.Errf("%s Missing level in %s plugin result, force status to OK", js.id, js.Plugin)
 			je.Status = "OK"
-			je.Description = fmt.Sprintf("%s (force OK)", je.Description)
+			je.Description = je.Description + " (force OK)"
 		}
 		events = append(events, je)
 	})
@@ -197,7 +197,7 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 // LoadPlugin cleanup lua state global/local environment
 // and load lua plugin by name from juggler config section
 func LoadPlugin(id, dir, name string) (*lua.LState, error) {
-	file := fmt.Sprintf("%s/%s.lua", dir, name)
+	file := dir + "/" + name + ".lua"
 
 	l := lua.NewState()
 	if err := PreloadTools(id, l); err != nil {
