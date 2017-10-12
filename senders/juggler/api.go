@@ -70,6 +70,7 @@ type jugglerEvent struct {
 
 type jugglerBatchRequest struct {
 	Events []jugglerEvent `json:"events"`
+	Source string         `json:"source"`
 }
 
 type jugglerBatchResponse struct {

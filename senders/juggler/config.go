@@ -19,6 +19,7 @@ const (
 )
 
 // default send timout
+var hostname, _ = os.Hostname()
 var DefaultTimeout = 5 * time.Second
 
 // Config contains config section from combainer's aggregations section

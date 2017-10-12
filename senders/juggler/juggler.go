@@ -109,7 +109,10 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 				defer jWg.Done()
 				logger.Infof("%s Send batch %d events to %s", js.id, len(je), f)
 
-				b := jugglerBatchRequest{Events: je}
+				b := jugglerBatchRequest{
+					Events: je,
+					Source: fmt.Sprintf("combainer %s", hostname),
+				}
 				batchJSON, err := json.Marshal(b)
 
 				if err != nil {
