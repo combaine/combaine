@@ -44,17 +44,17 @@ class Custom(object):
         self.reload_interval = 180  # seconds
         self.last_load_time = time()
         self.all_custom_parsers = {}
-        self.plugin_import()
+        self.plugin_import(True)
 
 
-    def plugin_import(self):
+    def plugin_import(self, force=False):
         """
         It tries to import the extensions of a custom aggregator
         in the private namespace and select all the names starting
         with an uppercase letter
         """
 
-        if self.last_load_time + self.reload_interval > time():
+        if not force and self.last_load_time + self.reload_interval > time():
             return
         self.last_load_time = time()
 
