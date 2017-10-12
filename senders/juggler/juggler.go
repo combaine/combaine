@@ -111,7 +111,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 
 				b := jugglerBatchRequest{
 					Events: je,
-					Source: fmt.Sprintf("combainer %s", hostname),
+					Source: "combainer " + hostname,
 				}
 				batchJSON, err := json.Marshal(b)
 
