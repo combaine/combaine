@@ -3,7 +3,6 @@ package juggler
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -235,14 +235,14 @@ func TestMain(m *testing.M) {
 				fmt.Fprintln(w, err)
 			}
 			w.WriteHeader(200)
-			var jEvents []jugglerEvent
-			err = json.Unmarshal(reqBytes, &jEvents)
-			if err != nil {
+			var batch jugglerBatchRequest
+			err = json.Unmarshal(reqBytes, &batch)
+			if err != nil || batch.Events == nil {
 				w.WriteHeader(500)
-				fmt.Fprintln(w, err)
+				fmt.Fprintln(w, errors.Errorf("Unmarshal batch failed %s", err))
 			}
 			var jResp jugglerBatchResponse
-			for _, e := range jEvents {
+			for _, e := range batch.Events {
 				code := 200
 				if e.Host == "nonExisting" {
 					code = 400

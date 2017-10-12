@@ -105,21 +105,23 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 				events = []jugglerEvent{}
 			}
 			jWg.Add(1)
-			go func(b []jugglerEvent, f string) {
+			go func(je []jugglerEvent, f string) {
 				defer jWg.Done()
+				logger.Infof("%s Send batch %d events to %s", js.id, len(je), f)
 
-				logger.Infof("%s Send batch %d events to %s", js.id, len(b), f)
+				b := jugglerBatchRequest{Events: je}
 				batchJSON, err := json.Marshal(b)
+
 				if err != nil {
 					logger.Errf("%s failed to Marshal batch %s", js.id, err)
-					atomic.AddInt32(&sendEeventsFailed, int32(len(b)))
+					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
 					return
 				}
 				respJSON, err := js.sendBatch(ctx, batchJSON, f)
 				logger.Debugf("Juggler response %s", respJSON)
 				if err != nil {
-					atomic.AddInt32(&sendEeventsFailed, int32(len(b)))
-					logger.Errf("%s failed to send juggler batch with %d events: %s", js.id, len(b), err)
+					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
+					logger.Errf("%s failed to send juggler batch with %d events: %s", js.id, len(je), err)
 				}
 				var resp jugglerBatchResponse
 				err = json.Unmarshal(respJSON, &resp)
@@ -129,12 +131,12 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 				}
 				if resp.Error != nil {
 					logger.Errf("%s Failed to send batch: %v", js.id, resp.Error)
-					atomic.AddInt32(&sendEeventsFailed, int32(len(b)))
+					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
 				}
 				for idx, e := range resp.Events {
 					if e.Code != 200 {
 						atomic.AddInt32(&sendEeventsFailed, 1)
-						logger.Errf("%s Failed to send event %v: %s", js.id, b[idx], e.Message)
+						logger.Errf("%s Failed to send event %v: %s", js.id, je[idx], e.Message)
 					}
 				}
 			}(batch, js.Config.BatchEndpoint)
@@ -177,7 +179,7 @@ SEND_LOOP:
 				logger.Infof("%s successfully sent data in %d attempts", js.id, retry)
 				break SEND_LOOP
 			}
-			sendErr = fmt.Errorf("bad status='%d %s', response: %s", resp.StatusCode, resp.Status, responseBody)
+			sendErr = fmt.Errorf("http status='%s', response: %s", resp.Status, responseBody)
 		case context.Canceled, context.DeadlineExceeded:
 			ctx, cancel = context.WithTimeout(context.Background(), DefaultTimeout)
 		default:

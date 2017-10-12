@@ -68,6 +68,10 @@ type jugglerEvent struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
+type jugglerBatchRequest struct {
+	Events []jugglerEvent `json:"events"`
+}
+
 type jugglerBatchResponse struct {
 	Events []jugglerBatchEventReport `json:"events"`
 	Error  *jugglerBatchError        `json:"error"`
