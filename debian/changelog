@@ -1,3 +1,9 @@
+combaine (0.12.3) trusty; urgency=medium
+
+  * [custom] dont reload plugins every aggregate* call
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 13 Oct 2017 01:00:06 +0700
+
 combaine (0.12.2) trusty; urgency=medium
 
   * [juggler] properly set event.Host field
