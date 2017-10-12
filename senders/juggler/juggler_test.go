@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
@@ -244,7 +245,7 @@ func TestMain(m *testing.M) {
 			var jResp jugglerBatchResponse
 			for _, e := range batch.Events {
 				code := 200
-				if e.Host == "nonExisting" {
+				if strings.Contains(e.Host, "nonExisting") {
 					code = 400
 				}
 				jResp.Events = append(jResp.Events, jugglerBatchEventReport{

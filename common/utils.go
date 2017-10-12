@@ -94,7 +94,7 @@ func GetSubgroupName(tags map[string]string) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("Failed to get data tag 'metahost': %q", tags)
 		}
-		subgroup = fmt.Sprintf("%s-%s", meta, subgroup) // meta.host.name + DC1
+		subgroup = meta + "-" + subgroup // meta.host.name + DC1
 	}
 	return subgroup, nil
 }

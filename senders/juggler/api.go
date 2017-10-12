@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
 )
@@ -178,14 +177,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{Update: true}
 		}
-		subgroup, err := common.GetSubgroupName(t.taskTags)
-		if err != nil {
-			return err
-		}
-		childName := fmt.Sprintf("%s-%s", js.Host, subgroup)
 
-		// ensure check only once, but we cannot use there check for metahost's trigger
-		// because user may specify filter 'type: host' and want triggers only for hosts
+		// ensure check only once, but in if we can not
+		// test metahost tag like t.Tags["type"] == "metahost"
+		// because user may specify filter 'type: host'
+		// and there will be triggers only for hosts
 		if _, ok := updated[t.Service]; !ok {
 			updated[t.Service] = struct{}{}
 			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
@@ -203,11 +199,12 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			// description
 			js.ensureDescription(&check)
 		}
+
 		// add children
-		if _, ok := childSet[childName+":"+t.Service]; !ok {
+		if _, ok := childSet[t.Host+":"+t.Service]; !ok {
 			check.Update = true
 			child := jugglerChildrenCheck{
-				Host:    childName,
+				Host:    t.Host,
 				Type:    "HOST", // FIXME? hardcode, delete?
 				Service: t.Service,
 			}

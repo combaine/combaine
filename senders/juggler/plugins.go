@@ -161,11 +161,18 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			errs[fmt.Sprintf("Missing tag name in %v", je)] = ""
 			return
 		}
-		je.Host = name
 		if _, ok := je.taskTags["type"]; !ok {
 			errs[fmt.Sprintf("Missing tag type for %s", name)] = ""
 			return
 		}
+		subgroup, err := common.GetSubgroupName(je.taskTags)
+		if err != nil {
+			errs[fmt.Sprintf("Failed to get subgroup for %s: %s", name, err)] = ""
+			return
+		}
+		// set je.Host, we want set js.Host-subgroup
+		// see common.GetSubgroupName implementation for futher details
+		je.Host = js.Host + "-" + subgroup
 		if je.Description = lua.LVAsString(lt.RawGetString("description")); je.Description == "" {
 			je.Description = "no trigger description"
 		}
