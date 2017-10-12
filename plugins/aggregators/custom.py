@@ -6,6 +6,8 @@ import sys
 import imp
 
 import logging
+from time import time
+
 import msgpack
 # pylint: disable=import-error
 from cocaine.worker import Worker
@@ -18,17 +20,18 @@ LOG.error("INITIALIZE")
 
 LOG = logging.getLogger("combaine")
 LOG.setLevel(logging.DEBUG)
-ch = CocaineHandler()
-formatter = logging.Formatter("%(tid)s %(message)s")
-ch.setFormatter(formatter)
-ch.setLevel(logging.DEBUG)
-LOG.addHandler(ch)
-logger = LOG
+CLH = CocaineHandler()
+CLH.setFormatter(logging.Formatter("%(tid)s %(message)s"))
+CLH.setLevel(logging.DEBUG)
+LOG.addHandler(CLH)
 
 PATH = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
 sys.path.insert(0, PATH)
 
 EXTS = [ext for (ext, _, _) in imp.get_suffixes()]
+
+RELOAD_PLUGIN_INTERVAL = 180  # seconds
+LAST_PLUGIN_LOAD_TIME = time() - (RELOAD_PLUGIN_INTERVAL + 1) # trigger update
 
 
 def _is_plugin(candidate):
@@ -47,10 +50,12 @@ def plugin_import():
     with an uppercase letter
     """
 
+    if LAST_PLUGIN_LOAD_TIME + RELOAD_PLUGIN_INTERVAL > time():
+        return plugin_import.all_custom_parsers
+
+    parsers = {}
     logger = logging.LoggerAdapter(LOG, {"tid": "plugin_import"})
-    modules = set(os.path.splitext(c)[0] for c in os.listdir(PATH)
-                  if _is_plugin(c))
-    all_custom_parsers = {}
+    modules = set(os.path.splitext(c)[0] for c in os.listdir(PATH) if _is_plugin(c))
     for module in modules:
         try:
             mfp, path, descr = imp.find_module(module, [PATH])
@@ -63,7 +68,7 @@ def plugin_import():
             for item in (x for x in dir(_temp) if _is_candidate(x)):
                 candidate = getattr(_temp, item)
                 if callable(candidate):
-                    all_custom_parsers[item] = candidate
+                    parsers[item] = candidate
         except ImportError as err:
             logger.error("ImportError. Module: %s %s" % (module, repr(err)))
         except Exception as err:  # pylint: disable=broad-except
@@ -71,8 +76,9 @@ def plugin_import():
         finally:
             if mfp:
                 mfp.close()
-    logger.debug("%s are available custom plugin for parsing" % str(all_custom_parsers.keys()))
-    return all_custom_parsers
+    logger.debug("%s are available custom plugin for parsing" % parsers.keys())
+    plugin_import.all_custom_parsers = parsers
+    return parsers
 
 
 def aggregate_host(request, response):
@@ -107,6 +113,7 @@ def aggregate_group(request, response):
     Receives a list of results from the aggregate_host,
     and performs aggregation by group
     """
+    logger = LOG
     try:
         raw = yield request.read()
         task = msgpack.unpackb(raw)
