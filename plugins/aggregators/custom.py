@@ -53,6 +53,9 @@ def plugin_import():
     if LAST_PLUGIN_LOAD_TIME + RELOAD_PLUGIN_INTERVAL > time():
         return plugin_import.all_custom_parsers
 
+    global LAST_PLUGIN_LOAD_TIME # pylint: disable=global-statement
+    LAST_PLUGIN_LOAD_TIME = time()
+
     parsers = {}
     logger = logging.LoggerAdapter(LOG, {"tid": "plugin_import"})
     modules = set(os.path.splitext(c)[0] for c in os.listdir(PATH) if _is_plugin(c))
