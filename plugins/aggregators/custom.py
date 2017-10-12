@@ -55,7 +55,7 @@ class Custom(object):
         """
 
         if self.last_load_time + self.reload_interval > time():
-            return self.all_custom_parsers
+            return
         self.last_load_time = time()
 
         parsers = {}
