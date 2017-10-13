@@ -1,3 +1,9 @@
+combaine (0.12.4) trusty; urgency=medium
+
+  * [deploy] deploy default profile.json as profile-default.json
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 13 Oct 2017 22:51:30 +0700
+
 combaine (0.12.3) trusty; urgency=medium
 
   * [custom] dont reload plugins every aggregate* call
