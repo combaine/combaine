@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/rpc"
+	"github.com/pkg/errors"
 )
 
 func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, error) {
@@ -22,11 +22,11 @@ func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, er
 		return nil, common.ErrAppCall
 	}
 	if res.Err() != nil {
-		return nil, fmt.Errorf("task failed %s", res.Err())
+		return nil, errors.Wrap(res.Err(), "task failed")
 	}
 
 	if err := res.Extract(&rawRes); err != nil {
-		return nil, fmt.Errorf("unable to extract result. %s", err.Error())
+		return nil, errors.Wrap(err, "unable to extract result")
 	}
 	return rawRes, nil
 }
@@ -97,7 +97,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 		for subGroup, hosts := range Hosts {
 			subGroupParsingResults := make([][]byte, 0, initCap)
 			for _, host := range hosts {
-				key := fmt.Sprintf("%s;%s", host, name)
+				key := host + ";" + name
 				data, ok := task.ParsingResult.Data[key]
 				if !ok {
 					log.Warnf("unable to aggregte %s, missing result for %s", aggType, key)
