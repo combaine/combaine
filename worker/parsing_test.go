@@ -20,21 +20,6 @@ const (
 	expectedResultLen = 4 // below defined 4 test data
 )
 
-var fch = make(chan string, 2) // do not block fetcher
-
-func NewDummyFetcher(cfg common.PluginConfig) (Fetcher, error) {
-	return &fether{c: cfg}, nil
-}
-
-type fether struct {
-	c common.PluginConfig
-}
-
-func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
-	fch <- string(f.c["timetail_url"].([]byte))
-	return common.Pack(*task)
-}
-
 func TestParsing(t *testing.T) {
 	logrus.SetLevel(logrus.InfoLevel)
 
