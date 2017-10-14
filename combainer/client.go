@@ -253,7 +253,7 @@ func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, er
 	if len(hosts) == 0 {
 		return nil, errors.New("empty list of hosts")
 	}
-	for idx := range rand.Perm(len(hosts)) {
+	for _, idx := range rand.Perm(len(hosts)) {
 		// TODO: port must be got from autodiscovery
 		address := hosts[idx] + ":10052"
 		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)

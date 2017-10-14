@@ -18,7 +18,7 @@ type Resolver interface {
 type resolverV11 struct{}
 
 func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (Worker, error) {
-	for idx := range rand.Perm(len(hosts)) {
+	for _, idx := range rand.Perm(len(hosts)) {
 		// TODO: port must be got from autodiscovery
 		address := hosts[idx] + ":10052"
 		select {
