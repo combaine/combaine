@@ -51,16 +51,6 @@ func NewClient(cache cache.Cache, repo common.Repository) (*Client, error) {
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{"config": config}).Info("updating session parametrs")
 
-	var (
-		// tasks
-		pTasks   []rpc.ParsingTask
-		aggTasks []rpc.AggregatingTask
-
-		// timeouts
-		parsingTime time.Duration
-		wholeTime   time.Duration
-	)
-
 	encodedParsingConfig, err := cl.repository.GetParsingConfig(config)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to load config")
@@ -122,29 +112,31 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	packedHosts, _ := common.Pack(allHosts)
 
 	// Tasks for parsing
-	for _, host := range listOfHosts {
-		pTasks = append(pTasks, rpc.ParsingTask{
+	pTasks := make([]rpc.ParsingTask, len(listOfHosts))
+	for idx, host := range listOfHosts {
+		pTasks[idx] = rpc.ParsingTask{
 			Frame:                     new(rpc.TimeFrame),
 			Host:                      host,
 			ParsingConfigName:         config,
 			EncodedParsingConfig:      packedParsingConfig,
 			EncodedAggregationConfigs: packedAggregationConfigs,
-		})
+		}
 	}
 
-	for _, name := range parsingConfig.AggConfigs {
+	aggTasks := make([]rpc.AggregatingTask, len(parsingConfig.AggConfigs))
+	for idx, name := range parsingConfig.AggConfigs {
 		packedAggregationConfig, _ := common.Pack((*aggregationConfigs)[name])
-		aggTasks = append(aggTasks, rpc.AggregatingTask{
+		aggTasks[idx] = rpc.AggregatingTask{
 			Frame:                    new(rpc.TimeFrame),
 			Config:                   name,
 			ParsingConfigName:        config,
 			EncodedParsingConfig:     packedParsingConfig,
 			EncodedAggregationConfig: packedAggregationConfig,
 			EncodedHosts:             packedHosts,
-		})
+		}
 	}
 
-	parsingTime, wholeTime = generateSessionTimeFrame(parsingConfig.IterationDuration)
+	parsingTime, wholeTime := generateSessionTimeFrame(parsingConfig.IterationDuration)
 
 	sp = &sessionParams{
 		ParallelParsings: parallelParsings,
