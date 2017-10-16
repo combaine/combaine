@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"fmt"
+	"math/rand"
 	"time"
 
 	"golang.org/x/net/context"
@@ -18,10 +18,11 @@ type Resolver interface {
 type resolverV11 struct{}
 
 func (r resolverV11) Resolve(ctx context.Context, name string, hosts []string) (Worker, error) {
-	for range hosts {
-		host := fmt.Sprintf("%s:10053", common.GetRandomString(hosts))
+	for _, idx := range rand.Perm(len(hosts)) {
+		// TODO: port must be got from autodiscovery
+		address := hosts[idx] + ":10052"
 		select {
-		case r := <-resolve(name, host):
+		case r := <-resolve(name, address):
 			err, app := r.Err, r.App
 			if err == nil {
 				return &workerV11{app}, nil

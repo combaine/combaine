@@ -1,7 +1,7 @@
 package combainer
 
 import (
-	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
@@ -49,16 +50,6 @@ func NewClient(cache cache.Cache, repo common.Repository) (*Client, error) {
 
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{"config": config}).Info("updating session parametrs")
-
-	var (
-		// tasks
-		pTasks   []rpc.ParsingTask
-		aggTasks []rpc.AggregatingTask
-
-		// timeouts
-		parsingTime time.Duration
-		wholeTime   time.Duration
-	)
 
 	encodedParsingConfig, err := cl.repository.GetParsingConfig(config)
 	if err != nil {
@@ -102,12 +93,13 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	listOfHosts := allHosts.AllHosts()
 
 	if len(listOfHosts) == 0 {
-		err := fmt.Errorf("No hosts in given groups")
+		err := errors.New("No hosts in given groups")
 		cl.Log.WithFields(logrus.Fields{"config": config, "group": parsingConfig.Groups}).Warn("no hosts in given groups")
 		return nil, err
 	}
 
-	cl.Log.WithFields(logrus.Fields{"config": config}).Infof("hosts: %s", listOfHosts)
+	cl.Log.WithFields(logrus.Fields{"config": config}).Infof("Processing %d hosts in task", len(listOfHosts))
+	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("hosts: %s", listOfHosts)
 
 	parallelParsings := len(listOfHosts)
 	if parsingConfig.ParallelParsings > 0 && parallelParsings > parsingConfig.ParallelParsings {
@@ -120,29 +112,31 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	packedHosts, _ := common.Pack(allHosts)
 
 	// Tasks for parsing
-	for _, host := range listOfHosts {
-		pTasks = append(pTasks, rpc.ParsingTask{
+	pTasks := make([]rpc.ParsingTask, len(listOfHosts))
+	for idx, host := range listOfHosts {
+		pTasks[idx] = rpc.ParsingTask{
 			Frame:                     new(rpc.TimeFrame),
 			Host:                      host,
 			ParsingConfigName:         config,
 			EncodedParsingConfig:      packedParsingConfig,
 			EncodedAggregationConfigs: packedAggregationConfigs,
-		})
+		}
 	}
 
-	for _, name := range parsingConfig.AggConfigs {
+	aggTasks := make([]rpc.AggregatingTask, len(parsingConfig.AggConfigs))
+	for idx, name := range parsingConfig.AggConfigs {
 		packedAggregationConfig, _ := common.Pack((*aggregationConfigs)[name])
-		aggTasks = append(aggTasks, rpc.AggregatingTask{
+		aggTasks[idx] = rpc.AggregatingTask{
 			Frame:                    new(rpc.TimeFrame),
 			Config:                   name,
 			ParsingConfigName:        config,
 			EncodedParsingConfig:     packedParsingConfig,
 			EncodedAggregationConfig: packedAggregationConfig,
 			EncodedHosts:             packedHosts,
-		})
+		}
 	}
 
-	parsingTime, wholeTime = generateSessionTimeFrame(parsingConfig.IterationDuration)
+	parsingTime, wholeTime := generateSessionTimeFrame(parsingConfig.IterationDuration)
 
 	sp = &sessionParams{
 		ParallelParsings: parallelParsings,
@@ -249,12 +243,11 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
 	if len(hosts) == 0 {
-		return nil, fmt.Errorf("empty list of hosts")
+		return nil, errors.New("empty list of hosts")
 	}
-RETURN:
-	for range hosts {
+	for _, idx := range rand.Perm(len(hosts)) {
 		// TODO: port must be got from autodiscovery
-		address := fmt.Sprintf("%s:10052", common.GetRandomString(hosts))
+		address := hosts[idx] + ":10052"
 		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
 		conn, err = grpc.DialContext(tctx, address,
 			grpc.WithInsecure(),
@@ -262,36 +255,23 @@ RETURN:
 			grpc.WithCompressor(grpc.NewGZIPCompressor()),
 			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
 		)
-		select {
-		// check that main context is not exceeded
-		// because below we cannot distinguish it from tctx
-		case <-ctx.Done():
-			err = ctx.Err()
-			tcancel()
-			break RETURN
-		default:
-		}
-
+		tcancel()
 		switch err {
 		case nil:
-			break RETURN
-		case context.Canceled, context.DeadlineExceeded:
-			tcancel()
+			return conn, nil
 		default:
-			tcancel()
-			// NOTE: to be sure that DialContext returns context's errors
-			if err = ctx.Err(); err != nil {
-				break RETURN
-			}
+		}
+		// NOTE: to be sure that DialContext return parent context's errors
+		if parent_err := ctx.Err(); parent_err != nil {
+			err = parent_err
+			break
 		}
 	}
-	if err != nil {
-		if conn != nil {
-			conn.Close()
-			conn = nil
-		}
+	if conn != nil {
+		conn.Close()
+		conn = nil
 	}
-	return conn, err
+	return nil, err
 }
 
 func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, hosts []string, r rpc.ParsingResult) {

@@ -99,15 +99,6 @@ func GetSubgroupName(tags map[string]string) (string, error) {
 	return subgroup, nil
 }
 
-// GetRandomString return random string from given array of strings
-func GetRandomString(input []string) string {
-	max := len(input)
-	if max == 0 {
-		return ""
-	}
-	return input[rand.Intn(max)]
-}
-
 // GenerateSessionID = uuid.New
 func GenerateSessionID() string {
 	var buf = make([]byte, 0, 16)

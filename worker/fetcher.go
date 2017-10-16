@@ -1,10 +1,10 @@
 package worker
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/combaine/combaine/common"
+	"github.com/pkg/errors"
 )
 
 var fLock sync.Mutex
@@ -23,7 +23,7 @@ type Fetcher interface {
 func NewFetcher(name string, cfg common.PluginConfig) (f Fetcher, err error) {
 	initializer, ok := fetchers[name]
 	if !ok {
-		err = fmt.Errorf("Fetcher %s isn't available", name)
+		err = errors.New("Fetcher " + name + " isn't available")
 		return
 	}
 

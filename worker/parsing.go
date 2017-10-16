@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -104,7 +103,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 					return
 				}
 
-				key := fmt.Sprintf("%s;%s", task.Host, k)
+				key := task.Host + ";" + k
 				select {
 				case res := <-app.Call("enqueue", "aggregate_host", t):
 					if res == nil {
