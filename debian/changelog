@@ -1,3 +1,9 @@
+combaine (0.12.5) trusty; urgency=medium
+
+  * fix client connect randomization
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Sun, 15 Oct 2017 15:05:15 +0700
+
 combaine (0.12.4) trusty; urgency=medium
 
   * [deploy] deploy default profile.json as profile-default.json
