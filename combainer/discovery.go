@@ -11,11 +11,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/hosts"
-	"github.com/combaine/combaine/common/httpclient"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -34,8 +35,7 @@ const fetcherCacheNamespace = "simpleFetcherCacheNamespace"
 type FetcherLoader func(cache.Cache, map[string]interface{}) (HostFetcher, error)
 
 var (
-	fetchers   = make(map[string]FetcherLoader)
-	httpClient = httpclient.NewClientWithTimeout(1*time.Second, 3*time.Second)
+	fetchers = make(map[string]FetcherLoader)
 )
 
 // RegisterFetcherLoader register new fetcher loader function
@@ -152,7 +152,9 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return nil, common.ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
-	resp, err := httpClient.Get(url)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	resp, err := ctxhttp.Get(ctx, nil, url)
 	var body []byte
 	if err != nil {
 		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)

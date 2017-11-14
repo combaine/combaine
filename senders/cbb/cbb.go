@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
 	"github.com/combaine/combaine/common/logger"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // Config contains aggregation config and local sender configs
@@ -161,7 +161,7 @@ func (c *Sender) Send(ctx context.Context, data []common.AggregationResult, time
 		return err
 	}
 	for _, query := range requests {
-		resp, err := httpclient.Get(ctx, query)
+		resp, err := ctxhttp.Get(ctx, nil, query)
 		if err != nil {
 			return err
 		}
