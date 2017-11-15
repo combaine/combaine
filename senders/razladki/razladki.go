@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 // Config containse fields from compbainer task config
@@ -203,7 +203,7 @@ func (r *Sender) Send(ctx context.Context, data []common.AggregationResult, time
 		return err
 	}
 
-	resp, err := ctxhttp.Do(ctx, nil, req)
+	resp, err := chttp.Do(ctx, req)
 	if err != nil {
 		logger.Errf("%s unable to do http request: %v", r.id, err)
 		return err

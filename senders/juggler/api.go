@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 const (
@@ -108,7 +108,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 			url := fmt.Sprintf(getChecksURL, jhost, q)
 			logger.Infof("%s Query check %s", id, url)
 
-			resp, err := ctxhttp.Get(ctx, nil, url)
+			resp, err := chttp.Get(ctx, url)
 			switch err {
 			case nil:
 				body, rerr := ioutil.ReadAll(resp.Body)
@@ -388,7 +388,7 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	errs := make(map[string]string, 0)
 	for _, host := range js.JHosts {
 		url := fmt.Sprintf(updateCheckURL, host)
-		resp, err := ctxhttp.Post(ctx, nil, url, "application/json", bytes.NewReader(cJSON))
+		resp, err := chttp.Post(ctx, url, "application/json", bytes.NewReader(cJSON))
 		switch err {
 		case nil:
 			body, err := ioutil.ReadAll(resp.Body)

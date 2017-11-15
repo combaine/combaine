@@ -1,6 +1,7 @@
 package combainer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,14 +11,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/hosts"
-	"github.com/mitchellh/mapstructure"
 )
 
 func init() {
@@ -154,7 +154,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	url := fmt.Sprintf(s.BasicURL, groupname)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	resp, err := ctxhttp.Get(ctx, nil, url)
+	resp, err := chttp.Get(ctx, url)
 	var body []byte
 	if err != nil {
 		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)

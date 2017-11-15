@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/worker"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 func init() {
@@ -50,7 +51,7 @@ func (t *httpFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
 	defer cancel()
-	resp, err := ctxhttp.Get(ctx, nil, url)
+	resp, err := chttp.Get(ctx, url)
 	if err != nil {
 		return nil, err
 	}

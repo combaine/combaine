@@ -1,10 +1,9 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"

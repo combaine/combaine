@@ -1,7 +1,7 @@
 package worker
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"

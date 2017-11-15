@@ -1,11 +1,10 @@
 package combainer
 
 import (
+	"context"
 	"math/rand"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
 
