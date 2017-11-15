@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 

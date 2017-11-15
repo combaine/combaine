@@ -48,6 +48,8 @@ type Config struct {
 	CRIT             []string                     `codec:"CRIT"`
 	BatchSize        int                          `codec:"batch_size"`
 	BatchEndpoint    string                       `codec:"batch_endpoint"`
+	Namespace        string                       `codec:"namespace"`
+	Token            string                       `codec:"-"` // do not pass token
 }
 
 // SenderConfig contains configuration loaded from combaine's config file
@@ -60,6 +62,7 @@ type SenderConfig struct {
 	Frontend           []string      `yaml:"juggler_frontend"`
 	BatchSize          int           `yaml:"batch_size"`
 	BatchEndpoint      string        `yaml:"batch_endpoint"`
+	Token              string        `yaml:"token"`
 }
 
 // StringifyAggregatorLimits check all AggregatorLimits values
@@ -145,6 +148,9 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 	}
 	if taskConf.BatchEndpoint == "" {
 		taskConf.BatchEndpoint = conf.BatchEndpoint
+	}
+	if conf.Token != "" && conf.Token != "no-token" {
+		taskConf.Token = conf.Token
 	}
 	return nil
 }

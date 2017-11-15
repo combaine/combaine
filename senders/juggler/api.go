@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
 
@@ -49,6 +49,7 @@ type jugglerCheck struct {
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
+	Namespace        string                 `json:"namespace"`
 }
 
 type aggKWArgs struct {
@@ -108,7 +109,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 			url := fmt.Sprintf(getChecksURL, jhost, q)
 			logger.Infof("%s Query check %s", id, url)
 
-			resp, err := httpclient.Get(ctx, url)
+			resp, err := chttp.Get(ctx, url)
 			switch err {
 			case nil:
 				body, rerr := ioutil.ReadAll(resp.Body)
@@ -198,6 +199,8 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			js.ensureTags(&check)
 			// description
 			js.ensureDescription(&check)
+			// namespace
+			js.ensureNamespace(&check)
 		}
 
 		// add children
@@ -376,6 +379,17 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 	}
 }
 
+func (js *Sender) ensureNamespace(c *jugglerCheck) {
+	if js.Namespace == "" {
+		js.Namespace = "combaine"
+	}
+	if js.Config.Token != "" && c.Namespace != js.Namespace {
+		c.Update = true
+		logger.Debugf("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
+		c.Namespace = js.Namespace
+	}
+}
+
 func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	logger.Infof("%s Update check %s for %s", js.id, check.Service, check.Host)
 
@@ -388,7 +402,15 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	errs := make(map[string]string, 0)
 	for _, host := range js.JHosts {
 		url := fmt.Sprintf(updateCheckURL, host)
-		resp, err := httpclient.Post(ctx, url, "application/json", bytes.NewReader(cJSON))
+		req, err := http.NewRequest("POST", url, bytes.NewReader(cJSON))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if js.Config.Token != "" {
+			req.Header.Set("Authorization", "OAuth "+js.Config.Token)
+		}
+		resp, err := chttp.Do(ctx, req.WithContext(ctx))
 		switch err {
 		case nil:
 			body, err := ioutil.ReadAll(resp.Body)

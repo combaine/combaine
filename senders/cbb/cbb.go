@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
 
@@ -161,7 +161,7 @@ func (c *Sender) Send(ctx context.Context, data []common.AggregationResult, time
 		return err
 	}
 	for _, query := range requests {
-		resp, err := httpclient.Get(ctx, query)
+		resp, err := chttp.Get(ctx, query)
 		if err != nil {
 			return err
 		}

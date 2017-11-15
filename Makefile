@@ -2,7 +2,7 @@ export PATH := /usr/local/go/bin:$(PATH)
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell bash -c "go list ./...|egrep -v '^github.com/combaine/combaine/(tests|vendor/)'")
+PKGS := $(shell PATH="$(PATH)" bash -c "go list ./...|egrep -v '^github.com/combaine/combaine/(tests|vendor/)'")
 
 .PHONY: clean all fmt vet lint build test proto
 

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
 
@@ -209,7 +209,7 @@ func (as *Sender) sendPoint(ctx context.Context, url string, e chan<- error) {
 		req.Header = defaultHeaders
 
 		logger.Debugf("%s %s", as.id, req.URL)
-		resp, err := httpclient.Do(ctx, req)
+		resp, err := chttp.Do(ctx, req)
 		switch err {
 		case nil:
 			body, err := ioutil.ReadAll(resp.Body)

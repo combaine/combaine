@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common/logger"
-	"golang.org/x/net/context"
 )
 
 var connPool Cacher

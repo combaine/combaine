@@ -1,12 +1,11 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
 

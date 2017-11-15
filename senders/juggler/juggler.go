@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -168,7 +168,7 @@ SEND_LOOP:
 	for retry < 2 {
 		retry++
 		logger.Debugf("%s Attempt %d", js.id, retry)
-		resp, err := httpclient.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
+		resp, err := chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
 		switch err {
 		case nil:
 			responseBody, err = ioutil.ReadAll(resp.Body)
@@ -215,7 +215,7 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 
 	url := fmt.Sprintf(sendEventURL, front, query.Encode())
 	logger.Debugf("%s Send event %s", js.id, url)
-	resp, err := httpclient.Get(ctx, url)
+	resp, err := chttp.Get(ctx, url)
 	if err != nil {
 		logger.Errf("%s %s", js.id, err)
 		return err

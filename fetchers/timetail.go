@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/worker"
 )
 
@@ -50,7 +51,7 @@ func (t *timetailFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
 	defer cancel()
-	resp, err := httpclient.Get(ctx, url)
+	resp, err := chttp.Get(ctx, url)
 	if err != nil {
 		return nil, err
 	}

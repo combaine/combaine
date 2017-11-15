@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/httpclient"
+	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
 
@@ -203,7 +203,7 @@ func (r *Sender) Send(ctx context.Context, data []common.AggregationResult, time
 		return err
 	}
 
-	resp, err := httpclient.Do(ctx, req)
+	resp, err := chttp.Do(ctx, req)
 	if err != nil {
 		logger.Errf("%s unable to do http request: %v", r.id, err)
 		return err
