@@ -380,7 +380,7 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 }
 
 func (js *Sender) ensureNamespace(c *jugglerCheck) {
-	if js.Namespace != "" {
+	if js.Namespace == "" {
 		js.Namespace = "combaine"
 	}
 	if js.Config.Token != "" && c.Namespace != js.Namespace {
