@@ -26,12 +26,7 @@ import:
   - codec
 - package: github.com/yuin/gluare
 - package: github.com/yuin/gopher-lua
-- package: golang.org/x/net
-  subpackages:
-  - context
-  - context/ctxhttp
 - package: google.golang.org/grpc
-  version: ^1.6.0
   subpackages:
   - grpclog
 - package: gopkg.in/yaml.v2
