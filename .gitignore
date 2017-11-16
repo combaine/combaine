@@ -58,3 +58,4 @@ debian/combaine-core/
 debian/combaine-presetting/
 debian/combaine-worker-ubic/
 debian/combainer/
+debian/debhelper-build-stamp
