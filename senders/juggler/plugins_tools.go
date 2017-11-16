@@ -31,19 +31,36 @@ func replace(l *lua.LState) int {
 	return 1
 }
 
+func logLoader(id string) func(*lua.LState) int {
+	return func(l *lua.LState) int {
+		l.Push(l.SetFuncs(l.NewTable(), map[string]lua.LGFunction{
+			"debug": getLogger(id, "debug"),
+			"info":  getLogger(id, "info"),
+			"warn":  getLogger(id, "warn"),
+			"error": getLogger(id, "error"),
+		}))
+		return 1
+	}
+}
+
 func getLogger(id, level string) func(l *lua.LState) int {
-	lg := logger.Debugf
+	log := logger.Debugf
 	switch level {
 	case "info":
-		lg = logger.Infof
+		log = logger.Infof
 	case "warn":
-		lg = logger.Warnf
+		log = logger.Warnf
 	case "error":
-		lg = logger.Errf
+		log = logger.Errf
 	}
 	return func(l *lua.LState) int {
 		str := l.CheckString(1)
-		lg("%s %s", id, str)
+		nargs := l.GetTop()
+		args := make([]interface{}, nargs-1)
+		for i := 2; i <= nargs; i++ {
+			args[i-2] = interface{}(l.Get(i))
+		}
+		log(id+" "+str, args...)
 		return 0
 	}
 }
@@ -53,15 +70,6 @@ func PreloadTools(id string, l *lua.LState) error {
 	l.SetGlobal("split", l.NewFunction(split))
 	l.SetGlobal("replace", l.NewFunction(replace))
 	l.PreloadModule("re", gluare.Loader)
-
-	l.PreloadModule("log", func(l *lua.LState) int {
-		l.Push(l.SetFuncs(l.NewTable(), map[string]lua.LGFunction{
-			"debug": getLogger(id, "debug"),
-			"info":  getLogger(id, "info"),
-			"warn":  getLogger(id, "warn"),
-			"error": getLogger(id, "error"),
-		}))
-		return 1
-	})
+	l.PreloadModule("log", logLoader(id))
 	return nil
 }

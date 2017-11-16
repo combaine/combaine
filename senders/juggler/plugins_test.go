@@ -2,9 +2,12 @@ package juggler
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	lua "github.com/yuin/gopher-lua"
 )
 
 func TestPluginSimple(t *testing.T) {
@@ -96,5 +99,40 @@ func TestPluginSimple(t *testing.T) {
 			}
 		}
 		assert.Equal(t, c.expectFire, actualFire, fmt.Sprintf("%s", c.checks))
+	}
+}
+
+func BenchmarkPassGoLogger(b *testing.B) {
+	logrus.SetOutput(ioutil.Discard)
+	l := lua.NewState()
+	PreloadTools("BenchPassGoLog", l)
+	fn, err := l.LoadString(`
+		local log = require("log");
+		log.info("test %s %d %0.3f", "log", 10, 0.33)
+	`)
+	if err != nil {
+		b.Fatalf("Failed to load benchmark: %s", err)
+	}
+	for i := 0; i < b.N; i++ {
+		l.Push(fn)
+		l.Call(0, 0)
+	}
+}
+
+func BenchmarkStringFmtLogger(b *testing.B) {
+	logrus.SetOutput(ioutil.Discard)
+	l := lua.NewState()
+	PreloadTools("BenchStringFmtLog", l)
+	fn, err := l.LoadString(`
+		local log = require("log");
+		local fmt = string.format
+		log.info(fmt("test %s %d %0.3f", "log", 10, 0.33))
+	`)
+	if err != nil {
+		b.Fatalf("Failed to load benchmark: %s", err)
+	}
+	for i := 0; i < b.N; i++ {
+		l.Push(fn)
+		l.Call(0, 0)
 	}
 }
