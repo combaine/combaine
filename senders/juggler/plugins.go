@@ -14,7 +14,7 @@ import (
 type dumperFunc func(reflect.Value) (lua.LValue, error)
 
 func jPluginConfigToLuaTable(l *lua.LState, in common.PluginConfig) (*lua.LTable, error) {
-	table := l.NewTable()
+	table := l.CreateTable(0, len(in))
 	for name, value := range in {
 		val, err := toLuaValue(l, value, dumperToLuaValue)
 		if err != nil {
@@ -26,11 +26,11 @@ func jPluginConfigToLuaTable(l *lua.LState, in common.PluginConfig) (*lua.LTable
 }
 
 func dataToLuaTable(l *lua.LState, in []common.AggregationResult) (*lua.LTable, error) {
-	out := l.NewTable()
+	out := l.CreateTable(len(in), 0)
 	for _, item := range in {
-		table := l.NewTable()
+		table := l.CreateTable(0, 2)
 
-		tags := l.NewTable()
+		tags := l.CreateTable(0, len(item.Tags))
 		for k, v := range item.Tags {
 			tags.RawSetString(k, lua.LString(v))
 		}
@@ -54,7 +54,7 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 		if s, ok := v.([]byte); ok {
 			return dumper(reflect.ValueOf(string(s)))
 		}
-		inTable := l.NewTable()
+		inTable := l.CreateTable(rv.Len(), 0)
 		for i := 0; i < rv.Len(); i++ {
 			item := rv.Index(i).Interface()
 			v, err := toLuaValue(l, item, dumper)
@@ -65,8 +65,9 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 		}
 		return inTable, nil
 	case reflect.Map:
-		inTable := l.NewTable()
-		for _, key := range rv.MapKeys() {
+		keys := rv.MapKeys()
+		inTable := l.CreateTable(0, len(keys))
+		for _, key := range keys {
 			item := rv.MapIndex(key).Interface()
 			v, err := toLuaValue(l, item, dumper)
 			if err != nil {
@@ -76,9 +77,10 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 		}
 		return inTable, nil
 	case reflect.Struct:
-		inTable := l.NewTable()
+		numField := rv.NumField()
+		inTable := l.CreateTable(0, numField)
 
-		for i := 0; i < rv.NumField(); i++ {
+		for i := 0; i < numField; i++ {
 			item := rv.Field(i).Interface()
 			v, err := toLuaValue(l, item, dumper)
 			if err != nil {
@@ -224,7 +226,7 @@ func (js *Sender) preparePluginEnv(data []common.AggregationResult) error {
 	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))
 
 	// variables
-	lvariables := js.state.NewTable()
+	lvariables := js.state.CreateTable(0, len(js.Config.Variables))
 	for k, v := range js.Config.Variables {
 		lvariables.RawSetString(k, lua.LString(v))
 	}
@@ -244,9 +246,9 @@ func (js *Sender) preparePluginEnv(data []common.AggregationResult) error {
 	if js.CRIT != nil {
 		levels["CRIT"] = js.CRIT
 	}
-	lconditions := js.state.NewTable()
+	lconditions := js.state.CreateTable(0, len(levels))
 	for name, cond := range levels {
-		lcondTable := js.state.NewTable()
+		lcondTable := js.state.CreateTable(len(cond), 0)
 		for _, v := range cond {
 			lcondTable.Append(lua.LString(v))
 		}

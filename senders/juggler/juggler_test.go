@@ -66,27 +66,6 @@ func DefaultJugglerTestConfig() *Config {
 	return conf
 }
 
-// Benchmarks
-func BenchmarkDataToLuaTable(b *testing.B) {
-	l, err := LoadPlugin("Test Id", "testdata/plugins", "test")
-	if err != nil {
-		panic(err)
-	}
-	for i := 0; i < b.N; i++ {
-		table, err := dataToLuaTable(l, data)
-		if err != nil {
-			b.Fatal(err)
-		}
-		l.SetGlobal("table", table)
-		l.Push(l.GetGlobal("sumTable"))
-		l.Push(l.GetGlobal("table"))
-		l.Call(1, 1)
-		l.Pop(1)
-	}
-	l.Close()
-}
-
-// Tests
 func TestUpdateTaskConfig(t *testing.T) {
 	// Errors when config not exists
 	os.Setenv("JUGGLER_CONFIG", "")

@@ -136,3 +136,44 @@ func BenchmarkStringFmtLogger(b *testing.B) {
 		l.Call(0, 0)
 	}
 }
+
+/* Benchmarks go 2 lua converter
+// NewTable vs CreateTable with proper capacity
+// NewTable
+goos: linux
+goarch: amd64
+pkg: github.com/combaine/combaine/senders/juggler
+BenchmarkDataToLuaTable-4    	    2000	    557000 ns/op	  306858 B/op	    3196 allocs/op
+BenchmarkPassGoLogger-4      	  200000	      6096 ns/op	    3172 B/op	      33 allocs/op
+BenchmarkStringFmtLogger-4   	  200000	      6695 ns/op	    3268 B/op	      35 allocs/op
+PASS
+ok  	github.com/combaine/combaine/senders/juggler	4.084s
+
+// CreateTable
+goos: linux
+goarch: amd64
+pkg: github.com/combaine/combaine/senders/juggler
+BenchmarkDataToLuaTable-4    	    3000	    467063 ns/op	  109908 B/op	    3090 allocs/op
+BenchmarkPassGoLogger-4      	  200000	      6078 ns/op	    3172 B/op	      33 allocs/op
+BenchmarkStringFmtLogger-4   	  200000	      6584 ns/op	    3268 B/op	      35 allocs/op
+PASS
+ok  	github.com/combaine/combaine/senders/juggler	4.303s
+*/
+func BenchmarkDataToLuaTable(b *testing.B) {
+	l, err := LoadPlugin("Test Id", "testdata/plugins", "test")
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < b.N; i++ {
+		table, err := dataToLuaTable(l, data)
+		if err != nil {
+			b.Fatal(err)
+		}
+		l.SetGlobal("table", table)
+		l.Push(l.GetGlobal("sumTable"))
+		l.Push(l.GetGlobal("table"))
+		l.Call(1, 1)
+		l.Pop(1)
+	}
+	l.Close()
+}
