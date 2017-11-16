@@ -35,3 +35,9 @@ testImport:
   version: ^1.1.4
   subpackages:
   - assert
+- name: gopkg.in/mgo.v2
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
