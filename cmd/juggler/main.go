@@ -65,6 +65,8 @@ func main() {
 	juggler.InitializeLogger(logger.MustCreateLogger)
 
 	juggler.GlobalCache.TuneCache(senderConfig.CacheTTL, senderConfig.CacheCleanInterval)
+	juggler.InitEventsStore(&senderConfig.Store)
+
 	binds := map[string]cocaine.EventHandler{
 		"send": send,
 	}

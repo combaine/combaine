@@ -55,14 +55,15 @@ type Config struct {
 // SenderConfig contains configuration loaded from combaine's config file
 // placed in defaultConfigPath
 type SenderConfig struct {
-	CacheTTL           time.Duration `yaml:"cache_ttl"`
-	CacheCleanInterval time.Duration `yaml:"cache_clean_interval"`
-	PluginsDir         string        `yaml:"plugins_dir"`
-	Hosts              []string      `yaml:"juggler_hosts"`
-	Frontend           []string      `yaml:"juggler_frontend"`
-	BatchSize          int           `yaml:"batch_size"`
-	BatchEndpoint      string        `yaml:"batch_endpoint"`
-	Token              string        `yaml:"token"`
+	CacheTTL           time.Duration           `yaml:"cache_ttl"`
+	CacheCleanInterval time.Duration           `yaml:"cache_clean_interval"`
+	PluginsDir         string                  `yaml:"plugins_dir"`
+	Hosts              []string                `yaml:"juggler_hosts"`
+	Frontend           []string                `yaml:"juggler_frontend"`
+	BatchSize          int                     `yaml:"batch_size"`
+	BatchEndpoint      string                  `yaml:"batch_endpoint"`
+	Token              string                  `yaml:"token"`
+	Store              pluginEventsStoreConfig `yaml:"store"`
 }
 
 // StringifyAggregatorLimits check all AggregatorLimits values

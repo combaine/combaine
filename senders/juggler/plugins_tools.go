@@ -13,7 +13,7 @@ func split(l *lua.LState) int {
 	sep := l.CheckString(2)
 	splited := strings.Split(s, sep)
 
-	t := l.NewTable()
+	t := l.CreateTable(len(splited), 0)
 	// TODO: use user data is more efficent here
 	for _, substr := range splited {
 		t.Append(lua.LString(substr))
@@ -33,7 +33,7 @@ func replace(l *lua.LState) int {
 
 func logLoader(id string) func(*lua.LState) int {
 	return func(l *lua.LState) int {
-		l.Push(l.SetFuncs(l.NewTable(), map[string]lua.LGFunction{
+		l.Push(l.SetFuncs(l.CreateTable(0, 4), map[string]lua.LGFunction{
 			"debug": getLogger(id, "debug"),
 			"info":  getLogger(id, "info"),
 			"warn":  getLogger(id, "warn"),
@@ -65,10 +65,39 @@ func getLogger(id, level string) func(l *lua.LState) int {
 	}
 }
 
+func eventsHistoryLoader(id string) func(l *lua.LState) int {
+	return func(l *lua.LState) int {
+		key := l.CheckString(1)
+		event := l.CheckString(2)
+		historyLen := l.CheckInt(3)
+
+		if eventsStore == nil {
+			l.Push(lua.LNil)
+			return 1
+		}
+		if events, err := eventsStore.Push(key, event, historyLen); err != nil {
+			logger.Errf(id+" Failed to update events history: %s", err)
+			l.Push(lua.LNil)
+		} else {
+			if len(events) > 0 {
+				eventsTable := l.CreateTable(len(events), 0)
+				for _, event := range events {
+					eventsTable.Append(lua.LString(event))
+				}
+				l.Push(eventsTable)
+			} else {
+				l.Push(lua.LNil)
+			}
+		}
+		return 1
+	}
+}
+
 // PreloadTools preload go functions in lua global environment
 func PreloadTools(id string, l *lua.LState) error {
 	l.SetGlobal("split", l.NewFunction(split))
 	l.SetGlobal("replace", l.NewFunction(replace))
+	l.SetGlobal("events_history", l.NewFunction(eventsHistoryLoader(id)))
 	l.PreloadModule("re", gluare.Loader)
 	l.PreloadModule("log", logLoader(id))
 	return nil
