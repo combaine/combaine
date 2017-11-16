@@ -124,9 +124,9 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(common.NameStack, 0, 3)
 
+	logger.Debugf("%s send %d aggregates", g.id, len(data))
 	for _, aggItem := range data {
 		aggname := aggItem.Tags["aggregate"]
-		logger.Infof("%s Handle aggregate named %s", g.id, aggname)
 
 		metricName.Push(aggname)
 		subgroup, err := common.GetSubgroupName(aggItem.Tags)
@@ -134,10 +134,9 @@ func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64,
 			logger.Errf("%s %s", g.id, err)
 			continue
 		}
-		//for subgroup, value := range aggItem {
 		pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
 		rv := reflect.ValueOf(aggItem.Result)
-		logger.Debugf("%s %s", g.id, rv.Kind())
+		logger.Debugf("%s data kind '%s' for aggregate %s", g.id, rv.Kind(), aggname)
 
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
