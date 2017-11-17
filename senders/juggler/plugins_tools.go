@@ -54,13 +54,17 @@ func getLogger(id, level string) func(l *lua.LState) int {
 		log = logger.Errf
 	}
 	return func(l *lua.LState) int {
-		str := l.CheckString(1)
+		fmtstr := l.CheckString(1)
+		// get the number of arguments passed from lua
 		nargs := l.GetTop()
 		args := make([]interface{}, nargs-1)
+		// lua indexes starts with 1,
+		// so we need loop up to nargs to see last argument
+		// first argument with index 1 is `fmtstr`
 		for i := 2; i <= nargs; i++ {
 			args[i-2] = interface{}(l.Get(i))
 		}
-		log(id+" "+str, args...)
+		log(id+" "+fmtstr, args...)
 		return 0
 	}
 }
