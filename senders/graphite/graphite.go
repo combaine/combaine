@@ -124,7 +124,7 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(common.NameStack, 0, 3)
 
-	logger.Debugf("%s send %d aggregates", g.id, len(data))
+	logger.Infof("%s send %d aggregates", g.id, len(data))
 	for _, aggItem := range data {
 		aggname := aggItem.Tags["aggregate"]
 
