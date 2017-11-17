@@ -81,6 +81,9 @@ func toLuaValue(l *lua.LState, v interface{}, dumper dumperFunc) (lua.LValue, er
 		inTable := l.CreateTable(0, numField)
 
 		for i := 0; i < numField; i++ {
+			if !rv.Field(i).CanInterface() {
+				continue
+			}
 			item := rv.Field(i).Interface()
 			v, err := toLuaValue(l, item, dumper)
 			if err != nil {

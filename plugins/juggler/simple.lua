@@ -1,7 +1,6 @@
 local re = require("re")
 local log = require("log")
 local os = require("os")
-local fmt = string.format
 
 -- global vars
 --
@@ -39,10 +38,10 @@ function evalVariables()
     setfenv(func, sandbox)
     ok, res = pcall(func)
     if ok then
-      -- log.debug(fmt("for %s result is: %s: %s",name, ok,res))
+      -- log.debug("for %s result is: %s: %s",name, ok,res)
       envVars[name] = res
     else
-      log.error(fmt("Failed to eval %s: %s", def, res))
+      log.error("Failed to eval %s: %s", def, res)
     end
   end
 end
@@ -53,7 +52,7 @@ function extractMetric(q, res)
   local iv = res
   local key
   for key in q:gmatch([==[%[['"%s]*([^"'%[%s%]]+)['"%s]*%]]==]) do
-    -- log.debug(fmt("Query %s on %s with key %s", q, iv, key))
+    -- log.debug("Query %s on %s with key %s", q, iv, key)
     if key:match("^%-?%d$") then
       key = tonumber(key)
       if key < 0
@@ -77,12 +76,12 @@ function addResult(ev, lvl, tags)
   local r
   if not e then
     _, r = pcall(f)
-    r = fmt("%0.3f%s", r, v)
+    r = string.format("%0.3f%s", r, v)
   else
     r = ev
   end
   r = r:gsub("%s+", "")
-  log.debug(fmt("Eval Query is '%s' q='%s' v='%s' evaluated r='%s'", ev, q, v, r))
+  log.debug("Eval Query is '%s' q='%s' v='%s' evaluated r='%s'", ev, q, v, r)
 
   return {
     tags = tags,
@@ -94,37 +93,14 @@ end
 
 function evalCheck(cases, lvl, d)
   local pattern = "[$]{"..d.Tags.aggregate.."}"..[=[(?:[[][^]]+[]])+]=]
-  local STRMpattern = "%${"..d.Tags.aggregate.."}.iteritems%(%)%s+if%s+%(k"
-  local anchor = "%s+if[^%.]+%.startswith%('([^']+)'%)%s+and[^%.]+%.endswith%('([^']+)'%)"
 
   for _, c in pairs(cases) do
     local eval = c
     local matched = false
-    if c:match(STRMpattern) then
-      log.debug("STRM pattern detected")
-      -- STRM pattern
-      -- "sum([v for k,v in ${agg}.iteritems() if (k.startswith() and k.endswith())])
-      --    / sum([v for k,v in ${agg}.iteritems() if (k.startswith() and k.endswith())]) >  0"
-      for query in c:gmatch("(sum%b())") do
-        local nStart, nEnd = query:match(anchor)
-        if nStart and nEnd then
-          matched = true
-          local subPattern = nStart..".*"..nEnd
-          local metric = 0
-          for k, v in pairs(d.Result) do
-            if type(v) == "number" and k:match(subPattern) then
-              metric = metric + v
-            end
-          end
-          eval = replace(eval, query, tostring(metric))
-        end
-      end
-    else
-      for query in re.gmatch(c, pattern) do
-        matched = true
-        local metric = extractMetric(query, d.Result)
-        eval = replace(eval, query, tostring(metric))
-      end
+    for query in re.gmatch(c, pattern) do
+      matched = true
+      local metric = extractMetric(query, d.Result)
+      eval = replace(eval, query, tostring(metric))
     end
     if matched then
       local test, err = loadstring("return "..eval)
@@ -133,13 +109,13 @@ function evalCheck(cases, lvl, d)
       end
 
       if err then
-        log.error(fmt("'%q' in check '%q' resoved to -> '%q'", err, c, eval))
+        log.error("'%q' in check '%q' resoved to -> '%q'", err, c, eval)
       else
         local ok, fire = pcall(test)
         if not ok then
           log.error("Error in query "..eval)
         else
-          log.info(fmt("%s %s trigger test `%s` -> `%s` is %s", d.Tags.name, lvl, c, eval, fire))
+          log.info("%s %s trigger test `%s` -> `%s` is %s", d.Tags.name, lvl, c, eval, fire)
           if fire then
             -- Checks are coupled with OR logic.
             -- return when one of expressions is evaluated as True
@@ -148,9 +124,32 @@ function evalCheck(cases, lvl, d)
         end
       end
     else
-      log.debug(fmt("case '%s' not match, pattern='%s' for '%s'",c, pattern, lvl))
+      log.debug("case '%s' not match, pattern='%s' for '%s'",c, pattern, lvl)
     end
   end
+end
+
+function checkHistory(history, level)
+  if history then
+    for _, lvl in pairs(history) do
+      if lvl ~= level then
+        log.info("Reset level to '%s' by events_history %s", lvl, history)
+        return lvl
+      end
+    end
+  end
+  return level
+end
+
+function pushEvent(data, checkName, event, config)
+  local meta = data.Tags.metahost
+  local name = data.Tags.name
+  if config.history then
+    key = meta..":"..name..":"..checkName
+    log.debug("Push event %s: %s", key, event)
+    return events_history(key, event, config.history)
+  end
+  return nil
 end
 
 function run()
@@ -161,19 +160,26 @@ function run()
 
   for _, data in pairs(payload) do
     if config.type and data.Tags.type ~= config.type then
-      log.info(fmt("skip data for %s-%s type %s", data.Tags.metahost, data.Tags.name, data.Tags.type))
+      log.info("skip data for %s-%s type %s", data.Tags.metahost, data.Tags.name, data.Tags.type)
     else
       for idx, level in pairs {"CRIT", "WARN", "INFO", "OK", "DEFAULT"} do
         local check = conditions[level]
         if check then
           local res = evalCheck(check, level, data)
           if res then
+            prevLevels = pushEvent(data, checkName, res.level, config)
+            if res.level == "CRIT" then
+              res.level = checkHistory(prevLevels, res.level)
+            end
             result[#result+1] = res
             break -- pairs {"CRIT... higher level event set on fire, no need continue checks
           end
         end
         if idx == 5 then -- idx 5 == "DEFAULT"
-          log.info(fmt("%s: %s.%s set default status 'OK'", data.Tags.aggregate, data.Tags.name, checkName))
+          log.info("%s: %s.%s set default status 'OK'",
+            data.Tags.aggregate, data.Tags.name, checkName
+          )
+          pushEvent(data, checkName, "OK", config)
           result[#result+1] = {
             tags = data.Tags,
             description = "OK",

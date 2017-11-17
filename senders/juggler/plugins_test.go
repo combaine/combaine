@@ -11,11 +11,12 @@ import (
 )
 
 func TestPluginSimple(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
 	jconf := DefaultJugglerTestConfig()
-	jconf.OK = []string{}
-	jconf.INFO = []string{}
-	jconf.WARN = []string{}
-	jconf.CRIT = []string{}
+	jconf.OK = nil
+	jconf.INFO = nil
+	jconf.WARN = nil
 	jconf.CheckName = "Matcher"
 	jconf.Variables = map[string]string{
 		"VAR_FIRST": "iftimeofday(23, 7, 10000 , 4000)",
@@ -28,6 +29,7 @@ func TestPluginSimple(t *testing.T) {
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
 	jconf.JPluginConfig = map[string]interface{}{
+		"history":             3,
 		"withoutDefaultState": true,
 	}
 
@@ -76,7 +78,6 @@ func TestPluginSimple(t *testing.T) {
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3029"}, false},
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3030",
 			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2"}, true},
-		{[]string{"sum([v for k,v in ${agg}.iteritems() if (k.startswith('iter') and k.endswith('d'))]) / sum([v for k,v in ${agg}.iteritems() if (k.startswith('items') and k.endswith('d'))]) > 0.5"}, true},
 	}
 
 	for _, c := range cases {
@@ -100,6 +101,22 @@ func TestPluginSimple(t *testing.T) {
 		}
 		assert.Equal(t, c.expectFire, actualFire, fmt.Sprintf("%s", c.checks))
 	}
+}
+
+func TestToLuaValueStruct(t *testing.T) {
+	l := lua.NewState()
+	data := struct {
+		foo string
+		Bar []string
+	}{foo: "string", Bar: []string{"bar1", "bar2", "bar3"}}
+
+	_, err := toLuaValue(l, &data, dumperToLuaValue)
+	assert.Error(t, err) // Unexpected pointer
+	resp, err := toLuaValue(l, data, dumperToLuaValue)
+	assert.NoError(t, err)
+	bar := resp.(*lua.LTable).RawGet(lua.LString("Bar")).(*lua.LTable)
+	assert.NotEqual(t, lua.LNil, bar)
+	assert.Equal(t, bar.Len(), 3)
 }
 
 func BenchmarkPassGoLogger(b *testing.B) {
