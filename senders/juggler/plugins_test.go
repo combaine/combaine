@@ -2,17 +2,21 @@ package juggler
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	lua "github.com/yuin/gopher-lua"
 )
 
 func TestPluginSimple(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+
 	jconf := DefaultJugglerTestConfig()
-	jconf.OK = []string{}
-	jconf.INFO = []string{}
-	jconf.WARN = []string{}
-	jconf.CRIT = []string{}
+	jconf.OK = nil
+	jconf.INFO = nil
+	jconf.WARN = nil
 	jconf.CheckName = "Matcher"
 	jconf.Variables = map[string]string{
 		"VAR_FIRST": "iftimeofday(23, 7, 10000 , 4000)",
@@ -25,6 +29,7 @@ func TestPluginSimple(t *testing.T) {
 	jconf.Plugin = "simple"
 	jconf.Host = "hostname_from_config"
 	jconf.JPluginConfig = map[string]interface{}{
+		"history":             3,
 		"withoutDefaultState": true,
 	}
 
@@ -73,7 +78,6 @@ func TestPluginSimple(t *testing.T) {
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3029"}, false},
 		{[]string{"${agg}['bt'][4]<2000 and ${agg}['bt2'][8]<3030",
 			"${agg}['bt'][4]<VAR_LAST and ${agg}['bt2'][8]<VAR_LAST2"}, true},
-		{[]string{"sum([v for k,v in ${agg}.iteritems() if (k.startswith('iter') and k.endswith('d'))]) / sum([v for k,v in ${agg}.iteritems() if (k.startswith('items') and k.endswith('d'))]) > 0.5"}, true},
 	}
 
 	for _, c := range cases {
@@ -97,4 +101,96 @@ func TestPluginSimple(t *testing.T) {
 		}
 		assert.Equal(t, c.expectFire, actualFire, fmt.Sprintf("%s", c.checks))
 	}
+}
+
+func TestToLuaValueStruct(t *testing.T) {
+	l := lua.NewState()
+	data := struct {
+		foo string
+		Bar []string
+	}{foo: "string", Bar: []string{"bar1", "bar2", "bar3"}}
+
+	_, err := toLuaValue(l, &data, dumperToLuaValue)
+	assert.Error(t, err) // Unexpected pointer
+	resp, err := toLuaValue(l, data, dumperToLuaValue)
+	assert.NoError(t, err)
+	bar := resp.(*lua.LTable).RawGet(lua.LString("Bar")).(*lua.LTable)
+	assert.NotEqual(t, lua.LNil, bar)
+	assert.Equal(t, bar.Len(), 3)
+}
+
+func BenchmarkPassGoLogger(b *testing.B) {
+	logrus.SetOutput(ioutil.Discard)
+	l := lua.NewState()
+	PreloadTools("BenchPassGoLog", l)
+	fn, err := l.LoadString(`
+		local log = require("log");
+		log.info("test %s %d %0.3f", "log", 10, 0.33)
+	`)
+	if err != nil {
+		b.Fatalf("Failed to load benchmark: %s", err)
+	}
+	for i := 0; i < b.N; i++ {
+		l.Push(fn)
+		l.Call(0, 0)
+	}
+}
+
+func BenchmarkStringFmtLogger(b *testing.B) {
+	logrus.SetOutput(ioutil.Discard)
+	l := lua.NewState()
+	PreloadTools("BenchStringFmtLog", l)
+	fn, err := l.LoadString(`
+		local log = require("log");
+		local fmt = string.format
+		log.info(fmt("test %s %d %0.3f", "log", 10, 0.33))
+	`)
+	if err != nil {
+		b.Fatalf("Failed to load benchmark: %s", err)
+	}
+	for i := 0; i < b.N; i++ {
+		l.Push(fn)
+		l.Call(0, 0)
+	}
+}
+
+/* Benchmarks go 2 lua converter
+// NewTable vs CreateTable with proper capacity
+// NewTable
+goos: linux
+goarch: amd64
+pkg: github.com/combaine/combaine/senders/juggler
+BenchmarkDataToLuaTable-4    	    2000	    557000 ns/op	  306858 B/op	    3196 allocs/op
+BenchmarkPassGoLogger-4      	  200000	      6096 ns/op	    3172 B/op	      33 allocs/op
+BenchmarkStringFmtLogger-4   	  200000	      6695 ns/op	    3268 B/op	      35 allocs/op
+PASS
+ok  	github.com/combaine/combaine/senders/juggler	4.084s
+
+// CreateTable
+goos: linux
+goarch: amd64
+pkg: github.com/combaine/combaine/senders/juggler
+BenchmarkDataToLuaTable-4    	    3000	    467063 ns/op	  109908 B/op	    3090 allocs/op
+BenchmarkPassGoLogger-4      	  200000	      6078 ns/op	    3172 B/op	      33 allocs/op
+BenchmarkStringFmtLogger-4   	  200000	      6584 ns/op	    3268 B/op	      35 allocs/op
+PASS
+ok  	github.com/combaine/combaine/senders/juggler	4.303s
+*/
+func BenchmarkDataToLuaTable(b *testing.B) {
+	l, err := LoadPlugin("Test Id", "testdata/plugins", "test")
+	if err != nil {
+		panic(err)
+	}
+	for i := 0; i < b.N; i++ {
+		table, err := dataToLuaTable(l, data)
+		if err != nil {
+			b.Fatal(err)
+		}
+		l.SetGlobal("table", table)
+		l.Push(l.GetGlobal("sumTable"))
+		l.Push(l.GetGlobal("table"))
+		l.Call(1, 1)
+		l.Pop(1)
+	}
+	l.Close()
 }

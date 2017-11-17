@@ -1,5 +1,5 @@
 hash: 536eda7b52209739659c0df37f52bb2f1ca1a1b9c7f92ed43f5dd685a061ca98
-updated: 2017-11-15T12:16:03.225056927+07:00
+updated: 2017-11-16T23:03:41.472057938+07:00
 imports:
 - name: github.com/armon/go-metrics
   version: 0a12dc6f6b9da6da644031a1b9b5a85478c5ee27
@@ -123,6 +123,13 @@ imports:
   - status
   - tap
   - transport
+- name: gopkg.in/mgo.v2
+  version: 3f83fa5005286a7fe593b055f0d7771a7dce4655
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
 - name: gopkg.in/yaml.v2
   version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
 testImports:
