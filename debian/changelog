@@ -1,3 +1,9 @@
+combaine (0.14.1) unstable; urgency=medium
+
+  * [custom] returned lost re-import of plugins
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 30 Nov 2017 17:45:03 +0700
+
 combaine (0.14.0) unstable; urgency=medium
 
   * [juggler] events antiflap store

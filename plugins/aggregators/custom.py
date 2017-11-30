@@ -117,6 +117,7 @@ class Custom(object):
             logger.error("Error %s", err)
         finally:
             response.close()
+        self.plugin_import()
 
 
     def aggregate_group(self, request, response):
@@ -148,6 +149,7 @@ class Custom(object):
             logger.error("Error %s", err)
         finally:
             response.close()
+        self.plugin_import()
 
 
 if __name__ == '__main__':
