@@ -102,6 +102,10 @@ func (bit *convertibleLogicInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (bit *convertibleLogicInt) UnmarshalBinary(data []byte) error {
+	return bit.UnmarshalJSON(data)
+}
+
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
