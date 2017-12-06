@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -52,8 +53,10 @@ type jugglerCheck struct {
 	Namespace        string                 `json:"namespace"`
 }
 
+type convertibleLogicInt int
+
 type aggKWArgs struct {
-	IgnoreNoData int                      `codec:"ignore_nodata" json:"ignore_nodata"`
+	IgnoreNoData convertibleLogicInt      `codec:"ignore_nodata" json:"ignore_nodata"`
 	Limits       []map[string]interface{} `codec:"limits,omitempty" json:"limits,omitempty"`
 }
 
@@ -85,6 +88,22 @@ type jugglerBatchError struct {
 	Message string `json:"message"`
 	Code    int    `json:"code"`
 	Label   string `json:"label"`
+}
+
+func (bit *convertibleLogicInt) UnmarshalJSON(data []byte) error {
+	asString := strings.Replace(strings.ToLower(strings.TrimSpace(string(data))), "\"", "", -1)
+	if asString == "1" || asString == "true" || asString == "yes" {
+		*bit = 1
+	} else if asString == "0" || asString == "false" || asString == "no" {
+		*bit = 0
+	} else {
+		return errors.New(fmt.Sprintf("LogicInt unmarshal error: invalid input %s", asString))
+	}
+	return nil
+}
+
+func (bit *convertibleLogicInt) UnmarshalBinary(data []byte) error {
+	return bit.UnmarshalJSON(data)
 }
 
 // getCheck query juggler api for check
