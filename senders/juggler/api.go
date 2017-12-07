@@ -89,7 +89,7 @@ type jugglerBatchError struct {
 
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
-func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
+func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerResponse, error) {
 	if len(js.Tags) == 0 {
 		js.Tags = []string{"combaine"}
 		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
@@ -100,8 +100,10 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		"include_children": {"true"},
 		"tag_name":         js.Tags,
 		"host_name":        {js.Host},
-	}.Encode()
-
+	}
+	for _, ev := range events {
+		query.Add("service_name", ev.Service)
+	}
 	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
 		var jerrors []error
 	GET_CHECK:
@@ -134,7 +136,7 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		}
 		return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 	}
-	cJSON, err := GlobalCache.Get(ctx, js.Host, checkFetcher, js.id, query, js.JHosts)
+	cJSON, err := GlobalCache.Get(ctx, js.Host+js.CheckName, checkFetcher, js.id, query.Encode(), js.JHosts)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +229,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		// or before return in case updateCheck ends with error
 		if cleanCache {
 			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
-			GlobalCache.Delete(js.Host)
+			GlobalCache.Delete(js.Host + js.CheckName)
 		}
 	}()
 	for _, c := range services {

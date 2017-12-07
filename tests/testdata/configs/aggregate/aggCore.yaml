@@ -26,14 +26,7 @@ senders:
   monitoring2:
     <<: *juggler
     aggregator_kwargs:
-      ignore_nodata: "yes"
-      limits:
-        - {crit: "146%",time_start: 20,time_end: 9,day_end: 7,day_start: 1}
-        - {crit: 0,time_start: 10,time_end: 19,day_end: 7,day_start: 1}
-  monitoring3:
-    <<: *juggler
-    aggregator_kwargs:
-      ignore_nodata: True
+      ignore_nodata: 0
       limits:
         - {crit: "146%",time_start: 20,time_end: 9,day_end: 7,day_start: 1}
         - {crit: 0,time_start: 10,time_end: 19,day_end: 7,day_start: 1}
