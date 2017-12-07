@@ -39,7 +39,7 @@ func TestGetCheck(t *testing.T) {
 
 	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
-	_, err = js.getCheck(context.TODO())
+	_, err = js.getCheck(context.TODO(), []jugglerEvent{})
 	assert.Error(t, err)
 
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
@@ -63,13 +63,16 @@ func TestGetCheck(t *testing.T) {
 			"4xx": nil,
 			"2xx": nil,
 		}},
+		{"withUnmarshalError", true, 1, map[string]*jugglerFlapConfig{
+			"checkName": {CriticalTime: 90},
+		}},
 		{"nonExisting", false, 0, make(map[string]*jugglerFlapConfig)},
 	}
 
 	ctx := context.TODO()
 	for _, c := range cases {
 		js.Host = c.name
-		jugglerResp, err := js.getCheck(ctx)
+		jugglerResp, err := js.getCheck(ctx, []jugglerEvent{})
 		if c.exists {
 			assert.NoError(t, err)
 		} else {
@@ -126,7 +129,7 @@ func TestEnsureCheck(t *testing.T) {
 	ctx := context.TODO()
 	for _, c := range cases {
 		js.Host = c.name
-		checks, err := js.getCheck(ctx)
+		checks, err := js.getCheck(ctx, []jugglerEvent{})
 		t.Logf("juggler checks: %#v", checks)
 		if c.withError {
 			assert.Error(t, err)

@@ -63,7 +63,7 @@ func (c *cache) Get(ctx context.Context, key string, f fetcher, id, q string, ho
 	} else {
 		c.Unlock()
 		<-item.ready
-		logger.Debugf("%s Use cached check for %s", id, key)
+		logger.Infof("%s Use cached check for %s", id, key)
 	}
 	c.runCleaner.Do(func() {
 		logger.Debugf("%s run cache cleaner", id)

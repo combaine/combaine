@@ -61,7 +61,7 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 		logger.Infof("%s Nothing to send", js.id)
 		return nil
 	}
-	checks, err := js.getCheck(ctx)
+	checks, err := js.getCheck(ctx, jEvents)
 	if err != nil {
 		return fmt.Errorf("getCheck: %s", err)
 	}

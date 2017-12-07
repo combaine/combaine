@@ -191,6 +191,7 @@ func TestMain(m *testing.M) {
 				return
 			}
 			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
+			logger.Infof("Read check from file %s", fileName)
 			resp, err := ioutil.ReadFile(fileName)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)

@@ -8,12 +8,25 @@ senders:
   joy_picture:
     type: graphite
     cluster: combaine.test
-  monitoring:
+  monitoring: &juggler
     type: juggler
     Host: "combaine-test"
     Aggregator: timed_more_than_limit_is_problem
     Method: SMS
     description: "Some very important check"
     checkname: "checkname"
+    aggregator_kwargs:
+        ignore_nodata: 1
+        limits:
+          - {crit: "146%",time_start: 20,time_end: 9,day_end: 7,day_start: 1}
+          - {crit: 0,time_start: 10,time_end: 19,day_end: 7,day_start: 1}
+    flap: { enable: 1, flap_time: 0, stable_time: 120, critical_time: 180 }
     OK: ["${appsName}.get('5xx', 0)<1"]
     CRIT: ["${appsName}.get('5xx', 0)>1"]
+  monitoring2:
+    <<: *juggler
+    aggregator_kwargs:
+      ignore_nodata: 0
+      limits:
+        - {crit: "146%",time_start: 20,time_end: 9,day_end: 7,day_start: 1}
+        - {crit: 0,time_start: 10,time_end: 19,day_end: 7,day_start: 1}

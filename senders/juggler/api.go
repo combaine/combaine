@@ -89,7 +89,7 @@ type jugglerBatchError struct {
 
 // getCheck query juggler api for check
 // and Unmarshal json response in to jugglerResponse type
-func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
+func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerResponse, error) {
 	if len(js.Tags) == 0 {
 		js.Tags = []string{"combaine"}
 		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
@@ -100,8 +100,10 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		"include_children": {"true"},
 		"tag_name":         js.Tags,
 		"host_name":        {js.Host},
-	}.Encode()
-
+	}
+	for _, ev := range events {
+		query.Add("service_name", ev.Service)
+	}
 	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
 		var jerrors []error
 	GET_CHECK:
@@ -134,17 +136,21 @@ func (js *Sender) getCheck(ctx context.Context) (jugglerResponse, error) {
 		}
 		return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 	}
-	cJSON, err := GlobalCache.Get(ctx, js.Host, checkFetcher, js.id, query, js.JHosts)
+	cJSON, err := GlobalCache.Get(ctx, js.Host+js.CheckName, checkFetcher, js.id, query.Encode(), js.JHosts)
 	if err != nil {
 		return nil, err
 	}
 	var hostChecks jugglerResponse
 	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
-		return nil, fmt.Errorf("Failed to Unmarshal hostChecks: %s", err)
+		logger.Errf("Failed to Unmarshal hostChecks: %s", err)
+		hostChecks = jugglerResponse{js.Host: make(map[string]jugglerCheck)}
 	}
 	var flap map[string]map[string]*jugglerFlapConfig
 	if err := json.Unmarshal(cJSON, &flap); err != nil {
-		return nil, fmt.Errorf("Failed to Unmarshal flaps: %s", err)
+		logger.Errf("Failed to Unmarshal flaps: %s", err)
+		flap = map[string]map[string]*jugglerFlapConfig{
+			js.Host: make(map[string]*jugglerFlapConfig),
+		}
 	}
 	for c, v := range flap[js.Host] {
 		if v.StableTime != 0 || v.CriticalTime != 0 || v.BoostTime != 0 {
@@ -227,7 +233,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		// or before return in case updateCheck ends with error
 		if cleanCache {
 			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
-			GlobalCache.Delete(js.Host)
+			GlobalCache.Delete(js.Host + js.CheckName)
 		}
 	}()
 	for _, c := range services {

@@ -87,7 +87,7 @@ func TestAggregating(t *testing.T) {
 			"Host3Host4":           false,
 			"Host1Host2Host3Host4": false,
 		}
-		expectSenders := map[string]int{
+		sendersCount := map[string]int{
 			"Host1":          0,
 			"Host2":          0,
 			"Host3":          0,
@@ -126,9 +126,9 @@ func TestAggregating(t *testing.T) {
 				var payload common.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
-					_, ok := expectSenders[v.Tags["name"]]
+					_, ok := sendersCount[v.Tags["name"]]
 					assert.True(t, ok, "Unexpected senders payload %s", v.Tags["name"])
-					expectSenders[v.Tags["name"]]++
+					sendersCount[v.Tags["name"]]++
 				}
 				if shouldSendToSenders == 0 {
 					tests.Spy <- []interface{}{"stop", ""}
@@ -140,8 +140,8 @@ func TestAggregating(t *testing.T) {
 			assert.True(t, v, fmt.Sprintf("aggregating for %s failed", k))
 		}
 		t.Log("Test senders")
-		for k, v := range expectSenders {
-			assert.Equal(t, v, 2, fmt.Sprintf("sedners for '%s' failed", k))
+		for k, v := range sendersCount {
+			assert.Equal(t, 3, v, fmt.Sprintf("sedners for '%s' failed", k))
 		}
 	}()
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
