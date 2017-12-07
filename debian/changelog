@@ -1,3 +1,9 @@
+combaine (0.14.4) unstable; urgency=medium
+
+  * [juggler] query only unique service_name
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 07 Dec 2017 18:16:19 +0700
+
 combaine (0.14.3) unstable; urgency=medium
 
   * [juggler] revert convertible booleans PR#47
