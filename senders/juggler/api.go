@@ -101,8 +101,13 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		"tag_name":         js.Tags,
 		"host_name":        {js.Host},
 	}
+	servicesSet := make(map[string]struct{}, 1)
 	for _, ev := range events {
-		query.Add("service_name", ev.Service)
+		if _, ok := servicesSet[ev.Service]; !ok {
+			// add only unique service_name
+			query.Add("service_name", ev.Service)
+		}
+		servicesSet[ev.Service] = struct{}{}
 	}
 	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
 		var jerrors []error
