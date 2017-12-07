@@ -1,3 +1,11 @@
+combaine (0.14.3) unstable; urgency=medium
+
+  * [juggler] revert convertible booleans PR#47
+  * [juggler] update and get only own checks
+  * [juggler] test common.Unpack into juggler.Config
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Thu, 07 Dec 2017 17:28:31 +0700
+
 combaine (0.14.2) unstable; urgency=medium
 
   * [juggler] Allow convertible booleans at juggler api PR#47 by m-messiah
