@@ -63,6 +63,9 @@ func TestGetCheck(t *testing.T) {
 			"4xx": nil,
 			"2xx": nil,
 		}},
+		{"withUnmarshalError", true, 1, map[string]*jugglerFlapConfig{
+			"checkName": {CriticalTime: 90},
+		}},
 		{"nonExisting", false, 0, make(map[string]*jugglerFlapConfig)},
 	}
 
