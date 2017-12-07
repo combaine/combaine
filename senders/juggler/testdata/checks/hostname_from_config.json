@@ -15,7 +15,7 @@
       ],
       "modification_time": 1480947535,
       "aggregator_kwargs": {
-        "ignore_nodata": "yes",
+        "ignore_nodata": 1,
         "limits": [
           {
             "crit": 0,
@@ -131,7 +131,7 @@
       ],
       "modification_time": 1480947563,
       "aggregator_kwargs": {
-        "ignore_nodata": "true",
+        "ignore_nodata": 1,
         "limits": [
           {
             "crit": 0,
