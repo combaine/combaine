@@ -1,10 +1,4 @@
 Combainer:
-  Lockserver:
-    app_id: Combaine
-    host: ['localhost:2181']
-    name: combainer_lock
-    timeout: 5
-    type: Zookeeper
   Main:
     HTTP_HAND: "http://localhost:8080/?group=%s"
     MAXIMUM_PERIOD: 40
