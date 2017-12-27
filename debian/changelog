@@ -1,3 +1,11 @@
+combaine (0.14.5) unstable; urgency=medium
+
+  * [juggler] Eventual consistency for events history
+  * [juggler] fix batch send
+  * [juggler] fix batch send err logging
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Wed, 27 Dec 2017 17:00:06 +0700
+
 combaine (0.14.4) unstable; urgency=medium
 
   * [juggler] query only unique service_name
