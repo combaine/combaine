@@ -159,7 +159,8 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 func (js *Sender) sendBatch(ctx context.Context, batch []byte, endpoint string) ([]byte, error) {
 	var (
 		cancel       func()
-		sendErr      error
+		resp         *http.Response
+		err          error
 		responseBody []byte
 		retry        = 0
 	)
@@ -168,7 +169,7 @@ SEND_LOOP:
 	for retry < 2 {
 		retry++
 		logger.Debugf("%s Attempt %d", js.id, retry)
-		resp, err := chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
+		resp, err = chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
 		switch err {
 		case nil:
 			responseBody, err = ioutil.ReadAll(resp.Body)
@@ -178,18 +179,17 @@ SEND_LOOP:
 			resp.Body.Close()
 			// err is nil and there may occure some http errors including timeout
 			if resp.StatusCode == http.StatusOK {
-				sendErr = nil
+				err = nil // override err and leave responseBody in undefined state
 				logger.Infof("%s successfully sent data in %d attempts", js.id, retry)
 				break SEND_LOOP
 			}
-			sendErr = fmt.Errorf("http status='%s', response: %s", resp.Status, responseBody)
+			err = fmt.Errorf("http status='%s', response: %s", resp.Status, responseBody)
 		case context.Canceled, context.DeadlineExceeded:
 			ctx, cancel = context.WithTimeout(context.Background(), DefaultTimeout)
 		default:
-			sendErr = fmt.Errorf("send error: %s", err)
 		}
 
-		logger.Errf("%s failed to send: %s. Attempt %d", js.id, sendErr, retry)
+		logger.Errf("%s failed to send: %s. Attempt %d", js.id, err, retry)
 		if resp != nil && resp.StatusCode == 400 {
 			break
 		}
@@ -200,7 +200,7 @@ SEND_LOOP:
 	if cancel != nil {
 		cancel()
 	}
-	return responseBody, sendErr
+	return responseBody, err
 }
 
 // sendEvent send juggler event borned by ensureCheck to jugglers
