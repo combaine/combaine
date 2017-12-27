@@ -66,6 +66,8 @@ func (s *pluginEventsStore) Connect() error {
 	if err != nil {
 		return errors.Wrap(err, "mongo connect")
 	}
+	s.session.SetMode(mgo.Eventual, true)
+
 	err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
 	if err != nil {
 		return errors.Wrap(err, "mongo login")
@@ -90,6 +92,8 @@ func (s *pluginEventsStore) Push(key, event string, history int) ([]string, erro
 		result.Events = []string{event}
 		err = c.Insert(result)
 		if err != nil {
+			// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
+			s.session.Refresh()
 			return nil, errors.Wrap(err, "mongo insert query")
 		}
 		return result.Events, nil
@@ -105,6 +109,8 @@ func (s *pluginEventsStore) Push(key, event string, history int) ([]string, erro
 	result.Events = result.Events[:history]
 	_, err = c.UpsertId(key, result)
 	if err != nil {
+		// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
+		s.session.Refresh()
 		return nil, errors.Wrap(err, "mongo update query")
 	}
 	return result.Events, nil
