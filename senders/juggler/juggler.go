@@ -159,6 +159,8 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 func (js *Sender) sendBatch(ctx context.Context, batch []byte, endpoint string) ([]byte, error) {
 	var (
 		cancel       func()
+		resp         *http.Response
+		err          error
 		responseBody []byte
 		retry        = 0
 	)
@@ -167,7 +169,7 @@ SEND_LOOP:
 	for retry < 2 {
 		retry++
 		logger.Debugf("%s Attempt %d", js.id, retry)
-		resp, err := chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
+		resp, err = chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
 		switch err {
 		case nil:
 			responseBody, err = ioutil.ReadAll(resp.Body)
