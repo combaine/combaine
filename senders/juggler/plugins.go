@@ -227,6 +227,7 @@ func (js *Sender) preparePluginEnv(data []common.AggregationResult) error {
 	js.state.SetGlobal("payload", ltable)
 	js.state.SetGlobal("checkName", lua.LString(js.Config.CheckName))
 	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))
+	js.state.SetGlobal("checkTTL", lua.LNumber(js.Config.TTL))
 
 	// variables
 	lvariables := js.state.CreateTable(0, len(js.Config.Variables))
