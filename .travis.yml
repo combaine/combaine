@@ -3,7 +3,7 @@ language: go
 sudo: required
 
 go:
- - 1.10
+ - 1.9
 
 script:
  - make test
