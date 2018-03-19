@@ -1,2 +1,7 @@
 #!/usr/bin/perl
+
+BEGIN {
+  print STDERR `rm -vrf /var/spool/combainer/raft`; # I'm sorry, brother, but not now
+}
+
 use Ubic::Run;
