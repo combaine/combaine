@@ -82,7 +82,7 @@ func TestRequest(t *testing.T) {
 			"parse ://bad_url: missing protocol scheme", 1, true},
 		{Job{PushData: []byte{}, SolCli: &Sender{
 			Config: Config{API: uriWithoutListener, Timeout: 10}}},
-			"getsockopt: connection refused", 1, true},
+			"connection refused", 1, true},
 
 		{Job{PushData: []byte{}, SolCli: &Sender{
 			Config: Config{API: ts.URL + "/timeout", Timeout: 5}}},
