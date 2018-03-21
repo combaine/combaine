@@ -1,3 +1,9 @@
+combaine (0.14.7) unstable; urgency=medium
+
+  * [raft] crutch - cleanup useless empty snapshots
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Mon, 19 Mar 2018 16:31:32 +0700
+
 combaine (0.14.6) unstable; urgency=medium
 
   * [juggler] pass checkTTL to plugins
