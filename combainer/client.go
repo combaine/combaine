@@ -241,13 +241,24 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 }
 
 func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
-	if len(hosts) == 0 {
+	hostsLen := len(hosts)
+	if hostsLen == 0 {
 		return nil, errors.New("empty list of hosts")
 	}
-	for _, idx := range rand.Perm(len(hosts)) {
+	dialTimeout := 1 * time.Second
+	deadline, ok := ctx.Deadline()
+	if ok {
+		timeout := deadline.Sub(time.Now()) / 2
+		timeout = time.Duration(timeout.Nanoseconds() / int64(hostsLen))
+		if timeout > time.Millisecond*500 {
+			dialTimeout = timeout
+		}
+	}
+	for _, idx := range rand.Perm(hostsLen) {
 		// TODO: port must be got from autodiscovery
 		address := hosts[idx] + ":10052"
-		tctx, tcancel := context.WithTimeout(ctx, time.Millisecond*100)
+
+		tctx, tcancel := context.WithTimeout(ctx, dialTimeout)
 		conn, err = grpc.DialContext(tctx, address,
 			grpc.WithInsecure(),
 			grpc.WithBlock(),
@@ -261,8 +272,8 @@ func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, er
 		default:
 		}
 		// NOTE: to be sure that DialContext return parent context's errors
-		if parent_err := ctx.Err(); parent_err != nil {
-			err = parent_err
+		if parentErr := ctx.Err(); parentErr != nil {
+			err = parentErr
 			break
 		}
 	}

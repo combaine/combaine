@@ -1,3 +1,9 @@
+combaine (0.14.8) unstable; urgency=medium
+
+  * [client] reasonable dial timeout
+
+ -- Sergey Kacheev <skacheev@yandex-team.ru>  Fri, 01 Jun 2018 06:31:32 +0700
+
 combaine (0.14.7) unstable; urgency=medium
 
   * [raft] crutch - cleanup useless empty snapshots
