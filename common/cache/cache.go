@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/combaine/combaine/common"
@@ -20,18 +20,27 @@ var factory = make(map[string]Constructor)
 func RegisterCache(name string, f Constructor) {
 	_, ok := factory[name]
 	if ok {
-		panic(fmt.Sprintf("`%s` has been already registered", name))
+		panic("`" + name + "` has been already registered")
 	}
 	factory[name] = f
 }
 
 // NewCache build and return new cache by Constructor from factory
-func NewCache(name string, config *common.PluginConfig) (Cache, error) {
-	f, ok := factory[name]
+func NewCache(config *common.PluginConfig) (Cache, error) {
+	cacheType := "InMemory" // default
+	if config != nil {
+		var err error
+		cacheType, err = config.Type()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	f, ok := factory[cacheType]
 	if ok {
 		return f(config)
 	}
-	return nil, fmt.Errorf("no cache pluign named %s", name)
+	return nil, errors.New("no cache pluign named " + cacheType)
 }
 
 // Cache interface that shoud implement cache
@@ -68,7 +77,7 @@ func (i *InMemory) Get(namespace, key string) ([]byte, error) {
 	defer i.Unlock()
 	data, ok := i.data[namespace+key]
 	if !ok {
-		return nil, fmt.Errorf("No such key `%s` in namespace `%s`", key, namespace)
+		return nil, errors.New("No such key `" + key + "` in namespace `" + namespace + "`")
 	}
 	return data, nil
 }

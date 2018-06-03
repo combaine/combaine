@@ -255,3 +255,18 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 	}
 	return parsed, nil
 }
+
+// RTCFetcher recive hosts from RTC groups
+type RTCFetcher struct {
+	RTCFetcherConfig
+	Cache cache.Cache
+}
+
+// RTCFetcherConfig ...
+type RTCFetcherConfig struct {
+	Separator   string
+	Format      string
+	ReadTimeout int64
+	Options     map[string]string
+	BasicURL    string `mapstructure:"BasicUrl"`
+}

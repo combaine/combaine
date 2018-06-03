@@ -17,12 +17,10 @@ import (
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig common.CombainerConfig
-	repository      common.Repository
 
 	cluster    *Cluster
 	shutdownCh chan struct{}
 
-	cache.Cache
 	log *logrus.Entry
 }
 
@@ -55,22 +53,15 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 	log.Info("Combainer configs is valid: OK")
 
 	cacheCfg := &combainerConfig.MainSection.Cache
-	cacheType, err := cacheCfg.Type()
-	if err != nil {
-		log.Fatalf("unable to get type of cache: %s", err)
-	}
-
-	cacher, err := cache.NewCache(cacheType, cacheCfg)
+	cacher, err := cache.NewCache(cacheCfg)
 	if err != nil {
 		log.Fatalf("unable to initialize cache: %s", err)
 	}
-	log.Infof("Initialized combainer cache type: %s", cacheType)
+	log.Infof("Initialized combainer cache: %T", cacher)
 
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
-		repository:      repository,
-		Cache:           cacher,
 		log:             log,
 	}
 
@@ -83,7 +74,7 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 
 // GetRepository return repository of configs
 func (c *CombaineServer) GetRepository() common.Repository {
-	return c.repository
+	return c.cluster.repo
 }
 
 // GetHosts return alive cluster members
@@ -93,7 +84,7 @@ func (c *CombaineServer) GetHosts() []string {
 
 // GetCache return combainer cache
 func (c *CombaineServer) GetCache() cache.Cache {
-	return c.Cache
+	return c.cluster.cache
 }
 
 // Serve run main event loop
@@ -113,7 +104,7 @@ func (c *CombaineServer) Serve() error {
 		fetcherConfig = c.CombainerConfig.CloudSection.HostFetcher
 	}
 
-	f, err := LoadHostFetcher(c.Cache, fetcherConfig)
+	f, err := LoadHostFetcher(c.GetCache(), fetcherConfig)
 	if err != nil {
 		return err
 	}

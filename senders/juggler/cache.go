@@ -1,7 +1,6 @@
 package juggler
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -40,10 +39,10 @@ func (c *cache) TuneCache(ttl time.Duration, interval time.Duration) {
 	c.Unlock()
 }
 
-type fetcher func(ctx context.Context, id, q string, hosts []string) ([]byte, error)
+type fetcher func() ([]byte, error)
 
 // Get return not expired element from cacahe or nil
-func (c *cache) Get(ctx context.Context, key string, f fetcher, id, q string, hosts []string) ([]byte, error) {
+func (c *cache) Get(id string, key string, f fetcher) ([]byte, error) {
 	c.Lock()
 	item := c.store[key]
 	if item == nil {
@@ -53,7 +52,7 @@ func (c *cache) Get(ctx context.Context, key string, f fetcher, id, q string, ho
 		}
 		c.store[key] = item
 		c.Unlock()
-		item.value, item.err = f(ctx, id, q, hosts)
+		item.value, item.err = f()
 		if item.err != nil {
 			c.Lock()
 			delete(c.store, key)

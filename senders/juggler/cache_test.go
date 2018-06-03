@@ -1,7 +1,6 @@
 package juggler
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -10,28 +9,32 @@ import (
 )
 
 func TestCacheSetGetDelete(t *testing.T) {
-	ctx := context.Background()
-	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
-		return []byte(hosts[0]), nil
+	val := []string{"response"}
+	checkFetcher := func() ([]byte, error) {
+		return []byte(val[0]), nil
 	}
 
-	id := "Test cache id"
+	id := "TestCacheSetGetDelete"
 	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10)
 	key := "check_url"
-	val := []string{"response"}
-	resp, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", val)
+	resp, _ := GlobalCache.Get(id, key, checkFetcher)
 	assert.Len(t, resp, len(val[0]))
 	assert.Equal(t, []byte(val[0]), resp)
 	GlobalCache.Delete(key)
-	resp, _ = GlobalCache.Get(ctx, key, checkFetcher, id, "q", val)
+	resp, _ = GlobalCache.Get(id, key, checkFetcher)
 	assert.Len(t, resp, len(val[0]))
 	GlobalCache.Delete(key)
 
 	// expiration without cleaner test
-	a, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"One"})
+	expected := []byte("Result")
+	checkFetcher = func() ([]byte, error) { return expected, nil }
+
+	a, _ := GlobalCache.Get(id, key, checkFetcher)
+	assert.Equal(t, expected, a)
 	time.Sleep(time.Millisecond * 8)
-	b, _ := GlobalCache.Get(ctx, key, checkFetcher, id, "q", []string{"Two"})
-	assert.Equal(t, a, b)
+	checkFetcher = func() ([]byte, error) { return []byte("Updated"), nil }
+	b, _ := GlobalCache.Get(id, key, checkFetcher)
+	assert.Equal(t, expected, b)
 }
 
 func TestCacheWithCleanupInterval(t *testing.T) {
@@ -41,11 +44,9 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 		interval: time.Minute * 20,
 		store:    make(map[string]*itemType),
 	}
-	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
-		return []byte(hosts[0]), nil
-	}
+	checkFetcher := func() ([]byte, error) { return []byte("expected"), nil }
 	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20)
-	myCache.Get(context.TODO(), "key1", checkFetcher, "Test cache id", "q", []string{"val"})
+	myCache.Get("TestCacheWithCleanupInterval", "key1", checkFetcher)
 
 	cases := []struct {
 		sleep   time.Duration

@@ -3,15 +3,16 @@ package cache
 import (
 	"testing"
 
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInMemory(t *testing.T) {
 	data := []byte{100, 102}
-	_, err := NewCache("NotExist", nil)
+	_, err := NewCache(&common.PluginConfig{"type": "NotExist"})
 	assert.Error(t, err)
 
-	m, _ := NewCache("InMemory", nil)
+	m, _ := NewCache(nil)
 	func() {
 		defer func() {
 			if r := recover(); r == nil {
