@@ -139,7 +139,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg)
+	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg, name)
 	if err != nil {
 		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return

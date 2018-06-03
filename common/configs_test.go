@@ -14,7 +14,7 @@ func TestGetAggregationConfigs(t *testing.T) {
 	cfg, _ := repo.GetParsingConfig("aggCore")
 	var parsingConfig ParsingConfig
 	assert.NoError(t, cfg.Decode(&parsingConfig))
-	aggCfgs, err := GetAggregationConfigs(repo, &parsingConfig)
+	aggCfgs, err := GetAggregationConfigs(repo, &parsingConfig, "aggCore")
 	assert.NotNil(t, (*aggCfgs)["aggCore"])
 	assert.Len(t, *aggCfgs, 1)
 	assert.NoError(t, err)

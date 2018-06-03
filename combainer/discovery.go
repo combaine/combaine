@@ -112,10 +112,11 @@ type SimpleFetcher struct {
 
 // SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
 type SimpleFetcherConfig struct {
-	Separator string
-	Format    string
-	Options   map[string]string
-	BasicURL  string `mapstructure:"BasicUrl"`
+	Separator   string
+	Format      string
+	ReadTimeout int64
+	Options     map[string]string
+	BasicURL    string `mapstructure:"BasicUrl"`
 }
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
@@ -128,6 +129,10 @@ func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetch
 	if fetcherConfig.Separator == "" {
 		fetcherConfig.Separator = "\t"
 	}
+	if fetcherConfig.ReadTimeout <= 0 {
+		fetcherConfig.ReadTimeout = 10
+	}
+
 	if fetcherConfig.Options == nil {
 		fetcherConfig.Options = make(map[string]string)
 	}
@@ -152,7 +157,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return nil, common.ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
 	defer cancel()
 	resp, err := chttp.Get(ctx, url)
 	var body []byte
@@ -194,8 +199,6 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	switch s.Format {
 	case "json":
 		return s.parseJSON(body)
-	case "qjson":
-		return s.parseQJSON(body)
 	default:
 		return s.parseTSV(body)
 	}
@@ -208,9 +211,12 @@ func (s *SimpleFetcher) parseTSV(body []byte) (hosts.Hosts, error) {
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
 		// expect index 0 - datacenter, 1 - fqdn
-		if len(temp) != 2 || temp[0] == "" {
+		if len(temp) != 2 {
 			log.Errorf("Wrong input string %q", dcAndHost)
 			continue
+		}
+		if temp[0] == "" {
+			temp[0] = "NoDC"
 		}
 		dc, host := temp[0], temp[1]
 		parsed[dc] = append(parsed[dc], host)
@@ -240,38 +246,8 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 			continue
 		}
 		if dc, ok = dcAndHost[s.Options["dc_key_name"]]; !ok || dc == "" {
-			log.Errorf("Wrong dc in host description '%s'", dcAndHost)
-			continue
+			dc = "NoDC"
 		}
-		parsed[dc] = append(parsed[dc], fqdn)
-	}
-	if len(parsed) == 0 {
-		return parsed, common.ErrNoHosts
-	}
-	return parsed, nil
-}
-
-type qResp struct {
-	Group    string   `json:"group"`
-	Children []string `json:"children"`
-}
-
-func (s *SimpleFetcher) parseQJSON(body []byte) (hosts.Hosts, error) {
-	log := logrus.WithField("source", "SimpleFetcher.parseQJSON")
-
-	var resp qResp
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("Failed to parse Qloud json body: %s", err)
-	}
-
-	parsed := make(hosts.Hosts)
-	for _, fqdn := range resp.Children {
-		dash := strings.IndexByte(fqdn, '-')
-		if dash == -1 {
-			log.Errorf("Wrong input string %q", fqdn)
-			continue
-		}
-		dc := fqdn[:dash]
 		parsed[dc] = append(parsed[dc], fqdn)
 	}
 	if len(parsed) == 0 {

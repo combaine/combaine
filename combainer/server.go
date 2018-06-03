@@ -1,7 +1,7 @@
 package combainer
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -108,17 +108,27 @@ func (c *CombaineServer) Serve() error {
 			c.log.Fatal("ListenAndServe: ", err)
 		}
 	}()
+	fetcherConfig := c.CombainerConfig.MainSection.HostFetcher
+	if len(fetcherConfig) == 0 {
+		fetcherConfig = c.CombainerConfig.CloudSection.HostFetcher
+	}
 
-	f, err := LoadHostFetcher(c.Cache, c.CombainerConfig.CloudSection.HostFetcher)
+	f, err := LoadHostFetcher(c.Cache, fetcherConfig)
 	if err != nil {
 		return err
 	}
-	hostsByDc, err := f.Fetch(c.CombainerConfig.MainSection.CloudGroup)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch cloud group: %s", err)
-	}
-	hosts := hostsByDc.RemoteHosts()
+	hosts := make([]string, 0)
+	for _, group := range c.CombainerConfig.MainSection.CloudGroups {
+		hostsByDc, err := f.Fetch(group)
+		if err != nil {
+			c.log.Errorf("Failed to fetch cloud group: %s", err)
+		}
+		hosts = append(hosts, hostsByDc.RemoteHosts()...)
 
+	}
+	if len(hosts) == 0 {
+		return errors.New("There are no combine operators here")
+	}
 	if err := c.cluster.Bootstrap(hosts, c.Configuration.Period); err != nil {
 		c.log.Errorf("Failed to connect cluster: %s", err)
 		return err

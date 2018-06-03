@@ -52,7 +52,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	encodedParsingConfig, err := cl.repository.GetParsingConfig(config)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to load config")
+		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to load .yaml or .json config")
 		return nil, err
 	}
 
@@ -64,7 +64,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	cfg := cl.repository.GetCombainerConfig()
 	parsingConfig.UpdateByCombainerConfig(&cfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(cl.repository, &parsingConfig)
+	aggregationConfigs, err := common.GetAggregationConfigs(cl.repository, &parsingConfig, config)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to read aggregation configs")
 		return nil, err
