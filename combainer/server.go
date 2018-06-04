@@ -56,7 +56,7 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 	log.Info("Combainer configs is valid: OK")
 
 	ttl := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
-	interval := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
+	interval := time.Duration(combainerConfig.MainSection.Cache.Interval) * time.Minute
 	combainerCache = cache.NewCache(ttl, interval, logger.FromLogrusLogger(log.Logger))
 	log.Infof("Initialized combainer cache: %T", combainerCache)
 

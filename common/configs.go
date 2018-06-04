@@ -68,14 +68,7 @@ func NewCombaineConfig(path string) (config CombainerConfig, err error) {
 	if err != nil {
 		return
 	}
-
 	err = yaml.Unmarshal(data, &config)
-	if config.MainSection.Cache.TTL <= 0 {
-		config.MainSection.Cache.TTL = 5
-	}
-	if config.MainSection.Cache.Interval <= 0 {
-		config.MainSection.Cache.Interval = 15
-	}
 	return
 }
 
@@ -89,6 +82,12 @@ type CombainerConfig struct {
 func VerifyCombainerConfig(cfg *CombainerConfig) error {
 	if cfg.MainSection.IterationDuration <= 0 {
 		return errors.New("MINIMUM_PERIOD must be positive")
+	}
+	if cfg.MainSection.Cache.TTL <= 0 {
+		cfg.MainSection.Cache.TTL = 5
+	}
+	if cfg.MainSection.Cache.Interval <= 0 {
+		cfg.MainSection.Cache.Interval = 15
 	}
 	return nil
 }
