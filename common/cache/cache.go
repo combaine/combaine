@@ -66,14 +66,14 @@ func (c *TTLCache) Get(id string, key string, f fetcher) ([]byte, error) {
 	} else {
 		c.Unlock()
 		<-item.ready
-		c.logger.Infof("%s Use cached check for %s", id, key)
+		c.logger.Infof("%s Use cached entry for %s", id, key)
 	}
 	c.runCleaner.Do(func() {
-		c.logger.Debugf("%s run cache cleaner", id)
+		c.logger.Debug("run TTLCache cleaner")
 		go c.cleaner()
 	})
 	if time.Now().Sub(item.expires) >= 0 {
-		c.logger.Debugf("%s remove stale cached check for %s", id, key)
+		c.logger.Debugf("%s remove stale cached entry for %s", id, key)
 		c.Lock()
 		delete(c.store, key)
 		c.Unlock()

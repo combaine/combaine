@@ -2,16 +2,11 @@ package combainer
 
 import (
 	"testing"
-	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterClient(t *testing.T) {
-	combainerCache = cache.NewCache(1*time.Minute, 2*time.Minute, logger.FromLogrusLogger(logrus.New()))
 	c1, _ := NewClient(repo)
 
 	GlobalObserver.RegisterClient(c1, "singleConfig")
