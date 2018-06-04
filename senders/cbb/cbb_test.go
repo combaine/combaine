@@ -10,7 +10,10 @@ import (
 )
 
 func init() {
-	InitializeLogger(func() { logger.CocaineLog = logger.LocalLogger() })
+	InitializeLogger(func() logger.Logger {
+		logger.CocaineLog = logger.LocalLogger()
+		return logger.CocaineLog
+	})
 }
 
 func TestSend(t *testing.T) {

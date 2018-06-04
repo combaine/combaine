@@ -31,9 +31,9 @@ type Sender struct {
 var GlobalCache *cache.TTLCache
 
 // InitializeLogger create cocaine logger
-func InitializeLogger(init func()) {
-	init() // init logger
-	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.CocaineLog)
+func InitializeLogger(init func() logger.Logger) {
+	log := init() // init logger
+	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, log)
 }
 
 // NewSender return sender object with specified config

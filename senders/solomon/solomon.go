@@ -247,7 +247,7 @@ func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 }
 
 // InitializeLogger create cocaine logger
-func InitializeLogger(init func()) { init() }
+func InitializeLogger(init func() logger.Logger) { init() }
 
 // NewSender return new instance of solomon sender
 func NewSender(config Config, id string) (*Sender, error) {
