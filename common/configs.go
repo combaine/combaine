@@ -26,10 +26,18 @@ type MainSection struct {
 	// Duration of iteration in sec
 	// Pasring stage longs at least 0.8 * MinimumPeriod
 	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
-	// Group of cloud machines
-	CloudGroup string `yaml:"cloud"`
-	// Cache options
-	Cache PluginConfig `yaml:"Cache,omitempty"`
+	// Groups of cloud machines
+	CloudGroups []string `yaml:"cloud"`
+	// combaine cloud hosts fetcher
+	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
+	// Cache TTLCache options
+	Cache CacheConfig `yaml:"cache,omitempty"`
+}
+
+// CacheConfig for TTLCache
+type CacheConfig struct {
+	TTL      int64 `yaml:"ttl"`
+	Interval int64 `yaml:"interval"`
 }
 
 // ClusterConfig about serf and raft
@@ -46,8 +54,6 @@ type ClusterConfig struct {
 type CloudSection struct {
 	// Default DataFetcher
 	DataFetcher PluginConfig `yaml:"DataFetcher"`
-	// Hosts for AgavePlugin
-	AgaveHosts  []string     `yaml:"agave_hosts"`
 	HostFetcher PluginConfig `yaml:"HostFetcher"`
 }
 
@@ -64,6 +70,12 @@ func NewCombaineConfig(path string) (config CombainerConfig, err error) {
 	}
 
 	err = yaml.Unmarshal(data, &config)
+	if config.MainSection.Cache.TTL <= 0 {
+		config.MainSection.Cache.TTL = 5
+	}
+	if config.MainSection.Cache.Interval <= 0 {
+		config.MainSection.Cache.Interval = 15
+	}
 	return
 }
 
@@ -96,9 +108,12 @@ type AggregationConfig struct {
 }
 
 // GetAggregationConfigs return aggregation config for specified parsing config
-func GetAggregationConfigs(repo Repository, parsingConfig *ParsingConfig) (*map[string]AggregationConfig, error) {
+func GetAggregationConfigs(repo Repository, pConfig *ParsingConfig, pName string) (*map[string]AggregationConfig, error) {
 	aggregationConfigs := make(map[string]AggregationConfig)
-	for _, name := range parsingConfig.AggConfigs {
+	if len(pConfig.AggConfigs) == 0 {
+		pConfig.AggConfigs = []string{pName}
+	}
+	for _, name := range pConfig.AggConfigs {
 		content, err := repo.GetAggregationConfig(name)
 		if err != nil {
 			// It seems better to throw error here instead of
@@ -107,8 +122,8 @@ func GetAggregationConfigs(repo Repository, parsingConfig *ParsingConfig) (*map[
 			return nil, err
 		}
 
-		if len(parsingConfig.Placeholders) > 0 {
-			content, err = content.Generate(&parsingConfig.Placeholders)
+		if len(pConfig.Placeholders) > 0 {
+			content, err = content.Generate(&pConfig.Placeholders)
 			if err != nil {
 				return nil, err
 			}
@@ -133,7 +148,6 @@ func NewParsingConfig(path string) (EncodedConfig, error) {
 // ParsingConfig contains settings from parsing section of combainer configs
 type ParsingConfig struct {
 	// List of host groups
-	// MUST consist of 1 value now.
 	Groups []string `yaml:"groups"`
 	// List of names of Aggregation configs
 	AggConfigs []string `yaml:"agg_configs"`

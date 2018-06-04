@@ -62,6 +62,11 @@ func LocalLogger() Logger {
 	return &loggerLogrus{Logger: logrus.StandardLogger()}
 }
 
+// FromLogrusLogger convert logrus to Logger
+func FromLogrusLogger(log *logrus.Logger) Logger {
+	return &loggerLogrus{Logger: log}
+}
+
 // InitializeLogger initialize new logrus logger with rotate handler
 func InitializeLogger(loglevel logrus.Level, outputPath string) {
 	var (

@@ -206,7 +206,7 @@ func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	log := c.log.WithField("config", config)
 
 RECLIENT:
-	cl, err := NewClient(c.cache, c.repo)
+	cl, err := NewClient(c.repo)
 	if err != nil {
 		select {
 		case <-stopCh:

@@ -15,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/hosts"
 )
@@ -27,16 +26,15 @@ func init() {
 	if err := RegisterFetcherLoader("predefine", newPredefineFetcher); err != nil {
 		panic(err)
 	}
+	if err := RegisterFetcherLoader("rtc", newRTCFetcher); err != nil {
+		panic(err)
+	}
 }
 
-const fetcherCacheNamespace = "simpleFetcherCacheNamespace"
-
 // FetcherLoader is type of function is responsible for loading fetchers
-type FetcherLoader func(cache.Cache, map[string]interface{}) (HostFetcher, error)
+type FetcherLoader func(common.PluginConfig) (HostFetcher, error)
 
-var (
-	fetchers = make(map[string]FetcherLoader)
-)
+var fetchers = make(map[string]FetcherLoader)
 
 // RegisterFetcherLoader register new fetcher loader function
 func RegisterFetcherLoader(name string, f FetcherLoader) error {
@@ -48,14 +46,14 @@ func RegisterFetcherLoader(name string, f FetcherLoader) error {
 }
 
 // LoadHostFetcher create, configure and return new hosts fetcher
-func LoadHostFetcher(cache cache.Cache, config common.PluginConfig) (HostFetcher, error) {
+func LoadHostFetcher(config common.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get type of HostFetcher")
 	}
 
 	if initializer, ok := fetchers[name]; ok {
-		return initializer(cache, config)
+		return initializer(config)
 	}
 	return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
 }
@@ -78,8 +76,7 @@ type PredefineFetcherConfig struct {
 
 // newPredefineFetcher return list of hosts defined
 // in user or server level combainer's config,
-// cache ignored because cache not need this
-func newPredefineFetcher(_ cache.Cache, config map[string]interface{}) (HostFetcher, error) {
+func newPredefineFetcher(config common.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig PredefineFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -107,19 +104,19 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 // or json configured by Format config
 type SimpleFetcher struct {
 	SimpleFetcherConfig
-	Cache cache.Cache
 }
 
 // SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
 type SimpleFetcherConfig struct {
-	Separator string
-	Format    string
-	Options   map[string]string
-	BasicURL  string `mapstructure:"BasicUrl"`
+	Separator   string
+	Format      string
+	ReadTimeout int64
+	Options     map[string]string
+	BasicURL    string `mapstructure:"BasicUrl"`
 }
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
-func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
+func newHTTPFetcher(config common.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -128,6 +125,10 @@ func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetch
 	if fetcherConfig.Separator == "" {
 		fetcherConfig.Separator = "\t"
 	}
+	if fetcherConfig.ReadTimeout <= 0 {
+		fetcherConfig.ReadTimeout = 10
+	}
+
 	if fetcherConfig.Options == nil {
 		fetcherConfig.Options = make(map[string]string)
 	}
@@ -138,10 +139,7 @@ func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetch
 		fetcherConfig.Options["dc_key_name"] = "root_datacenter_name"
 	}
 
-	f := &SimpleFetcher{
-		SimpleFetcherConfig: fetcherConfig,
-		Cache:               cache,
-	}
+	f := &SimpleFetcher{SimpleFetcherConfig: fetcherConfig}
 	return f, nil
 }
 
@@ -152,50 +150,38 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return nil, common.ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
 	defer cancel()
-	resp, err := chttp.Get(ctx, url)
-	var body []byte
-	if err != nil {
-		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)
-		body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
+
+	fetcher := func() ([]byte, error) {
+		resp, err := chttp.Get(ctx, url)
+		var body []byte
 		if err != nil {
-			log.Errorf("Unable to read data from the cache: %s", err)
+			log.Errorf("Unable to fetch hosts from %s: %s", url, err)
 			return nil, err
 		}
-	} else {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			log.Errorf("%s answered with %s. Cache is used", url, resp.Status)
-			body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			body, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Errorf("Failed to read response: %s", err)
-				body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
-				if err != nil {
-					log.Errorf("Unable to read data from the cache: %s", err)
-					return nil, err
-				}
-				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
-			} else {
-				log.Debugf("Put in cache %s: %q", groupname, body)
-				if putErr := s.Cache.Put(fetcherCacheNamespace, groupname, body); putErr != nil {
-					log.Warnf("Put error: %s", putErr)
-				}
-			}
+			err = errors.Errorf("%s answered with %s", url, resp.Status)
+			log.Error(err)
+			return nil, err
 		}
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Errorf("Failed to read response: %s", err)
+			return nil, err
+		}
+		return body, nil
+	}
+	body, err := combainerCache.Get(groupname, url, fetcher)
+	if err != nil {
+		return nil, err
 	}
 
 	// Body parsing
 	switch s.Format {
 	case "json":
 		return s.parseJSON(body)
-	case "qjson":
-		return s.parseQJSON(body)
 	default:
 		return s.parseTSV(body)
 	}
@@ -208,9 +194,12 @@ func (s *SimpleFetcher) parseTSV(body []byte) (hosts.Hosts, error) {
 	for _, dcAndHost := range strings.Split(items, "\n") {
 		temp := strings.Split(dcAndHost, s.Separator)
 		// expect index 0 - datacenter, 1 - fqdn
-		if len(temp) != 2 || temp[0] == "" {
+		if len(temp) != 2 {
 			log.Errorf("Wrong input string %q", dcAndHost)
 			continue
+		}
+		if temp[0] == "" {
+			temp[0] = "NoDC"
 		}
 		dc, host := temp[0], temp[1]
 		parsed[dc] = append(parsed[dc], host)
@@ -240,8 +229,7 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 			continue
 		}
 		if dc, ok = dcAndHost[s.Options["dc_key_name"]]; !ok || dc == "" {
-			log.Errorf("Wrong dc in host description '%s'", dcAndHost)
-			continue
+			dc = "NoDC"
 		}
 		parsed[dc] = append(parsed[dc], fqdn)
 	}
@@ -251,31 +239,106 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 	return parsed, nil
 }
 
-type qResp struct {
-	Group    string   `json:"group"`
-	Children []string `json:"children"`
+// RTCFetcher recive hosts from RTC groups
+type RTCFetcher struct {
+	RTCFetcherConfig
 }
 
-func (s *SimpleFetcher) parseQJSON(body []byte) (hosts.Hosts, error) {
-	log := logrus.WithField("source", "SimpleFetcher.parseQJSON")
+// RTCFetcherConfig ...
+type RTCFetcherConfig struct {
+	ReadTimeout int64
+	Geo         []string `mapstructure:"geo"`
+	BasicURL    string   `mapstructure:"BasicUrl"`
+}
 
-	var resp qResp
+// newRTCFetcher return list of hosts fethed from http discovery service
+func newRTCFetcher(config common.PluginConfig) (HostFetcher, error) {
+	var fetcherConfig RTCFetcherConfig
+	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+		return nil, err
+	}
+
+	if fetcherConfig.ReadTimeout <= 0 {
+		fetcherConfig.ReadTimeout = 10
+	}
+	if len(fetcherConfig.Geo) == 0 {
+		return nil, common.ErrRTCGeoMissing
+	}
+
+	f := &RTCFetcher{RTCFetcherConfig: fetcherConfig}
+	return f, nil
+}
+
+// Fetch resolve the group name in the list of hosts
+func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "RTCFetcher")
+	if !strings.Contains(s.BasicURL, `%s`) {
+		return nil, common.ErrMissingFormatSpecifier
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
+	defer cancel()
+
+	var response = make(hosts.Hosts)
+	for _, geo := range s.Geo {
+
+		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
+
+		fetcher := func() ([]byte, error) {
+			resp, err := chttp.Get(ctx, urlGeo)
+			var body []byte
+			if err != nil {
+				log.Errorf("Unable to fetch hosts from %s: %s", urlGeo, err)
+				return nil, err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				err = errors.Errorf("%s answered with %s", urlGeo, resp.Status)
+				log.Error(err)
+				return nil, err
+			}
+			body, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Errorf("Failed to read response: %s", err)
+				return nil, err
+			}
+			return body, nil
+		}
+		body, err := combainerCache.Get(groupname, urlGeo, fetcher)
+		if err != nil {
+			log.Errorf("Error while fetch: %s", urlGeo)
+			continue
+		}
+		hostnames, err := s.parseJSON(body)
+		if err != nil {
+			log.Errorf("Failed to parse response: %s", err)
+		}
+		if len(hostnames) != 0 {
+			response[geo] = hostnames
+		}
+	}
+	if len(response) == 0 {
+		return response, common.ErrNoHosts
+	}
+	return response, nil
+}
+
+type rtcResponse struct {
+	Items []rtcItem `json:"result"`
+}
+type rtcItem struct {
+	Hostname string `json:"container_hostname"`
+}
+
+func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
+	var resp rtcResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("Failed to parse Qloud json body: %s", err)
+		return nil, err
 	}
 
-	parsed := make(hosts.Hosts)
-	for _, fqdn := range resp.Children {
-		dash := strings.IndexByte(fqdn, '-')
-		if dash == -1 {
-			log.Errorf("Wrong input string %q", fqdn)
-			continue
-		}
-		dc := fqdn[:dash]
-		parsed[dc] = append(parsed[dc], fqdn)
+	hosts := make([]string, len(resp.Items))
+	for idx, item := range resp.Items {
+		hosts[idx] = item.Hostname
 	}
-	if len(parsed) == 0 {
-		return parsed, common.ErrNoHosts
-	}
-	return parsed, nil
+	return hosts, nil
 }

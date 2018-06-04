@@ -9,10 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
+
+// GlobalCache is singleton for juggler sender
+var GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.CocaineLog)
 
 const (
 	getChecksURL   = "http://%s/api/checks/checks?%s"
@@ -109,12 +114,13 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		}
 		servicesSet[ev.Service] = struct{}{}
 	}
-	checkFetcher := func(ctx context.Context, id, q string, hosts []string) ([]byte, error) {
+	checkFetcher := func() ([]byte, error) {
 		var jerrors []error
+		query := query.Encode()
 	GET_CHECK:
-		for _, jhost := range hosts {
-			url := fmt.Sprintf(getChecksURL, jhost, q)
-			logger.Infof("%s Query check %s", id, url)
+		for _, jhost := range js.JHosts {
+			url := fmt.Sprintf(getChecksURL, jhost, query)
+			logger.Infof("%s Query check %s", js.id, url)
 
 			resp, err := chttp.Get(ctx, url)
 			switch err {
@@ -129,7 +135,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 					jerrors = append(jerrors, fmt.Errorf("%s: %v %s", jhost, resp.StatusCode, body))
 					continue
 				}
-				logger.Debugf("%s Juggler response: %s", id, body)
+				logger.Debugf("%s Juggler response: %s", js.id, body)
 				return body, nil
 			case context.Canceled, context.DeadlineExceeded:
 				jerrors = append(jerrors, err)
@@ -141,7 +147,8 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		}
 		return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 	}
-	cJSON, err := GlobalCache.Get(ctx, js.Host+js.CheckName, checkFetcher, js.id, query.Encode(), js.JHosts)
+	key := js.Host + js.CheckName
+	cJSON, err := GlobalCache.Get(js.id, key, checkFetcher)
 	if err != nil {
 		return nil, err
 	}

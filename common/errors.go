@@ -11,6 +11,8 @@ var (
 	ErrLockOwned = errors.New("Config lock owned")
 	// ErrLockByAnother say about config alredy locked by another client
 	ErrLockByAnother = errors.New("Config locked by another client")
+	// ErrRTCGeoMissing ...
+	ErrRTCGeoMissing = errors.New("RTCFetcher Geo not defined")
 	// ErrMissingFormatSpecifier used by httpFetcher
 	ErrMissingFormatSpecifier = errors.New(`Missing format specifier '%s' in BasicUrl`)
 	// ErrNoHosts returned when fetcher cannot fetch hosts

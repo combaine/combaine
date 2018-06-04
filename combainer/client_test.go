@@ -17,7 +17,7 @@ var repo, repoErr = common.NewFilesystemRepository(repopath)
 func TestNewClient(t *testing.T) {
 	assert.Nil(t, repoErr, fmt.Sprintf("Unable to create repo %s", repoErr))
 
-	c, err := NewClient(nil, repo)
+	c, err := NewClient(repo)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
 	assert.NotEmpty(t, c.ID)
 }
@@ -48,7 +48,7 @@ func TestDialContext(t *testing.T) {
 }
 
 func TestUpdateSessionParams(t *testing.T) {
-	cl, err := NewClient(nil, repo)
+	cl, err := NewClient(repo)
 	sessionParams, err := cl.updateSessionParams("nop")
 	assert.Nil(t, sessionParams)
 	assert.Error(t, err)
@@ -64,7 +64,7 @@ func TestUpdateSessionParams(t *testing.T) {
 	sessionParams, err = cl.updateSessionParams("aggCore")
 	assert.NoError(t, err)
 	assert.Equal(t, len(sessionParams.AggTasks), 1)
-	f, err := LoadHostFetcher(nil, pCfg.HostFetcher)
+	f, err := LoadHostFetcher(pCfg.HostFetcher)
 	assert.NoError(t, err, "Faied to load PredefineFetcher")
 	predefinedHosts, err := f.Fetch(pCfg.Groups[0])
 	t.Log("Fetched hosts", predefinedHosts)

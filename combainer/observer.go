@@ -14,7 +14,6 @@ import (
 	"github.com/kr/pretty"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -139,7 +138,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg)
+	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg, name)
 	if err != nil {
 		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return
@@ -168,7 +167,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetCache(), s.GetRepository())
+	cl, err := NewClient(s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -199,7 +198,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Out = w
 
-	cl, err := NewClient(s.GetCache(), s.GetRepository())
+	cl, err := NewClient(s.GetRepository())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -220,7 +219,6 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 // ServerContext contains server context with repository
 type ServerContext interface {
 	GetRepository() common.Repository
-	GetCache() cache.Cache
 	GetHosts() []string
 }
 

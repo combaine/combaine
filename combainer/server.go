@@ -1,7 +1,7 @@
 package combainer
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,18 +11,19 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/logger"
 )
+
+var combainerCache *cache.TTLCache
 
 // CombaineServer main combaine object
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
 	CombainerConfig common.CombainerConfig
-	repository      common.Repository
 
 	cluster    *Cluster
 	shutdownCh chan struct{}
 
-	cache.Cache
 	log *logrus.Entry
 }
 
@@ -54,27 +55,18 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 	log.Info("Combainer configs is valid: OK")
 
-	cacheCfg := &combainerConfig.MainSection.Cache
-	cacheType, err := cacheCfg.Type()
-	if err != nil {
-		log.Fatalf("unable to get type of cache: %s", err)
-	}
-
-	cacher, err := cache.NewCache(cacheType, cacheCfg)
-	if err != nil {
-		log.Fatalf("unable to initialize cache: %s", err)
-	}
-	log.Infof("Initialized combainer cache type: %s", cacheType)
+	ttl := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
+	interval := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
+	combainerCache = cache.NewCache(ttl, interval, logger.FromLogrusLogger(log.Logger))
+	log.Infof("Initialized combainer cache: %T", combainerCache)
 
 	server := &CombaineServer{
 		Configuration:   config,
 		CombainerConfig: combainerConfig,
-		repository:      repository,
-		Cache:           cacher,
 		log:             log,
 	}
 
-	server.cluster, err = NewCluster(cacher, repository, combainerConfig.MainSection.ClusterConfig)
+	server.cluster, err = NewCluster(repository, combainerConfig.MainSection.ClusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -83,17 +75,12 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 
 // GetRepository return repository of configs
 func (c *CombaineServer) GetRepository() common.Repository {
-	return c.repository
+	return c.cluster.repo
 }
 
 // GetHosts return alive cluster members
 func (c *CombaineServer) GetHosts() []string {
 	return c.cluster.Hosts()
-}
-
-// GetCache return combainer cache
-func (c *CombaineServer) GetCache() cache.Cache {
-	return c.Cache
 }
 
 // Serve run main event loop
@@ -108,17 +95,27 @@ func (c *CombaineServer) Serve() error {
 			c.log.Fatal("ListenAndServe: ", err)
 		}
 	}()
+	fetcherConfig := c.CombainerConfig.MainSection.HostFetcher
+	if len(fetcherConfig) == 0 {
+		fetcherConfig = c.CombainerConfig.CloudSection.HostFetcher
+	}
 
-	f, err := LoadHostFetcher(c.Cache, c.CombainerConfig.CloudSection.HostFetcher)
+	f, err := LoadHostFetcher(fetcherConfig)
 	if err != nil {
 		return err
 	}
-	hostsByDc, err := f.Fetch(c.CombainerConfig.MainSection.CloudGroup)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch cloud group: %s", err)
-	}
-	hosts := hostsByDc.RemoteHosts()
+	hosts := make([]string, 0)
+	for _, group := range c.CombainerConfig.MainSection.CloudGroups {
+		hostsByDc, err := f.Fetch(group)
+		if err != nil {
+			c.log.Errorf("Failed to fetch cloud group: %s", err)
+		}
+		hosts = append(hosts, hostsByDc.RemoteHosts()...)
 
+	}
+	if len(hosts) == 0 {
+		return errors.New("There are no combine operators here")
+	}
 	if err := c.cluster.Bootstrap(hosts, c.Configuration.Period); err != nil {
 		c.log.Errorf("Failed to connect cluster: %s", err)
 		return err

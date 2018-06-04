@@ -2,10 +2,16 @@ package juggler
 
 import (
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
+
+// GlobalCache is singleton for juggler sender
 
 func TestStringifyLimits(t *testing.T) {
 	cases := []map[string]interface{}{
@@ -42,4 +48,17 @@ func TestEnsureDefaultTags(t *testing.T) {
 		_, ok := tagsSet["combaine"]
 		assert.True(t, ok, "Tag 'combaine' not present")
 	}
+}
+
+func TestTuneCache(t *testing.T) {
+	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.LocalLogger())
+	testConf := "testdata/config/juggler_example.yaml"
+	os.Setenv("JUGGLER_CONFIG", testConf)
+	sConf, err := GetSenderConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
+	assert.Equal(t, sConf.CacheTTL, GlobalCache.GetTTL())
+	assert.Equal(t, sConf.CacheCleanInterval, GlobalCache.GetInterval())
 }
