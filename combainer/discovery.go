@@ -26,6 +26,9 @@ func init() {
 	if err := RegisterFetcherLoader("predefine", newPredefineFetcher); err != nil {
 		panic(err)
 	}
+	if err := RegisterFetcherLoader("rtc", newRTCFetcher); err != nil {
+		panic(err)
+	}
 }
 
 // FetcherLoader is type of function is responsible for loading fetchers
@@ -243,9 +246,99 @@ type RTCFetcher struct {
 
 // RTCFetcherConfig ...
 type RTCFetcherConfig struct {
-	Separator   string
-	Format      string
 	ReadTimeout int64
-	Options     map[string]string
-	BasicURL    string `mapstructure:"BasicUrl"`
+	Geo         []string `mapstructure:"geo"`
+	BasicURL    string   `mapstructure:"BasicUrl"`
+}
+
+// newRTCFetcher return list of hosts fethed from http discovery service
+func newRTCFetcher(config common.PluginConfig) (HostFetcher, error) {
+	var fetcherConfig RTCFetcherConfig
+	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+		return nil, err
+	}
+
+	if fetcherConfig.ReadTimeout <= 0 {
+		fetcherConfig.ReadTimeout = 10
+	}
+	if len(fetcherConfig.Geo) == 0 {
+		return nil, common.ErrRTCGeoMissing
+	}
+
+	f := &RTCFetcher{RTCFetcherConfig: fetcherConfig}
+	return f, nil
+}
+
+// Fetch resolve the group name in the list of hosts
+func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "RTCFetcher")
+	if !strings.Contains(s.BasicURL, `%s`) {
+		return nil, common.ErrMissingFormatSpecifier
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
+	defer cancel()
+
+	var response = make(hosts.Hosts)
+	for _, geo := range s.Geo {
+
+		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
+
+		fetcher := func() ([]byte, error) {
+			resp, err := chttp.Get(ctx, urlGeo)
+			var body []byte
+			if err != nil {
+				log.Errorf("Unable to fetch hosts from %s: %s", urlGeo, err)
+				return nil, err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				err = errors.Errorf("%s answered with %s", urlGeo, resp.Status)
+				log.Error(err)
+				return nil, err
+			}
+			body, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Errorf("Failed to read response: %s", err)
+				return nil, err
+			}
+			return body, nil
+		}
+		body, err := combainerCache.Get(groupname, urlGeo, fetcher)
+		if err != nil {
+			log.Errorf("Error while fetch: %s", urlGeo)
+			continue
+		}
+		hostnames, err := s.parseJSON(body)
+		if err != nil {
+			log.Errorf("Failed to parse response: %s", err)
+		}
+		if len(hostnames) != 0 {
+			response[geo] = hostnames
+		}
+	}
+	if len(response) == 0 {
+		return response, common.ErrNoHosts
+	}
+	return response, nil
+}
+
+type rtcResponse struct {
+	Items []rtcItem `json:"result"`
+}
+type rtcItem struct {
+	Hostname string `json:"container_hostname"`
+}
+
+func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
+	var resp rtcResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+
+	hosts := make([]string, len(resp.Items))
+	for idx, item := range resp.Items {
+		hosts[idx] = item.Hostname
+	}
+	return hosts, nil
 }

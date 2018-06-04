@@ -82,6 +82,23 @@ func TestHttpFetcher(t *testing.T) {
 				{ "fqdn": "host2.in.dcB", "root_datacenter_name": "dcB" }
 			]`)
 			w.Write(payload)
+		case "/fetch/group1-json-rtc_dc1":
+			payload := []byte(`{
+				"result": [
+					{ "hostname": "host1.dc1" },
+					{ "hostname": "host2.dc1" }
+				]
+			}`)
+			w.Write(payload)
+		case "/fetch/group1-json-rtc_dcB":
+			payload := []byte(`{
+				"result": [
+					{ "hostname": "host1.dcB" },
+					{ "hostname": "host2.dcB" }
+					{ "hostname": "host3.dcB" }
+				]
+			}`)
+			w.Write(payload)
 		case "/fetch/group2":
 			w.Write([]byte("\n"))
 		case "/fetch/group3":
@@ -131,6 +148,66 @@ func TestHttpFetcher(t *testing.T) {
 			"group1-json", Ok, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
+	}
+	for _, c := range cases {
+		hFetcher, err := LoadHostFetcher(c.config)
+		assert.NoError(t, err, "Failed to load host fetcher")
+		resp, err := hFetcher.Fetch(c.query)
+		if c.err {
+			if c.errType != nil {
+				assert.Equal(t, err, c.errType)
+			} else {
+				assert.Error(t, err, fmt.Sprintf("Test filed for %s", c.query))
+			}
+		} else {
+			assert.Equal(t, c.expect, resp)
+		}
+	}
+}
+
+func TestRTCFetcher(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/fetch/group1-json-rtc_dc1":
+			payload := []byte(`{
+				"result": [
+					{ "container_hostname": "host1.dc1" },
+					{ "container_hostname": "host2.dc1" }
+				]
+			}`)
+			w.Write(payload)
+		case "/fetch/group1-json-rtc_dcB":
+			payload := []byte(`{
+				"result": [
+					{ "container_hostname": "host1.dcB" },
+					{ "container_hostname": "host2.dcB" },
+					{ "container_hostname": "host3.dcB" }
+				]
+			}`)
+			w.Write(payload)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintln(w, "Not Found")
+		}
+	}))
+	defer ts.Close()
+
+	var (
+		Ok = false
+	)
+
+	cases := []struct {
+		config  common.PluginConfig
+		query   string
+		err     bool
+		errType error
+		expect  hosts.Hosts
+	}{
+		{common.PluginConfig{"type": "rtc", "geo": []string{"dc1"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+			"group1-json-rtc", Ok, nil, hosts.Hosts{"dc1": {"host1.dc1", "host2.dc1"}}},
+		{common.PluginConfig{"type": "rtc", "geo": []string{"dc1", "dcB"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+			"group1-json-rtc", Ok, nil,
+			hosts.Hosts{"dc1": {"host1.dc1", "host2.dc1"}, "dcB": {"host1.dcB", "host2.dcB", "host3.dcB"}}},
 	}
 	for _, c := range cases {
 		hFetcher, err := LoadHostFetcher(c.config)
