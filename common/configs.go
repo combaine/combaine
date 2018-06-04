@@ -30,8 +30,14 @@ type MainSection struct {
 	CloudGroups []string `yaml:"cloud"`
 	// combaine cloud hosts fetcher
 	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
-	// Cache options
-	Cache PluginConfig `yaml:"Cache,omitempty"`
+	// Cache TTLCache options
+	Cache CacheConfig `yaml:"cache,omitempty"`
+}
+
+// CacheConfig for TTLCache
+type CacheConfig struct {
+	TTL      int64 `yaml:"ttl"`
+	Interval int64 `yaml:"interval"`
 }
 
 // ClusterConfig about serf and raft

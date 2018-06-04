@@ -1,83 +1,124 @@
 package cache
 
 import (
-	"errors"
 	"sync"
+	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 )
 
-func init() {
-	RegisterCache("InMemory", NewInMemoryCache)
+// item holds cached item
+type itemType struct {
+	expires time.Time
+	value   []byte
+	err     error
+	ready   chan struct{}
 }
 
-// Constructor type for func that return new cache
-type Constructor func(*common.PluginConfig) (Cache, error)
+// TTLCache is ttl cache for http responses
+type TTLCache struct {
+	sync.RWMutex
+	ttl        time.Duration
+	interval   time.Duration
+	store      map[string]*itemType
+	runCleaner sync.Once
+	logger     logger.Logger
+}
 
-var factory = make(map[string]Constructor)
-
-// RegisterCache perform registration of new cache in cache factory
-func RegisterCache(name string, f Constructor) {
-	_, ok := factory[name]
-	if ok {
-		panic("`" + name + "` has been already registered")
+// NewCache create new TTLCache instance
+func NewCache(ttl time.Duration, interval time.Duration, log logger.Logger) *TTLCache {
+	return &TTLCache{
+		ttl:      ttl,
+		interval: interval,
+		store:    make(map[string]*itemType),
+		logger:   log,
 	}
-	factory[name] = f
 }
 
-// NewCache build and return new cache by Constructor from factory
-func NewCache(config *common.PluginConfig) (Cache, error) {
-	cacheType := "InMemory" // default
-	if config != nil {
-		var err error
-		cacheType, err = config.Type()
-		if err != nil {
-			return nil, err
+// TuneCache tune TTLCache ttl and interval
+func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration) {
+	c.Lock()
+	c.ttl = ttl
+	c.interval = interval
+	c.Unlock()
+}
+
+type fetcher func() ([]byte, error)
+
+// Get return not expired element from cacahe or nil
+func (c *TTLCache) Get(id string, key string, f fetcher) ([]byte, error) {
+	c.Lock()
+	item := c.store[key]
+	if item == nil {
+		item = &itemType{
+			ready:   make(chan struct{}),
+			expires: time.Now().Add(c.ttl),
+		}
+		c.store[key] = item
+		c.Unlock()
+		item.value, item.err = f()
+		if item.err != nil {
+			c.Lock()
+			delete(c.store, key)
+			c.Unlock()
+		}
+		close(item.ready)
+	} else {
+		c.Unlock()
+		<-item.ready
+		c.logger.Infof("%s Use cached check for %s", id, key)
+	}
+	c.runCleaner.Do(func() {
+		c.logger.Debugf("%s run cache cleaner", id)
+		go c.cleaner()
+	})
+	if time.Now().Sub(item.expires) >= 0 {
+		c.logger.Debugf("%s remove stale cached check for %s", id, key)
+		c.Lock()
+		delete(c.store, key)
+		c.Unlock()
+	}
+	return item.value, item.err
+}
+
+// Delete add new element in the TTLCache
+func (c *TTLCache) Delete(key string) {
+	c.Lock()
+	delete(c.store, key)
+	c.Unlock()
+}
+
+func (c *TTLCache) cleaner() {
+	var interval time.Duration
+	for {
+		c.RLock()
+		interval = c.interval
+		c.RUnlock()
+		time.Sleep(interval)
+		var staleItems []string
+		c.RLock()
+		for key, item := range c.store {
+			if time.Now().Sub(item.expires) > 0 {
+				staleItems = append(staleItems, key)
+			}
+		}
+		c.RUnlock()
+		if len(staleItems) > 0 {
+			c.Lock()
+			for _, k := range staleItems {
+				delete(c.store, k)
+			}
+			c.Unlock()
 		}
 	}
-
-	f, ok := factory[cacheType]
-	if ok {
-		return f(config)
-	}
-	return nil, errors.New("no cache pluign named " + cacheType)
 }
 
-// Cache interface that shoud implement cache
-type Cache interface {
-	Put(namespace, key string, data []byte) error
-	Get(namespace, key string) ([]byte, error)
+// GetTTL of internal store
+func (c *TTLCache) GetTTL() time.Duration {
+	return c.ttl
 }
 
-// InMemory is a simplest in memory cache
-type InMemory struct {
-	sync.Mutex
-	data map[string][]byte
-}
-
-// NewInMemoryCache build and return new instance of InMemory cache
-func NewInMemoryCache(config *common.PluginConfig) (Cache, error) {
-	c := &InMemory{
-		data: make(map[string][]byte),
-	}
-	return c, nil
-}
-
-// Put place data in cache
-func (i *InMemory) Put(namespace, key string, data []byte) error {
-	i.Lock()
-	i.data[namespace+key] = data
-	i.Unlock()
-	return nil
-}
-
-// Get return data from cache
-func (i *InMemory) Get(namespace, key string) ([]byte, error) {
-	i.Lock()
-	defer i.Unlock()
-	data, ok := i.data[namespace+key]
-	if !ok {
-		return nil, errors.New("No such key `" + key + "` in namespace `" + namespace + "`")
-	}
-	return data, nil
+// GetInterval cleaner of internal store
+func (c *TTLCache) GetInterval() time.Duration {
+	return c.interval
 }

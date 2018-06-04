@@ -7,40 +7,38 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	testCache, _ = cache.NewInMemoryCache(nil)
-	pluginCfg    = common.PluginConfig{}
-	testCfg      = common.PluginConfig{}
+	pluginCfg = common.PluginConfig{}
+	testCfg   = common.PluginConfig{}
 )
 
 func TestRegisterFetcherLoader(t *testing.T) {
 	pdf := &PredefineFetcher{}
-	f := func(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
+	f := func(config common.PluginConfig) (HostFetcher, error) {
 		return pdf, nil
 	}
 	assert.NoError(t, RegisterFetcherLoader("test", f))
 	assert.Error(t, RegisterFetcherLoader("test", f))
-	_, err := LoadHostFetcher(testCache, testCfg)
+	_, err := LoadHostFetcher(testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "nonRegistered"
-	_, err = LoadHostFetcher(testCache, testCfg)
+	_, err = LoadHostFetcher(testCfg)
 	assert.Error(t, err)
 
 	testCfg["type"] = "test"
-	nf, err := LoadHostFetcher(testCache, testCfg)
+	nf, err := LoadHostFetcher(testCfg)
 	assert.NoError(t, err)
 	assert.Equal(t, nf, pdf)
 }
 
 func TestPredefineFetcher(t *testing.T) {
 	testCfg = common.PluginConfig{"type": "predefine", "Clusters": 1}
-	_, err := LoadHostFetcher(testCache, testCfg)
+	_, err := LoadHostFetcher(testCfg)
 	assert.Error(t, err)
 	testCfg = common.PluginConfig{
 		"type": "predefine",
@@ -51,7 +49,7 @@ func TestPredefineFetcher(t *testing.T) {
 			},
 		},
 	}
-	pFetcher, err := LoadHostFetcher(testCache, testCfg)
+	pFetcher, err := LoadHostFetcher(testCfg)
 	assert.NoError(t, err)
 	_, err = pFetcher.Fetch("NotInCache")
 	assert.Error(t, err)
@@ -135,7 +133,7 @@ func TestHttpFetcher(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		hFetcher, err := LoadHostFetcher(testCache, c.config)
+		hFetcher, err := LoadHostFetcher(c.config)
 		assert.NoError(t, err, "Failed to load host fetcher")
 		resp, err := hFetcher.Fetch(c.query)
 		if c.err {

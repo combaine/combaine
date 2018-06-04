@@ -15,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/hosts"
 )
@@ -29,14 +28,10 @@ func init() {
 	}
 }
 
-const fetcherCacheNamespace = "simpleFetcherCacheNamespace"
-
 // FetcherLoader is type of function is responsible for loading fetchers
-type FetcherLoader func(cache.Cache, map[string]interface{}) (HostFetcher, error)
+type FetcherLoader func(common.PluginConfig) (HostFetcher, error)
 
-var (
-	fetchers = make(map[string]FetcherLoader)
-)
+var fetchers = make(map[string]FetcherLoader)
 
 // RegisterFetcherLoader register new fetcher loader function
 func RegisterFetcherLoader(name string, f FetcherLoader) error {
@@ -48,14 +43,14 @@ func RegisterFetcherLoader(name string, f FetcherLoader) error {
 }
 
 // LoadHostFetcher create, configure and return new hosts fetcher
-func LoadHostFetcher(cache cache.Cache, config common.PluginConfig) (HostFetcher, error) {
+func LoadHostFetcher(config common.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get type of HostFetcher")
 	}
 
 	if initializer, ok := fetchers[name]; ok {
-		return initializer(cache, config)
+		return initializer(config)
 	}
 	return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
 }
@@ -78,8 +73,7 @@ type PredefineFetcherConfig struct {
 
 // newPredefineFetcher return list of hosts defined
 // in user or server level combainer's config,
-// cache ignored because cache not need this
-func newPredefineFetcher(_ cache.Cache, config map[string]interface{}) (HostFetcher, error) {
+func newPredefineFetcher(config common.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig PredefineFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -107,7 +101,6 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 // or json configured by Format config
 type SimpleFetcher struct {
 	SimpleFetcherConfig
-	Cache cache.Cache
 }
 
 // SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
@@ -120,7 +113,7 @@ type SimpleFetcherConfig struct {
 }
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
-func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetcher, error) {
+func newHTTPFetcher(config common.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -143,10 +136,7 @@ func newHTTPFetcher(cache cache.Cache, config map[string]interface{}) (HostFetch
 		fetcherConfig.Options["dc_key_name"] = "root_datacenter_name"
 	}
 
-	f := &SimpleFetcher{
-		SimpleFetcherConfig: fetcherConfig,
-		Cache:               cache,
-	}
+	f := &SimpleFetcher{SimpleFetcherConfig: fetcherConfig}
 	return f, nil
 }
 
@@ -159,40 +149,30 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	url := fmt.Sprintf(s.BasicURL, groupname)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
 	defer cancel()
-	resp, err := chttp.Get(ctx, url)
-	var body []byte
-	if err != nil {
-		log.Warningf("Unable to fetch hosts from %s: %s. Cache is used", url, err)
-		body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
+
+	fetcher := func() ([]byte, error) {
+		resp, err := chttp.Get(ctx, url)
+		var body []byte
 		if err != nil {
-			log.Errorf("Unable to read data from the cache: %s", err)
+			log.Errorf("Unable to fetch hosts from %s: %s", url, err)
 			return nil, err
 		}
-	} else {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			log.Errorf("%s answered with %s. Cache is used", url, resp.Status)
-			body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			body, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Errorf("Failed to read response: %s", err)
-				body, err = s.Cache.Get(fetcherCacheNamespace, groupname)
-				if err != nil {
-					log.Errorf("Unable to read data from the cache: %s", err)
-					return nil, err
-				}
-				log.Errorf("%s answered with %s, but read response failed. Cache is used", url, resp.Status)
-			} else {
-				log.Debugf("Put in cache %s: %q", groupname, body)
-				if putErr := s.Cache.Put(fetcherCacheNamespace, groupname, body); putErr != nil {
-					log.Warnf("Put error: %s", putErr)
-				}
-			}
+			err = errors.Errorf("%s answered with %s", url, resp.Status)
+			log.Error(err)
+			return nil, err
 		}
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Errorf("Failed to read response: %s", err)
+			return nil, err
+		}
+		return body, nil
+	}
+	body, err := combainerCache.Get(groupname, url, fetcher)
+	if err != nil {
+		return nil, err
 	}
 
 	// Body parsing
@@ -259,7 +239,6 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 // RTCFetcher recive hosts from RTC groups
 type RTCFetcher struct {
 	RTCFetcherConfig
-	Cache cache.Cache
 }
 
 // RTCFetcherConfig ...

@@ -2,37 +2,73 @@ package cache
 
 import (
 	"testing"
+	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInMemory(t *testing.T) {
-	data := []byte{100, 102}
-	_, err := NewCache(&common.PluginConfig{"type": "NotExist"})
-	assert.Error(t, err)
+var GlobalCache = NewCache(time.Minute*10 /* ttl*/, time.Minute*20 /* interval*/, logger.LocalLogger())
 
-	m, _ := NewCache(nil)
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Fatal("ReRegister cache not panic")
-			}
-		}()
-		RegisterCache("InMemory", NewInMemoryCache)
-	}()
-
-	if err := m.Put("A", "A", data); err != nil {
-		t.Fatalf("unable to put to InMemory cache: %s", err)
+func TestCacheSetGetDelete(t *testing.T) {
+	val := []string{"response"}
+	checkFetcher := func() ([]byte, error) {
+		return []byte(val[0]), nil
 	}
 
-	if d2, err := m.Get("A", "A"); err != nil {
-		t.Fatalf("unable to get to InMemory cache: %s", err)
-	} else if len(d2) != len(data) || d2[0] != data[0] {
-		t.Fatalf("Corrupted data: %s %s", d2, data)
-	}
+	id := "TestCacheSetGetDelete"
+	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10)
+	key := "check_url"
+	resp, _ := GlobalCache.Get(id, key, checkFetcher)
+	assert.Len(t, resp, len(val[0]))
+	assert.Equal(t, []byte(val[0]), resp)
+	GlobalCache.Delete(key)
+	resp, _ = GlobalCache.Get(id, key, checkFetcher)
+	assert.Len(t, resp, len(val[0]))
+	GlobalCache.Delete(key)
 
-	if _, err := m.Get("A", "B"); err == nil {
-		t.Fatal("Got nil, but error was expected")
+	// expiration without cleaner test
+	expected := []byte("Result")
+	checkFetcher = func() ([]byte, error) { return expected, nil }
+
+	a, _ := GlobalCache.Get(id, key, checkFetcher)
+	assert.Equal(t, expected, a)
+	time.Sleep(time.Millisecond * 8)
+	checkFetcher = func() ([]byte, error) { return []byte("Updated"), nil }
+	b, _ := GlobalCache.Get(id, key, checkFetcher)
+	assert.Equal(t, expected, b)
+}
+
+func TestCacheWithCleanupInterval(t *testing.T) {
+
+	myCache := NewCache(
+		time.Minute*10,       // ttl
+		time.Minute*20,       // interval
+		logger.LocalLogger(), // log
+	)
+	checkFetcher := func() ([]byte, error) { return []byte("expected"), nil }
+	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20)
+	myCache.Get("TestCacheWithCleanupInterval", "key1", checkFetcher)
+
+	cases := []struct {
+		sleep   time.Duration
+		present bool
+		message string
+	}{
+		{time.Millisecond * 15, true, "should be present"},
+		{time.Millisecond * 15, true, "should be stil present"}, // item stale but present
+		{time.Millisecond * 1, false, "should be absent"},       // cleaner remove item
 	}
+	for _, c := range cases {
+		myCache.RLock()
+		_, ok := myCache.store["key1"]
+		myCache.RUnlock()
+		assert.Equal(t, c.present, ok, c.message)
+		time.Sleep(c.sleep)
+	}
+	time.Sleep(time.Millisecond * 15)
+
+	myCache.RLock()
+	assert.Len(t, myCache.store, 0)
+	myCache.RUnlock()
 }

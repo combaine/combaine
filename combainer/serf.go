@@ -9,7 +9,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -29,7 +28,7 @@ const (
 )
 
 // NewCluster create and initialize Cluster instance
-func NewCluster(cache cache.Cache, repo common.Repository, cfg common.ClusterConfig) (*Cluster, error) {
+func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, error) {
 	err := validateConfig(&cfg)
 	if err != nil {
 		return nil, err
@@ -86,7 +85,6 @@ func NewCluster(cache cache.Cache, repo common.Repository, cfg common.ClusterCon
 		raftAdvertiseIP: raftAdvertiseIP,
 		store:           NewFSMStore(),
 		log:             log,
-		cache:           cache,
 		repo:            repo,
 		config:          &cfg,
 	}
@@ -117,7 +115,6 @@ type Cluster struct {
 	store          *FSMStore
 	updateInterval time.Duration
 	log            *logrus.Entry
-	cache          cache.Cache
 	repo           common.Repository
 	config         *common.ClusterConfig
 }

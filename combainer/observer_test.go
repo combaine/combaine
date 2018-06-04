@@ -2,13 +2,17 @@ package combainer
 
 import (
 	"testing"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterClient(t *testing.T) {
-	c1, _ := NewClient(&cache.InMemory{}, repo)
+	combainerCache = cache.NewCache(1*time.Minute, 2*time.Minute, logger.FromLogrusLogger(logrus.New()))
+	c1, _ := NewClient(repo)
 
 	GlobalObserver.RegisterClient(c1, "singleConfig")
 	c1.AddSuccessAggregate()
@@ -18,7 +22,7 @@ func TestRegisterClient(t *testing.T) {
 	assert.EqualValues(t, c1.successAggregate, 1)
 	assert.EqualValues(t, stats["singleConfig"].AggregateTotal, 2)
 
-	c2, _ := NewClient(&cache.InMemory{}, repo)
+	c2, _ := NewClient(repo)
 	GlobalObserver.RegisterClient(c2, "singleConfig") // ReRegister client for config c1
 	stats = GlobalObserver.GetClientsStats()
 	assert.EqualValues(t, c2.failedAggregate, 1)

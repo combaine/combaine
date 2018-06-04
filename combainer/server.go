@@ -11,7 +11,10 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/common/logger"
 )
+
+var combainerCache *cache.TTLCache
 
 // CombaineServer main combaine object
 type CombaineServer struct {
@@ -52,12 +55,10 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 	}
 	log.Info("Combainer configs is valid: OK")
 
-	cacheCfg := &combainerConfig.MainSection.Cache
-	cacher, err := cache.NewCache(cacheCfg)
-	if err != nil {
-		log.Fatalf("unable to initialize cache: %s", err)
-	}
-	log.Infof("Initialized combainer cache: %T", cacher)
+	ttl := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
+	interval := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
+	combainerCache = cache.NewCache(ttl, interval, logger.FromLogrusLogger(log.Logger))
+	log.Infof("Initialized combainer cache: %T", combainerCache)
 
 	server := &CombaineServer{
 		Configuration:   config,
@@ -65,7 +66,7 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 		log:             log,
 	}
 
-	server.cluster, err = NewCluster(cacher, repository, combainerConfig.MainSection.ClusterConfig)
+	server.cluster, err = NewCluster(repository, combainerConfig.MainSection.ClusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +81,6 @@ func (c *CombaineServer) GetRepository() common.Repository {
 // GetHosts return alive cluster members
 func (c *CombaineServer) GetHosts() []string {
 	return c.cluster.Hosts()
-}
-
-// GetCache return combainer cache
-func (c *CombaineServer) GetCache() cache.Cache {
-	return c.cluster.cache
 }
 
 // Serve run main event loop
@@ -104,7 +100,7 @@ func (c *CombaineServer) Serve() error {
 		fetcherConfig = c.CombainerConfig.CloudSection.HostFetcher
 	}
 
-	f, err := LoadHostFetcher(c.GetCache(), fetcherConfig)
+	f, err := LoadHostFetcher(fetcherConfig)
 	if err != nil {
 		return err
 	}

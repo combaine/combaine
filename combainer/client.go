@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/rpc"
 )
@@ -29,19 +28,17 @@ type sessionParams struct {
 type Client struct {
 	ID         string
 	repository common.Repository
-	Cache      cache.Cache
 	Log        *logrus.Entry
 	clientStats
 }
 
 // NewClient returns new client
-func NewClient(cache cache.Cache, repo common.Repository) (*Client, error) {
+func NewClient(repo common.Repository) (*Client, error) {
 	id := common.GenerateSessionID()
 
 	cl := &Client{
 		ID:         id,
 		repository: repo,
-		Cache:      cache,
 		Log:        logrus.WithField("client", id),
 	}
 	return cl, nil
@@ -72,7 +69,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	cl.Log.Infof("updating config metahost: %s", parsingConfig.Metahost)
 
-	hostFetcher, err := LoadHostFetcher(cl.Cache, parsingConfig.HostFetcher)
+	hostFetcher, err := LoadHostFetcher(parsingConfig.HostFetcher)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("Unable to construct SimpleFetcher")
 		return
