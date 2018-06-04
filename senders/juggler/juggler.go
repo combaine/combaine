@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 	lua "github.com/yuin/gopher-lua"
@@ -26,8 +27,14 @@ type Sender struct {
 	state *lua.LState
 }
 
+// GlobalCache for juggler checks
+var GlobalCache *cache.TTLCache
+
 // InitializeLogger create cocaine logger
-func InitializeLogger(init func()) { init() }
+func InitializeLogger(init func()) {
+	init() // init logger
+	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.CocaineLog)
+}
 
 // NewSender return sender object with specified config
 func NewSender(conf *Config, id string) (*Sender, error) {

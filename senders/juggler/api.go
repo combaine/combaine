@@ -9,15 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 )
-
-// GlobalCache is singleton for juggler sender
-var GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.CocaineLog)
 
 const (
 	getChecksURL   = "http://%s/api/checks/checks?%s"
