@@ -306,7 +306,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		}
 		body, err := combainerCache.Get(groupname, urlGeo, fetcher)
 		if err != nil {
-			log.Errorf("Error while fetch: %s", urlGeo)
+			log.Errorf("Cache.Get failed for: %s", urlGeo)
 			continue
 		}
 		hostnames, err := s.parseJSON(body)
