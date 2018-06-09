@@ -1,8 +1,8 @@
-export PATH := /usr/local/go/bin:$(PATH)
+export PATH := ~/go/bin:/usr/local/go/bin:$(PATH)
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell PATH="$(PATH)" bash -c "go list ./...|egrep -v '^github.com/combaine/combaine/(tests|vendor/)'")
+PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|egrep -v '^github.com/combaine/combaine/tests'")
 
 .PHONY: clean all fmt vet lint build test proto
 
@@ -11,35 +11,35 @@ build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/combainer/main.go
+	vgo build -o $@ ./cmd/combainer/main.go
 
 ${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/worker/main.go
+	vgo build -o $@ ./cmd/worker/main.go
 
 ${DIR}/agave: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/agave/main.go
+	vgo build -o $@ ./cmd/agave/main.go
 
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/graphite/main.go
+	vgo build -o $@ ./cmd/graphite/main.go
 
 ${DIR}/razladki: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/razladki/main.go
+	vgo build -o $@ ./cmd/razladki/main.go
 
 ${DIR}/cbb: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/cbb/main.go
+	vgo build -o $@ ./cmd/cbb/main.go
 
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/solomon/main.go
+	vgo build -o $@ ./cmd/solomon/main.go
 
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/juggler/main.go
+	vgo build -o $@ ./cmd/juggler/main.go
 
 proto: ${PREFIX}/rpc/rpc.pb.go
 
@@ -57,18 +57,18 @@ vet:
 
 fmt:
 	@echo "+ $@"
-	@test -z "$$(gofmt -s -l . 2>&1 | grep -v ^vendor/ | tee /dev/stderr)" || \
+	@test -z "$$(gofmt -s -l . 2>&1 | tee /dev/stderr)" || \
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
 lint:
 	@echo "+ $@"
-	@test -z "$$(golint ./... 2>&1 | grep -v ^vendor/ | tee /dev/stderr)"
+	@test -z "$$(golint ./... 2>&1 | tee /dev/stderr)"
 
 
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
-	@set -e; for pkg in $(PKGS); do go test -coverprofile=profile.out -covermode=atomic $$pkg; \
+	@set -e; for pkg in $(PKGS); do vgo test -coverprofile=profile.out -covermode=atomic $$pkg; \
 	if [ -f profile.out ]; then \
 		cat profile.out >> coverage.txt; rm  profile.out; \
 	fi done; \
