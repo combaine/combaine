@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 )
 
 var (

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 

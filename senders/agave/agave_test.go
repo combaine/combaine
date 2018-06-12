@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 

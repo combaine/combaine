@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 )
 
 func TestMain(m *testing.M) {

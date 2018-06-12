@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"

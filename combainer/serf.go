@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (

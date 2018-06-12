@@ -1,7 +1,6 @@
 module github.com/combaine/combaine
 
 require (
-	github.com/Sirupsen/logrus v0.0.0-20170815202055-f006c2ac4710
 	github.com/armon/go-metrics v0.0.0-20170913184837-0a12dc6f6b9d
 	github.com/boltdb/bolt v0.0.0-20170907202052-fa5367d20c99
 	github.com/cocaine/cocaine-framework-go v0.0.0-20140929112710-e450e974babe
@@ -23,6 +22,7 @@ require (
 	github.com/pkg/errors v0.0.0-20160929014801-645ef00459ed
 	github.com/satori/go.uuid v0.0.0-20170321230731-5bf94b69c6b6
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
+	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
 	github.com/ugorji/go v0.0.0-20170918222552-54210f4e076c
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed

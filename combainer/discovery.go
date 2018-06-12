@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"

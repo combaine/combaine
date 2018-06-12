@@ -2,7 +2,7 @@ export PATH := ~/go/bin:/usr/local/go/bin:$(PATH)
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|egrep -v '^github.com/combaine/combaine/tests'")
+PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
 
 .PHONY: clean all fmt vet lint build test proto
 
@@ -53,7 +53,7 @@ clean:
 
 vet:
 	@echo "+ $@"
-	@go vet $(PKGS)
+	@vgo vet $(PKGS)
 
 fmt:
 	@echo "+ $@"
@@ -68,7 +68,7 @@ lint:
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
-	@set -e; for pkg in $(PKGS); do vgo test -coverprofile=profile.out -covermode=atomic $$pkg; \
+	@set -e; for pkg in $(PKGS); do vgo test -race -coverprofile=profile.out -covermode=atomic $$pkg; \
 	if [ -f profile.out ]; then \
 		cat profile.out >> coverage.txt; rm  profile.out; \
 	fi done; \

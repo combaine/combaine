@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/rpc"
 )
