@@ -3,7 +3,9 @@ language: go
 sudo: required
 
 go:
- - 1.9
+ - 1.10.x
+install:
+ - go get -u golang.org/x/vgo
 
 script:
  - make test
