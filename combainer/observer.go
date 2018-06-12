@@ -9,9 +9,9 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
+	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
 )

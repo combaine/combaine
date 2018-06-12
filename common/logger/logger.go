@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cocaine/cocaine-framework-go/cocaine"
+	"github.com/sirupsen/logrus"
 )
 
 const waitForLogger = 5 // attempts

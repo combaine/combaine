@@ -44,6 +44,7 @@ func TestStartWorkers(t *testing.T) {
 			close(j)
 			break
 		}
+		time.Sleep(time.Millisecond)
 		runtime.Gosched()
 	}
 	assert.Equal(t, 0, len(j))

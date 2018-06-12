@@ -5,11 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/rpc"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, error) {
