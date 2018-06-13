@@ -109,6 +109,7 @@ func (c *CombaineServer) Serve() error {
 		hostsByDc, err := f.Fetch(group)
 		if err != nil {
 			c.log.Errorf("Failed to fetch cloud group: %s", err)
+			continue
 		}
 		hosts = append(hosts, hostsByDc.RemoteHosts()...)
 

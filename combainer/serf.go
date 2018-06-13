@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/combaine/combaine/common"
@@ -56,12 +57,15 @@ func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, err
 	}
 	var raftAdvertiseIP net.IP
 	for _, ip := range ips {
-		if len(ip) == net.IPv6len && ip.IsGlobalUnicast() {
+		if ip.IsGlobalUnicast() {
 			raftAdvertiseIP = ip
 			conf.MemberlistConfig.AdvertiseAddr = ip.String()
 			log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
 			break
 		}
+	}
+	if conf.MemberlistConfig.AdvertiseAddr == "" {
+		return nil, errors.New("AdvertiseAddr is not set for Serf")
 	}
 
 	// run Serf instance and monitor for this events
@@ -152,15 +156,10 @@ CONNECT:
 		return errors.Wrap(err, "tcp transport failed")
 	}
 
-	var peersAddrs []string
+	var addrs []string
 	for _, m := range c.Members() {
-		addr := net.JoinHostPort(m.Addr.String(), strconv.Itoa(c.config.RaftPort))
-		peersAddrs = append(peersAddrs, addr)
-	}
-	c.log.Infof("Set raft peers %v", peersAddrs)
-	raftPeers := raft.NewJSONPeers(c.config.RaftStateDir, c.transport)
-	if err = raftPeers.SetPeers(peersAddrs); err != nil {
-		return err
+		addr := &net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}
+		addrs = append(addrs, addr.String())
 	}
 
 	c.log.Info("Create snapshot store")
@@ -177,6 +176,21 @@ CONNECT:
 		return errors.Wrap(err, "bolt store failed")
 	}
 
+	// Attempt a live bootstrap
+	var configuration raft.Configuration
+	for _, addr := range addrs {
+		server := raft.Server{
+			ID:      raft.ServerID(addr),
+			Address: raft.ServerAddress(addr),
+		}
+		configuration.Servers = append(configuration.Servers, server)
+	}
+	c.log.Infof("Attempting to bootstrap cluster with peers (%s)", strings.Join(addrs, ","))
+	future := c.raft.BootstrapCluster(configuration)
+	if err := future.Error(); err != nil {
+		c.log.Errorf("Failed to bootstrap cluster: %v", err)
+	}
+
 	c.raftStore = boltStore
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
@@ -185,7 +199,7 @@ CONNECT:
 	c.updateInterval = interval
 
 	c.log.Info("Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, c.transport)
 	if err != nil {
 		return errors.Wrap(err, "raft failed")
 	}

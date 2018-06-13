@@ -122,13 +122,26 @@ func (c *Cluster) reconcileMember(member serf.Member) error {
 func (c *Cluster) addRaftPeer(m serf.Member) error {
 	addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
 
-	future := c.raft.AddPeer(addr)
-	if err := future.Error(); err != nil && err != raft.ErrKnownPeer {
+	// See if it's already in the configuration. It's harmless to re-add it
+	// but we want to avoid doing that if possible to prevent useless Raft
+	// log entries.
+	configFuture := c.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		c.log.Errorf("Failed to get raft configuration: %v", err)
+		return err
+	}
+	for _, server := range configFuture.Configuration().Servers {
+		if server.Address == raft.ServerAddress(addr) {
+			return nil
+		}
+	}
+	// add as a peer
+	future := c.raft.AddPeer(raft.ServerAddress(addr))
+	if err := future.Error(); err != nil {
 		c.log.Errorf("Failed to add raft peer: %v", err)
 		return err
-	} else if err == nil {
-		c.log.Infof("Added raft peer: %+v", m)
 	}
+	c.log.Infof("Added raft peer: %+v", m)
 	return nil
 }
 
@@ -142,13 +155,29 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 
 	addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
 
-	future := c.raft.RemovePeer(addr)
-	if err := future.Error(); err != nil && err != raft.ErrUnknownPeer {
-		c.log.Errorf("Failed to remove raft peer: %v", err)
+	// See if it's already in the configuration. It's harmless to re-remove it
+	// but we want to avoid doing that if possible to prevent useless Raft
+	// log entries.
+	configFuture := c.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		c.log.Printf("Failed to get raft configuration: %v", err)
 		return err
-	} else if err == nil {
-		c.log.Infof("Removed raft peer: %+v", m)
 	}
+	for _, server := range configFuture.Configuration().Servers {
+		if server.Address == raft.ServerAddress(addr) {
+			goto REMOVE
+		}
+	}
+	return nil
+
+REMOVE:
+	// remove as a peer
+	future := c.raft.RemovePeer(raft.ServerAddress(addr))
+	if err := future.Error(); err != nil {
+		c.log.Errorf("Failed to remove raft peer '%s': %v", addr, err)
+		return err
+	}
+	c.log.Infof("Removed raft peer: %+v", m)
 	return nil
 }
 

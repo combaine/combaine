@@ -2,7 +2,6 @@ package combainer
 
 import (
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -228,9 +227,8 @@ RECLIENT:
 		}
 
 		iteration++
-		hosts := (*Cluster)(c).Hosts()
-		if err = cl.Dispatch(strconv.FormatUint(iteration, 10), hosts, config, genUniqueID, shouldWait); err != nil {
-			log.WithField("iteration", strconv.FormatUint(iteration, 10)).Errorf("Dispatch error %s", err)
+		if err = cl.Dispatch(iteration, config, genUniqueID, shouldWait); err != nil {
+			log.WithField("iteration", iteration).Errorf("Dispatch error %s", err)
 			time.Sleep(c.updateInterval)
 		}
 	}

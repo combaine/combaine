@@ -172,6 +172,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer cl.Close()
 
 	sp, err := cl.updateSessionParams(name)
 	if err != nil {
@@ -203,10 +204,11 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer cl.Close()
 	cl.Log = logger.WithField("client", "launch")
 
 	ID := common.GenerateSessionID()
-	err = cl.Dispatch("launch", s.GetHosts(), name, ID, false)
+	err = cl.Dispatch(0, name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
