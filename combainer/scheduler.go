@@ -132,7 +132,7 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 
 		// rebalance assigned configs
 		if state.qty[overloadedHost]-state.mean <= 0 {
-			if overloadedIndex > 0 {
+			if overloadedIndex >= 0 {
 				overloadedHost = state.hosts[overloadedIndex]
 				overloadedIndex--
 			}
