@@ -11,6 +11,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
 )
 
@@ -27,7 +28,7 @@ type timetailFetcher struct {
 }
 
 // NewTimetailFetcher build new timetail fetcher
-func NewTimetailFetcher(cfg common.PluginConfig) (worker.Fetcher, error) {
+func NewTimetailFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	var fetcher timetailFetcher
 
 	if err := decodeConfig(cfg, &fetcher); err != nil {

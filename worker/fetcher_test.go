@@ -5,17 +5,18 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
 
 var fch = make(chan string, 2) // do not block fetcher
 
-func NewDummyFetcher(cfg common.PluginConfig) (Fetcher, error) {
+func NewDummyFetcher(cfg repository.PluginConfig) (Fetcher, error) {
 	return &fether{c: cfg}, nil
 }
 
 type fether struct {
-	c common.PluginConfig
+	c repository.PluginConfig
 }
 
 func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
@@ -23,7 +24,7 @@ func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
 	return common.Pack(*task)
 }
 
-func NewTestFetcher(_ common.PluginConfig) (Fetcher, error) {
+func NewTestFetcher(_ repository.PluginConfig) (Fetcher, error) {
 	return &testFether{}, nil
 }
 
@@ -37,8 +38,8 @@ func TestFetch(t *testing.T) {
 	Register("test", NewTestFetcher)
 	t.Log("test fetcher registered")
 
-	_, err := NewFetcher("nonExisting"+time.Now().String(), common.PluginConfig{})
+	_, err := NewFetcher("nonExisting"+time.Now().String(), repository.PluginConfig{})
 	assert.Error(t, err)
-	_, err = NewFetcher("test", common.PluginConfig{})
+	_, err = NewFetcher("test", repository.PluginConfig{})
 	assert.NoError(t, err)
 }

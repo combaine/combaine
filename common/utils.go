@@ -9,24 +9,12 @@ import (
 	"time"
 
 	"github.com/ugorji/go/codec"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	mh codec.MsgpackHandle
 	h  = &mh
 )
-
-// Decode is dummy rename for yaml.Unmarshal, XXX remove it?
-func Decode(data []byte, res interface{}) error {
-	return yaml.Unmarshal(data, res)
-}
-
-// Encode is dummy rename for yaml.Unmarshal, XXX remove it?
-func Encode(in interface{}) ([]byte, error) {
-	return yaml.Marshal(in)
-}
 
 // Pack is helper for encode data in to msgpack
 func Pack(input interface{}) (buf []byte, err error) {

@@ -6,8 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/combaine/combaine/common"
-
+	"github.com/combaine/combaine/repository"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -20,6 +19,8 @@ const (
 
 // default send timout
 var hostname, _ = os.Hostname()
+
+// DefaultTimeout read timeout
 var DefaultTimeout = 5 * time.Second
 
 // Config contains config section from combainer's aggregations section
@@ -39,7 +40,7 @@ type Config struct {
 	Flap             *jugglerFlapConfig           `codec:"flap"`
 	Variables        map[string]string            `codec:"variables"`
 	ChecksOptions    map[string]jugglerFlapConfig `codec:"checks_options"`
-	JPluginConfig    common.PluginConfig          `codec:"config"`
+	JPluginConfig    repository.PluginConfig      `codec:"config"`
 	JHosts           []string                     `codec:"juggler_hosts"`
 	JFrontend        []string                     `codec:"juggler_frontend"`
 	OK               []string                     `codec:"OK"`
@@ -170,7 +171,7 @@ func DefaultConfig() *Config {
 		Tags:             []string{"combaine"},
 		Flap:             nil,
 		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
-		JPluginConfig:    common.PluginConfig{},
+		JPluginConfig:    repository.PluginConfig{},
 		JHosts:           []string{},
 		JFrontend:        []string{},
 		BatchEndpoint:    "",

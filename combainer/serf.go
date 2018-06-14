@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
@@ -29,10 +29,10 @@ const (
 )
 
 // NewCluster create and initialize Cluster instance
-func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, error) {
+func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 	err := validateConfig(&cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "validateConfig")
 	}
 
 	log := logrus.WithField("source", "cluster")
@@ -57,15 +57,15 @@ func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, err
 	}
 	var raftAdvertiseIP net.IP
 	for _, ip := range ips {
-		if ip.IsGlobalUnicast() {
+		if ip.IsGlobalUnicast() && ip.To4() == nil {
 			raftAdvertiseIP = ip
 			conf.MemberlistConfig.AdvertiseAddr = ip.String()
-			log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
+			log.Infof("Advertise Memberlist address: %s", conf.MemberlistConfig.AdvertiseAddr)
 			break
 		}
 	}
 	if conf.MemberlistConfig.AdvertiseAddr == "" {
-		return nil, errors.New("AdvertiseAddr is not set for Serf")
+		return nil, errors.New("AdvertiseAddr is not set for Memberlist")
 	}
 
 	// run Serf instance and monitor for this events
@@ -89,7 +89,6 @@ func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, err
 		raftAdvertiseIP: raftAdvertiseIP,
 		store:           NewFSMStore(),
 		log:             log,
-		repo:            repo,
 		config:          &cfg,
 	}
 	return c, nil
@@ -119,8 +118,7 @@ type Cluster struct {
 	store          *FSMStore
 	updateInterval time.Duration
 	log            *logrus.Entry
-	repo           common.Repository
-	config         *common.ClusterConfig
+	config         *repository.ClusterConfig
 }
 
 // Bootstrap is used to attempt join to existing serf cluster.
@@ -156,12 +154,6 @@ CONNECT:
 		return errors.Wrap(err, "tcp transport failed")
 	}
 
-	var addrs []string
-	for _, m := range c.Members() {
-		addr := &net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}
-		addrs = append(addrs, addr.String())
-	}
-
 	c.log.Info("Create snapshot store")
 	snapshots, err := raft.NewFileSnapshotStore(
 		c.config.RaftStateDir, retainRaftSnapshot, c.log.Logger.Writer(),
@@ -178,14 +170,17 @@ CONNECT:
 
 	// Attempt a live bootstrap
 	var configuration raft.Configuration
-	for _, addr := range addrs {
-		server := raft.Server{
+	members := c.Members()
+	configuration.Servers = make([]raft.Server, len(members))
+	for i, m := range members {
+		addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
+		configuration.Servers[i] = raft.Server{
 			ID:      raft.ServerID(addr),
 			Address: raft.ServerAddress(addr),
 		}
-		configuration.Servers = append(configuration.Servers, server)
 	}
-	c.log.Infof("Attempting to bootstrap cluster with peers (%s)", strings.Join(addrs, ","))
+
+	c.log.Infof("Attempting to bootstrap cluster with peers (%s)", strings.Join(c.Hosts(), ","))
 	future := c.raft.BootstrapCluster(configuration)
 	if err := future.Error(); err != nil {
 		c.log.Errorf("Failed to bootstrap cluster: %v", err)
@@ -210,22 +205,19 @@ CONNECT:
 
 // Hosts return names of alive serf members
 func (c *Cluster) Hosts() []string {
-	if c.serf == nil {
-		return nil
+	members := c.Members()
+	hosts := make([]string, len(members))
+	for i, m := range members {
+		hosts[i] = m.Name
 	}
-	all := c.serf.Members()
-	alive := make([]string, 0, len(all))
-	for _, m := range all {
-		// that return only alive nodes
-		if m.Status == serf.StatusAlive {
-			alive = append(alive, m.Name)
-		}
-	}
-	return alive
+	return hosts
 }
 
 // Members return alive serf members
 func (c *Cluster) Members() []serf.Member {
+	if c.serf == nil {
+		return nil
+	}
 	all := c.serf.Members()
 	alive := make([]serf.Member, 0, len(all))
 	for _, m := range all {
@@ -300,7 +292,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 	}
 }
 
-func validateConfig(cfg *common.ClusterConfig) error {
+func validateConfig(cfg *repository.ClusterConfig) error {
 	if cfg.BindAddr == "" {
 		cfg.BindAddr = "::"
 	}
@@ -341,3 +333,5 @@ func (c *Cluster) Shutdown() {
 		}
 	}
 }
+
+// GetRepository return config repository

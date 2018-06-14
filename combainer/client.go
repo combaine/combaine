@@ -13,6 +13,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/hosts"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 )
 
@@ -26,16 +27,15 @@ type sessionParams struct {
 
 // Client is a distributor of tasks across the computation grid
 type Client struct {
-	ID         string
-	repository common.Repository
-	Log        *logrus.Entry
+	ID  string
+	Log *logrus.Entry
 	clientStats
 
 	conn *grpc.ClientConn
 }
 
 // NewClient returns new client
-func NewClient(repo common.Repository) (*Client, error) {
+func NewClient() (*Client, error) {
 	id := common.GenerateSessionID()
 	conn, err := grpc.Dial("serf:///worker",
 		grpc.WithInsecure(),
@@ -47,9 +47,8 @@ func NewClient(repo common.Repository) (*Client, error) {
 	}
 
 	cl := &Client{
-		ID:         id,
-		repository: repo,
-		Log:        logrus.WithField("client", id),
+		ID:  id,
+		Log: logrus.WithField("client", id),
 
 		conn: conn,
 	}
@@ -64,21 +63,21 @@ func (cl *Client) Close() error {
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
 	cl.Log.WithFields(logrus.Fields{"config": config}).Info("updating session parametrs")
 
-	encodedParsingConfig, err := cl.repository.GetParsingConfig(config)
+	encodedParsingConfig, err := repository.GetParsingConfig(config)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to load .yaml or .json config")
 		return nil, err
 	}
 
-	var parsingConfig common.ParsingConfig
+	var parsingConfig repository.ParsingConfig
 	if err = encodedParsingConfig.Decode(&parsingConfig); err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to decode parsingConfig")
 		return nil, err
 	}
 
-	cfg := cl.repository.GetCombainerConfig()
+	cfg := repository.GetCombainerConfig()
 	parsingConfig.UpdateByCombainerConfig(&cfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(cl.repository, &parsingConfig, config)
+	aggregationConfigs, err := repository.GetAggregationConfigs(&parsingConfig, config)
 	if err != nil {
 		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to read aggregation configs")
 		return nil, err

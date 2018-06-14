@@ -7,12 +7,13 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/repository"
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(log *logrus.Entry, task *rpc.ParsingTask, parsingConfig *common.ParsingConfig) ([]byte, error) {
+func fetchDataFromTarget(log *logrus.Entry, task *rpc.ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
 	startTm := time.Now()
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
@@ -82,7 +83,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			}
 			wg.Add(1)
 			// TODO: use Context instead of deadline
-			go func(app cache.Service, k string, v common.PluginConfig, deadline time.Duration) {
+			go func(app cache.Service, k string, v repository.PluginConfig, deadline time.Duration) {
 				defer wg.Done()
 
 				t, err := common.Pack(map[string]interface{}{

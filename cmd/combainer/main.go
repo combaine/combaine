@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/grpclog"
 
 	"github.com/combaine/combaine/combainer"
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,7 +28,7 @@ var (
 func init() {
 	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
-	flag.StringVar(&configsPath, "configspath", common.DefaultConfigsPath, "path to root of configs")
+	flag.StringVar(&configsPath, "configspath", repository.DefaultConfigsPath, "path to root of configs")
 	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")

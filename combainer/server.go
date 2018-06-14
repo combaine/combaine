@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 )
 
 var combainerCache *cache.TTLCache
@@ -19,7 +19,7 @@ var combainerCache *cache.TTLCache
 // CombaineServer main combaine object
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
-	CombainerConfig common.CombainerConfig
+	CombainerConfig repository.CombainerConfig
 
 	cluster    *Cluster
 	shutdownCh chan struct{}
@@ -43,14 +43,14 @@ type CombaineServerConfig struct {
 // New create new combainer server
 func New(config CombaineServerConfig) (*CombaineServer, error) {
 	log := logrus.WithField("source", "server")
-	repository, err := common.NewFilesystemRepository(config.ConfigsPath)
+	err := repository.InitFilesystemRepository(config.ConfigsPath)
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
 	log.Info("filesystemRepository initialized")
 
 	combainerConfig := repository.GetCombainerConfig()
-	if err = common.VerifyCombainerConfig(&combainerConfig); err != nil {
+	if err = repository.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
 	log.Info("Combainer configs is valid: OK")
@@ -66,16 +66,11 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 		log:             log,
 	}
 
-	server.cluster, err = NewCluster(repository, combainerConfig.MainSection.ClusterConfig)
+	server.cluster, err = NewCluster(combainerConfig.MainSection.ClusterConfig)
 	if err != nil {
 		return nil, err
 	}
 	return server, nil
-}
-
-// GetRepository return repository of configs
-func (c *CombaineServer) GetRepository() common.Repository {
-	return c.cluster.repo
 }
 
 // GetHosts return alive cluster members

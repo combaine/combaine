@@ -17,6 +17,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/hosts"
+	"github.com/combaine/combaine/repository"
 )
 
 func init() {
@@ -32,7 +33,7 @@ func init() {
 }
 
 // FetcherLoader is type of function is responsible for loading fetchers
-type FetcherLoader func(common.PluginConfig) (HostFetcher, error)
+type FetcherLoader func(repository.PluginConfig) (HostFetcher, error)
 
 var fetchers = make(map[string]FetcherLoader)
 
@@ -46,7 +47,7 @@ func RegisterFetcherLoader(name string, f FetcherLoader) error {
 }
 
 // LoadHostFetcher create, configure and return new hosts fetcher
-func LoadHostFetcher(config common.PluginConfig) (HostFetcher, error) {
+func LoadHostFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	name, err := config.Type()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get type of HostFetcher")
@@ -76,7 +77,7 @@ type PredefineFetcherConfig struct {
 
 // newPredefineFetcher return list of hosts defined
 // in user or server level combainer's config,
-func newPredefineFetcher(config common.PluginConfig) (HostFetcher, error) {
+func newPredefineFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig PredefineFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -116,7 +117,7 @@ type SimpleFetcherConfig struct {
 }
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
-func newHTTPFetcher(config common.PluginConfig) (HostFetcher, error) {
+func newHTTPFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig SimpleFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err
@@ -252,7 +253,7 @@ type RTCFetcherConfig struct {
 }
 
 // newRTCFetcher return list of hosts fethed from http discovery service
-func newRTCFetcher(config common.PluginConfig) (HostFetcher, error) {
+func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	var fetcherConfig RTCFetcherConfig
 	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
 		return nil, err

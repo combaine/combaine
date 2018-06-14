@@ -21,11 +21,11 @@ func (c *Cluster) Run() {
 			if isLeader {
 				stopCh = make(chan struct{})
 				go c.leaderLoop(stopCh)
-				c.log.Info("cluster leadership acquired")
+				c.log.Info("leader: cluster leadership acquired")
 			} else if stopCh != nil {
 				close(stopCh)
 				stopCh = nil
-				c.log.Info("cluster leadership lost")
+				c.log.Info("leader: cluster leadership lost")
 			}
 		case <-c.shutdownCh:
 			return
@@ -49,12 +49,12 @@ RECONCILE:
 
 	barrier := c.raft.Barrier(0)
 	if err := barrier.Error(); err != nil {
-		c.log.WithField("source", "Raft").Errorf("failed to wait for barrier: %v", err)
+		c.log.Errorf("loeader: failed to wait for barrier: %v", err)
 		goto WAIT
 	}
 
 	if err := c.reconcile(); err != nil {
-		c.log.WithField("source", "Raft").Errorf("failed to reconcile: %v", err)
+		c.log.Errorf("leader: failed to reconcile: %v", err)
 	} else {
 		reconcileCh = c.reconcileCh
 	}
@@ -71,7 +71,7 @@ WAIT:
 		case <-updateTicker.C:
 			if err := c.distributeTasks(c.Hosts()); err != nil {
 				// updateTicker.Stop() // TODO if distributeTasks return error we lost leadership?
-				c.log.WithField("source", "Raft").Errorf("failed to distributeTasks: %v", err)
+				c.log.Errorf("leader: failed to distributeTasks: %v", err)
 			}
 		case member := <-reconcileCh:
 			if c.IsLeader() {
@@ -113,7 +113,7 @@ func (c *Cluster) reconcileMember(member serf.Member) error {
 		err = c.removeRaftPeer(member)
 	}
 	if err != nil {
-		c.log.Info("failed to reconcile member: %v: %v", member, err)
+		c.log.Errorf("leader: Failed to reconcile member: %v: %v", member, err)
 		return err
 	}
 	return nil
@@ -127,7 +127,7 @@ func (c *Cluster) addRaftPeer(m serf.Member) error {
 	// log entries.
 	configFuture := c.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		c.log.Errorf("Failed to get raft configuration: %v", err)
+		c.log.Errorf("leader: Failed to get raft configuration: %v", err)
 		return err
 	}
 	for _, server := range configFuture.Configuration().Servers {
@@ -138,10 +138,10 @@ func (c *Cluster) addRaftPeer(m serf.Member) error {
 	// add as a peer
 	future := c.raft.AddPeer(raft.ServerAddress(addr))
 	if err := future.Error(); err != nil {
-		c.log.Errorf("Failed to add raft peer: %v", err)
+		c.log.Errorf("leader: Failed to add raft peer: %v", err)
 		return err
 	}
-	c.log.Infof("Added raft peer: %+v", m)
+	c.log.Infof("leader: Added raft peer: %+v", m)
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 	// log entries.
 	configFuture := c.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		c.log.Printf("Failed to get raft configuration: %v", err)
+		c.log.Errorf("leader: Failed to get raft configuration: %v", err)
 		return err
 	}
 	for _, server := range configFuture.Configuration().Servers {
@@ -174,10 +174,10 @@ REMOVE:
 	// remove as a peer
 	future := c.raft.RemovePeer(raft.ServerAddress(addr))
 	if err := future.Error(); err != nil {
-		c.log.Errorf("Failed to remove raft peer '%s': %v", addr, err)
+		c.log.Errorf("leader: Failed to remove raft peer '%s': %v", addr, err)
 		return err
 	}
-	c.log.Infof("Removed raft peer: %+v", m)
+	c.log.Infof("leader: Removed raft peer: %+v", m)
 	return nil
 }
 

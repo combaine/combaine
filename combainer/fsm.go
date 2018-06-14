@@ -28,16 +28,16 @@ type FSMCommand struct {
 func (c *FSM) Apply(l *raft.Log) interface{} {
 	defer func() {
 		if r := recover(); r != nil {
-			c.log.Errorf("Error while applying raft command: %v", r)
+			c.log.Errorf("fsm: Error while applying raft command: %v", r)
 		}
 	}()
 
 	var cmd FSMCommand
 	if err := json.Unmarshal(l.Data, &cmd); err != nil {
-		c.log.Errorf("json unmarshal: bad raft command: %v", err)
+		c.log.Errorf("fsm: json unmarshal: bad raft command: %v", err)
 		return nil
 	}
-	c.log.WithField("source", "FSM").Debugf("Apply cmd %+v", cmd)
+	c.log.Infof("fsm: Apply cmd %+v", cmd)
 	switch cmd.Type {
 	case cmdAssignConfig:
 		stopCh := c.store.Put(cmd.Host, cmd.Config)
@@ -52,6 +52,7 @@ func (c *FSM) Apply(l *raft.Log) interface{} {
 
 // Restore FSM from snapshot
 func (c *FSM) Restore(rc io.ReadCloser) error {
+	c.log.Infof("fsm: Restore from %+v", rc)
 	return nil
 }
 
@@ -68,6 +69,7 @@ func (f *FSMSnapshot) Release() {}
 
 // Snapshot create FSM snapshot
 func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
+	c.log.Info("fsm: Make snapshot")
 	return &FSMSnapshot{}, nil
 }
 
@@ -84,24 +86,23 @@ type FSMStore struct {
 
 // List return configs assigned to host
 func (s *FSMStore) List(host string) []string {
+	var configs []string
 	s.RLock()
-	defer s.RUnlock()
-
 	if hostConfigs, ok := s.store[host]; ok {
-		configs := make([]string, 0, len(hostConfigs))
+		configs = make([]string, len(hostConfigs))
+		idx := 0
 		for n := range hostConfigs {
-			configs = append(configs, n)
+			configs[idx] = n
+			idx++
 		}
-		return configs
 	}
-	return nil
+	s.RUnlock()
+	return configs
 }
 
 // Put assign new config to host
 func (s *FSMStore) Put(host, config string) chan struct{} {
 	s.Lock()
-	defer s.Unlock()
-
 	if _, ok := s.store[host]; !ok {
 		s.store[host] = make(map[string]chan struct{})
 	} else {
@@ -110,17 +111,15 @@ func (s *FSMStore) Put(host, config string) chan struct{} {
 			close(oldStopCh)
 		}
 	}
-
 	newStopCh := make(chan struct{})
 	s.store[host][config] = newStopCh
+	s.Unlock()
 	return newStopCh
 }
 
 // Remove remove config from host's store
 func (s *FSMStore) Remove(host, config string) {
 	s.Lock()
-	defer s.Unlock()
-
 	if hostConfigs, ok := s.store[host]; ok {
 		if stopCh, ok := hostConfigs[config]; ok {
 			if stopCh != nil {
@@ -129,16 +128,41 @@ func (s *FSMStore) Remove(host, config string) {
 			delete(hostConfigs, config)
 		}
 	}
+	s.Unlock()
 }
 
 // DistributionStatistic dump number of configs assigned to hosts
 func (s *FSMStore) DistributionStatistic() [][2]string {
+	idx := 0
 	s.RLock()
-	defer s.RUnlock()
-
-	dump := make([][2]string, 0, len(s.store))
+	dump := make([][2]string, len(s.store))
 	for k := range s.store {
-		dump = append(dump, [2]string{k, strconv.Itoa(len(s.store[k]))})
+		dump[idx] = [2]string{k, strconv.Itoa(len(s.store[k]))}
+		idx++
 	}
+	s.RUnlock()
 	return dump
+}
+
+// Replace store for testing
+func (s *FSMStore) Replace(newStore map[string]map[string]chan struct{}) {
+	s.Lock()
+	for k := range s.store {
+		for cfg := range s.store[k] {
+			if ch := s.store[k][cfg]; ch != nil {
+				close(ch)
+			}
+			delete(s.store[k], cfg)
+		}
+		delete(s.store, k)
+	}
+	for k := range newStore {
+		for cfg := range newStore[k] {
+			if _, ok := s.store[k]; !ok {
+				s.store[k] = make(map[string]chan struct{})
+			}
+			s.store[k][cfg] = make(chan struct{})
+		}
+	}
+	s.Unlock()
 }

@@ -5,25 +5,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
 
-const repopath = "../tests/testdata/configs"
-
-var repo, repoErr = common.NewFilesystemRepository(repopath)
-
 func TestNewClient(t *testing.T) {
-	assert.Nil(t, repoErr, fmt.Sprintf("Unable to create repo %s", repoErr))
-
-	c, err := NewClient(repo)
+	c, err := NewClient()
 	assert.Nil(t, err, fmt.Sprintf("Unable to create client %s", err))
 	assert.NotEmpty(t, c.ID)
 	c.Close()
 }
 
 func TestUpdateSessionParams(t *testing.T) {
-	cl, err := NewClient(repo)
+	cl, err := NewClient()
 	sessionParams, err := cl.updateSessionParams("nop")
 	assert.Nil(t, sessionParams)
 	assert.Error(t, err)
@@ -32,8 +26,8 @@ func TestUpdateSessionParams(t *testing.T) {
 	assert.Nil(t, sessionParams)
 	assert.Error(t, err)
 
-	var pCfg common.ParsingConfig
-	encPCfg, _ := cl.repository.GetParsingConfig("aggCore")
+	var pCfg repository.ParsingConfig
+	encPCfg, _ := repository.GetParsingConfig("aggCore")
 	assert.NoError(t, encPCfg.Decode(&pCfg))
 
 	sessionParams, err = cl.updateSessionParams("aggCore")

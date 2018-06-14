@@ -1,14 +1,15 @@
-package common
+package repository
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
+	"path"
+	"strings"
 
+	"github.com/alecthomas/template"
 	"github.com/sirupsen/logrus"
-
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -17,6 +18,14 @@ const (
 	typeKey = "type"
 	// DefaultConfigsPath default directory with combainer configs
 	DefaultConfigsPath = "/etc/combaine"
+	parsingSuffix      = "parsing"
+	aggregateSuffix    = "aggregate"
+	combaineConfig     = "combaine.yaml"
+)
+
+var (
+	configSuffixes = []string{".yaml", ".json"}
+	mainRepository *filesystemRepository
 )
 
 // MainSection describes Main section in combaine.yaml
@@ -62,6 +71,39 @@ type CombainerSection struct {
 	MainSection `yaml:"Main"`
 }
 
+// CombainerConfig container for all other configs
+type CombainerConfig struct {
+	CombainerSection `yaml:"Combainer"`
+	CloudSection     `yaml:"cloud_config"`
+}
+
+// InitFilesystemRepository initialize config repository
+func InitFilesystemRepository(basepath string) error {
+	_, err := NewCombaineConfig(path.Join(basepath, combaineConfig))
+	if err != nil {
+		return fmt.Errorf("unable to load combaine.yaml: %s", err)
+	}
+
+	mainRepository = &filesystemRepository{
+		basepath:        basepath,
+		parsingpath:     path.Join(basepath, parsingSuffix),
+		aggregationpath: path.Join(basepath, aggregateSuffix),
+	}
+
+	return nil
+}
+
+type filesystemRepository struct {
+	basepath        string
+	parsingpath     string
+	aggregationpath string
+}
+
+// GetBasePath return basepath of the repository
+func GetBasePath() string {
+	return mainRepository.basepath
+}
+
 // NewCombaineConfig load conbainer's main config
 func NewCombaineConfig(path string) (config CombainerConfig, err error) {
 	data, err := readConfig(path)
@@ -72,48 +114,14 @@ func NewCombaineConfig(path string) (config CombainerConfig, err error) {
 	return
 }
 
-// CombainerConfig container for all other configs
-type CombainerConfig struct {
-	CombainerSection `yaml:"Combainer"`
-	CloudSection     `yaml:"cloud_config"`
-}
-
-// VerifyCombainerConfig check combainer config
-func VerifyCombainerConfig(cfg *CombainerConfig) error {
-	if cfg.MainSection.IterationDuration <= 0 {
-		return errors.New("MINIMUM_PERIOD must be positive")
-	}
-	if cfg.MainSection.Cache.TTL <= 0 {
-		cfg.MainSection.Cache.TTL = 5
-	}
-	if cfg.MainSection.Cache.Interval <= 0 {
-		cfg.MainSection.Cache.Interval = 15
-	}
-	return nil
-}
-
-// NewAggregationConfig load aggregation config from disk
-func NewAggregationConfig(path string) (EncodedConfig, error) {
-	return readConfig(path)
-}
-
-// AggregationConfig represent serction aggregation
-// from combainer cilent config
-type AggregationConfig struct {
-	// Configuration of possible senders
-	Senders map[string]PluginConfig `yaml:"senders"`
-	// Configuration of data habdlers
-	Data map[string]PluginConfig `yaml:"data"`
-}
-
-// GetAggregationConfigs return aggregation config for specified parsing config
-func GetAggregationConfigs(repo Repository, pConfig *ParsingConfig, pName string) (*map[string]AggregationConfig, error) {
+// GetAggregationConfigs return aggregation configs for specified parsing config
+func GetAggregationConfigs(pConfig *ParsingConfig, pName string) (*map[string]AggregationConfig, error) {
 	aggregationConfigs := make(map[string]AggregationConfig)
 	if len(pConfig.AggConfigs) == 0 {
 		pConfig.AggConfigs = []string{pName}
 	}
 	for _, name := range pConfig.AggConfigs {
-		content, err := repo.GetAggregationConfig(name)
+		content, err := GetAggregationConfig(name)
 		if err != nil {
 			// It seems better to throw error here instead of
 			// going data processing on without config
@@ -139,9 +147,104 @@ func GetAggregationConfigs(repo Repository, pConfig *ParsingConfig, pName string
 	return &aggregationConfigs, nil
 }
 
-// NewParsingConfig load parsing config from disk
-func NewParsingConfig(path string) (EncodedConfig, error) {
-	return readConfig(path)
+// GetAggregationConfig load aggregation config
+func GetAggregationConfig(name string) (config EncodedConfig, err error) {
+	for _, suffix := range configSuffixes {
+		fpath := path.Join(mainRepository.aggregationpath, name+suffix)
+		if config, err = readConfig(fpath); err != nil {
+			continue
+		}
+		return
+	}
+	return
+}
+
+// GetParsingConfig load parsing config
+func GetParsingConfig(name string) (config EncodedConfig, err error) {
+	for _, suffix := range configSuffixes {
+		fpath := path.Join(mainRepository.parsingpath, name+suffix)
+		if config, err = readConfig(fpath); err != nil {
+			continue
+		}
+		return
+	}
+	return
+}
+
+// GetCombainerConfig load conbainer's main config
+func GetCombainerConfig() (cfg CombainerConfig) {
+	cfg, _ = NewCombaineConfig(path.Join(mainRepository.basepath, combaineConfig))
+	return cfg
+}
+
+// ListParsingConfigs list all parsing configs in the repository
+func ListParsingConfigs() ([]string, error) {
+	return lsConfigs(mainRepository.parsingpath)
+}
+
+// ListAggregationConfigs list all aggregation configs in the repository
+func ListAggregationConfigs() ([]string, error) {
+	return lsConfigs(mainRepository.aggregationpath)
+}
+
+func lsConfigs(filepath string) (list []string, err error) {
+	listing, err := ioutil.ReadDir(filepath)
+	if err != nil {
+		return
+	}
+
+	for _, file := range listing {
+		name := file.Name()
+		if isConfig(name) && !file.IsDir() {
+			list = append(list, strings.TrimSuffix(name, path.Ext(name)))
+		}
+	}
+	return
+}
+
+func isConfig(name string) bool {
+	for _, suffix := range configSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func readConfig(path string) (data EncodedConfig, err error) {
+	data, err = ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// VerifyCombainerConfig check combainer config
+func VerifyCombainerConfig(cfg *CombainerConfig) error {
+	if cfg.MainSection.IterationDuration <= 0 {
+		return errors.New("MINIMUM_PERIOD must be positive")
+	}
+	if cfg.MainSection.Cache.TTL <= 0 {
+		cfg.MainSection.Cache.TTL = 5
+	}
+	if cfg.MainSection.Cache.Interval <= 0 {
+		cfg.MainSection.Cache.Interval = 15
+	}
+	return nil
+}
+
+// AggregationConfig represent serction aggregation
+// from combainer cilent config
+type AggregationConfig struct {
+	// Configuration of possible senders
+	Senders map[string]PluginConfig `yaml:"senders"`
+	// Configuration of data habdlers
+	Data map[string]PluginConfig `yaml:"data"`
+}
+
+// Encode encode aggregation config
+func (a *AggregationConfig) Encode() ([]byte, error) {
+	return yaml.Marshal(a)
 }
 
 // ParsingConfig contains settings from parsing section of combainer configs
@@ -178,6 +281,11 @@ func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) {
 	}
 }
 
+// Encode encode parsing config
+func (p *ParsingConfig) Encode() ([]byte, error) {
+	return yaml.Marshal(p)
+}
+
 // PluginConfig general description
 // of any user-defined plugin configuration section
 type PluginConfig map[string]interface{}
@@ -208,7 +316,7 @@ func PluginConfigsUpdate(target *PluginConfig, source *PluginConfig) {
 	}
 }
 
-// EncodedConfig is the bytes of the configs readed from disk
+// EncodedConfig is the bytes of the configs readed
 type EncodedConfig []byte
 
 // Decode Unmarshal yaml config
@@ -229,13 +337,4 @@ func (e *EncodedConfig) Generate(placeholders *map[string]interface{}) (EncodedC
 	}
 
 	return b.Bytes(), nil
-}
-
-func readConfig(path string) (data EncodedConfig, err error) {
-	data, err = ioutil.ReadFile(path)
-	if err != nil {
-		return
-	}
-
-	return
 }

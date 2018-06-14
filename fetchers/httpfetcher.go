@@ -11,6 +11,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
 )
 
@@ -25,7 +26,7 @@ type httpFetcher struct {
 }
 
 // NewHTTPFetcher return http data fetcher
-func NewHTTPFetcher(cfg common.PluginConfig) (worker.Fetcher, error) {
+func NewHTTPFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	var fetcher httpFetcher
 	if err := decodeConfig(cfg, &fetcher); err != nil {
 		return nil, err

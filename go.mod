@@ -1,6 +1,7 @@
 module github.com/combaine/combaine
 
 require (
+	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
 	github.com/armon/go-metrics v0.0.0-20170913184837-0a12dc6f6b9d
 	github.com/boltdb/bolt v0.0.0-20170907202052-fa5367d20c99
 	github.com/cocaine/cocaine-framework-go v0.0.0-20140929112710-e450e974babe
@@ -19,14 +20,14 @@ require (
 	github.com/kr/text v0.0.0-20160504234017-7cafcd837844
 	github.com/miekg/dns v0.0.0-20170921125049-689d334b0197
 	github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992
-	github.com/pkg/errors v0.0.0-20160929014801-645ef00459ed
+	github.com/pkg/errors v0.8.0
 	github.com/satori/go.uuid v0.0.0-20170321230731-5bf94b69c6b6
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
 	github.com/ugorji/go v0.0.0-20170918222552-54210f4e076c
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
-	github.com/yuin/gopher-lua v0.0.0-20170915035107-eb1c7299435c
+	github.com/yuin/gopher-lua v0.0.0-20180611022520-ca850f594eaa
 	golang.org/x/crypto v0.0.0-20170916190215-7d9177d70076
 	golang.org/x/net v0.0.0-20170922011244-0744d001aa84
 	golang.org/x/sys v0.0.0-20170922123423-429f518978ab
@@ -34,5 +35,5 @@ require (
 	google.golang.org/genproto v0.0.0-20180608181217-32ee49c4dd80
 	google.golang.org/grpc v1.12.2
 	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528
-	gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7
+	gopkg.in/yaml.v2 v2.2.1
 )

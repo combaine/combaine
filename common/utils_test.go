@@ -9,29 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDecodeEncode(t *testing.T) {
-	cases := []struct {
-		source interface{}
-		target interface{}
-	}{
-		{map[string]int{"key": 1}, new(map[string]int)},
-		{map[string]string{"key": "okay"}, new(map[string]string)},
-		{map[string]struct{}{"key": {}}, new(map[string]struct{})},
-		{[]string{"A", "B"}, new([]string)},
-		{[]byte{'A', 'B', 0x0, '\t', '\n'}, new([]byte)},
-	}
-
-	for _, c := range cases {
-		data, err := Encode(c.source)
-		assert.NoError(t, err)
-
-		err = Decode(data, c.target)
-		assert.NoError(t, err)
-		dst := fmt.Sprintf("%v", reflect.ValueOf(c.target).Elem())
-		assert.Equal(t, fmt.Sprintf("%v", c.source), dst)
-	}
-}
-
 func TestPackUnpack(t *testing.T) {
 	cases := []struct {
 		source interface{}
