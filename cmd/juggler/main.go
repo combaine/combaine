@@ -7,6 +7,7 @@ import (
 	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders/juggler"
 )
 
@@ -63,6 +64,12 @@ func main() {
 	}
 
 	juggler.InitializeLogger(logger.MustCreateLogger)
+
+	err = repository.Init(juggler.GetConfigDir())
+	if err != nil {
+		log.Fatalf("unable to initialize filesystemRepository: %s", err)
+	}
+	logger.Infof("filesystemRepository initialized")
 
 	juggler.GlobalCache.TuneCache(senderConfig.CacheTTL, senderConfig.CacheCleanInterval)
 	juggler.InitEventsStore(&senderConfig.Store)

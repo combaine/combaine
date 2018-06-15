@@ -18,7 +18,7 @@ var (
 
 func thisTestInit(t *testing.T) {
 	var err error
-	err = repository.InitFilesystemRepository(repoPath)
+	err = repository.Init(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
 	acfg, err = repository.GetAggregationConfig(cfgName)
 	assert.NoError(t, err, "unable to read aggCfg %s: %s", cfgName, err)

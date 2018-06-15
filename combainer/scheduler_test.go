@@ -39,7 +39,7 @@ func newTestRepo(configs []string) func() {
 	if err := ioutil.WriteFile(mainConfig, []byte(""), 0666); err != nil {
 		logrus.Fatal(err)
 	}
-	err = repository.InitFilesystemRepository(dir)
+	err = repository.Init(dir)
 	if err != nil {
 		logrus.Fatal(err)
 	}

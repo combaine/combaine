@@ -29,9 +29,6 @@ type CombaineServer struct {
 
 // CombaineServerConfig contains config from main combaine conf
 type CombaineServerConfig struct {
-	// Configuration
-	// path to directory with combaine.yaml
-	ConfigsPath string
 	// period of the locks rechecking
 	Period time.Duration
 	// Addrto listen for incoming http REST API requests
@@ -42,13 +39,8 @@ type CombaineServerConfig struct {
 
 // New create new combainer server
 func New(config CombaineServerConfig) (*CombaineServer, error) {
+	var err error
 	log := logrus.WithField("source", "server")
-	err := repository.InitFilesystemRepository(config.ConfigsPath)
-	if err != nil {
-		log.Fatalf("unable to initialize filesystemRepository: %s", err)
-	}
-	log.Info("filesystemRepository initialized")
-
 	combainerConfig := repository.GetCombainerConfig()
 	if err = repository.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)

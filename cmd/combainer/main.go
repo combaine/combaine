@@ -42,8 +42,14 @@ func init() {
 }
 
 func main() {
+	log := logrus.WithField("source", "main")
+	err := repository.Init(configsPath)
+	if err != nil {
+		log.Fatalf("unable to initialize filesystemRepository: %s", err)
+	}
+	log.Info("filesystemRepository initialized")
+
 	cfg := combainer.CombaineServerConfig{
-		ConfigsPath:  configsPath,
 		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
 		Active:       active,
@@ -51,10 +57,10 @@ func main() {
 
 	cmb, err := combainer.New(cfg)
 	if err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 
 	if err = cmb.Serve(); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 }

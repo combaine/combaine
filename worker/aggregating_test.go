@@ -33,7 +33,7 @@ func NewService(n string, a ...interface{}) (cache.Service, error) {
 
 func TestInit(t *testing.T) {
 	var err error
-	err = repository.InitFilesystemRepository(repoPath)
+	err = repository.Init(repoPath)
 	assert.NoError(t, err, "Unable to create repo %s", err)
 	pcfg, err = repository.GetParsingConfig(cfgName)
 	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)

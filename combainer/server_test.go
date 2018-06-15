@@ -11,10 +11,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const repopath = "../tests/testdata/configs"
+const repoPath = "../tests/testdata/configs"
 
 func TestMain(m *testing.M) {
-	if err := repository.InitFilesystemRepository(repopath); err != nil {
+	if err := repository.Init(repoPath); err != nil {
 		logrus.Fatal(err)
 	}
 	combainerCache = cache.NewCache(1*time.Minute, 2*time.Minute, logger.FromLogrusLogger(logrus.New()))

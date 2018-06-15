@@ -8,7 +8,7 @@ import (
 
 func TestGetAggregationConfigs(t *testing.T) {
 	const repopath = "../tests/testdata/configs"
-	repoErr := InitFilesystemRepository(repopath)
+	repoErr := Init(repopath)
 	assert.NoError(t, repoErr)
 
 	cfg, _ := GetParsingConfig("aggCore")

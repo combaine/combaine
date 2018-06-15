@@ -22,10 +22,10 @@ func TestRepository(t *testing.T) {
 		expectedAggcfg = []string{"aggCore", "badaggCore", "http_ok", "notPerHostaggCore"}
 	)
 
-	err := InitFilesystemRepository("/not_existing/dir/")
+	err := Init("/not_existing/dir/")
 	assert.Error(t, err)
 
-	err = InitFilesystemRepository(repopath)
+	err = Init(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
 
 	lp, _ := ListParsingConfigs()

@@ -77,8 +77,8 @@ type CombainerConfig struct {
 	CloudSection     `yaml:"cloud_config"`
 }
 
-// InitFilesystemRepository initialize config repository
-func InitFilesystemRepository(basepath string) error {
+// Init initialize config repository
+func Init(basepath string) error {
 	_, err := NewCombaineConfig(path.Join(basepath, combaineConfig))
 	if err != nil {
 		return fmt.Errorf("unable to load combaine.yaml: %s", err)

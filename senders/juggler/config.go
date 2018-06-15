@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/combaine/combaine/repository"
@@ -24,7 +25,7 @@ var hostname, _ = os.Hostname()
 var DefaultTimeout = 5 * time.Second
 
 // Config contains config section from combainer's aggregations section
-// also it include defaultConfigPath (or user specified) yaml config
+// also it include default sender config (or user specified) yaml config
 type Config struct {
 	PluginsDir       string                       `codec:"plugins_dir"`
 	Plugin           string                       `codec:"plugin"`
@@ -54,7 +55,7 @@ type Config struct {
 }
 
 // SenderConfig contains configuration loaded from combaine's config file
-// placed in defaultConfigPath
+// placed in sender config
 type SenderConfig struct {
 	CacheTTL           time.Duration           `yaml:"cache_ttl"`
 	CacheCleanInterval time.Duration           `yaml:"cache_clean_interval"`
@@ -91,13 +92,23 @@ func EnsureDefaultTag(jtags []string) []string {
 	return append(jtags, "combaine")
 }
 
-// GetSenderConfig read global sender config
-// usual from /etc/combaine/juggler.yaml
-func GetSenderConfig() (*SenderConfig, error) {
-	var path = os.Getenv("JUGGLER_CONFIG")
+func getConfigPath() string {
+	path := os.Getenv("JUGGLER_CONFIG")
 	if len(path) == 0 {
 		path = defaultConfigPath
 	}
+	return path
+}
+
+// GetConfigDir where senders config placed
+func GetConfigDir() string {
+	return filepath.Dir(getConfigPath())
+}
+
+// GetSenderConfig read global sender config
+// usual from /etc/combaine/juggler.yaml
+func GetSenderConfig() (*SenderConfig, error) {
+	path := getConfigPath()
 
 	rawConfig, err := ioutil.ReadFile(path)
 	if err != nil {
