@@ -77,6 +77,7 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 		log.Fatalf("Failed to start serf: %s", err)
 		return nil, err
 	}
+	GenerateAndRegisterSerfResolver(cSerf.Members)
 	c := &Cluster{
 		Name:        conf.MemberlistConfig.Name,
 		eventCh:     eventCh,

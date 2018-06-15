@@ -1,7 +1,6 @@
 package combainer
 
 import (
-	"log"
 	"sort"
 	"time"
 
@@ -37,7 +36,6 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 		found     bool
 		deadNodes []string
 	)
-	log.Printf("DEBUGGGGG %#v, %#v", stats, alive)
 	for i := range stats {
 		found = false
 		for _, h := range alive {
