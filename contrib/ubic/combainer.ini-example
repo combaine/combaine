@@ -1,8 +1,0 @@
-module = Ubic::Service::Combaine
-[options]
-binary = combainer
-log_output = /var/log/cocaine-core/combainer.log
-log_level = DEBUG
-user = cocaine
-rlimit_nofile = 65535
-rlimit_core = -1

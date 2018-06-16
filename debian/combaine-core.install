@@ -1,8 +1,0 @@
-usr/lib/yandex/combaine/core-apps/aggregate-custom
-usr/lib/yandex/combaine/core-apps/agave
-usr/lib/yandex/combaine/core-apps/graphite
-usr/lib/yandex/combaine/core-apps/razladki
-usr/lib/yandex/combaine/core-apps/cbb
-usr/lib/yandex/combaine/core-apps/solomon
-usr/lib/yandex/combaine/core-apps/juggler
-usr/bin/combaine-worker

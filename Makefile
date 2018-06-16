@@ -6,6 +6,12 @@ PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
 
 .PHONY: clean all fmt vet lint build test proto
 
+docker: vet fmt fast-test build
+	docker build . -t combainer
+	docker tag combainer:latest uo0ya/combainer:latest
+	docker push uo0ya/combainer:latest
+
+
 build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler
 
@@ -64,6 +70,10 @@ lint:
 	@echo "+ $@"
 	@test -z "$$(golint ./... 2>&1 | tee /dev/stderr)"
 
+
+fast-test:
+	@echo "+ $@"
+	@set -e; for pkg in $(PKGS); do vgo test $$pkg; done
 
 test: vet fmt
 	@echo "+ $@"
