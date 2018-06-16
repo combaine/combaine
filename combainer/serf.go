@@ -71,10 +71,10 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 	// run Serf instance and monitor for this events
 	cSerf, err := serf.Create(conf)
 	if err != nil {
+		log.Fatalf("Failed to start serf: %s", err)
 		if cSerf != nil {
 			cSerf.Shutdown()
 		}
-		log.Fatalf("Failed to start serf: %s", err)
 		return nil, err
 	}
 	GenerateAndRegisterSerfResolver(cSerf.Members)
@@ -144,7 +144,7 @@ CONNECT:
 	}
 
 	c.log.Info("Create raft transport")
-	c.transport, err = raft.NewTCPTransport(
+	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
 		raftPool,
@@ -154,6 +154,7 @@ CONNECT:
 	if err != nil {
 		return errors.Wrap(err, "tcp transport failed")
 	}
+	c.transport = trans
 
 	c.log.Info("Create snapshot store")
 	snapshots, err := raft.NewFileSnapshotStore(
@@ -169,6 +170,13 @@ CONNECT:
 		return errors.Wrap(err, "bolt store failed")
 	}
 
+	c.raftStore = boltStore
+	c.raftConfig = raft.DefaultConfig()
+	c.raftConfig.NotifyCh = c.leaderCh
+	c.raftConfig.LogOutput = c.log.Logger.Writer()
+	c.raftConfig.StartAsLeader = c.config.StartAsLeader
+	c.updateInterval = interval
+
 	// Attempt a live bootstrap
 	var configuration raft.Configuration
 	members := c.Members()
@@ -182,22 +190,15 @@ CONNECT:
 	}
 
 	c.log.Infof("Attempting to bootstrap cluster with peers (%s)", strings.Join(c.Hosts(), ","))
-	future := c.raft.BootstrapCluster(configuration)
-	if err := future.Error(); err != nil {
-		c.log.Errorf("Failed to bootstrap cluster: %v", err)
+	if err := raft.BootstrapCluster(c.raftConfig,
+		boltStore, boltStore, snapshots, trans, configuration); err != nil {
+		return errors.Wrap(err, "raft.BootstrapCluster")
 	}
 
-	c.raftStore = boltStore
-	c.raftConfig = raft.DefaultConfig()
-	c.raftConfig.NotifyCh = c.leaderCh
-	c.raftConfig.LogOutput = c.log.Logger.Writer()
-	c.raftConfig.StartAsLeader = c.config.StartAsLeader
-	c.updateInterval = interval
-
 	c.log.Info("Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, c.transport)
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, trans)
 	if err != nil {
-		return errors.Wrap(err, "raft failed")
+		return errors.Wrap(err, "raft.NewRaft")
 	}
 	c.raft = raft
 
