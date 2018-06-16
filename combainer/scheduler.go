@@ -154,10 +154,10 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 
 		// distribute free configs
 		toAdd := min(len(configSet), wantage)
-		configsToAssign := make([]string, toAdd)
+		var configsToAssign []string
 		for cfg := range configSet {
 			toAdd--
-			configsToAssign[toAdd] = cfg
+			configsToAssign = append(configsToAssign, cfg)
 			if toAdd <= 0 {
 				break
 			}
