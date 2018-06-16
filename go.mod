@@ -23,7 +23,7 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
-	github.com/ugorji/go v0.0.0-20170918222552-54210f4e076c
+	github.com/ugorji/go v0.0.0-20150918022340-1d5269ed4e89
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
 	github.com/yuin/gopher-lua v0.0.0-20180611022520-ca850f594eaa
 	golang.org/x/crypto v0.0.0-20170916190215-7d9177d70076
