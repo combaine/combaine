@@ -3,7 +3,6 @@ module github.com/combaine/combaine
 require (
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
 	github.com/armon/go-metrics v0.0.0-20170913184837-0a12dc6f6b9d
-	github.com/boltdb/bolt v0.0.0-20170907202052-fa5367d20c99
 	github.com/cocaine/cocaine-framework-go v0.0.0-20140929112710-e450e974babe
 	github.com/golang/protobuf v1.1.0
 	github.com/gorilla/context v0.0.0-20160817184632-08b5f424b927
@@ -14,7 +13,6 @@ require (
 	github.com/hashicorp/golang-lru v0.0.0-20160813221303-0a025b7e63ad
 	github.com/hashicorp/memberlist v0.1.0
 	github.com/hashicorp/raft v1.0.0
-	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 	github.com/hashicorp/serf v0.8.1
 	github.com/kr/pretty v0.0.0-20160823170715-cfb55aafdaf3
 	github.com/kr/text v0.0.0-20160504234017-7cafcd837844

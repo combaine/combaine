@@ -2,6 +2,7 @@ package combainer
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -169,7 +170,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, uniqueID 
 	}
 
 	dispatchFields := logrus.Fields{
-		"iteration": iteration,
+		"iteration": strconv.FormatUint(iteration, 10),
 		"session":   uniqueID,
 		"config":    parsingConfigName}
 

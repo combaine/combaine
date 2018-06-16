@@ -67,9 +67,9 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
 		return nil
 	}
-	curStat := c.store.DistributionStatistic()
-	deadNodes, curStat := markDeadNodes(hosts, curStat)
-	c.log.Debugf("scheduler: Current FSM store stats %v, total %d", curStat, len(configSet))
+	oldStat := c.store.DistributionStatistic()
+	deadNodes, oldStat := markDeadNodes(hosts, oldStat)
+	c.log.Debugf("scheduler: Current FSM store stats %v, total %d, dead: %v", oldStat, len(configSet), deadNodes)
 
 	// Release configs from deadNodes
 	for _, host := range deadNodes {
@@ -107,7 +107,7 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		return errors.Wrap(err, "Balancer error")
 	}
 
-	curStat = c.store.DistributionStatistic()
+	curStat := c.store.DistributionStatistic()
 	_, curStat = markDeadNodes(hosts, curStat)
 	c.log.Infof("scheduler: Rebalanced FSM store stats %v", curStat)
 	return nil
@@ -126,7 +126,9 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 			wantage++
 			state.remainder--
 		}
-		c.log.Infof("scheduler: Rebalance host %s (wantage %d, has %d, total %d)", host, wantage, state.qty[host], setLen)
+		if wantage > 0 {
+			c.log.Infof("scheduler: Rebalance host %s (wantage %d, has %d, total %d)", host, wantage, state.qty[host], setLen)
+		}
 
 		// rebalance assigned configs
 		if state.qty[overloadedHost]-state.mean <= 0 {
@@ -214,7 +216,7 @@ RECLIENT:
 
 		iteration++
 		if err = cl.Dispatch(iteration, config, genUniqueID, shouldWait); err != nil {
-			log.WithField("iteration", iteration).Errorf("scheduler: Dispatch error %s", err)
+			log.Errorf("scheduler: Dispatch error %s, iteration: %d", err, iteration)
 			time.Sleep(c.updateInterval)
 		}
 	}

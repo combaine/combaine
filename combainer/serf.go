@@ -5,12 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/combaine/combaine/repository"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -113,7 +111,7 @@ type Cluster struct {
 	raftAdvertiseIP net.IP
 	raft            *raft.Raft
 	transport       *raft.NetworkTransport
-	raftStore       *raftboltdb.BoltStore
+	raftStore       *raft.InmemStore
 	raftConfig      *raft.Config
 
 	store          *FSMStore
@@ -131,19 +129,19 @@ func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
-		c.log.Infof("Combainer joined to cluster: %d nodes", n)
+		c.log.Infof("bootstrap: Combainer joined to cluster: %d nodes", n)
 	}
 	// NOTE: doc from serf.Join
 	// Join joins an existing Serf cluster. Returns the number of nodes
 	// successfully contacted. The returned error will be non-nil only in the
 	// case that no nodes could be contacted.
 	if err != nil {
-		c.log.Errorf("Combainer error joining to cluster: %d nodes", n)
+		c.log.Errorf("bootstrap: Combainer error joining to cluster: %d nodes", n)
 		time.Sleep(interval)
 		goto CONNECT
 	}
 
-	c.log.Info("Create raft transport")
+	c.log.Info("bootstrap: Create raft transport")
 	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
@@ -156,47 +154,48 @@ CONNECT:
 	}
 	c.transport = trans
 
-	c.log.Info("Create snapshot store")
-	snapshots, err := raft.NewFileSnapshotStore(
-		c.config.RaftStateDir, retainRaftSnapshot, c.log.Logger.Writer(),
-	)
-	if err != nil {
-		return err
-	}
+	c.log.Info("bootstrap: Initialize raft store")
+	store := raft.NewInmemStore()
+	stable := store
+	log := store
+	snap := raft.NewInmemSnapshotStore()
 
-	c.log.Info("Create raft log store")
-	boltStore, err := raftboltdb.NewBoltStore(filepath.Join(c.config.RaftStateDir, "raft.db"))
-	if err != nil {
-		return errors.Wrap(err, "bolt store failed")
-	}
-
-	c.raftStore = boltStore
+	c.raftStore = store
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
 	c.raftConfig.StartAsLeader = c.config.StartAsLeader
 	c.updateInterval = interval
 
-	// Attempt a live bootstrap
-	var configuration raft.Configuration
-	members := c.Members()
-	configuration.Servers = make([]raft.Server, len(members))
-	for i, m := range members {
-		addr := (&net.TCPAddr{IP: m.Addr, Port: c.config.RaftPort}).String()
-		configuration.Servers[i] = raft.Server{
-			ID:      raft.ServerID(addr),
-			Address: raft.ServerAddress(addr),
+	c.raftConfig.LocalID = raft.ServerID(trans.LocalAddr())
+	if c.raftConfig.ProtocolVersion >= 3 {
+		hostname, _ := os.Hostname()
+		c.raftConfig.LocalID = raft.ServerID(hostname)
+	}
+
+	c.log.Infof("bootstrap: Attempting to bootstrap cluster")
+	hasState, err := raft.HasExistingState(log, stable, snap)
+	if err != nil {
+		return err
+	}
+	if !hasState {
+		configuration := raft.Configuration{
+			Servers: []raft.Server{
+				{
+					ID:      c.raftConfig.LocalID,
+					Address: trans.LocalAddr(),
+				},
+			},
+		}
+
+		if err := raft.BootstrapCluster(c.raftConfig,
+			log, stable, snap, trans, configuration); err != nil {
+			return errors.Wrap(err, "raft.BootstrapCluster")
 		}
 	}
 
-	c.log.Infof("Attempting to bootstrap cluster with peers (%s)", strings.Join(c.Hosts(), ","))
-	if err := raft.BootstrapCluster(c.raftConfig,
-		boltStore, boltStore, snapshots, trans, configuration); err != nil {
-		return errors.Wrap(err, "raft.BootstrapCluster")
-	}
-
-	c.log.Info("Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, trans)
+	c.log.Info("bootstrap: Create raft")
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), log, stable, snap, trans)
 	if err != nil {
 		return errors.Wrap(err, "raft.NewRaft")
 	}
@@ -327,11 +326,6 @@ func (c *Cluster) Shutdown() {
 	if c.transport != nil {
 		if err := c.transport.Close(); err != nil {
 			c.log.Errorf("failed to close raft transport %v", err)
-		}
-	}
-	if c.raftStore != nil {
-		if err := c.raftStore.Close(); err != nil {
-			c.log.Errorf("failed to close raftStore: %s", err)
 		}
 	}
 }

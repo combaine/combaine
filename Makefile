@@ -9,8 +9,9 @@ PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
 docker: vet fmt fast-test build
 	docker build . -t combainer
 	docker tag combainer:latest uo0ya/combainer:latest
-	docker push uo0ya/combainer:latest
 
+docker-push: docker
+	docker push uo0ya/combainer:latest
 
 build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler

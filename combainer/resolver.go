@@ -9,7 +9,10 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-const defaultFreq = time.Minute * 5
+const (
+	defaultFreq = time.Minute * 5
+	defaultPort = "10052"
+)
 
 // NewSerfResolverBuilder creates a new serf resolver builder
 func NewSerfResolverBuilder(lookup func() []serf.Member) *Resolver {
@@ -88,7 +91,12 @@ func (r *Resolver) watcher() {
 func (r *Resolver) resolve() []resolver.Address {
 	var newAddrs []resolver.Address
 	for _, m := range r.lookup() {
-		newAddrs = append(newAddrs, resolver.Address{Addr: m.Addr.String()})
+		addr := m.Addr.String()
+		if m.Addr.To4() == nil {
+			addr = "[" + addr + "]"
+		}
+		addr = addr + ":" + defaultPort
+		newAddrs = append(newAddrs, resolver.Address{Addr: addr})
 	}
 	return newAddrs
 }
