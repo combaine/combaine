@@ -7,12 +7,12 @@ PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
 .PHONY: clean all fmt vet lint build test fast-test proto docker docker-push
 
 docker: build
-	docker tag combainer:latest uo0ya/combainer:latest
 	docker build . -t combainer
+	docker tag combainer:latest uo0ya/combainer:latest
 
 clean-docker: clean build
-	docker tag combainer:latest uo0ya/combainer:latest
 	docker build . -t combainer
+	docker tag combainer:latest uo0ya/combainer:latest
 
 docker-push: clean vet fmt fast-test docker
 	docker push uo0ya/combainer:latest
