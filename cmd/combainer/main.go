@@ -8,6 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 
+	//_ "net/http/pprof"
+
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
@@ -37,11 +39,13 @@ func init() {
 	grpc.EnableTracing = tracing
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
-	var grpcLogger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)
+	var grpcLogger grpclog.Logger = log.New(logrus.StandardLogger().Writer(), "grpc: ", log.LstdFlags)
 	grpclog.SetLogger(grpcLogger)
 }
 
 func main() {
+	//go func() { log.Println(http.ListenAndServe("[::]:8001", nil)) }()
+
 	log := logrus.WithField("source", "main")
 	err := repository.Init(configsPath)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -14,6 +15,8 @@ import (
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/worker"
 	"github.com/sirupsen/logrus"
+
+	//_ "net/http/pprof"
 
 	_ "github.com/combaine/combaine/fetchers"
 )
@@ -35,7 +38,7 @@ func init() {
 	grpc.EnableTracing = tracing
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
-	var grpcLogger grpclog.Logger = log.New(logrus.WithField("source", "grpc").Logger.Writer(), "", log.LstdFlags)
+	var grpcLogger grpclog.Logger = log.New(logrus.StandardLogger().Writer(), "grpc", log.LstdFlags)
 	grpclog.SetLogger(grpcLogger)
 }
 
@@ -53,12 +56,16 @@ func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (
 }
 
 func main() {
+	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
+
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer(
 		grpc.MaxMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxConcurrentStreams(2000),
+		grpc.ConnectionTimeout(5*time.Second),
 		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
 		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
 	)
