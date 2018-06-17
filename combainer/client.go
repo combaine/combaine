@@ -234,7 +234,6 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
 	c := rpc.NewWorkerClient(cl.conn)
-	log.Debugf("doParsing: got client conn: %+v", *c)
 	reply, err := c.DoParsing(ctx, task)
 	if err != nil {
 		log.Errorf("doParsing: reply error: %s", err)
@@ -254,7 +253,6 @@ func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask) 
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
 	c := rpc.NewWorkerClient(cl.conn)
-	log.Debugf("doAggregation: got client conn: %+v", *c)
 	_, err := c.DoAggregating(ctx, task)
 	if err != nil {
 		log.Errorf("doAggregation: reply error: %s", err)
