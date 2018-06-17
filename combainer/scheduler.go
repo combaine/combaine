@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/pkg/errors"
 )
@@ -215,8 +216,9 @@ RECLIENT:
 		}
 
 		iteration++
-		if err = cl.Dispatch(iteration, config, genUniqueID, shouldWait); err != nil {
-			log.Errorf("scheduler: Dispatch error %s, iteration: %d", err, iteration)
+		id := common.GenerateSessionID()
+		if err = cl.Dispatch(iteration, config, id, shouldWait); err != nil {
+			log.Errorf("scheduler: Dispatch error %s, iteration: %d, session: %s", err, iteration, id)
 			time.Sleep(c.updateInterval)
 		}
 	}

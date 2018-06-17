@@ -65,7 +65,7 @@ func (o *Observer) RegisterClient(cl *Client, config string) {
 
 // UnregisterClient unregister client in Observer
 // Deregister only a yourself by checking id
-func (o *Observer) UnregisterClient(id string, config string) {
+func (o *Observer) UnregisterClient(id uint64, config string) {
 	o.RWMutex.Lock()
 	if cl, ok := o.clients[config]; ok && cl.ID == id {
 		delete(o.clients, config)
@@ -205,9 +205,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cl.Close()
-	cl.Log = logger.WithField("client", "launch")
-
-	ID := common.GenerateSessionID()
+	ID := "launch-" + common.GenerateSessionID()
 	err = cl.Dispatch(0, name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()

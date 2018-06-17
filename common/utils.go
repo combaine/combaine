@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/ugorji/go/codec"
@@ -14,6 +15,8 @@ import (
 var (
 	mh codec.MsgpackHandle
 	h  = &mh
+	// global ClientID counter
+	clientID uint64
 )
 
 // Pack is helper for encode data in to msgpack
@@ -94,4 +97,9 @@ func GenerateSessionID() string {
 	buf = strconv.AppendInt(buf, rand.Int63(), 10)
 	val := md5.Sum(buf)
 	return fmt.Sprintf("%x", string(val[:]))
+}
+
+// GenerateClientID is return ++clientID
+func GenerateClientID() uint64 {
+	return atomic.AddUint64(&clientID, 1)
 }

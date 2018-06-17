@@ -52,7 +52,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 
 	blob, err := fetchDataFromTarget(log, task, &parsingConfig)
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("DoParsing: %v", err)
 		return nil, err
 	}
 	// parsing timings without fetcher time
@@ -74,11 +74,11 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 			if err != nil {
 				return nil, err
 			}
-			log.Debugf("send to %s, agg section name %s type %s", aggLogName, k, aggType)
+			log.Debugf("DoParsing: send to '%s', agg section name '%s' type '%s'", aggLogName, k, aggType)
 
 			app, err := cacher.Get(aggType)
 			if err != nil {
-				log.Errorf("%s %s", aggType, err)
+				log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
 				continue
 			}
 			wg.Add(1)
