@@ -3,7 +3,7 @@ module github.com/combaine/combaine
 require (
 	github.com/armon/go-metrics v0.0.0-20170913184837-0a12dc6f6b9d
 	github.com/boltdb/bolt v0.0.0-20170907202052-fa5367d20c99
-	github.com/cocaine/cocaine-framework-go v0.0.0-20140929112710-e450e974babe
+	github.com/cocaine/cocaine-framework-go v0.0.0-20160727160248-a071d9bf57bb
 	github.com/golang/protobuf v0.0.0-20170920220647-130e6b02ab05
 	github.com/gorilla/context v0.0.0-20160817184632-08b5f424b927
 	github.com/gorilla/mux v0.0.0-20171105172320-7f0880185913
@@ -24,7 +24,7 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
-	github.com/ugorji/go v0.0.0-20170918222552-54210f4e076c
+	github.com/ugorji/go v0.0.0-20141014124450-dca82994cf14
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
 	github.com/yuin/gopher-lua v0.0.0-20170915035107-eb1c7299435c
 	golang.org/x/crypto v0.0.0-20170916190215-7d9177d70076
