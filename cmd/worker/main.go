@@ -66,8 +66,6 @@ func main() {
 		grpc.MaxMsgSize(1024*1024*128 /* 128 MB */),
 		grpc.MaxConcurrentStreams(2000),
 		grpc.ConnectionTimeout(5*time.Second),
-		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
-		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
 	)
 	rpc.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)

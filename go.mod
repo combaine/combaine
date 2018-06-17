@@ -7,6 +7,7 @@ require (
 	github.com/golang/protobuf v1.1.0
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
+	github.com/grpc/grpc-go v1.12.2
 	github.com/hashicorp/go-immutable-radix v0.0.0-20180129170900-7f3cd4390caa
 	github.com/hashicorp/go-multierror v0.0.0-20171204182908-b7773ae21874
 	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86

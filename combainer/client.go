@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 
+	"github.com/grpc/grpc-go/encoding/gzip"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -39,8 +40,7 @@ func NewClient() (*Client, error) {
 	conn, err := grpc.Dial("serf:///worker",
 		grpc.WithInsecure(),
 		grpc.WithBalancerName(roundrobin.Name),
-		grpc.WithCompressor(grpc.NewGZIPCompressor()),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
+		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 	)
 
 	if err != nil {
