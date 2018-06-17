@@ -4,13 +4,11 @@ DIR := ${PREFIX}/build
 
 PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
 
-.PHONY: clean all fmt vet lint build test fast-test proto docker docker-push
+.PHONY: clean all fmt vet lint build test fast-test proto docker docker-push docker-image
 
-docker: build
-	docker build . -t combainer
-	docker tag combainer:latest uo0ya/combainer:latest
+docker: clean build docker-image
 
-clean-docker: clean build
+docker-image:
 	docker build . -t combainer
 	docker tag combainer:latest uo0ya/combainer:latest
 
