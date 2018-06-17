@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/grpclog"
 
 	"github.com/combaine/combaine/common/cache"
