@@ -19,6 +19,8 @@ import (
 
 	//_ "net/http/pprof"
 
+	//_ "golang.org/x/net/trace"
+
 	_ "github.com/combaine/combaine/fetchers"
 )
 
@@ -39,8 +41,7 @@ func init() {
 	grpc.EnableTracing = tracing
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
-	var grpcLogger grpclog.Logger = log.New(logrus.StandardLogger().Writer(), "grpc", log.LstdFlags)
-	grpclog.SetLogger(grpcLogger)
+	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
 type server struct{}

@@ -41,7 +41,13 @@ RUN apt-get -qq update \
 RUN curl -O http://dist.yandex.ru/storage/1028049/common/yandex-3132-fastcgi-loggiver_0.49_all.deb \
     && dpkg-deb --extract yandex-3132-fastcgi-loggiver*deb /
 
+RUN curl -kO https://raw.githubusercontent.com/pixelb/ps_mem/master/ps_mem.py \
+    && mv ps_mem.py /usr/bin/ps_mem \
+    && chmod +x /usr/bin/ps_mem
+
 RUN locale-gen en_US.utf8 ru_RU.utf8
+RUN ln -vsTf /usr/share/zoneinfo/Europe/Moscow /etc/localtime \
+    && echo Europe/Moscow > /etc/timezone
 
 COPY build/combainer /usr/bin/
 COPY build/worker /usr/bin/combaine-worker
