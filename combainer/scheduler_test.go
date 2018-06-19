@@ -211,13 +211,21 @@ func TestDistributeTasks(t *testing.T) {
 	cases = map[string]map[string]map[string]chan struct{}{
 		"EmptyMapOdd": make(map[string]map[string]chan struct{}),
 		"FullMapOdd": {
-			"host1odd": {"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch},
-			"host2odd": {"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch},
+			"host1odd": {
+				"c01": ch, "c02": ch, "c03": ch, "c04": ch, "c05": ch,
+				"c06": ch, "c07": ch, "c08": ch, "c09": ch, "c10": ch,
+				"c11": ch, "c12": ch, "c13": ch, "c14": ch, "c15": ch,
+			},
+			"host2odd": {},
 			"host3odd": {},
 		},
 	}
 
-	cleanup = newTestRepo([]string{"c01", "c02", "c03", "c04", "c05", "c06", "c07"})
+	cleanup = newTestRepo([]string{
+		"c01", "c02", "c03", "c04", "c05",
+		"c06", "c07", "c08", "c09", "c10",
+		"c11", "c12", "c13", "c14", "c15",
+	})
 	defer cleanup()
 	hosts = []string{"host1odd", "host2odd", "host3odd"}
 	for n, c := range cases {
@@ -225,7 +233,7 @@ func TestDistributeTasks(t *testing.T) {
 		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1odd"])
-		assert.Equal(t, a > 2, a < 5, "Test failed for %s 3 < host1odd(%d) < 5 host1odd(%d), host2odd(%d), host3odd(%d)",
+		assert.Equal(t, 5, a, "Test failed for %s host1odd(%d) has 5: host1odd(%d), host2odd(%d), host3odd(%d)",
 			n, a,
 			len(cl.store.store["host1odd"]),
 			len(cl.store.store["host2odd"]),

@@ -9,20 +9,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	shouldWait  = true
-	genUniqueID = ""
-)
+var shouldWait = true
 
 type balance struct {
-	hosts     []string
-	qty       map[string]int
-	mean      int
-	remainder int
+	hosts             []string
+	quantity          map[string]int
+	average           int
+	permissibleNumber int
 }
 
 func (b *balance) Len() int           { return len(b.hosts) }
-func (b *balance) Less(i, j int) bool { return b.qty[b.hosts[i]] < b.qty[b.hosts[j]] }
+func (b *balance) Less(i, j int) bool { return b.quantity[b.hosts[i]] < b.quantity[b.hosts[j]] }
 func (b *balance) Swap(i, j int)      { b.hosts[i], b.hosts[j] = b.hosts[j], b.hosts[i] }
 
 func min(a, b int) int {
@@ -54,7 +51,7 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 
 func (c *Cluster) distributeTasks(hosts []string) error {
 	configs, err := repository.ListParsingConfigs()
-	c.log.Debugf("scheduler: Distribute %d tasks to %+v", len(configs), hosts)
+	c.log.Debugf("scheduler: Distribute %d configs to %+v", len(configs), hosts)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list parsing config")
 	}
@@ -82,17 +79,22 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 	}
 
 	state := &balance{
-		hosts:     hosts,
-		qty:       make(map[string]int, clusterSize),
-		mean:      len(configs) / clusterSize,
-		remainder: len(configs) % clusterSize,
+		hosts:             hosts,
+		quantity:          make(map[string]int, clusterSize),
+		average:           len(configs) / clusterSize,
+		permissibleNumber: len(configs) / clusterSize,
+	}
+	if len(configs)%clusterSize > 0 {
+		state.permissibleNumber++
 	}
 
+	freeConfigSet := configSet // configSet  moved to freeConfigSet
 	for _, host := range state.hosts {
 		for _, cfg := range c.store.List(host) {
-			if _, ok := configSet[cfg]; ok {
-				state.qty[host]++
-				delete(configSet, cfg)
+			if _, ok := freeConfigSet[cfg]; ok {
+				state.quantity[host]++
+				// remove assigned configs
+				delete(freeConfigSet, cfg)
 			} else {
 				c.log.Infof("scheduler: Release missing config %s", cfg)
 				if err := releaseConfig(c, host, cfg); err != nil {
@@ -102,9 +104,10 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		}
 	}
 
+	// now overloadedHosts at end of the hosts lists
 	sort.Sort(state)
 
-	if err := c.runBalancer(state, configSet, clusterSize-1); err != nil {
+	if err := c.runBalancer(state, freeConfigSet, clusterSize-1); err != nil {
 		return errors.Wrap(err, "Balancer error")
 	}
 
@@ -115,30 +118,22 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 }
 
 func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, overloadedIndex int) error {
-	var (
-		wantage        int
-		overloadedHost = state.hosts[overloadedIndex]
-	)
+	var overloadedHost = state.hosts[overloadedIndex]
 	for _, host := range state.hosts {
-		wantage = state.mean - state.qty[host]
+		wantage := state.average - state.quantity[host]
+
 		setLen := len(configSet)
-
-		if state.remainder > 0 {
-			wantage++
-			state.remainder--
+		if wantage == 0 && setLen > 0 {
+			wantage = setLen / len(state.hosts)
 		}
-		if wantage > 0 {
-			c.log.Infof("scheduler: Rebalance host %s (wantage %d, has %d, total %d)", host, wantage, state.qty[host], setLen)
-		}
-
 		// rebalance assigned configs
-		if state.qty[overloadedHost]-state.mean <= 0 {
+		if state.quantity[overloadedHost]-state.permissibleNumber <= 0 {
 			if overloadedIndex >= 0 {
 				overloadedHost = state.hosts[overloadedIndex]
 				overloadedIndex--
 			}
 		}
-		toRelase := min(state.qty[overloadedHost]-state.mean, wantage)
+		toRelase := min(state.quantity[overloadedHost]-state.permissibleNumber, wantage)
 		if toRelase > 0 {
 			for _, cfg := range c.store.List(overloadedHost) {
 				toRelase--
@@ -149,12 +144,14 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 					return err
 				}
 				configSet[cfg] = struct{}{}
-				state.qty[overloadedHost]--
+				state.quantity[overloadedHost]--
 			}
 		}
 
-		// distribute free configs
 		toAdd := min(len(configSet), wantage)
+		if toAdd > 0 {
+			c.log.Infof("scheduler: Rebalance host %s (add %d, has %d, total %d)", host, toAdd, state.quantity[host], setLen)
+		}
 		var configsToAssign []string
 		for cfg := range configSet {
 			toAdd--
