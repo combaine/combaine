@@ -15,25 +15,38 @@ const (
 )
 
 // NewSerfResolverBuilder creates a new serf resolver builder
-func NewSerfResolverBuilder(lookup func() []serf.Member) *Resolver {
+func NewSerfResolverBuilder(lookup func() []serf.Member) resolver.Builder {
+	return &serfBuilder{freq: defaultFreq, lookup: lookup}
+}
+
+type serfBuilder struct {
+	freq   time.Duration
+	lookup func() []serf.Member
+}
+
+// Scheme returns the serf scheme.
+func (b *serfBuilder) Scheme() string {
+	return "serf"
+}
+
+// Build creates and starts a Serf resolver that watches cluster members
+func (b *serfBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Resolver{
-		freq:   defaultFreq,
+	r := &Resolver{
+		freq:   b.freq,
+		cc:     cc,
 		ctx:    ctx,
 		cancel: cancel,
 		rn:     make(chan struct{}, 1),
 		t:      time.NewTimer(0),
-		lookup: lookup,
+		lookup: b.lookup,
 	}
+	r.wg.Add(1)
+	go r.watcher()
+	return r, nil
 }
 
-// Scheme returns the serf scheme.
-func (r *Resolver) Scheme() string {
-	return "serf"
-}
-
-// Resolver is also a resolver builder.
-// It's build() function always returns itself.
+// Resolver is Serf members resolver
 type Resolver struct {
 	freq time.Duration
 
@@ -48,15 +61,7 @@ type Resolver struct {
 	lookup func() []serf.Member
 }
 
-// Build returns itself for Resolver, because it's both a builder and a resolver.
-func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	r.cc = cc
-	r.wg.Add(1)
-	go r.watcher()
-	return r, nil
-}
-
-// ResolveNow invoke an immediate resolution of the target that this dnsResolver watches.
+// ResolveNow invoke an immediate resolution of the target that this serfResolver watches.
 func (r *Resolver) ResolveNow(opt resolver.ResolveNowOption) {
 	select {
 	case r.rn <- struct{}{}:
