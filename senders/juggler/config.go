@@ -18,9 +18,6 @@ const (
 	defaultBatchSize  = 50 // send 50 events in one batch
 )
 
-// default send timout
-var hostname, _ = os.Hostname()
-
 // DefaultTimeout read timeout
 var DefaultTimeout = 5 * time.Second
 

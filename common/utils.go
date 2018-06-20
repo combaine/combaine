@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -102,4 +103,13 @@ func GenerateSessionID() string {
 // GenerateClientID is return ++clientID
 func GenerateClientID() uint64 {
 	return atomic.AddUint64(&clientID, 1)
+}
+
+// Hostname return node hostname or panic on errors
+func Hostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+	return hostname
 }

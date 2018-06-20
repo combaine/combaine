@@ -1,15 +1,15 @@
 package hosts
 
 import (
-	"os"
 	"sort"
 	"testing"
 
+	"github.com/combaine/combaine/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCommonHostsUtil(t *testing.T) {
-	myname, _ := os.Hostname()
+	myname := common.Hostname()
 	hosts := Hosts{"DC1": {"host1", myname}}
 
 	assert.Equal(t, hosts["DC1"], hosts.AllHosts())
