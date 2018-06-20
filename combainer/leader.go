@@ -136,7 +136,7 @@ func (c *Cluster) addRaftPeer(m serf.Member) error {
 		}
 	}
 	// add as a peer
-	future := c.raft.AddPeer(raft.ServerAddress(addr))
+	future := c.raft.AddVoter(raft.ServerID(m.Name), raft.ServerAddress(addr), 0, time.Minute)
 	if err := future.Error(); err != nil {
 		c.log.Errorf("leader: Failed to add raft peer: %v", err)
 		return err
@@ -172,7 +172,7 @@ func (c *Cluster) removeRaftPeer(m serf.Member) error {
 
 REMOVE:
 	// remove as a peer
-	future := c.raft.RemovePeer(raft.ServerAddress(addr))
+	future := c.raft.RemoveServer(raft.ServerID(m.Name), 0, 0)
 	if err := future.Error(); err != nil {
 		c.log.Errorf("leader: Failed to remove raft peer '%s': %v", addr, err)
 		return err

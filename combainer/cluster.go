@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -167,11 +168,7 @@ CONNECT:
 	c.raftConfig.StartAsLeader = c.config.StartAsLeader
 	c.updateInterval = interval
 
-	c.raftConfig.LocalID = raft.ServerID(trans.LocalAddr())
-	if c.raftConfig.ProtocolVersion >= 3 {
-		hostname, _ := os.Hostname()
-		c.raftConfig.LocalID = raft.ServerID(hostname)
-	}
+	c.raftConfig.LocalID = raft.ServerID(common.Hostname())
 
 	c.log.Infof("bootstrap: Attempting to bootstrap cluster")
 	hasState, err := raft.HasExistingState(log, stable, snap)
