@@ -5,28 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/ugorji/go/codec"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	mh codec.MsgpackHandle
 	h  = &mh
+	// global ClientID counter
+	clientID uint64
 )
-
-// Decode is dummy rename for yaml.Unmarshal, XXX remove it?
-func Decode(data []byte, res interface{}) error {
-	return yaml.Unmarshal(data, res)
-}
-
-// Encode is dummy rename for yaml.Unmarshal, XXX remove it?
-func Encode(in interface{}) ([]byte, error) {
-	return yaml.Marshal(in)
-}
 
 // Pack is helper for encode data in to msgpack
 func Pack(input interface{}) (buf []byte, err error) {
@@ -106,4 +98,18 @@ func GenerateSessionID() string {
 	buf = strconv.AppendInt(buf, rand.Int63(), 10)
 	val := md5.Sum(buf)
 	return fmt.Sprintf("%x", string(val[:]))
+}
+
+// GenerateClientID is return ++clientID
+func GenerateClientID() uint64 {
+	return atomic.AddUint64(&clientID, 1)
+}
+
+// Hostname return node hostname or panic on errors
+func Hostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+	return hostname
 }

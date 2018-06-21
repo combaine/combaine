@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
 )
 
@@ -23,7 +24,7 @@ type tcpSocketFetcher struct {
 }
 
 // NewTCPSocketFetcher return rawsocket data fetcher
-func NewTCPSocketFetcher(cfg common.PluginConfig) (worker.Fetcher, error) {
+func NewTCPSocketFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	var f tcpSocketFetcher
 	if err := decodeConfig(cfg, &f); err != nil {
 		return nil, err

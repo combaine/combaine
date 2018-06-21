@@ -1,3 +1,0 @@
-usr/bin/combainer
-contrib/init.d/combainer /etc/init.d
-contrib/ubic/Combaine.pm /usr/share/perl5/Ubic/Service

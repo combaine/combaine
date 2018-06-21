@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -28,10 +28,10 @@ const (
 )
 
 // NewCluster create and initialize Cluster instance
-func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, error) {
+func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 	err := validateConfig(&cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "validateConfig")
 	}
 
 	log := logrus.WithField("source", "cluster")
@@ -56,23 +56,27 @@ func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, err
 	}
 	var raftAdvertiseIP net.IP
 	for _, ip := range ips {
-		if len(ip) == net.IPv6len && ip.IsGlobalUnicast() {
+		if ip.IsGlobalUnicast() && ip.To4() == nil {
 			raftAdvertiseIP = ip
 			conf.MemberlistConfig.AdvertiseAddr = ip.String()
-			log.Infof("Advertise Serf address: %s", conf.MemberlistConfig.AdvertiseAddr)
+			log.Infof("Advertise Memberlist address: %s", conf.MemberlistConfig.AdvertiseAddr)
 			break
 		}
+	}
+	if conf.MemberlistConfig.AdvertiseAddr == "" {
+		return nil, errors.New("AdvertiseAddr is not set for Memberlist")
 	}
 
 	// run Serf instance and monitor for this events
 	cSerf, err := serf.Create(conf)
 	if err != nil {
+		log.Fatalf("Failed to start serf: %s", err)
 		if cSerf != nil {
 			cSerf.Shutdown()
 		}
-		log.Fatalf("Failed to start serf: %s", err)
 		return nil, err
 	}
+	GenerateAndRegisterSerfResolver(cSerf.Members)
 	c := &Cluster{
 		Name:        conf.MemberlistConfig.Name,
 		eventCh:     eventCh,
@@ -85,7 +89,6 @@ func NewCluster(repo common.Repository, cfg common.ClusterConfig) (*Cluster, err
 		raftAdvertiseIP: raftAdvertiseIP,
 		store:           NewFSMStore(),
 		log:             log,
-		repo:            repo,
 		config:          &cfg,
 	}
 	return c, nil
@@ -109,14 +112,13 @@ type Cluster struct {
 	raftAdvertiseIP net.IP
 	raft            *raft.Raft
 	transport       *raft.NetworkTransport
-	raftStore       *raftboltdb.BoltStore
+	raftStore       *raft.InmemStore
 	raftConfig      *raft.Config
 
 	store          *FSMStore
 	updateInterval time.Duration
 	log            *logrus.Entry
-	repo           common.Repository
-	config         *common.ClusterConfig
+	config         *repository.ClusterConfig
 }
 
 // Bootstrap is used to attempt join to existing serf cluster.
@@ -128,20 +130,20 @@ func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
-		c.log.Infof("Combainer joined to cluster: %d nodes", n)
+		c.log.Infof("bootstrap: Combainer joined to cluster: %d nodes", n)
 	}
 	// NOTE: doc from serf.Join
 	// Join joins an existing Serf cluster. Returns the number of nodes
 	// successfully contacted. The returned error will be non-nil only in the
 	// case that no nodes could be contacted.
 	if err != nil {
-		c.log.Errorf("Combainer error joining to cluster: %d nodes", n)
+		c.log.Errorf("bootstrap: Combainer error joining to cluster: %d nodes", n)
 		time.Sleep(interval)
 		goto CONNECT
 	}
 
-	c.log.Info("Create raft transport")
-	c.transport, err = raft.NewTCPTransport(
+	c.log.Info("bootstrap: Create raft transport")
+	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
 		raftPool,
@@ -151,43 +153,48 @@ CONNECT:
 	if err != nil {
 		return errors.Wrap(err, "tcp transport failed")
 	}
+	c.transport = trans
 
-	var peersAddrs []string
-	for _, m := range c.Members() {
-		addr := net.JoinHostPort(m.Addr.String(), strconv.Itoa(c.config.RaftPort))
-		peersAddrs = append(peersAddrs, addr)
-	}
-	c.log.Infof("Set raft peers %v", peersAddrs)
-	raftPeers := raft.NewJSONPeers(c.config.RaftStateDir, c.transport)
-	if err = raftPeers.SetPeers(peersAddrs); err != nil {
-		return err
-	}
+	c.log.Info("bootstrap: Initialize raft store")
+	store := raft.NewInmemStore()
+	stable := store
+	log := store
+	snap := raft.NewInmemSnapshotStore()
 
-	c.log.Info("Create snapshot store")
-	snapshots, err := raft.NewFileSnapshotStore(
-		c.config.RaftStateDir, retainRaftSnapshot, c.log.Logger.Writer(),
-	)
-	if err != nil {
-		return err
-	}
-
-	c.log.Info("Create raft log store")
-	boltStore, err := raftboltdb.NewBoltStore(filepath.Join(c.config.RaftStateDir, "raft.db"))
-	if err != nil {
-		return errors.Wrap(err, "bolt store failed")
-	}
-
-	c.raftStore = boltStore
+	c.raftStore = store
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
 	c.raftConfig.StartAsLeader = c.config.StartAsLeader
 	c.updateInterval = interval
 
-	c.log.Info("Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), boltStore, boltStore, snapshots, raftPeers, c.transport)
+	c.raftConfig.LocalID = raft.ServerID(common.Hostname())
+
+	c.log.Infof("bootstrap: Attempting to bootstrap cluster")
+	hasState, err := raft.HasExistingState(log, stable, snap)
 	if err != nil {
-		return errors.Wrap(err, "raft failed")
+		return err
+	}
+	if !hasState {
+		configuration := raft.Configuration{
+			Servers: []raft.Server{
+				{
+					ID:      c.raftConfig.LocalID,
+					Address: trans.LocalAddr(),
+				},
+			},
+		}
+
+		if err := raft.BootstrapCluster(c.raftConfig,
+			log, stable, snap, trans, configuration); err != nil {
+			return errors.Wrap(err, "raft.BootstrapCluster")
+		}
+	}
+
+	c.log.Info("bootstrap: Create raft")
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), log, stable, snap, trans)
+	if err != nil {
+		return errors.Wrap(err, "raft.NewRaft")
 	}
 	c.raft = raft
 
@@ -196,22 +203,19 @@ CONNECT:
 
 // Hosts return names of alive serf members
 func (c *Cluster) Hosts() []string {
-	if c.serf == nil {
-		return nil
+	members := c.Members()
+	hosts := make([]string, len(members))
+	for i, m := range members {
+		hosts[i] = m.Name
 	}
-	all := c.serf.Members()
-	alive := make([]string, 0, len(all))
-	for _, m := range all {
-		// that return only alive nodes
-		if m.Status == serf.StatusAlive {
-			alive = append(alive, m.Name)
-		}
-	}
-	return alive
+	return hosts
 }
 
 // Members return alive serf members
 func (c *Cluster) Members() []serf.Member {
+	if c.serf == nil {
+		return nil
+	}
 	all := c.serf.Members()
 	alive := make([]serf.Member, 0, len(all))
 	for _, m := range all {
@@ -286,7 +290,7 @@ func (c *Cluster) localMemberEvent(me serf.MemberEvent) {
 	}
 }
 
-func validateConfig(cfg *common.ClusterConfig) error {
+func validateConfig(cfg *repository.ClusterConfig) error {
 	if cfg.BindAddr == "" {
 		cfg.BindAddr = "::"
 	}
@@ -321,9 +325,6 @@ func (c *Cluster) Shutdown() {
 			c.log.Errorf("failed to close raft transport %v", err)
 		}
 	}
-	if c.raftStore != nil {
-		if err := c.raftStore.Close(); err != nil {
-			c.log.Errorf("failed to close raftStore: %s", err)
-		}
-	}
 }
+
+// GetRepository return config repository

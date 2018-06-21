@@ -11,6 +11,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
 	"github.com/sirupsen/logrus"
@@ -20,11 +21,9 @@ const cfgName = "aggCore"
 
 var (
 	cacher            = cache.NewServiceCacher(NewService)
-	repo              common.Repository
-	pcfg              common.EncodedConfig
-	acfg              common.EncodedConfig
-	parsingConfig     common.ParsingConfig
-	aggregationConfig common.AggregationConfig
+	acfg              repository.EncodedConfig
+	parsingConfig     repository.ParsingConfig
+	aggregationConfig repository.AggregationConfig
 )
 
 func NewService(n string, a ...interface{}) (cache.Service, error) {
@@ -32,12 +31,9 @@ func NewService(n string, a ...interface{}) (cache.Service, error) {
 }
 
 func TestInit(t *testing.T) {
-	var err error
-	repo, err = common.NewFilesystemRepository(repoPath)
-	assert.NoError(t, err, "Unable to create repo %s", err)
-	pcfg, err = repo.GetParsingConfig(cfgName)
+	pcfg, err := repository.GetParsingConfig(cfgName)
 	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)
-	acfg, err = repo.GetAggregationConfig(cfgName)
+	acfg, err := repository.GetAggregationConfig(cfgName)
 	assert.NoError(t, err, "unable to read aggCfg %s: %s", cfgName, err)
 
 	assert.NoError(t, pcfg.Decode(&parsingConfig))
@@ -141,7 +137,7 @@ func TestAggregating(t *testing.T) {
 		}
 		t.Log("Test senders")
 		for k, v := range sendersCount {
-			assert.Equal(t, 3, v, fmt.Sprintf("sedners for '%s' failed", k))
+			assert.Equal(t, 3, v, fmt.Sprintf("senders for '%s' failed", k))
 		}
 	}()
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
@@ -177,7 +173,7 @@ func TestEnqueue(t *testing.T) {
 	encHosts, _ := common.Pack(hostsPerDc)
 	encParsingConfig, _ := common.Pack(parsingConfig)
 
-	acfg, err = repo.GetAggregationConfig("bad" + cfgName)
+	acfg, err = repository.GetAggregationConfig("bad" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 	encAggregationConfig, _ := common.Pack(aggregationConfig)
 
@@ -194,7 +190,7 @@ func TestEnqueue(t *testing.T) {
 		}}
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
 
-	acfg, err = repo.GetAggregationConfig("notPerHost" + cfgName)
+	acfg, err = repository.GetAggregationConfig("notPerHost" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
 	encAggregationConfig, _ = common.Pack(aggregationConfig)

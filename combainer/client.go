@@ -2,17 +2,20 @@ package combainer
 
 import (
 	"context"
-	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 
+	"github.com/grpc/grpc-go/encoding/gzip"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/hosts"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 )
 
@@ -26,52 +29,62 @@ type sessionParams struct {
 
 // Client is a distributor of tasks across the computation grid
 type Client struct {
-	ID         string
-	repository common.Repository
-	Log        *logrus.Entry
+	ID uint64
 	clientStats
+
+	conn *grpc.ClientConn
 }
 
 // NewClient returns new client
-func NewClient(repo common.Repository) (*Client, error) {
-	id := common.GenerateSessionID()
+func NewClient() (*Client, error) {
+	conn, err := grpc.Dial("serf:///worker",
+		grpc.WithInsecure(),
+		grpc.WithBalancerName(roundrobin.Name),
+		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+	)
 
-	cl := &Client{
-		ID:         id,
-		repository: repo,
-		Log:        logrus.WithField("client", id),
+	if err != nil {
+		return nil, err
 	}
-	return cl, nil
+	id := common.GenerateClientID()
+	return &Client{ID: id, conn: conn}, nil
+}
+
+// Close relases grpc.ClientConn
+func (cl *Client) Close() error {
+	return cl.conn.Close()
 }
 
 func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err error) {
-	cl.Log.WithFields(logrus.Fields{"config": config}).Info("updating session parametrs")
+	log := logrus.WithField("config", config)
 
-	encodedParsingConfig, err := cl.repository.GetParsingConfig(config)
+	log.Info("updating session parametrs")
+
+	encodedParsingConfig, err := repository.GetParsingConfig(config)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to load .yaml or .json config")
+		log.Errorf("unable to load .yaml or .json config: %s", err)
 		return nil, err
 	}
 
-	var parsingConfig common.ParsingConfig
+	var parsingConfig repository.ParsingConfig
 	if err = encodedParsingConfig.Decode(&parsingConfig); err != nil {
-		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to decode parsingConfig")
+		log.Errorf("unable to decode parsingConfig: %s", err)
 		return nil, err
 	}
 
-	cfg := cl.repository.GetCombainerConfig()
+	cfg := repository.GetCombainerConfig()
 	parsingConfig.UpdateByCombainerConfig(&cfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(cl.repository, &parsingConfig, config)
+	aggregationConfigs, err := repository.GetAggregationConfigs(&parsingConfig, config)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("unable to read aggregation configs")
+		log.Errorf("unable to read aggregation configs: %s", err)
 		return nil, err
 	}
 
-	cl.Log.Infof("updating config metahost: %s", parsingConfig.Metahost)
+	log.Infof("updating config metahost: %s", parsingConfig.Metahost)
 
 	hostFetcher, err := LoadHostFetcher(parsingConfig.HostFetcher)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"config": config, "error": err}).Error("Unable to construct SimpleFetcher")
+		log.Errorf("Unable to construct SimpleFetcher: %s", err)
 		return
 	}
 
@@ -79,23 +92,20 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	for _, item := range parsingConfig.Groups {
 		hostsForGroup, err := hostFetcher.Fetch(item)
 		if err != nil {
-			cl.Log.WithFields(logrus.Fields{"config": config, "error": err, "group": item}).Warn("unable to get hosts")
+			log.WithFields(logrus.Fields{"error": err, "group": item}).Warn("unable to get hosts")
 			continue
 		}
-
 		allHosts.Merge(&hostsForGroup)
 	}
 
 	listOfHosts := allHosts.AllHosts()
 
 	if len(listOfHosts) == 0 {
-		err := errors.New("No hosts in given groups")
-		cl.Log.WithFields(logrus.Fields{"config": config, "group": parsingConfig.Groups}).Warn("no hosts in given groups")
-		return nil, err
+		return nil, errors.New("updateSessionParams: No hosts in given groups")
 	}
 
-	cl.Log.WithFields(logrus.Fields{"config": config}).Infof("Processing %d hosts in task", len(listOfHosts))
-	cl.Log.WithFields(logrus.Fields{"config": config}).Debugf("hosts: %s", listOfHosts)
+	log.Infof("updateSessionParams: Processing %d hosts in task", len(listOfHosts))
+	log.Debugf("updateSessionParams: hosts: %s", listOfHosts)
 
 	parallelParsings := len(listOfHosts)
 	if parsingConfig.ParallelParsings > 0 && parallelParsings > parsingConfig.ParallelParsings {
@@ -142,89 +152,72 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		AggTasks:         aggTasks,
 	}
 
-	cl.Log.WithField("config", config).Info("Session parametrs have been updated successfully")
+	log.Info("Session parametrs have been updated successfully")
 	return sp, nil
 }
 
 // Dispatch does one iteration of tasks dispatching
-func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName string, uniqueID string, shouldWait bool) error {
-	if uniqueID == "" {
-		uniqueID = common.GenerateSessionID()
-	}
+func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID string, shouldWait bool) error {
+	log := logrus.WithFields(logrus.Fields{
+		"iteration": strconv.FormatUint(iteration, 10),
+		"session":   sessionID,
+		"config":    parsingConfigName})
 
-	dispatchFields := logrus.Fields{
-		"iteration": iteration,
-		"session":   uniqueID,
-		"config":    parsingConfigName}
-
-	sessionParameters, err := cl.updateSessionParams(parsingConfigName)
+	params, err := cl.updateSessionParams(parsingConfigName)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": uniqueID, "config": parsingConfigName, "error": err}).Error("unable to update session parametrs")
-		return err
+		return errors.Wrap(err, "update session params")
 	}
 
+	log.Info("Start new iteration")
+
+	var wg sync.WaitGroup
 	startTime := time.Now()
-	// Context for the whole dispath.
-	// It includes parsing, aggregation and wait stages
-	wctx, cancelFunc := context.WithDeadline(context.TODO(), startTime.Add(sessionParameters.WholeTime))
-	defer cancelFunc()
-
-	cl.Log.WithFields(dispatchFields).Info("Start new iteration")
-	if len(hosts) == 0 {
-		cl.Log.WithFields(
-			logrus.Fields{"session": uniqueID, "config": parsingConfigName},
-		).Error("unable to get (or empty) the list of the cloud hosts")
-		return common.ErrNoHosts
-	}
-	cl.Log.WithFields(
-		logrus.Fields{"session": uniqueID, "config": parsingConfigName},
-	).Debugf("Dispatch task to cloud hosts: %s", hosts)
+	// Context for the dispath.  It includes parsing, aggregation and wait stages
+	wctx, wcancel := context.WithDeadline(context.Background(), startTime.Add(params.WholeTime))
+	defer wcancel()
 
 	// Parsing phase
-	totalTasksAmount := len(sessionParameters.PTasks)
-	tokens := make(chan struct{}, sessionParameters.ParallelParsings)
-	parsingResult := rpc.ParsingResult{Data: make(map[string][]byte)}
 	var mu sync.Mutex
-	pctx, cancelFunc := context.WithDeadline(wctx, startTime.Add(sessionParameters.ParsingTime))
-	defer cancelFunc()
-
-	cl.Log.WithFields(dispatchFields).Infof("Send %d tasks to parsing", totalTasksAmount)
-	var wg sync.WaitGroup
-	for _, task := range sessionParameters.PTasks {
+	pctx, pcancel := context.WithDeadline(wctx, startTime.Add(params.ParsingTime))
+	totalTasksAmount := len(params.PTasks)
+	log.Infof("Send %d tasks to parsing", totalTasksAmount)
+	parsingResult := rpc.ParsingResult{Data: make(map[string][]byte)}
+	tokens := make(chan struct{}, params.ParallelParsings)
+	for _, task := range params.PTasks {
 		// Description of task
 		task.Frame.Previous = startTime.Unix()
-		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
-		task.Id = uniqueID
+		task.Frame.Current = startTime.Add(params.WholeTime).Unix()
+		task.Id = sessionID
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
 		go func(t rpc.ParsingTask) {
 			defer wg.Done()
 			defer func() { <-tokens }() // release
-			cl.doParsing(pctx, &t, &mu, hosts, parsingResult)
+			cl.doParsing(pctx, &t, &mu, parsingResult)
 		}(task)
 	}
 	wg.Wait()
-	cl.Log.WithFields(dispatchFields).Infof("Parsing finished for %d hosts", len(parsingResult.Data))
+	pcancel()
+	log.Infof("Parsing finished for %d hosts", len(parsingResult.Data))
 
 	// Aggregation phase
-	totalTasksAmount = len(sessionParameters.AggTasks)
-	cl.Log.WithFields(dispatchFields).Infof("Send %d tasks to aggregate", totalTasksAmount)
-	for _, task := range sessionParameters.AggTasks {
+	totalTasksAmount = len(params.AggTasks)
+	log.Infof("Send %d tasks to aggregate", totalTasksAmount)
+	for _, task := range params.AggTasks {
 		task.Frame.Previous = startTime.Unix()
-		task.Frame.Current = startTime.Add(sessionParameters.WholeTime).Unix()
-		task.Id = uniqueID
+		task.Frame.Current = startTime.Add(params.WholeTime).Unix()
+		task.Id = sessionID
 		task.ParsingResult = &parsingResult
 
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
-			cl.doAggregationHandler(wctx, &t, hosts)
+			cl.doAggregation(wctx, &t)
 		}(task)
 	}
 	wg.Wait()
-
-	cl.Log.WithFields(dispatchFields).Info("Aggregation has finished")
+	log.Info("Aggregation has finished")
 
 	// Wait for next iteration if needed.
 	// wctx has a deadline
@@ -232,72 +225,21 @@ func (cl *Client) Dispatch(iteration string, hosts []string, parsingConfigName s
 		<-wctx.Done()
 	}
 
-	cl.Log.WithFields(dispatchFields).Debug("Go to the next iteration")
+	log.Debug("Go to the next iteration")
 
 	return nil
 }
 
-func dialContext(ctx context.Context, hosts []string) (conn *grpc.ClientConn, err error) {
-	hostsLen := len(hosts)
-	if hostsLen == 0 {
-		return nil, errors.New("empty list of hosts")
-	}
-	dialTimeout := 1 * time.Second
-	deadline, ok := ctx.Deadline()
-	if ok {
-		timeout := deadline.Sub(time.Now()) / 2
-		timeout = time.Duration(timeout.Nanoseconds() / int64(hostsLen))
-		if timeout > time.Millisecond*500 {
-			dialTimeout = timeout
-		}
-	}
-	for _, idx := range rand.Perm(hostsLen) {
-		// TODO: port must be got from autodiscovery
-		address := hosts[idx] + ":10052"
+func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, r rpc.ParsingResult) {
+	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
-		tctx, tcancel := context.WithTimeout(ctx, dialTimeout)
-		conn, err = grpc.DialContext(tctx, address,
-			grpc.WithInsecure(),
-			grpc.WithBlock(),
-			grpc.WithCompressor(grpc.NewGZIPCompressor()),
-			grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		)
-		tcancel()
-		switch err {
-		case nil:
-			return conn, nil
-		default:
-		}
-		// NOTE: to be sure that DialContext return parent context's errors
-		if parentErr := ctx.Err(); parentErr != nil {
-			err = parentErr
-			break
-		}
-	}
-	if conn != nil {
-		conn.Close()
-		conn = nil
-	}
-	return nil, err
-}
-
-func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, hosts []string, r rpc.ParsingResult) {
-	conn, err := dialContext(ctx, hosts)
-	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doParsing"}).Error("grpcDial error")
-		cl.clientStats.AddFailedParsing()
-		return
-	}
-	defer conn.Close()
-
-	c := rpc.NewWorkerClient(conn)
+	c := rpc.NewWorkerClient(cl.conn)
 	reply, err := c.DoParsing(ctx, task)
 	if err != nil {
-		cl.Log.WithFields(logrus.Fields{"session": task.Id, "error": err, "appname": "doParsing"}).Error("reply error")
+		log.Errorf("doParsing: reply error: %s", err)
 		cl.clientStats.AddFailedParsing()
 		return
 	}
-
 	m.Lock()
 	for k, v := range reply.Data {
 		r.Data[k] = v
@@ -307,23 +249,13 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 
 }
 
-func (cl *Client) doAggregationHandler(ctx context.Context, task *rpc.AggregatingTask, hosts []string) {
-	conn, err := dialContext(ctx, hosts)
-	if err != nil {
-		cl.Log.WithFields(
-			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
-		).Error("grpcDial error")
-		cl.clientStats.AddFailedAggregate()
-		return
-	}
-	defer conn.Close()
-	c := rpc.NewWorkerClient(conn)
+func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask) {
+	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
-	_, err = c.DoAggregating(ctx, task)
+	c := rpc.NewWorkerClient(cl.conn)
+	_, err := c.DoAggregating(ctx, task)
 	if err != nil {
-		cl.Log.WithFields(
-			logrus.Fields{"session": task.Id, "error": err, "appname": "doAggregationHandler"},
-		).Error("reply error")
+		log.Errorf("doAggregation: reply error: %s", err)
 		cl.clientStats.AddFailedAggregate()
 		return
 	}

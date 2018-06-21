@@ -7,6 +7,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
+	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -31,7 +32,7 @@ func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, er
 }
 
 func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res *common.AggregationResult,
-	c common.PluginConfig, d [][]byte, app cache.Service, wg *sync.WaitGroup) {
+	c repository.PluginConfig, d [][]byte, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
@@ -192,7 +193,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.
 		}
 
 		sendersWg.Add(1)
-		go func(g *sync.WaitGroup, n string, i common.PluginConfig) {
+		go func(g *sync.WaitGroup, n string, i repository.PluginConfig) {
 			defer g.Done()
 			senderType, err := i.Type()
 			if err != nil {

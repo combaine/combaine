@@ -2,26 +2,24 @@ package combainer
 
 import (
 	"sort"
-	"strconv"
 	"time"
 
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/pkg/errors"
 )
 
-var (
-	shouldWait  = true
-	genUniqueID = ""
-)
+var shouldWait = true
 
 type balance struct {
-	hosts     []string
-	qty       map[string]int
-	mean      int
-	remainder int
+	hosts             []string
+	quantity          map[string]int
+	average           int
+	permissibleNumber int
 }
 
 func (b *balance) Len() int           { return len(b.hosts) }
-func (b *balance) Less(i, j int) bool { return b.qty[b.hosts[i]] < b.qty[b.hosts[j]] }
+func (b *balance) Less(i, j int) bool { return b.quantity[b.hosts[i]] < b.quantity[b.hosts[j]] }
 func (b *balance) Swap(i, j int)      { b.hosts[i], b.hosts[j] = b.hosts[j], b.hosts[i] }
 
 func min(a, b int) int {
@@ -52,8 +50,8 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 }
 
 func (c *Cluster) distributeTasks(hosts []string) error {
-	c.log.Debug("Distribute tasks to ", hosts)
-	configs, err := c.repo.ListParsingConfigs()
+	configs, err := repository.ListParsingConfigs()
+	c.log.Debugf("scheduler: Distribute %d configs to %+v", len(configs), hosts)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list parsing config")
 	}
@@ -64,12 +62,12 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 
 	clusterSize := len(hosts)
 	if clusterSize == 0 {
-		c.log.Warnf("cluster is empty, there is nowhere to distribute configs")
+		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
 		return nil
 	}
-	curStat := c.store.DistributionStatistic()
-	deadNodes, curStat := markDeadNodes(hosts, curStat)
-	c.log.Debugf("Current FSM store stats %v", curStat)
+	oldStat := c.store.DistributionStatistic()
+	deadNodes, oldStat := markDeadNodes(hosts, oldStat)
+	c.log.Debugf("scheduler: Current FSM store stats %v, total %d, dead: %v", oldStat, len(configSet), deadNodes)
 
 	// Release configs from deadNodes
 	for _, host := range deadNodes {
@@ -81,19 +79,24 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 	}
 
 	state := &balance{
-		hosts:     hosts,
-		qty:       make(map[string]int, clusterSize),
-		mean:      len(configs) / clusterSize,
-		remainder: len(configs) % clusterSize,
+		hosts:             hosts,
+		quantity:          make(map[string]int, clusterSize),
+		average:           len(configs) / clusterSize,
+		permissibleNumber: len(configs) / clusterSize,
+	}
+	if len(configs)%clusterSize > 0 {
+		state.permissibleNumber++
 	}
 
+	freeConfigSet := configSet // configSet  moved to freeConfigSet
 	for _, host := range state.hosts {
 		for _, cfg := range c.store.List(host) {
-			if _, ok := configSet[cfg]; ok {
-				state.qty[host]++
-				delete(configSet, cfg)
+			if _, ok := freeConfigSet[cfg]; ok {
+				state.quantity[host]++
+				// remove assigned configs
+				delete(freeConfigSet, cfg)
 			} else {
-				c.log.Infof("Release missing config %s", cfg)
+				c.log.Infof("scheduler: Release missing config %s", cfg)
 				if err := releaseConfig(c, host, cfg); err != nil {
 					return err
 				}
@@ -101,69 +104,37 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		}
 	}
 
+	// now overloadedHosts at end of the hosts lists
 	sort.Sort(state)
 
-	if err := c.runBalancer(state, configSet, clusterSize-1); err != nil {
+	if err := c.runBalancer(state, freeConfigSet, clusterSize-1); err != nil {
 		return errors.Wrap(err, "Balancer error")
 	}
 
-	curStat = c.store.DistributionStatistic()
+	curStat := c.store.DistributionStatistic()
 	_, curStat = markDeadNodes(hosts, curStat)
-	c.log.Debugf("Rebalanced FSM store stats %v", curStat)
+	c.log.Infof("scheduler: Rebalanced FSM store stats %v", curStat)
 	return nil
 }
 
 func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, overloadedIndex int) error {
-	var (
-		wantage        int
-		overloadedHost = state.hosts[overloadedIndex]
-	)
-ALMOST_FAIR_BALANCER:
+	var overloadedHost = state.hosts[overloadedIndex]
 	for _, host := range state.hosts {
-		wantage = state.mean - state.qty[host]
-		if wantage <= 0 && len(configSet) == 0 {
-			// rebalance complete
-			break ALMOST_FAIR_BALANCER
-		}
-		if state.remainder > 0 {
-			wantage++
-			state.remainder--
-		}
-		c.log.Infof("Rebalance host %s (wantage %d, has %d)", host, wantage, state.qty[host])
+		wantage := state.average - state.quantity[host]
 
-		if len(configSet) > 0 {
-			// distribute free configs
-			toAdd := min(len(configSet), wantage)
-			configsToAssign := make([]string, 0, toAdd)
-			for cfg := range configSet {
-				configsToAssign = append(configsToAssign, cfg)
-				toAdd--
-				if toAdd <= 0 {
-					break
-				}
-			}
-			for _, cfg := range configsToAssign {
-				if err := assignConfig(c, host, cfg); err != nil {
-					return err
-				}
-				delete(configSet, cfg)
-			}
-		} else {
-			// rebalance assigned configs
-			if state.qty[overloadedHost]-state.mean <= 0 {
-				overloadedIndex--
+		setLen := len(configSet)
+		if wantage == 0 && setLen > 0 {
+			wantage = setLen / len(state.hosts)
+		}
+		// rebalance assigned configs
+		if state.quantity[overloadedHost]-state.permissibleNumber <= 0 {
+			if overloadedIndex >= 0 {
 				overloadedHost = state.hosts[overloadedIndex]
+				overloadedIndex--
 			}
-			if host == overloadedHost {
-				// all hosts rebalanced
-				break ALMOST_FAIR_BALANCER
-			}
-			toRelase := min(state.qty[overloadedHost]-state.mean, wantage)
-			if toRelase <= 0 {
-				break
-			}
-			freedConfigs := make([]string, 0, toRelase)
-
+		}
+		toRelase := min(state.quantity[overloadedHost]-state.permissibleNumber, wantage)
+		if toRelase > 0 {
 			for _, cfg := range c.store.List(overloadedHost) {
 				toRelase--
 				if toRelase < 0 {
@@ -172,14 +143,28 @@ ALMOST_FAIR_BALANCER:
 				if err := releaseConfig(c, overloadedHost, cfg); err != nil {
 					return err
 				}
-				state.qty[overloadedHost]--
-				freedConfigs = append(freedConfigs, cfg)
+				configSet[cfg] = struct{}{}
+				state.quantity[overloadedHost]--
 			}
-			for _, cfg := range freedConfigs {
-				if err := assignConfig(c, host, cfg); err != nil {
-					return err
-				}
+		}
+
+		toAdd := min(len(configSet), wantage)
+		if toAdd > 0 {
+			c.log.Infof("scheduler: Rebalance host %s (add %d, has %d, total %d)", host, toAdd, state.quantity[host], setLen)
+		}
+		var configsToAssign []string
+		for cfg := range configSet {
+			toAdd--
+			configsToAssign = append(configsToAssign, cfg)
+			if toAdd <= 0 {
+				break
 			}
+		}
+		for _, cfg := range configsToAssign {
+			if err := assignConfig(c, host, cfg); err != nil {
+				return err
+			}
+			delete(configSet, cfg)
 		}
 	}
 	return nil
@@ -206,14 +191,14 @@ func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	log := c.log.WithField("config", config)
 
 RECLIENT:
-	cl, err := NewClient(c.repo)
+	cl, err := NewClient()
 	if err != nil {
 		select {
 		case <-stopCh:
 			return
 		default:
 		}
-		log.Errorf("can't create client %s", err)
+		log.Errorf("scheduler: Can't create client %s", err)
 		time.Sleep(c.updateInterval)
 		goto RECLIENT
 	}
@@ -228,9 +213,9 @@ RECLIENT:
 		}
 
 		iteration++
-		hosts := (*Cluster)(c).Hosts()
-		if err = cl.Dispatch(strconv.FormatUint(iteration, 10), hosts, config, genUniqueID, shouldWait); err != nil {
-			log.WithField("iteration", strconv.FormatUint(iteration, 10)).Errorf("Dispatch error %s", err)
+		id := common.GenerateSessionID()
+		if err = cl.Dispatch(iteration, config, id, shouldWait); err != nil {
+			log.Errorf("scheduler: Dispatch error %s, iteration: %d, session: %s", err, iteration, id)
 			time.Sleep(c.updateInterval)
 		}
 	}

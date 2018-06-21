@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -64,7 +65,7 @@ func (o *Observer) RegisterClient(cl *Client, config string) {
 
 // UnregisterClient unregister client in Observer
 // Deregister only a yourself by checking id
-func (o *Observer) UnregisterClient(id string, config string) {
+func (o *Observer) UnregisterClient(id uint64, config string) {
 	o.RWMutex.Lock()
 	if cl, ok := o.clients[config]; ok && cl.ID == id {
 		delete(o.clients, config)
@@ -114,7 +115,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 
 // ParsingConfigs list parsing configs names
 func ParsingConfigs(s ServerContext, w http.ResponseWriter, r *http.Request) {
-	list, _ := s.GetRepository().ListParsingConfigs()
+	list, _ := repository.ListParsingConfigs()
 	json.NewEncoder(w).Encode(&list)
 }
 
@@ -122,10 +123,9 @@ func ParsingConfigs(s ServerContext, w http.ResponseWriter, r *http.Request) {
 // before return UpdateByCombainerConfig update config
 func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	repo := s.GetRepository()
-	combainerCfg := repo.GetCombainerConfig()
-	var parsingCfg common.ParsingConfig
-	cfg, err := repo.GetParsingConfig(name)
+	combainerCfg := repository.GetCombainerConfig()
+	var parsingCfg repository.ParsingConfig
+	cfg, err := repository.GetParsingConfig(name)
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
 		return
@@ -138,13 +138,13 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	}
 
 	parsingCfg.UpdateByCombainerConfig(&combainerCfg)
-	aggregationConfigs, err := common.GetAggregationConfigs(repo, &parsingCfg, name)
+	aggregationConfigs, err := repository.GetAggregationConfigs(&parsingCfg, name)
 	if err != nil {
 		logrus.Errorf("Unable to read aggregation configs: %s", err)
 		return
 	}
 
-	data, err := common.Encode(&parsingCfg)
+	data, err := parsingCfg.Encode()
 	if err != nil {
 		fmt.Fprintf(w, "%s", err)
 		return
@@ -154,7 +154,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 	fmt.Fprintf(w, "%s", data)
 	for aggname, v := range *aggregationConfigs {
 		fmt.Fprintf(w, "============ %s ============\n", aggname)
-		d, err := common.Encode(&v)
+		d, err := v.Encode()
 		if err != nil {
 			fmt.Fprintf(w, "%s", err)
 			return
@@ -167,11 +167,12 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 // that should be performed by config
 func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	cl, err := NewClient(s.GetRepository())
+	cl, err := NewClient()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer cl.Close()
 
 	sp, err := cl.updateSessionParams(name)
 	if err != nil {
@@ -198,15 +199,14 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Out = w
 
-	cl, err := NewClient(s.GetRepository())
+	cl, err := NewClient()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	cl.Log = logger.WithField("client", "launch")
-
-	ID := common.GenerateSessionID()
-	err = cl.Dispatch("launch", s.GetHosts(), name, ID, false)
+	defer cl.Close()
+	ID := "launch-" + common.GenerateSessionID()
+	err = cl.Dispatch(0, name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()
 	if err != nil {
@@ -218,7 +218,6 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 
 // ServerContext contains server context with repository
 type ServerContext interface {
-	GetRepository() common.Repository
 	GetHosts() []string
 }
 

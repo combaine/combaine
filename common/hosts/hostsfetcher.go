@@ -1,13 +1,13 @@
 package hosts
 
-import "os"
+import "github.com/combaine/combaine/common"
 
 // Hosts represent map of the DC to list of the hosts
 type Hosts map[string][]string
 
 func (h *Hosts) getHosts(remote bool) []string {
 	hosts := make([]string, 0)
-	myname, _ := os.Hostname() // ignore this error here
+	myname := common.Hostname()
 	for _, hostsInDc := range *h {
 		if remote {
 			for _, host := range hostsInDc {

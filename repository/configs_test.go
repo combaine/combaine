@@ -1,4 +1,4 @@
-package common
+package repository
 
 import (
 	"testing"
@@ -8,13 +8,13 @@ import (
 
 func TestGetAggregationConfigs(t *testing.T) {
 	const repopath = "../tests/testdata/configs"
-	repo, repoErr := NewFilesystemRepository(repopath)
+	repoErr := Init(repopath)
 	assert.NoError(t, repoErr)
 
-	cfg, _ := repo.GetParsingConfig("aggCore")
+	cfg, _ := GetParsingConfig("aggCore")
 	var parsingConfig ParsingConfig
 	assert.NoError(t, cfg.Decode(&parsingConfig))
-	aggCfgs, err := GetAggregationConfigs(repo, &parsingConfig, "aggCore")
+	aggCfgs, err := GetAggregationConfigs(&parsingConfig, "aggCore")
 	assert.NotNil(t, (*aggCfgs)["aggCore"])
 	assert.Len(t, *aggCfgs, 1)
 	assert.NoError(t, err)

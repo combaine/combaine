@@ -1,5 +1,7 @@
 package common
 
+import "github.com/combaine/combaine/repository"
+
 // Task generic task structure
 type Task struct {
 	Id       string `codec:"Id"`
@@ -19,7 +21,7 @@ type AggregationResult struct {
 // ParsingPayload is task for parsing stage
 type ParsingPayload struct {
 	Task
-	Config PluginConfig
+	Config repository.PluginConfig
 	Meta   map[string]string
 	Data   []byte
 }
@@ -27,7 +29,7 @@ type ParsingPayload struct {
 // AggregateGropuPayload is task for aggregating stage
 type AggregateGropuPayload struct {
 	Task
-	Config PluginConfig
+	Config repository.PluginConfig
 	Meta   map[string]string
 	Data   [][]byte
 }
@@ -35,7 +37,7 @@ type AggregateGropuPayload struct {
 // SenderPayload is task for senders
 type SenderPayload struct {
 	Task
-	Config PluginConfig
+	Config repository.PluginConfig
 	Data   []AggregationResult
 }
 

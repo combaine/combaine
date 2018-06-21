@@ -1,4 +1,4 @@
-package common
+package repository
 
 import (
 	"fmt"
@@ -22,34 +22,25 @@ func TestRepository(t *testing.T) {
 		expectedAggcfg = []string{"aggCore", "badaggCore", "http_ok", "notPerHostaggCore"}
 	)
 
-	_, err := NewFilesystemRepository("/not_existing/dir/")
+	err := Init("/not_existing/dir/")
 	assert.Error(t, err)
 
-	repo, err := NewFilesystemRepository(repopath)
+	err = Init(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
 
-	lp, _ := repo.ListParsingConfigs()
+	lp, _ := ListParsingConfigs()
 	assert.Equal(t, expectedPcfg, lp, "")
-	la, _ := repo.ListAggregationConfigs()
+	la, _ := ListAggregationConfigs()
 	assert.Equal(t, expectedAggcfg, la, "")
 
-	cmbCg := repo.GetCombainerConfig()
+	cmbCg := GetCombainerConfig()
 	if len(cmbCg.CloudSection.HostFetcher) == 0 {
 		t.Fatal("section isn't supposed to empty")
 	}
 
 	for _, name := range lp {
-		pcfg, err := repo.GetParsingConfig(name)
+		pcfg, err := GetParsingConfig(name)
 		assert.Nil(t, err, fmt.Sprintf("unable to read %s: %s", name, err))
-
-		if !repo.ParsingConfigIsExists(name) {
-			t.Fatalf("Parsing config %s don't exists", name)
-		}
-
-		notExisting := "balbla"
-		if repo.ParsingConfigIsExists(notExisting) {
-			t.Fatalf("No existing config %s mistakenly identified as there", notExisting)
-		}
 
 		assert.NotNil(t, pcfg, "ooops")
 
@@ -58,7 +49,7 @@ func TestRepository(t *testing.T) {
 	}
 
 	for _, name := range la {
-		pcfg, err := repo.GetAggregationConfig(name)
+		pcfg, err := GetAggregationConfig(name)
 		assert.Nil(t, err, fmt.Sprintf("unable to read %s: %s", name, err))
 		assert.NotNil(t, pcfg, "oops")
 

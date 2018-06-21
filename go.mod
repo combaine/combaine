@@ -1,38 +1,37 @@
 module github.com/combaine/combaine
 
 require (
-	github.com/armon/go-metrics v0.0.0-20170913184837-0a12dc6f6b9d
-	github.com/boltdb/bolt v0.0.0-20170907202052-fa5367d20c99
+	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
+	github.com/armon/go-metrics v0.0.0-20180221182744-783273d70314
 	github.com/cocaine/cocaine-framework-go v0.0.0-20160727160248-a071d9bf57bb
-	github.com/golang/protobuf v0.0.0-20170920220647-130e6b02ab05
-	github.com/gorilla/context v0.0.0-20160817184632-08b5f424b927
-	github.com/gorilla/mux v0.0.0-20171105172320-7f0880185913
-	github.com/hashicorp/go-immutable-radix v0.0.0-20170725221215-8aac27015308
-	github.com/hashicorp/go-multierror v0.0.0-20170622060955-83588e72410a
-	github.com/hashicorp/go-sockaddr v0.0.0-20170627023441-41949a141473
-	github.com/hashicorp/golang-lru v0.0.0-20160813221303-0a025b7e63ad
-	github.com/hashicorp/memberlist v0.0.0-20170919173151-687988a0b5da
-	github.com/hashicorp/raft v0.0.0-20170824215411-3b4d64b29e42
-	github.com/hashicorp/raft-boltdb v0.0.0-20170209205654-df631556b575
-	github.com/hashicorp/serf v0.0.0-20170206200529-d6574a5bb122
-	github.com/kr/pretty v0.0.0-20160823170715-cfb55aafdaf3
-	github.com/kr/text v0.0.0-20160504234017-7cafcd837844
-	github.com/miekg/dns v0.0.0-20170921125049-689d334b0197
-	github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992
-	github.com/pkg/errors v0.0.0-20160929014801-645ef00459ed
-	github.com/satori/go.uuid v0.0.0-20170321230731-5bf94b69c6b6
+	github.com/golang/protobuf v1.1.0
+	github.com/gorilla/context v1.1.1
+	github.com/gorilla/mux v1.6.2
+	github.com/grpc/grpc-go v1.12.2
+	github.com/hashicorp/go-immutable-radix v0.0.0-20180129170900-7f3cd4390caa
+	github.com/hashicorp/go-multierror v0.0.0-20171204182908-b7773ae21874
+	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86
+	github.com/hashicorp/golang-lru v0.0.0-20180201235237-0fb14efe8c47
+	github.com/hashicorp/memberlist v0.1.0
+	github.com/hashicorp/raft v1.0.0
+	github.com/hashicorp/serf v0.8.1
+	github.com/kr/pretty v0.1.0
+	github.com/miekg/dns v1.0.8
+	github.com/mitchellh/mapstructure v0.0.0-20180511142126-bb74f1db0675
+	github.com/pkg/errors v0.8.0
+	github.com/satori/go.uuid v1.2.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
 	github.com/ugorji/go v0.0.0-20141014124450-dca82994cf14
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
-	github.com/yuin/gopher-lua v0.0.0-20170915035107-eb1c7299435c
-	golang.org/x/crypto v0.0.0-20170916190215-7d9177d70076
-	golang.org/x/net v0.0.0-20170922011244-0744d001aa84
-	golang.org/x/sys v0.0.0-20170922123423-429f518978ab
-	golang.org/x/text v0.0.0-20170915090833-1cbadb444a80
-	google.golang.org/genproto v0.0.0-20170918111702-1e559d0a00ee
-	google.golang.org/grpc v0.0.0-20170830182417-f92cdcd7dcdc
+	github.com/yuin/gopher-lua v0.0.0-20180611022520-ca850f594eaa
+	golang.org/x/crypto v0.0.0-20180614221331-a8fb68e7206f
+	golang.org/x/net v0.0.0-20180611182652-db08ff08e862
+	golang.org/x/sys v0.0.0-20180616030259-6c888cc515d3
+	golang.org/x/text v0.3.0
+	google.golang.org/genproto v0.0.0-20180608181217-32ee49c4dd80
+	google.golang.org/grpc v1.12.2
 	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528
-	gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7
+	gopkg.in/yaml.v2 v2.2.1
 )

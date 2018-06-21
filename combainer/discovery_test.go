@@ -8,17 +8,18 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/hosts"
+	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	pluginCfg = common.PluginConfig{}
-	testCfg   = common.PluginConfig{}
+	pluginCfg = repository.PluginConfig{}
+	testCfg   = repository.PluginConfig{}
 )
 
 func TestRegisterFetcherLoader(t *testing.T) {
 	pdf := &PredefineFetcher{}
-	f := func(config common.PluginConfig) (HostFetcher, error) {
+	f := func(config repository.PluginConfig) (HostFetcher, error) {
 		return pdf, nil
 	}
 	assert.NoError(t, RegisterFetcherLoader("test", f))
@@ -37,10 +38,10 @@ func TestRegisterFetcherLoader(t *testing.T) {
 }
 
 func TestPredefineFetcher(t *testing.T) {
-	testCfg = common.PluginConfig{"type": "predefine", "Clusters": 1}
+	testCfg = repository.PluginConfig{"type": "predefine", "Clusters": 1}
 	_, err := LoadHostFetcher(testCfg)
 	assert.Error(t, err)
-	testCfg = common.PluginConfig{
+	testCfg = repository.PluginConfig{
 		"type": "predefine",
 		"Clusters": map[string]map[string][]string{
 			"Group1": {
@@ -117,30 +118,30 @@ func TestHttpFetcher(t *testing.T) {
 	)
 
 	cases := []struct {
-		config  common.PluginConfig
+		config  repository.PluginConfig
 		query   string
 		err     bool
 		errType error
 		expect  hosts.Hosts
 	}{
-		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
+		{repository.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
 			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
 			hosts.Hosts{"NoDC": {"Host.in.NoDC"}, "dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{common.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
+		{repository.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},
 			"NotInCache", Failed, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{repository.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"NotInCache", Failed, nil,
 			hosts.Hosts{"dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
-		{common.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{repository.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1", Ok, nil,
 			hosts.Hosts{"NoDC": {"Host.in.NoDC"}, "dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{
-			common.PluginConfig{
+			repository.PluginConfig{
 				"type":     "http",
 				"Format":   "json",
 				"BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s",
@@ -197,15 +198,15 @@ func TestRTCFetcher(t *testing.T) {
 	)
 
 	cases := []struct {
-		config  common.PluginConfig
+		config  repository.PluginConfig
 		query   string
 		err     bool
 		errType error
 		expect  hosts.Hosts
 	}{
-		{common.PluginConfig{"type": "rtc", "geo": []string{"dc1"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{repository.PluginConfig{"type": "rtc", "geo": []string{"dc1"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1-json-rtc", Ok, nil, hosts.Hosts{"dc1": {"host1.dc1", "host2.dc1"}}},
-		{common.PluginConfig{"type": "rtc", "geo": []string{"dc1", "dcB"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+		{repository.PluginConfig{"type": "rtc", "geo": []string{"dc1", "dcB"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1-json-rtc", Ok, nil,
 			hosts.Hosts{"dc1": {"host1.dc1", "host2.dc1"}, "dcB": {"host1.dcB", "host2.dcB", "host3.dcB"}}},
 	}

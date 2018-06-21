@@ -8,12 +8,13 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 	lua "github.com/yuin/gopher-lua"
 )
 
 type dumperFunc func(reflect.Value) (lua.LValue, error)
 
-func jPluginConfigToLuaTable(l *lua.LState, in common.PluginConfig) (*lua.LTable, error) {
+func jPluginConfigToLuaTable(l *lua.LState, in repository.PluginConfig) (*lua.LTable, error) {
 	table := l.CreateTable(0, len(in))
 	for name, value := range in {
 		val, err := toLuaValue(l, value, dumperToLuaValue)

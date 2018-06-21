@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,13 +22,13 @@ var (
 )
 
 func TestTCPSocketFetcherConfig(t *testing.T) {
-	var plainConfig = []byte("connection_timeout: 300\nport: 18089")
-	var cfg common.PluginConfig
-	common.Decode(plainConfig, &cfg)
+	var plainConfig = repository.EncodedConfig("connection_timeout: 300\nport: 18089")
+	var cfg repository.PluginConfig
+	plainConfig.Decode(&cfg)
 	f, err := NewTCPSocketFetcher(cfg)
 	assert.NoError(t, err)
 
-	_, err = NewTCPSocketFetcher(common.PluginConfig{})
+	_, err = NewTCPSocketFetcher(repository.PluginConfig{})
 	assert.Error(t, err)
 
 	castedF := f.(*tcpSocketFetcher)
@@ -54,9 +55,9 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 	cases := []struct {
 		err      bool
 		expected string
-		config   common.PluginConfig
+		config   repository.PluginConfig
 	}{
-		{ok, "hello", common.PluginConfig{"connection_timeout": 150}},
+		{ok, "hello", repository.PluginConfig{"connection_timeout": 150}},
 	}
 
 	for _, c := range cases {
@@ -76,18 +77,18 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 }
 
 func TestHTTPFetcherConfig(t *testing.T) {
-	var plainConfig = []byte(`
+	var plainConfig = repository.EncodedConfig(`
 connection_timeout: 300
 read_timeout: 300
 port: 8089
 uri: /TEST`)
 
-	var cfg common.PluginConfig
-	common.Decode(plainConfig, &cfg)
+	var cfg repository.PluginConfig
+	plainConfig.Decode(&cfg)
 	f, err := NewHTTPFetcher(cfg)
 	assert.NoError(t, err)
 
-	_, err = NewHTTPFetcher(common.PluginConfig{})
+	_, err = NewHTTPFetcher(repository.PluginConfig{})
 	assert.Error(t, err)
 
 	castedF := f.(*httpFetcher)
@@ -108,10 +109,10 @@ func TestHTTPFetcherFetch(t *testing.T) {
 
 	cases := []struct {
 		err    bool
-		config common.PluginConfig
+		config repository.PluginConfig
 	}{
-		{true, common.PluginConfig{"read_timeout": 50}},
-		{false, common.PluginConfig{"read_timeout": 150}},
+		{true, repository.PluginConfig{"read_timeout": 50}},
+		{false, repository.PluginConfig{"read_timeout": 150}},
 	}
 
 	for _, c := range cases {
@@ -131,19 +132,19 @@ func TestHTTPFetcherFetch(t *testing.T) {
 
 func TestTimetailFetcherConfig(t *testing.T) {
 
-	var plainConfig = []byte(`
+	var plainConfig = repository.EncodedConfig(`
 connection_timeout: 30000
 read_timeout: 300000
 timetail_port: 3132
 timetail_url: '/timetail?pattern=request_time&log_ts='
 `)
 
-	var cfg common.PluginConfig
-	common.Decode(plainConfig, &cfg)
+	var cfg repository.PluginConfig
+	plainConfig.Decode(&cfg)
 	f, err := NewTimetailFetcher(cfg)
 	assert.NoError(t, err)
 
-	_, err = NewTimetailFetcher(common.PluginConfig{})
+	_, err = NewTimetailFetcher(repository.PluginConfig{})
 	assert.Error(t, err)
 
 	castedF := f.(*timetailFetcher)
@@ -164,10 +165,10 @@ func TestTimetailFetcherFetch(t *testing.T) {
 
 	cases := []struct {
 		err    bool
-		config common.PluginConfig
+		config repository.PluginConfig
 	}{
-		{withErr, common.PluginConfig{"read_timeout": 10, "timetail_url": "/TEST"}},
-		{ok, common.PluginConfig{"read_timeout": 110, "timetail_url": "/TEST"}},
+		{withErr, repository.PluginConfig{"read_timeout": 10, "timetail_url": "/TEST"}},
+		{ok, repository.PluginConfig{"read_timeout": 110, "timetail_url": "/TEST"}},
 	}
 
 	for _, c := range cases {

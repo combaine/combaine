@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 )
 
 var combainerCache *cache.TTLCache
@@ -19,7 +19,7 @@ var combainerCache *cache.TTLCache
 // CombaineServer main combaine object
 type CombaineServer struct {
 	Configuration   CombaineServerConfig
-	CombainerConfig common.CombainerConfig
+	CombainerConfig repository.CombainerConfig
 
 	cluster    *Cluster
 	shutdownCh chan struct{}
@@ -29,9 +29,6 @@ type CombaineServer struct {
 
 // CombaineServerConfig contains config from main combaine conf
 type CombaineServerConfig struct {
-	// Configuration
-	// path to directory with combaine.yaml
-	ConfigsPath string
 	// period of the locks rechecking
 	Period time.Duration
 	// Addrto listen for incoming http REST API requests
@@ -42,15 +39,10 @@ type CombaineServerConfig struct {
 
 // New create new combainer server
 func New(config CombaineServerConfig) (*CombaineServer, error) {
+	var err error
 	log := logrus.WithField("source", "server")
-	repository, err := common.NewFilesystemRepository(config.ConfigsPath)
-	if err != nil {
-		log.Fatalf("unable to initialize filesystemRepository: %s", err)
-	}
-	log.Info("filesystemRepository initialized")
-
 	combainerConfig := repository.GetCombainerConfig()
-	if err = common.VerifyCombainerConfig(&combainerConfig); err != nil {
+	if err = repository.VerifyCombainerConfig(&combainerConfig); err != nil {
 		log.Fatalf("malformed combainer config: %s", err)
 	}
 	log.Info("Combainer configs is valid: OK")
@@ -66,16 +58,11 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 		log:             log,
 	}
 
-	server.cluster, err = NewCluster(repository, combainerConfig.MainSection.ClusterConfig)
+	server.cluster, err = NewCluster(combainerConfig.MainSection.ClusterConfig)
 	if err != nil {
 		return nil, err
 	}
 	return server, nil
-}
-
-// GetRepository return repository of configs
-func (c *CombaineServer) GetRepository() common.Repository {
-	return c.cluster.repo
 }
 
 // GetHosts return alive cluster members
@@ -109,6 +96,7 @@ func (c *CombaineServer) Serve() error {
 		hostsByDc, err := f.Fetch(group)
 		if err != nil {
 			c.log.Errorf("Failed to fetch cloud group: %s", err)
+			continue
 		}
 		hosts = append(hosts, hostsByDc.RemoteHosts()...)
 

@@ -2,26 +2,62 @@ package combainer
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-type dummyRepo []string
+func newTestRepo(configs []string) func() {
+	dir, err := ioutil.TempDir("", "test_repo")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	parsingDir := filepath.Join(dir, "parsing")
+	aggDir := filepath.Join(dir, "aggregate")
+	os.Mkdir(parsingDir, 0777)
+	os.Mkdir(aggDir, 0777)
 
-func newTestRepo(repo []string) *dummyRepo                                              { return (*dummyRepo)(&repo) }
-func (d *dummyRepo) ListParsingConfigs() ([]string, error)                              { return []string(*d), nil }
-func (d *dummyRepo) ListAggregationConfigs() (l []string, e error)                      { return l, e }
-func (d *dummyRepo) GetAggregationConfig(name string) (c common.EncodedConfig, e error) { return c, e }
-func (d *dummyRepo) GetParsingConfig(name string) (c common.EncodedConfig, e error)     { return c, e }
-func (d *dummyRepo) GetCombainerConfig() (c common.CombainerConfig)                     { return c }
-func (d *dummyRepo) ParsingConfigIsExists(name string) bool                             { return true }
-func (d *dummyRepo) addConfig(name string)                                              { *d = append(*d, name) }
+	for _, name := range configs {
+		pCfg := filepath.Join(parsingDir, name+".yaml")
+		aCfg := filepath.Join(aggDir, name+".yaml")
+		if err := ioutil.WriteFile(pCfg, []byte(""), 0666); err != nil {
+			logrus.Fatal(err)
+		}
+		if err := ioutil.WriteFile(aCfg, []byte(""), 0666); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	mainConfig := filepath.Join(dir, "combaine.yaml")
+	if err := ioutil.WriteFile(mainConfig, []byte(""), 0666); err != nil {
+		logrus.Fatal(err)
+	}
+	err = repository.Init(dir)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	list, err := repository.ListParsingConfigs()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	logrus.Print("New repo content", list)
+	return func() { os.RemoveAll(dir) }
+}
+
+// PushParsingConfig add new parsing config
+func pushParsingConfig(name string) {
+	cfg := filepath.Join(repository.GetBasePath(), "parsing", name+".yaml")
+	if err := ioutil.WriteFile(cfg, []byte(""), 0666); err != nil {
+		logrus.Fatal(err)
+	}
+}
 
 func TestDistributeTasks(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
@@ -58,8 +94,8 @@ func TestDistributeTasks(t *testing.T) {
 
 	var ch chan struct{}
 	cases := map[string]map[string]map[string]chan struct{}{
-		"EmptyMap": make(map[string]map[string]chan struct{}),
-		"FullMap": {
+		"EmptyMapEven": make(map[string]map[string]chan struct{}),
+		"FullMapEven": {
 			"host1": {
 				"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch,
 				"c15": ch, "c16": ch, "c17": ch, "c18": ch, "c19": ch,
@@ -106,28 +142,26 @@ func TestDistributeTasks(t *testing.T) {
 		},
 	}
 
-	repo := newTestRepo([]string{
+	cleanup := newTestRepo([]string{
 		"c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10",
 		"c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20",
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
 	})
-	cl := &Cluster{repo: repo, Name: "host1", updateInterval: 3600 * time.Hour}
+	defer cleanup()
+	cl := &Cluster{Name: "host3", updateInterval: 3600 * time.Hour, store: NewFSMStore()}
 	cl.log = logrus.WithField("source", "test")
 	assert.NoError(t, cl.distributeTasks([]string{}))
 
 	hosts := []string{"host1", "host2", "host3"}
 	// Even configs
 	for n, c := range cases {
-		t.Logf("Test for %s", n)
-		fsmStore := NewFSMStore()
-		fsmStore.store = c
-		cl.store = fsmStore
+		logrus.Infof("Test for %s", n)
+		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1"])
-		assert.Equal(t, a > 8, a < 12, "Test failed 8 < host1(%d) < 12 host1(%d), host2(%d), host3(%d)", a,
-			len(cl.store.store["host1"]),
-			len(cl.store.store["host2"]),
-			len(cl.store.store["host3"]),
+		assert.Equal(t, a > 8, a < 12, "Test failed for %s, 8 < host1(%d) < 12 store: %v",
+			n, a,
+			cl.store.DistributionStatistic(),
 		)
 		configSet := make(map[string]string)
 		for h := range cl.store.store {
@@ -137,15 +171,9 @@ func TestDistributeTasks(t *testing.T) {
 			}
 		}
 
-		if n == "FullMap" {
-			t.Log("Trye dispatching new config on fully balanced cluster")
-			bareRepoList, _ := repo.ListParsingConfigs()
-			prevRepo := cl.repo
-			newRepo := make([]string, len(bareRepoList))
-			copy(newRepo, bareRepoList)
-			newRepo = append(newRepo, "c55")
-			cl.repo = newTestRepo(newRepo)
-			cl.log.Infof("New Repo %v", cl.repo)
+		if n == "FullMapEven" {
+			logrus.Info("Trye dispatching new config on fully balanced cluster")
+			pushParsingConfig("c55")
 			cl.distributeTasks(hosts)
 			present := 0
 			for h := range cl.store.store {
@@ -154,21 +182,19 @@ func TestDistributeTasks(t *testing.T) {
 				}
 			}
 			assert.True(t, present == 1, "Failed to dispatch new config c55")
-			cl.repo = prevRepo
 		}
 	}
 
 	hosts = []string{"host1", "host2"}
 	// With dead nodes
 	for n, c := range cases {
-		t.Logf("Test with dead node for %s", n)
-		cl.store = &FSMStore{store: c}
+		logrus.Infof("Test with dead node for %s", n)
+		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1"])
-		assert.Equal(t, a > 12, a < 17, "Test failed 12 < host1(%d) < 17 host1(%d), host2(%d), host3(%d - dead node)", a,
-			len(cl.store.store["host1"]),
-			len(cl.store.store["host2"]),
-			len(cl.store.store["host3"]),
+		assert.Equal(t, a > 12, a < 17, "Test failed for %s: 12 < host1(%d) < 17 store: %v",
+			n, a,
+			cl.store.DistributionStatistic(),
 		)
 		assert.Equal(t, 0, len(cl.store.store["host3"]), "Dead node has configs")
 
@@ -183,26 +209,35 @@ func TestDistributeTasks(t *testing.T) {
 
 	// Odd configs
 	cases = map[string]map[string]map[string]chan struct{}{
-		"EmptyMap": make(map[string]map[string]chan struct{}),
-		"FullMap": {
-			"host1": {"c10": ch, "c11": ch, "c12": ch, "c13": ch, "c14": ch},
-			"host2": {"c04": ch, "c05": ch, "c06": ch, "c07": ch, "c08": ch},
-			"host3": {},
+		"EmptyMapOdd": make(map[string]map[string]chan struct{}),
+		"FullMapOdd": {
+			"host1odd": {
+				"c01": ch, "c02": ch, "c03": ch, "c04": ch, "c05": ch,
+				"c06": ch, "c07": ch, "c08": ch, "c09": ch, "c10": ch,
+				"c11": ch, "c12": ch, "c13": ch, "c14": ch, "c15": ch,
+			},
+			"host2odd": {},
+			"host3odd": {},
 		},
 	}
 
-	repo = newTestRepo([]string{"c01", "c02", "c03", "c04", "c05", "c06", "c07"})
-	cl.repo = repo
-	hosts = []string{"host1", "host2", "host3"}
+	cleanup = newTestRepo([]string{
+		"c01", "c02", "c03", "c04", "c05",
+		"c06", "c07", "c08", "c09", "c10",
+		"c11", "c12", "c13", "c14", "c15",
+	})
+	defer cleanup()
+	hosts = []string{"host1odd", "host2odd", "host3odd"}
 	for n, c := range cases {
 		t.Logf("Test for %s", n)
-		cl.store = &FSMStore{store: c}
+		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
-		a := len(cl.store.store["host1"])
-		assert.Equal(t, a > 2, a < 5, "Test failed 3 < host1(%d) < 5 host1(%d), host2(%d), host3(%d)", a,
-			len(cl.store.store["host1"]),
-			len(cl.store.store["host2"]),
-			len(cl.store.store["host3"]),
+		a := len(cl.store.store["host1odd"])
+		assert.Equal(t, 5, a, "Test failed for %s host1odd(%d) has 5: host1odd(%d), host2odd(%d), host3odd(%d)",
+			n, a,
+			len(cl.store.store["host1odd"]),
+			len(cl.store.store["host2odd"]),
+			len(cl.store.store["host3odd"]),
 		)
 		configSet := make(map[string]string)
 		for h := range cl.store.store {
