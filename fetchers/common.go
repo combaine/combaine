@@ -5,8 +5,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const defaultTimeout = 5000 // time.Millisecond
-
 func decodeConfig(cfg repository.PluginConfig, result interface{}) error {
 	decoderConfig := mapstructure.DecoderConfig{
 		WeaklyTypedInput: true, // To allow decoder parses []uint8 as string

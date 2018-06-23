@@ -51,11 +51,8 @@ type CacheConfig struct {
 
 // ClusterConfig about serf and raft
 type ClusterConfig struct {
-	SnapshotPath  string `yaml:"SnapshotPath"`
-	DataDir       string `yaml:"DataDir"`
 	BindAddr      string `yaml:"BindAddr"`
 	RaftPort      int    `yaml:"RaftPort"`
-	RaftStateDir  string `yaml:"RaftStateDir"`
 	StartAsLeader bool   `yaml:"StartAsLeader"`
 }
 
