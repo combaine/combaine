@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"sync"
 
 	"github.com/combaine/combaine/common"
@@ -20,7 +21,7 @@ func Register(name string, f func(repository.PluginConfig) (Fetcher, error)) {
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(task *common.FetcherTask) ([]byte, error)
+	Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error)
 }
 
 // NewFetcher get and initialize new fetcher

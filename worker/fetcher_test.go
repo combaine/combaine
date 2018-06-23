@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ type fether struct {
 	c repository.PluginConfig
 }
 
-func (f *fether) Fetch(task *common.FetcherTask) ([]byte, error) {
+func (f *fether) Fetch(_ context.Context, task *common.FetcherTask) ([]byte, error) {
 	fch <- string(f.c["timetail_url"].([]byte))
 	return common.Pack(*task)
 }
@@ -30,7 +31,7 @@ func NewTestFetcher(_ repository.PluginConfig) (Fetcher, error) {
 
 type testFether struct{}
 
-func (f *testFether) Fetch(_ *common.FetcherTask) ([]byte, error) {
+func (f *testFether) Fetch(_ context.Context, _ *common.FetcherTask) ([]byte, error) {
 	return nil, nil
 }
 

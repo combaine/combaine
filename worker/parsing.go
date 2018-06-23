@@ -13,8 +13,13 @@ import (
 	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(log *logrus.Entry, task *rpc.ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
+func fetchDataFromTarget(ctx context.Context, task *rpc.ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
 	startTm := time.Now()
+	log := logrus.WithFields(logrus.Fields{
+		"config":  task.ParsingConfigName,
+		"target":  task.Host,
+		"session": task.Id,
+	})
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
 		return nil, err
@@ -30,12 +35,14 @@ func fetchDataFromTarget(log *logrus.Entry, task *rpc.ParsingTask, parsingConfig
 		Task:   common.Task{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
 	}
 
-	blob, err := fetcher.Fetch(&fetcherTask)
+	blob, err := fetcher.Fetch(ctx, &fetcherTask)
+	endTm := time.Now().Sub(startTm).Seconds()
 	log.Debugf("fetch %d bytes: %q", len(blob), blob)
-	log.Infof("fetching completed (took %.3f)", time.Now().Sub(startTm).Seconds())
 	if err != nil {
+		log.Errorf("fetching completed (took %.3f)", endTm)
 		return nil, err
 	}
+	log.Infof("fetching completed (took %.3f)", endTm)
 	return blob, nil
 }
 
@@ -50,7 +57,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 
 	var parsingConfig = task.GetParsingConfig()
 
-	blob, err := fetchDataFromTarget(log, task, &parsingConfig)
+	blob, err := fetchDataFromTarget(ctx, task, &parsingConfig)
 	if err != nil {
 		log.Errorf("DoParsing: %v", err)
 		return nil, err
@@ -68,24 +75,24 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 
 	var aggregationConfigs = task.GetAggregationConfigs()
 	var wg sync.WaitGroup
-	for aggLogName, aggCfg := range aggregationConfigs {
+	for _, aggCfg := range aggregationConfigs {
 		for k, v := range aggCfg.Data {
-			aggType, err := v.Type()
-			if err != nil {
-				return nil, err
-			}
-			log.Debugf("DoParsing: send to '%s', agg section name '%s' type '%s'", aggLogName, k, aggType)
-
-			app, err := cacher.Get(aggType)
-			if err != nil {
-				log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
-				continue
-			}
 			wg.Add(1)
-			// TODO: use Context instead of deadline
-			go func(app cache.Service, k string, v repository.PluginConfig, deadline time.Duration) {
+			go func(k string, v repository.PluginConfig) {
 				defer wg.Done()
 
+				aggType, err := v.Type()
+				if err != nil {
+					log.Errorf("DoParsing: %s", err)
+					return
+				}
+				log.Debugf("DoParsing: send to '%s'", aggType)
+
+				app, err := cacher.Get(aggType)
+				if err != nil {
+					log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
+					return
+				}
 				t, err := common.Pack(map[string]interface{}{
 					"Config": v,
 					"Data":   blob,
@@ -123,10 +130,10 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceC
 
 					ch <- item{key: key, res: rawRes}
 					log.Debugf("write data with key %s", key)
-				case <-time.After(deadline):
-					log.Errorf("failed task %s: DeadlineExceeded", key)
+				case <-ctx.Done():
+					log.Errorf("failed task: %s", ctx.Err())
 				}
-			}(app, k, v, time.Second*time.Duration(task.Frame.Current-task.Frame.Previous))
+			}(k, v)
 		}
 	}
 	go func() {

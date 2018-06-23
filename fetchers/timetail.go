@@ -24,7 +24,6 @@ type timetailFetcher struct {
 	URL     string `mapstructure:"timetail_url"`
 	Logname string `mapstructure:"logname"`
 	Offset  int64  `mapstructure:"offset"`
-	Timeout int    `mapstructure:"read_timeout"`
 }
 
 // NewTimetailFetcher build new timetail fetcher
@@ -34,31 +33,32 @@ func NewTimetailFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	if err := decodeConfig(cfg, &fetcher); err != nil {
 		return nil, err
 	}
-	if fetcher.Timeout <= 0 {
-		fetcher.Timeout = defaultTimeout
-	}
 	if fetcher.Port == 0 {
-		return nil, errors.New("Missing option port")
+		return nil, errors.New("timetail: Missing option port")
 	}
 
 	return &fetcher, nil
 }
 
-func (t *timetailFetcher) Fetch(task *common.FetcherTask) ([]byte, error) {
+func (t *timetailFetcher) Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error) {
+	log := logrus.WithField("session", task.Id)
+
 	period := t.Offset + (task.CurrTime - task.PrevTime)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d", task.Target, t.Port, t.URL, t.Logname, period)
-	logrus.Infof("%s Requested URL: %s, timeout %v", task.Id, url, t.Timeout)
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return nil, errors.New("timetail: Context without deadline")
+	}
+	log.Infof("timetail: Requested URL: %s, timeout %v", url, deadline.Sub(time.Now()))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(t.Timeout)*time.Millisecond)
-	defer cancel()
 	resp, err := chttp.Get(ctx, url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	logrus.Infof("%s Result for URL %s: %d", task.Id, url, resp.StatusCode)
+	log.Infof("timetail: Result for URL %s: %d", url, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, err
 }

@@ -32,7 +32,6 @@ func TestTCPSocketFetcherConfig(t *testing.T) {
 	assert.Error(t, err)
 
 	castedF := f.(*tcpSocketFetcher)
-	assert.Equal(t, 300, castedF.Timeout)
 	assert.Equal(t, "18089", castedF.Port)
 }
 
@@ -67,7 +66,9 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 		f, err := NewTCPSocketFetcher(c.config)
 		assert.NoError(t, err)
 
-		if body, err := f.Fetch(task); c.err {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if body, err := f.Fetch(ctx, task); c.err {
 			assert.EqualValues(t, context.DeadlineExceeded, err)
 		} else {
 			assert.EqualValues(t, c.expected, body)
@@ -77,11 +78,7 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 }
 
 func TestHTTPFetcherConfig(t *testing.T) {
-	var plainConfig = repository.EncodedConfig(`
-connection_timeout: 300
-read_timeout: 300
-port: 8089
-uri: /TEST`)
+	var plainConfig = repository.EncodedConfig("port: 8089\nuri: /TEST\n")
 
 	var cfg repository.PluginConfig
 	plainConfig.Decode(&cfg)
@@ -92,7 +89,6 @@ uri: /TEST`)
 	assert.Error(t, err)
 
 	castedF := f.(*httpFetcher)
-	assert.Equal(t, 300, castedF.Timeout)
 	assert.Equal(t, 8089, castedF.Port)
 	assert.Equal(t, "/TEST", castedF.URI)
 }
@@ -108,11 +104,12 @@ func TestHTTPFetcherFetch(t *testing.T) {
 	target, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
 
 	cases := []struct {
-		err    bool
-		config repository.PluginConfig
+		err     bool
+		config  repository.PluginConfig
+		timeout time.Duration
 	}{
-		{true, repository.PluginConfig{"read_timeout": 50}},
-		{false, repository.PluginConfig{"read_timeout": 150}},
+		{true, repository.PluginConfig{}, 50 * time.Millisecond},
+		{false, repository.PluginConfig{}, 150 * time.Millisecond},
 	}
 
 	for _, c := range cases {
@@ -122,7 +119,9 @@ func TestHTTPFetcherFetch(t *testing.T) {
 		f, err := NewHTTPFetcher(c.config)
 		assert.NoError(t, err)
 
-		if _, err = f.Fetch(task); c.err {
+		ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+		defer cancel()
+		if _, err = f.Fetch(ctx, task); c.err {
 			assert.EqualValues(t, context.DeadlineExceeded, err)
 		} else {
 			assert.NoError(t, err)
@@ -132,12 +131,7 @@ func TestHTTPFetcherFetch(t *testing.T) {
 
 func TestTimetailFetcherConfig(t *testing.T) {
 
-	var plainConfig = repository.EncodedConfig(`
-connection_timeout: 30000
-read_timeout: 300000
-timetail_port: 3132
-timetail_url: '/timetail?pattern=request_time&log_ts='
-`)
+	var plainConfig = repository.EncodedConfig("timetail_port: 3132\ntimetail_url: '/timetail?pattern=request_time&log_ts='\n")
 
 	var cfg repository.PluginConfig
 	plainConfig.Decode(&cfg)
@@ -148,7 +142,6 @@ timetail_url: '/timetail?pattern=request_time&log_ts='
 	assert.Error(t, err)
 
 	castedF := f.(*timetailFetcher)
-	assert.Equal(t, 300000, castedF.Timeout)
 	assert.Equal(t, 3132, castedF.Port)
 	assert.Equal(t, "/timetail?pattern=request_time&log_ts=", castedF.URL)
 }
@@ -164,11 +157,12 @@ func TestTimetailFetcherFetch(t *testing.T) {
 	target, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
 
 	cases := []struct {
-		err    bool
-		config repository.PluginConfig
+		err     bool
+		config  repository.PluginConfig
+		timeout time.Duration
 	}{
-		{withErr, repository.PluginConfig{"read_timeout": 10, "timetail_url": "/TEST"}},
-		{ok, repository.PluginConfig{"read_timeout": 110, "timetail_url": "/TEST"}},
+		{withErr, repository.PluginConfig{"timetail_url": "/TEST"}, 10 * time.Millisecond},
+		{ok, repository.PluginConfig{"timetail_url": "/TEST"}, 110 * time.Millisecond},
 	}
 
 	for _, c := range cases {
@@ -178,7 +172,9 @@ func TestTimetailFetcherFetch(t *testing.T) {
 		f, err := NewTimetailFetcher(c.config)
 		assert.NoError(t, err)
 
-		if _, err = f.Fetch(task); c.err {
+		ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+		defer cancel()
+		if _, err = f.Fetch(ctx, task); c.err {
 			assert.EqualValues(t, context.DeadlineExceeded, err)
 		} else {
 			assert.NoError(t, err)
