@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
+	"google.golang.org/grpc/encoding/gzip"
 
-	"github.com/grpc/grpc-go/encoding/gzip"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 

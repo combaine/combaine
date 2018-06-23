@@ -101,7 +101,7 @@ func (r *Resolver) resolve() []resolver.Address {
 			addr = "[" + addr + "]"
 		}
 		addr = addr + ":" + defaultPort
-		newAddrs = append(newAddrs, resolver.Address{Addr: addr})
+		newAddrs = append(newAddrs, resolver.Address{Addr: addr, Metadata: m.Name})
 	}
 	return newAddrs
 }

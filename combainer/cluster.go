@@ -2,8 +2,6 @@ package combainer
 
 import (
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -45,7 +43,6 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 
 	conf.MemberlistConfig.BindAddr = cfg.BindAddr
 	conf.RejoinAfterLeave = true
-	conf.SnapshotPath = cfg.SnapshotPath
 
 	conf.LogOutput = log.Logger.Writer()
 	conf.MemberlistConfig.LogOutput = conf.LogOutput
@@ -297,14 +294,6 @@ func validateConfig(cfg *repository.ClusterConfig) error {
 	if cfg.RaftPort == 0 {
 		cfg.RaftPort = raftPort
 	}
-	if cfg.DataDir == "" {
-		cfg.DataDir = "/var/spool/combainer"
-	}
-	cfg.RaftStateDir = filepath.Join(cfg.DataDir, raftStateDirectory)
-	if err := os.MkdirAll(cfg.RaftStateDir, 0755); err != nil {
-		return errors.Wrap(err, "failed to make data directory")
-	}
-
 	return nil
 }
 
