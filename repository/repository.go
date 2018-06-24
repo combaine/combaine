@@ -27,50 +27,10 @@ var (
 	mainRepository *filesystemRepository
 )
 
-// MainSection describes Main section in combaine.yaml
-type MainSection struct {
-	ClusterConfig    ClusterConfig `yaml:"Cluster"`
-	ParallelParsings int           `yaml:"ParallelParsings"`
-	// Duration of iteration in sec
-	// Pasring stage longs at least 0.8 * MinimumPeriod
-	IterationDuration uint `yaml:"MINIMUM_PERIOD"`
-	// Groups of cloud machines
-	CloudGroups []string `yaml:"cloud"`
-	// combaine cloud hosts fetcher
-	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
-	// Cache TTLCache options
-	Cache CacheConfig `yaml:"cache,omitempty"`
-}
-
-// CacheConfig for TTLCache
-type CacheConfig struct {
-	TTL      int64 `yaml:"ttl"`
-	Interval int64 `yaml:"interval"`
-}
-
-// ClusterConfig about serf and raft
-type ClusterConfig struct {
-	BindAddr      string `yaml:"BindAddr"`
-	RaftPort      int    `yaml:"RaftPort"`
-	StartAsLeader bool   `yaml:"StartAsLeader"`
-}
-
-// CloudSection configure fetchers and discovery
-type CloudSection struct {
-	// Default DataFetcher
-	DataFetcher PluginConfig `yaml:"DataFetcher"`
-	HostFetcher PluginConfig `yaml:"HostFetcher"`
-}
-
-// CombainerSection about combainer daemon configs
-type CombainerSection struct {
-	MainSection `yaml:"Main"`
-}
-
-// CombainerConfig container for all other configs
-type CombainerConfig struct {
-	CombainerSection `yaml:"Combainer"`
-	CloudSection     `yaml:"cloud_config"`
+type filesystemRepository struct {
+	basepath        string
+	parsingpath     string
+	aggregationpath string
 }
 
 // Init initialize config repository
@@ -81,14 +41,7 @@ func Init(basepath string) error {
 		parsingpath:     path.Join(basepath, parsingSuffix),
 		aggregationpath: path.Join(basepath, aggregateSuffix),
 	}
-
 	return err
-}
-
-type filesystemRepository struct {
-	basepath        string
-	parsingpath     string
-	aggregationpath string
 }
 
 // GetBasePath return basepath of the repository
@@ -211,42 +164,18 @@ func VerifyCombainerConfig(cfg *CombainerConfig) error {
 	return nil
 }
 
-// AggregationConfig represent serction aggregation
-// from combainer cilent config
-type AggregationConfig struct {
-	// Configuration of possible senders
-	Senders map[string]PluginConfig `yaml:"senders"`
-	// Configuration of data habdlers
-	Data map[string]PluginConfig `yaml:"data"`
-}
-
 // Encode encode aggregation config
 func (a *AggregationConfig) Encode() ([]byte, error) {
 	return yaml.Marshal(a)
-}
-
-// ParsingConfig contains settings from parsing section of combainer configs
-type ParsingConfig struct {
-	// List of host groups
-	Groups []string `yaml:"groups"`
-	// List of names of Aggregation configs
-	AggConfigs []string `yaml:"agg_configs"`
-	// Overrides the same section in combainer.yaml
-	DataFetcher PluginConfig `yaml:"DataFetcher,omitempty"`
-	// Overrides name of host group
-	Metahost string `yaml:"metahost" codec:"metahost"`
-	// MainSection contains server configs
-	MainSection `yaml:"Combainer"`
-	// Overrides the same section in combainer.yaml
-	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
-	// Placeholders for template
-	Placeholders map[string]interface{} `yaml:"Placeholders,omitempty"`
 }
 
 // UpdateByCombainerConfig merge server config with parsing config
 func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) {
 	if p.IterationDuration == 0 {
 		p.IterationDuration = config.MainSection.IterationDuration
+	}
+	if p.DistributeAggregation == "" {
+		p.DistributeAggregation = config.MainSection.DistributeAggregation
 	}
 
 	PluginConfigsUpdate(&config.CloudSection.DataFetcher, &p.DataFetcher)
@@ -263,10 +192,6 @@ func (p *ParsingConfig) UpdateByCombainerConfig(config *CombainerConfig) {
 func (p *ParsingConfig) Encode() ([]byte, error) {
 	return yaml.Marshal(p)
 }
-
-// PluginConfig general description
-// of any user-defined plugin configuration section
-type PluginConfig map[string]interface{}
 
 // Type check plugin config type
 func (p *PluginConfig) Type() (typeName string, err error) {
@@ -293,9 +218,6 @@ func PluginConfigsUpdate(target *PluginConfig, source *PluginConfig) {
 		(*target)[k] = v
 	}
 }
-
-// EncodedConfig is the bytes of the configs readed
-type EncodedConfig []byte
 
 // Decode Unmarshal yaml config
 func (e *EncodedConfig) Decode(inplace interface{}) error {

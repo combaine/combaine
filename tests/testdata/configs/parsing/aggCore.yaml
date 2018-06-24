@@ -2,6 +2,7 @@ groups: [test-combainer]
 metahost: test-combainer
 Combainer:
     ParallelParsings: 1
+    DistributeAggregation: "cluster"
 HostFetcher:
     type: "predefine"
     Clusters:

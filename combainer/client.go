@@ -20,6 +20,7 @@ import (
 )
 
 type sessionParams struct {
+	aggregateLocally bool
 	ParallelParsings int
 	ParsingTime      time.Duration
 	WholeTime        time.Duration
@@ -153,6 +154,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	parsingTime, wholeTime := generateSessionTimeFrame(parsingConfig.IterationDuration)
 
 	sp = &sessionParams{
+		aggregateLocally: parsingConfig.DistributeAggregation != "cluster",
 		ParallelParsings: parallelParsings,
 		ParsingTime:      parsingTime,
 		WholeTime:        wholeTime,
@@ -221,7 +223,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 		wg.Add(1)
 		go func(t rpc.AggregatingTask) {
 			defer wg.Done()
-			cl.doAggregation(wctx, &t)
+			cl.doAggregation(wctx, &t, params.aggregateLocally)
 		}(task)
 	}
 	wg.Wait()
@@ -257,10 +259,15 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 
 }
 
-func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask) {
+func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask, local bool) {
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
-	c := rpc.NewWorkerClient(cl.aggConn)
+	conn := cl.conn
+	if local {
+		log.Debug("doAggregation: locally")
+		conn = cl.aggConn
+	}
+	c := rpc.NewWorkerClient(conn)
 	_, err := c.DoAggregating(ctx, task)
 	if err != nil {
 		log.Errorf("doAggregation: reply error: %s", err)

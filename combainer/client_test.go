@@ -39,6 +39,7 @@ func TestUpdateSessionParams(t *testing.T) {
 	t.Log("Fetched hosts", predefinedHosts)
 	assert.Equal(t, len(sessionParams.PTasks), len(predefinedHosts["DC1"]))
 	assert.Equal(t, sessionParams.ParallelParsings, pCfg.ParallelParsings)
+	assert.False(t, sessionParams.aggregateLocally)
 }
 
 func TestGenerateSessionTimeFrame(t *testing.T) {
