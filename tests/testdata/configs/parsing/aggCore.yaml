@@ -1,6 +1,5 @@
 groups: [test-combainer]
 metahost: test-combainer
-agg_configs: [aggCore]
 Combainer:
     ParallelParsings: 1
 HostFetcher:

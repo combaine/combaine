@@ -76,17 +76,13 @@ type CombainerConfig struct {
 // Init initialize config repository
 func Init(basepath string) error {
 	_, err := NewCombaineConfig(path.Join(basepath, combaineConfig))
-	if err != nil {
-		return fmt.Errorf("unable to load combaine.yaml: %s", err)
-	}
-
 	mainRepository = &filesystemRepository{
 		basepath:        basepath,
 		parsingpath:     path.Join(basepath, parsingSuffix),
 		aggregationpath: path.Join(basepath, aggregateSuffix),
 	}
 
-	return nil
+	return err
 }
 
 type filesystemRepository struct {

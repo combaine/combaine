@@ -420,6 +420,7 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 			return err
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", "Juggler sender (github.com/combaine)")
 		if js.Config.Token != "" {
 			req.Header.Set("Authorization", "OAuth "+js.Config.Token)
 		}

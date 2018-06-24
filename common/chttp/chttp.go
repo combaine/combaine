@@ -1,4 +1,4 @@
-// combaine http client
+// Package chttp is combaine http client
 package chttp
 
 // Do sends an HTTP request and return HTTP response.
@@ -8,7 +8,13 @@ import (
 	"net/http"
 )
 
+const defaultUserAgent = "Combaine (github.com/combaine)"
+
+// Do general http request with Context
 func Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	if _, ok := req.Header["User-Agent"]; !ok {
+		req.Header.Set("User-Agent", defaultUserAgent)
+	}
 	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		select {

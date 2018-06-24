@@ -24,6 +24,9 @@ func TestRepository(t *testing.T) {
 
 	err := Init("/not_existing/dir/")
 	assert.Error(t, err)
+	_, err = ListAggregationConfigs()
+	assert.Error(t, err)
+	assert.Equal(t, GetBasePath(), "/not_existing/dir/")
 
 	err = Init(repopath)
 	assert.Nil(t, err, fmt.Sprintf("Unable to create repo %s", err))
@@ -34,6 +37,8 @@ func TestRepository(t *testing.T) {
 	assert.Equal(t, expectedAggcfg, la, "")
 
 	cmbCg := GetCombainerConfig()
+	err = VerifyCombainerConfig(&cmbCg)
+	assert.Nil(t, err)
 	if len(cmbCg.CloudSection.HostFetcher) == 0 {
 		t.Fatal("section isn't supposed to empty")
 	}
