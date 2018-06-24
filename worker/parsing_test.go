@@ -111,11 +111,11 @@ func TestParsing(t *testing.T) {
 	}()
 
 	t.Log("start parsing")
-	cacher := cache.NewServiceCacher(
+	cacher = cache.NewServiceCacher(
 		func(n string, a ...interface{}) (cache.Service, error) {
 			return tests.NewService(n, a...)
 		})
-	res, err := DoParsing(context.Background(), &parsingTask, cacher)
+	res, err := DoParsing(context.Background(), &parsingTask)
 	t.Log("parsing completed")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResultLen, len(res.Data))
