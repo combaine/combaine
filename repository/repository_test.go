@@ -11,7 +11,7 @@ const repopath = "../tests/testdata/configs"
 
 func TestUtilityFunctions(t *testing.T) {
 	assert.False(t, isConfig("blabla"))
-	assert.True(t, isConfig("blabla.json"))
+	assert.False(t, isConfig("blabla.json"))
 	assert.True(t, isConfig("blabla.yaml"))
 }
 

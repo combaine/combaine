@@ -24,7 +24,6 @@ const (
 )
 
 var (
-	configSuffixes = []string{".yaml", ".json"}
 	mainRepository *filesystemRepository
 )
 
@@ -145,27 +144,15 @@ func GetAggregationConfigs(pConfig *ParsingConfig, pName string) (*map[string]Ag
 }
 
 // GetAggregationConfig load aggregation config
-func GetAggregationConfig(name string) (config EncodedConfig, err error) {
-	for _, suffix := range configSuffixes {
-		fpath := path.Join(mainRepository.aggregationpath, name+suffix)
-		if config, err = readConfig(fpath); err != nil {
-			continue
-		}
-		return
-	}
-	return
+func GetAggregationConfig(name string) (EncodedConfig, error) {
+	fpath := path.Join(mainRepository.aggregationpath, name+".yaml")
+	return readConfig(fpath)
 }
 
 // GetParsingConfig load parsing config
-func GetParsingConfig(name string) (config EncodedConfig, err error) {
-	for _, suffix := range configSuffixes {
-		fpath := path.Join(mainRepository.parsingpath, name+suffix)
-		if config, err = readConfig(fpath); err != nil {
-			continue
-		}
-		return
-	}
-	return
+func GetParsingConfig(name string) (EncodedConfig, error) {
+	fpath := path.Join(mainRepository.parsingpath, name+".yaml")
+	return readConfig(fpath)
 }
 
 // GetCombainerConfig load conbainer's main config
@@ -200,10 +187,8 @@ func lsConfigs(filepath string) (list []string, err error) {
 }
 
 func isConfig(name string) bool {
-	for _, suffix := range configSuffixes {
-		if strings.HasSuffix(name, suffix) {
-			return true
-		}
+	if strings.HasSuffix(name, ".yaml") {
+		return true
 	}
 	return false
 }
