@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 	"github.com/sirupsen/logrus"
 
@@ -47,7 +46,7 @@ func fetchDataFromTarget(ctx context.Context, task *rpc.ParsingTask, parsingConf
 }
 
 // DoParsing distribute tasks accross cluster
-func DoParsing(ctx context.Context, task *rpc.ParsingTask, cacher cache.ServiceCacher) (*rpc.ParsingResult, error) {
+func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
 	log := logrus.WithFields(logrus.Fields{
 		"config":  task.ParsingConfigName,
 		"target":  task.Host,

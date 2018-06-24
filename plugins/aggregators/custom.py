@@ -83,7 +83,7 @@ class Custom(object):
             finally:
                 if mfp:
                     mfp.close()
-        logger.debug("%s are available custom plugin for parsing" % parsers.keys())
+        logger.info("%s are available custom plugin for parsing" % parsers.keys())
         self.all_custom_parsers = parsers
 
 
@@ -103,7 +103,6 @@ class Custom(object):
             klass_name = cfg['class']
             cfg['logger'] = logger
 
-            self.plugin_import()
             klass = self.all_custom_parsers[klass_name]
             prevtime, currtime = task["PrevTime"], task["CurrTime"]
             result = klass(cfg).aggregate_host(payload, prevtime, currtime)
@@ -135,7 +134,6 @@ class Custom(object):
             klass_name = cfg['class']
             cfg['logger'] = logger
 
-            self.plugin_import()
             klass = self.all_custom_parsers[klass_name]
             result = klass(cfg).aggregate_group(payload)
 

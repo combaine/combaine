@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/tests"
@@ -20,15 +19,10 @@ import (
 const cfgName = "aggCore"
 
 var (
-	cacher            = cache.NewServiceCacher(NewService)
 	acfg              repository.EncodedConfig
 	parsingConfig     repository.ParsingConfig
 	aggregationConfig repository.AggregationConfig
 )
-
-func NewService(n string, a ...interface{}) (cache.Service, error) {
-	return tests.NewService(n, a...)
-}
 
 func TestInit(t *testing.T) {
 	pcfg, err := repository.GetParsingConfig(cfgName)
@@ -140,7 +134,7 @@ func TestAggregating(t *testing.T) {
 			assert.Equal(t, 3, v, fmt.Sprintf("senders for '%s' failed", k))
 		}
 	}()
-	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 	<-testDone
 }
 
@@ -188,19 +182,19 @@ func TestEnqueue(t *testing.T) {
 		ParsingResult: &rpc.ParsingResult{
 			Data: map[string][]byte{"Host1;appsName": []byte("Host1;appsName")},
 		}}
-	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 
 	acfg, err = repository.GetAggregationConfig("notPerHost" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
 	encAggregationConfig, _ = common.Pack(aggregationConfig)
 	aggTask.EncodedAggregationConfig = encAggregationConfig
-	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 
 	aggTask.ParsingResult = &rpc.ParsingResult{
 		Data: map[string][]byte{"H1;appsName": []byte("H1;appsName")},
 	}
-	assert.NoError(t, DoAggregating(context.TODO(), &aggTask, cacher))
+	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 
 	tests.Spy <- []interface{}{"stop", ""}
 }

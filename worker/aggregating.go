@@ -60,7 +60,7 @@ func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res 
 }
 
 // DoAggregating send tasks to cluster
-func DoAggregating(ctx context.Context, task *rpc.AggregatingTask, cacher cache.ServiceCacher) error {
+func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()

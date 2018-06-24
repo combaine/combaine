@@ -11,7 +11,6 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/grpclog"
 
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/worker"
@@ -25,7 +24,6 @@ import (
 )
 
 var (
-	cacher    = cache.NewServiceCacher(cache.NewServiceWithLocalLogger)
 	endpoint  string
 	logoutput string
 	tracing   bool
@@ -42,16 +40,17 @@ func init() {
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
+	worker.InitializeServiceCacher()
 }
 
 type server struct{}
 
 func (s *server) DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
-	return worker.DoParsing(ctx, task, cacher)
+	return worker.DoParsing(ctx, task)
 }
 
 func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (*rpc.AggregatingResult, error) {
-	if err := worker.DoAggregating(ctx, task, cacher); err != nil {
+	if err := worker.DoAggregating(ctx, task); err != nil {
 		return nil, err
 	}
 	return new(rpc.AggregatingResult), nil
@@ -65,7 +64,8 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer(
-		grpc.MaxMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxRecvMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxSendMsgSize(1024*1024*128 /* 128 MB */),
 		grpc.MaxConcurrentStreams(2000),
 		grpc.ConnectionTimeout(5*time.Second),
 	)

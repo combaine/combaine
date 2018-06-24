@@ -32,7 +32,8 @@ type Client struct {
 	ID uint64
 	clientStats
 
-	conn *grpc.ClientConn
+	conn    *grpc.ClientConn
+	aggConn *grpc.ClientConn
 }
 
 // NewClient returns new client
@@ -42,12 +43,19 @@ func NewClient() (*Client, error) {
 		grpc.WithBalancerName(roundrobin.Name),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 	)
-
+	if err != nil {
+		return nil, err
+	}
+	aggConn, err := grpc.Dial("passthrough:///[::1]:"+defaultPort, /* local worker */
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*256 /* MB */)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*256 /* MB */)),
+		grpc.WithInsecure(),
+	)
 	if err != nil {
 		return nil, err
 	}
 	id := common.GenerateClientID()
-	return &Client{ID: id, conn: conn}, nil
+	return &Client{ID: id, conn: conn, aggConn: aggConn}, nil
 }
 
 // Close relases grpc.ClientConn
@@ -252,7 +260,7 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask) {
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
-	c := rpc.NewWorkerClient(cl.conn)
+	c := rpc.NewWorkerClient(cl.aggConn)
 	_, err := c.DoAggregating(ctx, task)
 	if err != nil {
 		log.Errorf("doAggregation: reply error: %s", err)
