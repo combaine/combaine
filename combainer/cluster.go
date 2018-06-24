@@ -73,7 +73,6 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 		}
 		return nil, err
 	}
-	GenerateAndRegisterSerfResolver(cSerf.Members)
 	c := &Cluster{
 		Name:        conf.MemberlistConfig.Name,
 		eventCh:     eventCh,
@@ -88,6 +87,7 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 		log:             log,
 		config:          &cfg,
 	}
+	GenerateAndRegisterSerfResolver(c.Members)
 	return c, nil
 }
 
