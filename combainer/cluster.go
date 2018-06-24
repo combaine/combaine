@@ -87,7 +87,7 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 		log:             log,
 		config:          &cfg,
 	}
-	GenerateAndRegisterSerfResolver(c.Members)
+	GenerateAndRegisterSerfResolver(c.AliveMembers)
 	return c, nil
 }
 
@@ -200,7 +200,7 @@ CONNECT:
 
 // Hosts return names of alive serf members
 func (c *Cluster) Hosts() []string {
-	members := c.Members()
+	members := c.AliveMembers()
 	hosts := make([]string, len(members))
 	for i, m := range members {
 		hosts[i] = m.Name
@@ -208,8 +208,8 @@ func (c *Cluster) Hosts() []string {
 	return hosts
 }
 
-// Members return alive serf members
-func (c *Cluster) Members() []serf.Member {
+// AliveMembers return alive serf members
+func (c *Cluster) AliveMembers() []serf.Member {
 	if c.serf == nil {
 		return nil
 	}
