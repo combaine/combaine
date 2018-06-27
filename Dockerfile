@@ -18,7 +18,8 @@ RUN echo -e \
 
 RUN apt-get -qq update \
     && apt-get install -y --force-yes --no-install-recommends \
-    libjemalloc1 unbound psmisc python-yaml jq=1.4-2.1~ubuntu14.04.1 lsof \
+    libjemalloc1 yandex-unbound bind9-host psmisc \
+    python-yaml jq=1.4-2.1~ubuntu14.04.1 lsof \
     jnettop util-linux strace tcpdump htop curl moreutils \
     \
     libyandex-ubic-shared-perl libfcgi-procmanager-perl libfcgi-perl \
