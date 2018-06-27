@@ -16,16 +16,6 @@ RUN echo -e \
 "deb http://yandex-trusty.dist.yandex.ru/yandex-trusty/ stable/amd64/\n"\
 > /etc/apt/sources.list
 
-RUN echo -e \
-"127.0.0.1 localhost.localdomain localhost\n"\
-"::1 localhost ip6-localhost ip6-loopback\n"\
-"fe00::0 ip6-localnet\n"\
-"ff00::0 ip6-mcastprefix\n"\
-"ff02::1 ip6-allnodes\n"\
-"ff02::2 ip6-allrouters\n"\
-"ff02::3 ip6-allhosts\n"\
-> /etc/hosts
-
 RUN apt-get -qq update \
     && apt-get install -y --force-yes --no-install-recommends \
     libjemalloc1 unbound psmisc python-yaml jq=1.4-2.1~ubuntu14.04.1 lsof \
