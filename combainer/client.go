@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/peer"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -43,6 +44,7 @@ func NewClient() (*Client, error) {
 		grpc.WithInsecure(),
 		grpc.WithBalancerName(roundrobin.Name),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+		grpc.WithDefaultCallOptions(grpc.FailFast(false)),
 	)
 	if err != nil {
 		return nil, err
@@ -244,9 +246,10 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
 	c := rpc.NewWorkerClient(cl.conn)
-	reply, err := c.DoParsing(ctx, task)
+	var remote peer.Peer
+	reply, err := c.DoParsing(ctx, task, grpc.Peer(&remote))
 	if err != nil {
-		log.Errorf("doParsing: reply error: %s", err)
+		log.Errorf("doParsing: reply error from %s: %s", remote.Addr.String(), err)
 		cl.clientStats.AddFailedParsing()
 		return
 	}
@@ -268,9 +271,10 @@ func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask, 
 		conn = cl.aggConn
 	}
 	c := rpc.NewWorkerClient(conn)
-	_, err := c.DoAggregating(ctx, task)
+	var remote peer.Peer
+	_, err := c.DoAggregating(ctx, task, grpc.Peer(&remote))
 	if err != nil {
-		log.Errorf("doAggregation: reply error: %s", err)
+		log.Errorf("doAggregation: reply error from %s: %s", remote.Addr.String(), err)
 		cl.clientStats.AddFailedAggregate()
 		return
 	}
