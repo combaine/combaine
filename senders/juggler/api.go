@@ -323,10 +323,10 @@ func (js *Sender) ensureMethods(c *jugglerCheck) {
 	} else {
 		checkMSet := make(map[string]struct{}, len(c.Methods))
 		for _, m := range c.Methods {
-			checkMSet[m] = struct{}{}
+			checkMSet[strings.ToUpper(m)] = struct{}{}
 		}
 		for _, m := range js.Methods {
-			if _, ok := checkMSet[m]; !ok {
+			if _, ok := checkMSet[strings.ToUpper(m)]; !ok {
 				methodsOutdated = true
 				break
 			}
