@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/peer"
 
 	"github.com/pkg/errors"
@@ -43,6 +44,10 @@ func NewClient() (*Client, error) {
 	conn, err := grpc.Dial("serf:///worker",
 		grpc.WithInsecure(),
 		grpc.WithBalancerName(roundrobin.Name),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                15 * time.Second,
+			PermitWithoutStream: true,
+		}),
 		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
 		grpc.WithDefaultCallOptions(grpc.FailFast(false)),
 	)

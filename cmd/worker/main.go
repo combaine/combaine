@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/keepalive"
 
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/rpc"
@@ -67,7 +68,10 @@ func main() {
 		grpc.MaxRecvMsgSize(1024*1024*128 /* 128 MB */),
 		grpc.MaxSendMsgSize(1024*1024*128 /* 128 MB */),
 		grpc.MaxConcurrentStreams(2000),
-		grpc.ConnectionTimeout(5*time.Second),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 	rpc.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)
