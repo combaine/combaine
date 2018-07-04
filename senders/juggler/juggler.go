@@ -32,8 +32,8 @@ var GlobalCache *cache.TTLCache
 
 // InitializeLogger create cocaine logger
 func InitializeLogger(init func() logger.Logger) {
-	log := init() // init logger
-	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, log)
+	_ = init() // init logger
+	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5, time.Minute*5)
 }
 
 // NewSender return sender object with specified config

@@ -4,11 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
 
-var GlobalCache = NewCache(time.Minute*10 /* ttl*/, time.Minute*20 /* interval*/, logger.LocalLogger())
+var GlobalCache = NewCache(time.Minute*10 /* ttl*/, time.Minute*20 /* interval*/, time.Minute*20)
 
 func TestCacheSetGetDelete(t *testing.T) {
 	val := []string{"response"}
@@ -17,7 +16,7 @@ func TestCacheSetGetDelete(t *testing.T) {
 	}
 
 	id := "TestCacheSetGetDelete"
-	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10)
+	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10, time.Microsecond*10)
 	key := "check_url"
 	resp, _ := GlobalCache.Get(id, key, checkFetcher)
 	assert.Len(t, resp, len(val[0]))
@@ -42,12 +41,12 @@ func TestCacheSetGetDelete(t *testing.T) {
 func TestCacheWithCleanupInterval(t *testing.T) {
 
 	myCache := NewCache(
-		time.Minute*10,       // ttl
-		time.Minute*20,       // interval
-		logger.LocalLogger(), // log
+		time.Minute*10, // ttl
+		time.Minute*20, // interval
+		time.Minute*20, // cleanupAfter
 	)
 	checkFetcher := func() ([]byte, error) { return []byte("expected"), nil }
-	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20)
+	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20, time.Microsecond*20)
 	myCache.Get("TestCacheWithCleanupInterval", "key1", checkFetcher)
 
 	cases := []struct {

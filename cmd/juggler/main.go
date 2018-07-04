@@ -72,7 +72,11 @@ func main() {
 	}
 	logger.Infof("filesystemRepository initialized")
 
-	juggler.GlobalCache.TuneCache(senderConfig.CacheTTL, senderConfig.CacheCleanInterval)
+	juggler.GlobalCache.TuneCache(
+		senderConfig.CacheTTL,
+		senderConfig.CacheCleanInterval,
+		senderConfig.CacheCleanInterval*10,
+	)
 	juggler.InitEventsStore(&senderConfig.Store)
 
 	binds := map[string]cocaine.EventHandler{

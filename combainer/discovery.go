@@ -151,10 +151,12 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return nil, common.ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
-	defer cancel()
 
 	fetcher := func() ([]byte, error) {
+		ctx, cancel := context.WithTimeout(
+			context.Background(), time.Duration(s.ReadTimeout)*time.Second,
+		)
+		defer cancel()
 		resp, err := chttp.Get(ctx, url)
 		var body []byte
 		if err != nil {
@@ -277,15 +279,16 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return nil, common.ErrMissingFormatSpecifier
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.ReadTimeout)*time.Second)
-	defer cancel()
-
 	var response = make(hosts.Hosts)
 	for _, geo := range s.Geo {
 
 		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
 
 		fetcher := func() ([]byte, error) {
+			ctx, cancel := context.WithTimeout(
+				context.Background(), time.Duration(s.ReadTimeout)*time.Second,
+			)
+			defer cancel()
 			resp, err := chttp.Get(ctx, urlGeo)
 			var body []byte
 			if err != nil {
