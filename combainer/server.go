@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 )
 
@@ -49,7 +48,7 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 
 	ttl := time.Duration(combainerConfig.MainSection.Cache.TTL) * time.Minute
 	interval := time.Duration(combainerConfig.MainSection.Cache.Interval) * time.Minute
-	combainerCache = cache.NewCache(ttl, interval, logger.FromLogrusLogger(log.Logger))
+	combainerCache = cache.NewCache(ttl, interval, interval*10)
 	log.Infof("Initialized combainer cache: %T", combainerCache)
 
 	server := &CombaineServer{

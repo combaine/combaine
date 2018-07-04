@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,14 +50,14 @@ func TestEnsureDefaultTags(t *testing.T) {
 }
 
 func TestTuneCache(t *testing.T) {
-	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, logger.LocalLogger())
+	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5 /* interval */, time.Minute*5)
 	testConf := "testdata/config/juggler_example.yaml"
 	os.Setenv("JUGGLER_CONFIG", testConf)
 	sConf, err := GetSenderConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval)
+	GlobalCache.TuneCache(sConf.CacheTTL, sConf.CacheCleanInterval, sConf.CacheCleanInterval)
 	assert.Equal(t, sConf.CacheTTL, GlobalCache.GetTTL())
 	assert.Equal(t, sConf.CacheCleanInterval, GlobalCache.GetInterval())
 }

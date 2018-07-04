@@ -18,28 +18,31 @@ type itemType struct {
 // TTLCache is ttl cache for http responses
 type TTLCache struct {
 	sync.RWMutex
-	ttl        time.Duration
-	interval   time.Duration
-	store      map[string]*itemType
-	runCleaner sync.Once
-	logger     logger.Logger
+	ttl          time.Duration
+	interval     time.Duration
+	cleanupAfter time.Duration
+	store        map[string]*itemType
+	runCleaner   sync.Once
 }
 
 // NewCache create new TTLCache instance
-func NewCache(ttl time.Duration, interval time.Duration, log logger.Logger) *TTLCache {
-	return &TTLCache{
-		ttl:      ttl,
-		interval: interval,
-		store:    make(map[string]*itemType),
-		logger:   log,
+func NewCache(ttl time.Duration, interval time.Duration, cleanupAfter time.Duration) *TTLCache {
+	c := &TTLCache{
+		ttl:          ttl,
+		interval:     interval,
+		cleanupAfter: cleanupAfter,
+		store:        make(map[string]*itemType),
 	}
+	go c.cleaner()
+	return c
 }
 
 // TuneCache tune TTLCache ttl and interval
-func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration) {
+func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration, cleanupAfter time.Duration) {
 	c.Lock()
 	c.ttl = ttl
 	c.interval = interval
+	c.cleanupAfter = cleanupAfter
 	c.Unlock()
 }
 
@@ -65,23 +68,33 @@ func (c *TTLCache) Get(id string, key string, f fetcher) ([]byte, error) {
 		close(item.ready)
 	} else {
 		c.Unlock()
-		<-item.ready
-		c.logger.Infof("%s Use cached entry for %s", id, key)
+		logger.Infof("%s Use cached entry for %s", id, key)
 	}
-	c.runCleaner.Do(func() {
-		c.logger.Debug("run TTLCache cleaner")
-		go c.cleaner()
-	})
-	if time.Now().Sub(item.expires) >= 0 {
-		c.logger.Debugf("%s remove stale cached entry for %s", id, key)
-		c.Lock()
-		delete(c.store, key)
-		c.Unlock()
+	<-item.ready
+	if time.Since(item.expires) > 0 {
+		go func() {
+			value, err := f()
+			if err != nil {
+				logger.Debugf("%s Failed to update stale cached entry for %s: %s", id, key, err)
+				return
+			}
+			logger.Debugf("%s Update stale cached entry for %s", id, key)
+			updated := &itemType{
+				value:   value,
+				err:     err,
+				ready:   make(chan struct{}),
+				expires: time.Now().Add(c.ttl),
+			}
+			c.Lock()
+			c.store[key] = updated
+			c.Unlock()
+			close(updated.ready)
+		}()
 	}
 	return item.value, item.err
 }
 
-// Delete add new element in the TTLCache
+// Delete element in the TTLCache
 func (c *TTLCache) Delete(key string) {
 	c.Lock()
 	delete(c.store, key)
@@ -89,6 +102,7 @@ func (c *TTLCache) Delete(key string) {
 }
 
 func (c *TTLCache) cleaner() {
+	logger.Debugf("Run TTLCache cleaner")
 	var interval time.Duration
 	for {
 		c.RLock()
@@ -98,7 +112,7 @@ func (c *TTLCache) cleaner() {
 		var staleItems []string
 		c.RLock()
 		for key, item := range c.store {
-			if time.Now().Sub(item.expires) > 0 {
+			if time.Since(item.expires) > c.cleanupAfter {
 				staleItems = append(staleItems, key)
 			}
 		}

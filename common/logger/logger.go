@@ -17,7 +17,7 @@ import (
 const waitForLogger = 5 // attempts
 
 // CocaineLog is logger with cocaine logger interface
-var CocaineLog Logger
+var CocaineLog = LocalLogger()
 
 // Logger is cocaine logger interface
 type Logger interface {
@@ -61,11 +61,6 @@ func (l *loggerLogrus) Errf(format string, data ...interface{}) {
 // LocalLogger wrap logrus logger with cocaine logger interface
 func LocalLogger() Logger {
 	return &loggerLogrus{Logger: logrus.StandardLogger()}
-}
-
-// FromLogrusLogger convert logrus to Logger
-func FromLogrusLogger(log *logrus.Logger) Logger {
-	return &loggerLogrus{Logger: log}
 }
 
 // InitializeLogger initialize new logrus logger with rotate handler

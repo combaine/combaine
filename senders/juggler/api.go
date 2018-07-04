@@ -18,8 +18,9 @@ const (
 	getChecksURL   = "http://%s/api/checks/checks?%s"
 	updateCheckURL = "http://%s/api/checks/add_or_update?do=1"
 	sendEventURL   = "http://%s/juggler-fcgi.py?%s"
-	defaultTag     = "combaine"
 )
+
+var defaultTags = []string{"combaine"}
 
 type jugglerResponse map[ /*hostname*/ string]map[ /*serviceName*/ string]jugglerCheck
 
@@ -91,27 +92,27 @@ type jugglerBatchError struct {
 // and Unmarshal json response in to jugglerResponse type
 func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerResponse, error) {
 	if len(js.Tags) == 0 {
-		js.Tags = []string{"combaine"}
+		js.Tags = defaultTags
 		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
 	}
 	//do=1&include_children=true&tag_name=combaine&host_name={js.Host}
 	query := url.Values{
 		"do":               {"1"},
 		"include_children": {"true"},
-		"tag_name":         js.Tags,
+		"tag_name":         defaultTags, // for query all known combainer checks
 		"host_name":        {js.Host},
-	}
-	servicesSet := make(map[string]struct{}, 1)
-	for _, ev := range events {
-		if _, ok := servicesSet[ev.Service]; !ok {
-			// add only unique service_name
-			query.Add("service_name", ev.Service)
-		}
-		servicesSet[ev.Service] = struct{}{}
-	}
+	}.Encode()
+
 	checkFetcher := func() ([]byte, error) {
 		var jerrors []error
-		query := query.Encode()
+		var cancel func()
+
+		deadline, ok := ctx.Deadline()
+		if ok {
+			// copy context for background cache update
+			ctx, cancel = context.WithDeadline(context.Background(), deadline)
+			defer cancel()
+		}
 	GET_CHECK:
 		for _, jhost := range js.JHosts {
 			url := fmt.Sprintf(getChecksURL, jhost, query)
@@ -142,8 +143,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		}
 		return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
 	}
-	key := js.Host + js.CheckName
-	cJSON, err := GlobalCache.Get(js.id, key, checkFetcher)
+	cJSON, err := GlobalCache.Get(js.id, js.Host, checkFetcher)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func (js *Sender) ensureTTL(c *jugglerCheck) {
 	}
 	if c.TTL != js.TTL {
 		c.Update = true
-		logger.Debugf("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
+		logger.Infof("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
 		c.TTL = js.TTL
 	}
 }
@@ -271,7 +271,7 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 	}
 	if c.Description != js.Description && js.Description != "" {
 		c.Update = true
-		logger.Debugf("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
+		logger.Infof("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
 		c.Description = js.Description
 	}
 }
@@ -303,7 +303,7 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) {
 	}
 	if aggregatorOutdated {
 		c.Update = true
-		logger.Debugf("%s Check outdated, aggregator differ: %s != %s", js.id, c.AggregatorKWArgs, js.AggregatorKWArgs)
+		logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.AggregatorKWArgs, js.AggregatorKWArgs)
 		c.Aggregator = js.Aggregator
 		c.AggregatorKWArgs = js.AggregatorKWArgs
 	}
@@ -313,6 +313,9 @@ func (js *Sender) ensureMethods(c *jugglerCheck) {
 	if len(js.Methods) == 0 {
 		if js.Method != "" {
 			js.Methods = strings.Split(js.Method, ",")
+			for idx, m := range js.Methods {
+				js.Methods[idx] = strings.ToUpper(strings.TrimSpace(m))
+			}
 		} else {
 			js.Methods = []string{"GOLEM"}
 		}
@@ -326,7 +329,7 @@ func (js *Sender) ensureMethods(c *jugglerCheck) {
 			checkMSet[strings.ToUpper(m)] = struct{}{}
 		}
 		for _, m := range js.Methods {
-			if _, ok := checkMSet[strings.ToUpper(m)]; !ok {
+			if _, ok := checkMSet[m]; !ok {
 				methodsOutdated = true
 				break
 			}
@@ -334,7 +337,7 @@ func (js *Sender) ensureMethods(c *jugglerCheck) {
 	}
 	if methodsOutdated {
 		c.Update = true
-		logger.Debugf("%s Check outdated, METHODS differ: %s != %s", js.id, c.Methods, js.Methods)
+		logger.Infof("%s Check outdated, METHODS differ: %s != %s", js.id, c.Methods, js.Methods)
 		c.Methods = js.Methods
 	}
 }
@@ -349,7 +352,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 		if f.Enable == 1 {
 			if *c.Flap != f {
 				c.Update = true
-				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
+				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
 				c.Flap = &f
 			}
 		}
@@ -358,7 +361,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 		if js.Flap != nil && js.Flap.Enable == 1 {
 			if *c.Flap != *js.Flap {
 				c.Update = true
-				logger.Debugf("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
+				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
 				c.Flap = js.Flap
 			}
 		} else {
@@ -369,12 +372,12 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 
 func (js *Sender) ensureTags(c *jugglerCheck) {
 	if len(js.Tags) == 0 {
-		js.Tags = []string{defaultTag}
+		js.Tags = defaultTags
 	}
 	// TODO: tags by servces in juggler config as for flaps?
 	if c.Tags == nil || len(c.Tags) == 0 {
 		c.Update = true
-		logger.Debugf("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
+		logger.Infof("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
 		c.Tags = make([]string, len(js.Tags))
 		copy(c.Tags, js.Tags)
 	} else {
@@ -398,7 +401,7 @@ func (js *Sender) ensureNamespace(c *jugglerCheck) {
 	}
 	if js.Config.Token != "" && c.Namespace != js.Namespace {
 		c.Update = true
-		logger.Debugf("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
+		logger.Infof("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
 		c.Namespace = js.Namespace
 	}
 }
