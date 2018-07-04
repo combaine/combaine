@@ -38,7 +38,8 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to update task config %s", task.ID, err)
 		return
 	}
-	logger.Debugf("%s Task: %v", task.ID, task)
+	logger.Debugf("%s Task: %v", task.ID, task.Data)
+	juggler.AddJugglerToken(&task.Config, senderConfig.Token)
 
 	jCli, err := juggler.NewSender(&task.Config, task.ID)
 	if err != nil {

@@ -159,10 +159,15 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 	if taskConf.BatchEndpoint == "" {
 		taskConf.BatchEndpoint = conf.BatchEndpoint
 	}
-	if conf.Token != "" && conf.Token != "no-token" {
-		taskConf.Token = conf.Token
-	}
 	return nil
+}
+
+// AddJugglerToken update current task config,
+// set default settings if it need
+func AddJugglerToken(taskConf *Config, token string) {
+	if token != "" && token != "no-token" {
+		taskConf.Token = token
+	}
 }
 
 // DefaultConfig build default config for sender, it has sanity defaults

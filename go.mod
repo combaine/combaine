@@ -4,12 +4,16 @@ require (
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
 	github.com/armon/go-metrics v0.0.0-20180620213357-58588f401c2c
 	github.com/cocaine/cocaine-framework-go v0.0.0-20160727160248-a071d9bf57bb
+	github.com/davecgh/go-spew v0.0.0-20180221174620-8991bc29aa16
 	github.com/golang/protobuf v1.1.0
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
 	github.com/grpc/grpc-go v1.13.0
+	github.com/hashicorp/errwrap v0.0.0-20141028054710-7554cd9344ce
 	github.com/hashicorp/go-immutable-radix v0.0.0-20180129170900-7f3cd4390caa
+	github.com/hashicorp/go-msgpack v0.0.0-20150518234257-fa3f63826f7c
 	github.com/hashicorp/go-multierror v0.0.0-20171204182908-b7773ae21874
+	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86
 	github.com/hashicorp/golang-lru v0.0.0-20180201235237-0fb14efe8c47
 	github.com/hashicorp/memberlist v0.0.0-20180208193901-2288bf30e9c8
 	github.com/hashicorp/raft v0.0.0-20180212141504-a3fb4581fb07
@@ -18,6 +22,7 @@ require (
 	github.com/miekg/dns v1.0.8
 	github.com/mitchellh/mapstructure v0.0.0-20180511142126-bb74f1db0675
 	github.com/pkg/errors v0.8.0
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sirupsen/logrus v1.0.5

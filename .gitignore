@@ -2,3 +2,4 @@ build
 coverage.txt
 coverage.out
 profile.out
+go.sum
