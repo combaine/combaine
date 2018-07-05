@@ -96,10 +96,10 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 					"Config": v,
 					"Data":   blob,
 					// TODO define task structure in common
-					//"Meta": map[string]string{
-					//	"Host": task.Host,
-					//	"Key":  k,
-					//},
+					"Meta": map[string]string{
+						"Host": task.Host,
+						"Key":  k,
+					},
 					"PrevTime": task.Frame.Previous,
 					"CurrTime": task.Frame.Current,
 					"Id":       task.Id,
