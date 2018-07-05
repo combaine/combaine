@@ -107,6 +107,8 @@ class Custom(object):
             prevtime, currtime = task["PrevTime"], task["CurrTime"]
             result = klass(cfg).aggregate_host(payload, prevtime, currtime)
 
+            if cfg.get("logHostResult", False):
+                logger.info("Aggregate host result %s: %s", task['Meta'], result)
             response.write(msgpack.packb(result))
         except KeyError:
             response.error(-100, "There's no class named %s" % klass_name)
@@ -137,7 +139,8 @@ class Custom(object):
             klass = self.all_custom_parsers[klass_name]
             result = klass(cfg).aggregate_group(payload)
 
-            logger.info("Aggregation result %s: %s", str(task['Meta']), str(result))
+            if cfg.get("logGroupResult", False):
+                logger.info("Aggregate group result %s: %s", task['Meta'], result)
             response.write(result)
         except KeyError:
             response.error(-100, "There's no class named %s" % klass_name)
