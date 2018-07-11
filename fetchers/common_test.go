@@ -22,7 +22,7 @@ var (
 )
 
 func TestTCPSocketFetcherConfig(t *testing.T) {
-	var plainConfig = repository.EncodedConfig("connection_timeout: 300\nport: 18089")
+	var plainConfig = repository.EncodedConfig("port: 18089")
 	var cfg repository.PluginConfig
 	plainConfig.Decode(&cfg)
 	f, err := NewTCPSocketFetcher(cfg)
@@ -56,7 +56,7 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 		expected string
 		config   repository.PluginConfig
 	}{
-		{ok, "hello", repository.PluginConfig{"connection_timeout": 150}},
+		{ok, "hello", repository.PluginConfig{}},
 	}
 
 	for _, c := range cases {
