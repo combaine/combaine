@@ -3,8 +3,8 @@
 WD=/usr/lib/combaine/apps
 pushd $WD
 
+rm -vf ./*.tar.gz ./*.json
 for app in $(ls -1); do
-    rm -vf ./*.tar.gz ./*.json
     name=${app%.*}
     package=$name.tar.gz
     manifest=$name.json
@@ -14,4 +14,5 @@ for app in $(ls -1); do
 
     cocaine-tool app upload --name $name --package=$package --manifest=$manifest
     cocaine-tool runlist add-app --name combaine --app $name --profile default
+    rm -vf ./*.tar.gz ./*.json
 done
