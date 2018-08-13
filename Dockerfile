@@ -44,6 +44,8 @@ COPY build/combainer /usr/bin/
 COPY build/worker /usr/bin/combaine-worker
 
 COPY deploy                        /usr/lib/combaine
+COPY deploy/loggiver               /etc/yandex/loggiver/
+COPY deploy/checks                 /juggler/checks/combainer/
 COPY plugins/aggregators/custom.py /usr/lib/combaine/apps/
 COPY build/agave                   /usr/lib/combaine/apps/
 COPY build/graphite                /usr/lib/combaine/apps/

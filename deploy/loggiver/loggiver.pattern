@@ -1,0 +1,7 @@
+cocainelog=cut -c -200|/etc/yandex/loggiver/pattern.d/cocainelog.awk
+workerlog=cut -c -200|/etc/yandex/loggiver/pattern.d/workerlog.awk
+graphiteClient=curl -s http://localhost:8082/status|jq '[reverse[].Counters][1]|[leaf_paths as $path|{"key":$path|join("."),"value":getpath($path)}]|from_entries'|grep Rate|sed -r 's/: / /;s/(search.yandex.net:2024.|.Rate|mega-graphite-|[",]|^\s*)//g;'
+dashboard=/etc/yandex/loggiver/pattern.d/combaineStat2graphiteMetrics.py
+app_resources=sudo /etc/yandex/loggiver/pattern.d/app_resources.py
+combainerlog=/etc/yandex/loggiver/pattern.d/combainerlog.py
+# vim: ft=sh et
