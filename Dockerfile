@@ -44,8 +44,12 @@ RUN ln -vsTf /usr/share/zoneinfo/Europe/Moscow /etc/localtime \
 COPY build/combainer /usr/bin/
 COPY build/worker /usr/bin/combaine-worker
 
-COPY deploy                        /usr/lib/combaine
 COPY deploy/loggiver               /etc/yandex/loggiver/
+RUN echo "www-data ALL=NOPASSWD: /etc/yandex/loggiver/pattern.d/app_resources.py" \
+    > /etc/sudoers.d/loggiver_combainer_apps
+RUN chmod 0440 /etc/sudoers.d/loggiver_combainer_apps
+
+COPY deploy                        /usr/lib/combaine
 COPY deploy/checks                 /juggler/checks/combainer/
 COPY plugins/aggregators/custom.py /usr/lib/combaine/apps/
 COPY build/agave                   /usr/lib/combaine/apps/
