@@ -18,6 +18,7 @@ RUN echo -e \
 
 RUN apt-get -qq update \
     && apt-get install -y --force-yes --no-install-recommends \
+    vim htop \
     libjemalloc1 yandex-unbound openssl bind9-host psmisc \
     python-yaml jq=1.4-2.1~ubuntu14.04.1 lsof \
     jnettop util-linux strace tcpdump htop curl moreutils \
