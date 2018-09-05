@@ -34,13 +34,14 @@ type sessionParams struct {
 type Client struct {
 	ID uint64
 	clientStats
+	log *logrus.Logger
 
 	conn    *grpc.ClientConn
 	aggConn *grpc.ClientConn
 }
 
 // NewClient returns new client
-func NewClient() (*Client, error) {
+func NewClient(opt ...func(*Client) error) (*Client, error) {
 	conn, err := grpc.Dial("serf:///worker",
 		grpc.WithInsecure(),
 		grpc.WithBalancerName(roundrobin.Name),
@@ -63,7 +64,16 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 	id := common.GenerateClientID()
-	return &Client{ID: id, conn: conn, aggConn: aggConn}, nil
+	c := &Client{ID: id, conn: conn, aggConn: aggConn}
+
+	for _, f := range opt {
+		err = f(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return c, nil
 }
 
 // Close relases grpc.ClientConn
@@ -175,7 +185,11 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 // Dispatch does one iteration of tasks dispatching
 func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID string, shouldWait bool) error {
-	log := logrus.WithFields(logrus.Fields{
+	logger := cl.log
+	if logger == nil {
+		logger = logrus.StandardLogger()
+	}
+	log := logger.WithFields(logrus.Fields{
 		"iteration": strconv.FormatUint(iteration, 10),
 		"session":   sessionID,
 		"config":    parsingConfigName})

@@ -109,7 +109,6 @@ type Cluster struct {
 	raftAdvertiseIP net.IP
 	raft            *raft.Raft
 	transport       *raft.NetworkTransport
-	raftStore       *raft.InmemStore
 	raftConfig      *raft.Config
 
 	store          *FSMStore
@@ -118,28 +117,29 @@ type Cluster struct {
 	config         *repository.ClusterConfig
 }
 
-// Bootstrap is used to attempt join to existing serf cluster.
-// and bootstrap the Raft agent using cluster as FSM.
-// Updates leadership are returned on leaderCh,
-// leader dispatch new configs every interval time.
-func (c *Cluster) Bootstrap(initHosts []string, interval time.Duration) error {
-	c.log.Infof("Bootstrap cluster, connect Serf nodes: %s", initHosts)
+// join this not to serf cluster
+func (c *Cluster) joinSerf(initHosts []string, interval time.Duration) {
+	c.log.Infof("joinSerf: connect nodes: %s", initHosts)
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
-		c.log.Infof("bootstrap: Combainer joined to cluster: %d nodes", n)
+		c.log.Infof("joinSerf: Combainer joined to cluster: %d nodes", n)
 	}
 	// NOTE: doc from serf.Join
 	// Join joins an existing Serf cluster. Returns the number of nodes
 	// successfully contacted. The returned error will be non-nil only in the
 	// case that no nodes could be contacted.
 	if err != nil {
-		c.log.Errorf("bootstrap: Combainer error joining to cluster: %d nodes", n)
+		c.log.Errorf("joinSerf: Combainer error joining to cluster: %s", err)
 		time.Sleep(interval)
 		goto CONNECT
 	}
+	return
+}
 
-	c.log.Info("bootstrap: Create raft transport")
+// configure raft stores and transport
+func (c *Cluster) setupRaft(interval time.Duration) error {
+	c.log.Info("setupRaft: create transport")
 	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
@@ -152,13 +152,8 @@ CONNECT:
 	}
 	c.transport = trans
 
-	c.log.Info("bootstrap: Initialize raft store")
-	store := raft.NewInmemStore()
-	stable := store
-	log := store
-	snap := raft.NewInmemSnapshotStore()
+	c.log.Info("setupRaft: initialize store")
 
-	c.raftStore = store
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
@@ -166,36 +161,60 @@ CONNECT:
 	c.updateInterval = interval
 
 	c.raftConfig.LocalID = raft.ServerID(common.Hostname())
+	return nil
+}
+
+// attempt to bootstrap raft cluster
+func (c *Cluster) maybeBootstrap() error {
+	serfMembers := c.AliveMembers()
+	if len(serfMembers) < int(c.config.BootstrapExpect) {
+		return nil
+	}
 
 	c.log.Infof("bootstrap: Attempting to bootstrap cluster")
-	hasState, err := raft.HasExistingState(log, stable, snap)
-	if err != nil {
-		return err
+	var servers []raft.Server
+	for _, m := range serfMembers {
+		servers = append(servers, raft.Server{
+			ID:      raft.ServerID(m.Name),
+			Address: raft.ServerAddress(m.Addr.String()),
+		})
 	}
-	if !hasState {
-		configuration := raft.Configuration{
-			Servers: []raft.Server{
-				{
-					ID:      c.raftConfig.LocalID,
-					Address: trans.LocalAddr(),
-				},
-			},
-		}
+	var configuration raft.Configuration
+	configuration.Servers = servers
 
-		if err := raft.BootstrapCluster(c.raftConfig,
-			log, stable, snap, trans, configuration); err != nil {
-			return errors.Wrap(err, "raft.BootstrapCluster")
-		}
+	stableStore := raft.NewInmemStore()
+	log := stableStore
+	snap := raft.NewInmemSnapshotStore()
+
+	if err := raft.BootstrapCluster(c.raftConfig,
+		log, stableStore, snap, c.transport, configuration); err != nil {
+		return errors.Wrap(err, "raft.BootstrapCluster")
 	}
 
 	c.log.Info("bootstrap: Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), log, stable, snap, trans)
+	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), log, stableStore, snap, c.transport)
 	if err != nil {
 		return errors.Wrap(err, "raft.NewRaft")
 	}
 	c.raft = raft
+	// reset BootstrapExpect
+	c.config.BootstrapExpect = 0
 
 	return nil
+}
+
+// Peers is used to return known raft peers.
+func (c *Cluster) Peers() ([]string, error) {
+	future := c.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return nil, err
+	}
+	config := future.Configuration()
+	peers := make([]string, len(config.Servers))
+	for i := 0; i < len(config.Servers); i++ {
+		peers[i] = string(config.Servers[i].Address)
+	}
+	return peers, nil
 }
 
 // Hosts return names of alive serf members
@@ -253,6 +272,11 @@ func (c *Cluster) EventHandler() {
 func (c *Cluster) nodeJoin(me serf.MemberEvent) {
 	for _, m := range me.Members {
 		c.log.WithField("source", "Serf").Infof("Serf join event from %s", m.Name)
+		if c.config.BootstrapExpect != 0 {
+			if err := c.maybeBootstrap(); err != nil {
+				c.log.WithField("source", "Serf").Infof("Failed to bootstra %s", err)
+			}
+		}
 	}
 }
 
@@ -293,6 +317,9 @@ func validateConfig(cfg *repository.ClusterConfig) error {
 	}
 	if cfg.RaftPort == 0 {
 		cfg.RaftPort = raftPort
+	}
+	if cfg.BootstrapExpect == 0 {
+		cfg.BootstrapExpect = 1
 	}
 	return nil
 }

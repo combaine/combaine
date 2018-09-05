@@ -103,8 +103,9 @@ func (c *CombaineServer) Serve() error {
 	if len(hosts) == 0 {
 		return errors.New("There are no combine operators here")
 	}
-	if err := c.cluster.Bootstrap(hosts, c.Configuration.Period); err != nil {
-		c.log.Errorf("Failed to connect cluster: %s", err)
+
+	c.cluster.joinSerf(hosts, c.Configuration.Period)
+	if err = c.cluster.setupRaft(c.Configuration.Period); err != nil {
 		return err
 	}
 
