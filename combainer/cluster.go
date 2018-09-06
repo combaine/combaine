@@ -86,6 +86,10 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 		config:          &cfg,
 	}
 	GenerateAndRegisterSerfResolver(c.AliveMembers)
+
+	// handle serf events
+	go c.EventHandler()
+
 	return c, nil
 }
 
