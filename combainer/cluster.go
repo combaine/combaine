@@ -14,11 +14,9 @@ import (
 )
 
 const (
-	raftPool           = 5
-	raftPort           = 9001
-	raftTimeout        = 10 * time.Second
-	retainRaftSnapshot = 2
-	raftStateDirectory = "raft/"
+	raftPool    = 5
+	raftPort    = 9001
+	raftTimeout = 10 * time.Second
 
 	// statusReap is used to update the status of a node if we
 	// are handling a EventMemberReap
@@ -119,7 +117,7 @@ type Cluster struct {
 
 // join this not to serf cluster
 func (c *Cluster) joinSerf(initHosts []string, interval time.Duration) {
-	c.log.Infof("joinSerf: connect nodes: %s", initHosts)
+	c.log.Infof("joinSerf: entrance to the connect loop, nodes: %s", initHosts)
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
 	if n > 0 {
@@ -205,6 +203,9 @@ func (c *Cluster) maybeBootstrap() error {
 
 // Peers is used to return known raft peers.
 func (c *Cluster) Peers() ([]string, error) {
+	if c.raft == nil {
+		return nil, errors.New("Perrs: cluster raft not configured")
+	}
 	future := c.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
 		return nil, err

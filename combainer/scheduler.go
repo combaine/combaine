@@ -50,6 +50,12 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 }
 
 func (c *Cluster) distributeTasks(hosts []string) error {
+	clusterSize := len(hosts)
+	if clusterSize == 0 {
+		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
+		return nil
+	}
+
 	configs, err := repository.ListParsingConfigs()
 	c.log.Debugf("scheduler: Distribute %d configs to %+v", len(configs), hosts)
 	if err != nil {
@@ -60,11 +66,6 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		configSet[cfg] = struct{}{}
 	}
 
-	clusterSize := len(hosts)
-	if clusterSize == 0 {
-		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
-		return nil
-	}
 	oldStat := c.store.DistributionStatistic()
 	deadNodes, oldStat := markDeadNodes(hosts, oldStat)
 	c.log.Debugf("scheduler: Current FSM store stats %v, total %d, dead: %v", oldStat, len(configSet), deadNodes)
