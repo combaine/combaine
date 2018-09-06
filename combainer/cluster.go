@@ -204,7 +204,7 @@ func (c *Cluster) maybeBootstrap() error {
 // Peers is used to return known raft peers.
 func (c *Cluster) Peers() ([]string, error) {
 	if c.raft == nil {
-		return nil, errors.New("Perrs: cluster raft not configured")
+		return nil, errors.New("Peers: cluster raft not configured")
 	}
 	future := c.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
