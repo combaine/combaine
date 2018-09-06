@@ -37,7 +37,7 @@ func (c *Cluster) Run() {
 func (c *Cluster) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
 
-	updateTicker := time.NewTicker(c.updateInterval)
+	updateTicker := time.NewTicker(c.config.RaftUpdateInterval)
 	reconcileTicker := time.NewTicker(60 * time.Second)
 	defer func() {
 		updateTicker.Stop()

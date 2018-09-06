@@ -200,7 +200,7 @@ RECLIENT:
 		default:
 		}
 		log.Errorf("scheduler: Can't create client %s", err)
-		time.Sleep(c.updateInterval)
+		time.Sleep(c.config.RaftUpdateInterval)
 		goto RECLIENT
 	}
 	GlobalObserver.RegisterClient(cl, config)
@@ -217,7 +217,7 @@ RECLIENT:
 		id := common.GenerateSessionID()
 		if err = cl.Dispatch(iteration, config, id, shouldWait); err != nil {
 			log.Errorf("scheduler: Dispatch error %s, iteration: %d, session: %s", err, iteration, id)
-			time.Sleep(c.updateInterval)
+			time.Sleep(c.config.RaftUpdateInterval)
 		}
 	}
 }

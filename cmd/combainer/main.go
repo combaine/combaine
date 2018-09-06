@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -22,7 +21,6 @@ var (
 	profiler    string
 	logoutput   string
 	configsPath string
-	period      uint
 	active      bool
 	tracing     bool
 	loglevel    = logger.LogrusLevelFlag(logrus.InfoLevel)
@@ -32,7 +30,6 @@ func init() {
 	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
 	flag.StringVar(&configsPath, "configspath", repository.DefaultConfigsPath, "path to root of configs")
-	flag.UintVar(&period, "period", 5, "period of retrying new lock (sec)")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
@@ -54,7 +51,6 @@ func main() {
 	log.Info("filesystemRepository initialized")
 
 	cfg := combainer.CombaineServerConfig{
-		Period:       time.Duration(period) * time.Second,
 		RestEndpoint: endpoint,
 		Active:       active,
 	}

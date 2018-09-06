@@ -3,6 +3,7 @@ package combainer
 import (
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/combaine/combaine/common"
@@ -112,15 +113,17 @@ type Cluster struct {
 	raft            *raft.Raft
 	transport       *raft.NetworkTransport
 	raftConfig      *raft.Config
+	raftStore       *raft.InmemStore
+	raftSnapStore   *raft.InmemSnapshotStore
 
-	store          *FSMStore
-	updateInterval time.Duration
-	log            *logrus.Entry
-	config         *repository.ClusterConfig
+	store  *FSMStore
+	log    *logrus.Entry
+	config *repository.ClusterConfig
+	once   sync.Once
 }
 
 // join this not to serf cluster
-func (c *Cluster) joinSerf(initHosts []string, interval time.Duration) {
+func (c *Cluster) joinSerf(initHosts []string) {
 	c.log.Infof("joinSerf: entrance to the connect loop, nodes: %s", initHosts)
 CONNECT:
 	n, err := c.serf.Join(initHosts, true)
@@ -133,14 +136,13 @@ CONNECT:
 	// case that no nodes could be contacted.
 	if err != nil {
 		c.log.Errorf("joinSerf: Combainer error joining to cluster: %s", err)
-		time.Sleep(interval)
+		time.Sleep(c.config.RaftUpdateInterval)
 		goto CONNECT
 	}
 	return
 }
 
-// configure raft stores and transport
-func (c *Cluster) setupRaft(interval time.Duration) error {
+func (c *Cluster) createRaftTransport() error {
 	c.log.Info("setupRaft: create transport")
 	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
@@ -153,17 +155,21 @@ func (c *Cluster) setupRaft(interval time.Duration) error {
 		return errors.Wrap(err, "tcp transport failed")
 	}
 	c.transport = trans
+	return nil
+}
 
+// configure raft stores and transport
+func (c *Cluster) setupRaft() {
 	c.log.Info("setupRaft: initialize store")
+	c.raftStore = raft.NewInmemStore()
+	c.raftSnapStore = raft.NewInmemSnapshotStore()
 
+	c.log.Info("setupRaft: initialize raft config")
 	c.raftConfig = raft.DefaultConfig()
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
 	c.raftConfig.StartAsLeader = c.config.StartAsLeader
-	c.updateInterval = interval
-
 	c.raftConfig.LocalID = raft.ServerID(common.Hostname())
-	return nil
 }
 
 // attempt to bootstrap raft cluster
@@ -172,6 +178,7 @@ func (c *Cluster) maybeBootstrap() error {
 	if len(serfMembers) < int(c.config.BootstrapExpect) {
 		return nil
 	}
+	c.once.Do(c.setupRaft)
 
 	c.log.Infof("bootstrap: Attempting to bootstrap cluster")
 	var servers []raft.Server
@@ -184,17 +191,19 @@ func (c *Cluster) maybeBootstrap() error {
 	var configuration raft.Configuration
 	configuration.Servers = servers
 
-	stableStore := raft.NewInmemStore()
-	log := stableStore
-	snap := raft.NewInmemSnapshotStore()
-
-	if err := raft.BootstrapCluster(c.raftConfig,
-		log, stableStore, snap, c.transport, configuration); err != nil {
+	if err := raft.BootstrapCluster(
+		c.raftConfig,
+		c.raftStore, c.raftStore, c.raftSnapStore,
+		c.transport, configuration); err != nil {
 		return errors.Wrap(err, "raft.BootstrapCluster")
 	}
 
 	c.log.Info("bootstrap: Create raft")
-	raft, err := raft.NewRaft(c.raftConfig, (*FSM)(c), log, stableStore, snap, c.transport)
+	raft, err := raft.NewRaft(
+		c.raftConfig, (*FSM)(c),
+		c.raftStore, c.raftStore, c.raftSnapStore,
+		c.transport,
+	)
 	if err != nil {
 		return errors.Wrap(err, "raft.NewRaft")
 	}
@@ -325,6 +334,10 @@ func validateConfig(cfg *repository.ClusterConfig) error {
 	}
 	if cfg.BootstrapExpect == 0 {
 		cfg.BootstrapExpect = 1
+	}
+	if cfg.RaftUpdateInterval < 5*time.Second {
+		logrus.Errorf("validateConfig: reset RaftUpdateInterval from %s to 5 seconds", cfg.RaftUpdateInterval)
+		cfg.RaftUpdateInterval = 5 * time.Second
 	}
 	return nil
 }

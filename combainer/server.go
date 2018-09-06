@@ -104,10 +104,7 @@ func (c *CombaineServer) Serve() error {
 		return errors.New("There are no combine operators here")
 	}
 
-	c.cluster.joinSerf(hosts, c.Configuration.Period)
-	if err = c.cluster.setupRaft(c.Configuration.Period); err != nil {
-		return err
-	}
+	c.cluster.joinSerf(hosts)
 
 	c.log.Info("start task distribution")
 	go c.cluster.Run()

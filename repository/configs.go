@@ -1,5 +1,7 @@
 package repository
 
+import "time"
+
 // MainSection describes Main section in combaine.yaml
 type MainSection struct {
 	ClusterConfig    ClusterConfig `yaml:"Cluster"`
@@ -28,8 +30,9 @@ type ClusterConfig struct {
 	BindAddr string `yaml:"BindAddr"`
 	RaftPort int    `yaml:"RaftPort"`
 	// expect serf nodes to bootstrap raft cluster
-	BootstrapExpect uint `yaml:"BootstrapExpect"`
-	StartAsLeader   bool `yaml:"StartAsLeader"`
+	BootstrapExpect    uint          `yaml:"BootstrapExpect"`
+	StartAsLeader      bool          `yaml:"StartAsLeader"`
+	RaftUpdateInterval time.Duration `yaml:"RaftUpdateInterval"`
 }
 
 // CloudSection configure fetchers and discovery

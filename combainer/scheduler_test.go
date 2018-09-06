@@ -148,7 +148,7 @@ func TestDistributeTasks(t *testing.T) {
 		"c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30",
 	})
 	defer cleanup()
-	cl := &Cluster{Name: "host3", updateInterval: 3600 * time.Hour, store: NewFSMStore()}
+	cl := &Cluster{Name: "host3", config: &repository.ClusterConfig{RaftUpdateInterval: 3600 * time.Hour}, store: NewFSMStore()}
 	cl.log = logrus.WithField("source", "test")
 	assert.NoError(t, cl.distributeTasks([]string{}))
 
