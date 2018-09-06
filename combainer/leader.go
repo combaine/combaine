@@ -37,7 +37,7 @@ func (c *Cluster) Run() {
 func (c *Cluster) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
 
-	updateTicker := time.NewTicker(c.updateInterval)
+	updateTicker := time.NewTicker(c.config.RaftUpdateInterval)
 	reconcileTicker := time.NewTicker(60 * time.Second)
 	defer func() {
 		updateTicker.Stop()
@@ -69,8 +69,13 @@ WAIT:
 		case <-reconcileTicker.C:
 			goto RECONCILE
 		case <-updateTicker.C:
-			if err := c.distributeTasks(c.Hosts()); err != nil {
-				// updateTicker.Stop() // TODO if distributeTasks return error we lost leadership?
+			hosts, err := c.Peers()
+			if err != nil {
+				c.log.Errorf("leader: failed to get raft peers: %v", err)
+				// return // TODO if perrs return error we lost leadership?
+				// but eventually loss of leadership will break this loop
+			}
+			if err := c.distributeTasks(hosts); err != nil {
 				c.log.Errorf("leader: failed to distributeTasks: %v", err)
 			}
 		case member := <-reconcileCh:
@@ -83,7 +88,7 @@ WAIT:
 
 // IsLeader checks if this server is the cluster leader
 func (c *Cluster) IsLeader() bool {
-	return c.raft.State() == raft.Leader
+	return c.raft != nil && c.raft.State() == raft.Leader
 }
 
 // reconcile is used to reconcile the differences between Serf

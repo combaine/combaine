@@ -191,15 +191,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
 
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	logger.Formatter = &logrus.TextFormatter{
-		ForceColors:    true,
-		DisableSorting: true,
-	}
-	logger.Out = w
-
-	cl, err := NewClient()
+	cl, err := NewClient(withDebugLaunchLoggerOpt(w))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -214,6 +206,20 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprint(w, "DONE")
+}
+
+func withDebugLaunchLoggerOpt(w http.ResponseWriter) func(*Client) error {
+	return func(c *Client) error {
+		logger := logrus.New()
+		logger.Level = logrus.DebugLevel
+		logger.Formatter = &logrus.TextFormatter{
+			ForceColors:    true,
+			DisableSorting: true,
+		}
+		logger.Out = w
+		c.log = logger
+		return nil
+	}
 }
 
 // ServerContext contains server context with repository

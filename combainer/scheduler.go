@@ -50,6 +50,12 @@ func markDeadNodes(alive []string, stats [][2]string) ([]string, [][2]string) {
 }
 
 func (c *Cluster) distributeTasks(hosts []string) error {
+	clusterSize := len(hosts)
+	if clusterSize == 0 {
+		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
+		return nil
+	}
+
 	configs, err := repository.ListParsingConfigs()
 	c.log.Debugf("scheduler: Distribute %d configs to %+v", len(configs), hosts)
 	if err != nil {
@@ -60,11 +66,6 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 		configSet[cfg] = struct{}{}
 	}
 
-	clusterSize := len(hosts)
-	if clusterSize == 0 {
-		c.log.Warnf("scheduler: cluster is empty, there is nowhere to distribute configs")
-		return nil
-	}
 	oldStat := c.store.DistributionStatistic()
 	deadNodes, oldStat := markDeadNodes(hosts, oldStat)
 	c.log.Debugf("scheduler: Current FSM store stats %v, total %d, dead: %v", oldStat, len(configSet), deadNodes)
@@ -189,6 +190,10 @@ var releaseConfig = func(c *Cluster, host, config string) error {
 func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	var iteration uint64
 	log := c.log.WithField("config", config)
+	log.Debug("handleTask: enter")
+	defer func() {
+		log.Debug("handleTask: exit")
+	}()
 
 RECLIENT:
 	cl, err := NewClient()
@@ -199,7 +204,7 @@ RECLIENT:
 		default:
 		}
 		log.Errorf("scheduler: Can't create client %s", err)
-		time.Sleep(c.updateInterval)
+		time.Sleep(c.config.RaftUpdateInterval)
 		goto RECLIENT
 	}
 	GlobalObserver.RegisterClient(cl, config)
@@ -216,7 +221,7 @@ RECLIENT:
 		id := common.GenerateSessionID()
 		if err = cl.Dispatch(iteration, config, id, shouldWait); err != nil {
 			log.Errorf("scheduler: Dispatch error %s, iteration: %d, session: %s", err, iteration, id)
-			time.Sleep(c.updateInterval)
+			time.Sleep(c.config.RaftUpdateInterval)
 		}
 	}
 }
