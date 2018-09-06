@@ -88,6 +88,11 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 	}
 	GenerateAndRegisterSerfResolver(c.AliveMembers)
 
+	log.Info("create raft transport")
+	if err := c.createRaftTransport(); err != nil {
+		return nil, err
+	}
+
 	// handle serf events
 	go c.EventHandler()
 
@@ -143,7 +148,6 @@ CONNECT:
 }
 
 func (c *Cluster) createRaftTransport() error {
-	c.log.Info("setupRaft: create transport")
 	trans, err := raft.NewTCPTransport(
 		net.JoinHostPort(c.config.BindAddr, strconv.Itoa(c.config.RaftPort)),
 		&net.TCPAddr{IP: c.raftAdvertiseIP, Port: c.config.RaftPort},
@@ -184,8 +188,10 @@ func (c *Cluster) maybeBootstrap() error {
 	var servers []raft.Server
 	for _, m := range serfMembers {
 		servers = append(servers, raft.Server{
-			ID:      raft.ServerID(m.Name),
-			Address: raft.ServerAddress(m.Addr.String()),
+			ID: raft.ServerID(m.Name),
+			Address: raft.ServerAddress(
+				net.JoinHostPort(m.Addr.String(), strconv.Itoa(c.config.RaftPort)),
+			),
 		})
 	}
 	var configuration raft.Configuration
@@ -226,7 +232,7 @@ func (c *Cluster) Peers() ([]string, error) {
 	config := future.Configuration()
 	peers := make([]string, len(config.Servers))
 	for i := 0; i < len(config.Servers); i++ {
-		peers[i] = string(config.Servers[i].Address)
+		peers[i] = string(config.Servers[i].ID)
 	}
 	return peers, nil
 }

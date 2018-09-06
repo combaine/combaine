@@ -190,6 +190,10 @@ var releaseConfig = func(c *Cluster, host, config string) error {
 func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	var iteration uint64
 	log := c.log.WithField("config", config)
+	log.Debug("handleTask: enter")
+	defer func() {
+		log.Debug("handleTask: exit")
+	}()
 
 RECLIENT:
 	cl, err := NewClient()

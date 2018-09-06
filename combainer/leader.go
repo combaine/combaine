@@ -88,7 +88,7 @@ WAIT:
 
 // IsLeader checks if this server is the cluster leader
 func (c *Cluster) IsLeader() bool {
-	return c.raft.State() == raft.Leader
+	return c.raft != nil && c.raft.State() == raft.Leader
 }
 
 // reconcile is used to reconcile the differences between Serf
