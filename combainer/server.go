@@ -104,6 +104,9 @@ func (c *CombaineServer) Serve() error {
 		return errors.New("There are no combine operators here")
 	}
 
+	if err := c.cluster.createRaftTransport(); err != nil {
+		return err
+	}
 	c.cluster.joinSerf(hosts)
 
 	c.log.Info("start task distribution")
