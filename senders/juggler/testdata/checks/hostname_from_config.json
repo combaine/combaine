@@ -15,7 +15,7 @@
       ],
       "modification_time": 1480947535,
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -82,7 +82,7 @@
       ],
       "modification_time": 1480947562,
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -131,7 +131,7 @@
       ],
       "modification_time": 1480947563,
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -210,7 +210,7 @@
       ],
       "modification_time": 1480947573,
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -289,7 +289,7 @@
       ],
       "modification_time": 1480947560,
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,

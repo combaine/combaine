@@ -164,7 +164,7 @@ func TestSendBatch(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{IgnoreNoData: 1,
+	jconf.AggregatorKWArgs = aggKWArgs{NoDataMode: "force_ok",
 		Limits: []map[string]interface{}{
 			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		}}
@@ -198,7 +198,7 @@ func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{IgnoreNoData: 1,
+	jconf.AggregatorKWArgs = aggKWArgs{NoDataMode: "force_ok",
 		Limits: []map[string]interface{}{
 			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		}}

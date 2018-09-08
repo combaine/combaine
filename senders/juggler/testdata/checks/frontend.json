@@ -6,7 +6,7 @@
       "tags": [ "combaine" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_crit",
         "limits": [
           {
             "crit": 0,
@@ -55,7 +55,7 @@
       "flap_time": 0,
       "tags": [ "app", "front", "core" ],
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -85,7 +85,7 @@
     "4xx": {
       "aggregator": "timed_more_than_limit_is_problem",
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,
@@ -134,7 +134,7 @@
       "aggregator": "timed_more_than_limit_is_problem",
       "tags": [ "NASA" ],
       "aggregator_kwargs": {
-        "ignore_nodata": 1,
+        "nodata_mode": "force_ok",
         "limits": [
           {
             "crit": 0,

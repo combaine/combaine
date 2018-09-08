@@ -54,8 +54,8 @@ type jugglerCheck struct {
 }
 
 type aggKWArgs struct {
-	IgnoreNoData int                      `codec:"ignore_nodata" json:"ignore_nodata"`
-	Limits       []map[string]interface{} `codec:"limits,omitempty" json:"limits,omitempty"`
+	NoDataMode string                   `codec:"nodata_mode" json:"nodata_mode"`
+	Limits     []map[string]interface{} `codec:"limits,omitempty" json:"limits,omitempty"`
 }
 
 type jugglerEvent struct {
@@ -278,7 +278,7 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 
 func (js *Sender) ensureAggregator(c *jugglerCheck) {
 	aggregatorOutdated := false
-	if c.AggregatorKWArgs.IgnoreNoData != js.AggregatorKWArgs.IgnoreNoData {
+	if c.AggregatorKWArgs.NoDataMode != js.AggregatorKWArgs.NoDataMode {
 		aggregatorOutdated = true
 	}
 	if len(c.AggregatorKWArgs.Limits) != len(js.AggregatorKWArgs.Limits) {

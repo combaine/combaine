@@ -6,7 +6,7 @@
       "tags": [ "combaine" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "aggregator_kwargs": {
-        "ignore_nodata": "yes",
+        "nodata_mode": 1,
         "limits": [
           { "crit": 0, "day_end": 7, "time_start": 2, "time_end": 1, "day_start": 1 }
         ]
