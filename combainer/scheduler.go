@@ -1,6 +1,7 @@
 package combainer
 
 import (
+	"math/rand"
 	"sort"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 )
 
 var shouldWait = true
+var clientStartDelayRange int64 = 30 // [0, n) get rand from
 
 type balance struct {
 	hosts             []string
@@ -190,20 +192,20 @@ var releaseConfig = func(c *Cluster, host, config string) error {
 func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	var iteration uint64
 	log := c.log.WithField("config", config)
-	log.Debug("handleTask: enter")
-	defer func() {
-		log.Debug("handleTask: exit")
-	}()
+	clientStartDelay := time.Duration(rand.Int63n(clientStartDelayRange)+1) * time.Second
+	log.Infof("scheduler.handleTask: enter, clientStartDelay=%s", clientStartDelay)
+	time.Sleep(clientStartDelay)
+	defer func() { log.Info("scheduler.handleTask: exit") }()
 
 RECLIENT:
+	select {
+	case <-stopCh:
+		return
+	default:
+	}
 	cl, err := NewClient()
 	if err != nil {
-		select {
-		case <-stopCh:
-			return
-		default:
-		}
-		log.Errorf("scheduler: Can't create client %s", err)
+		log.Errorf("scheduler: Can't create client %s, wait %s", err, c.config.RaftUpdateInterval)
 		time.Sleep(c.config.RaftUpdateInterval)
 		goto RECLIENT
 	}

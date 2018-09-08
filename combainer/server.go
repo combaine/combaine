@@ -2,6 +2,7 @@ package combainer
 
 import (
 	"errors"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,6 +39,8 @@ type CombaineServerConfig struct {
 
 // New create new combainer server
 func New(config CombaineServerConfig) (*CombaineServer, error) {
+	rand.Seed(time.Now().UnixNano())
+
 	var err error
 	log := logrus.WithField("source", "server")
 	combainerConfig := repository.GetCombainerConfig()
