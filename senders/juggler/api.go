@@ -278,6 +278,9 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 
 func (js *Sender) ensureAggregator(c *jugglerCheck) {
 	aggregatorOutdated := false
+	if c.Aggregator != js.Aggregator {
+		aggregatorOutdated = true
+	}
 	if c.AggregatorKWArgs.NoDataMode != js.AggregatorKWArgs.NoDataMode {
 		aggregatorOutdated = true
 	}

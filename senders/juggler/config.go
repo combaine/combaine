@@ -159,6 +159,12 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 	if taskConf.BatchEndpoint == "" {
 		taskConf.BatchEndpoint = conf.BatchEndpoint
 	}
+	if taskConf.Aggregator == "" {
+		taskConf.Aggregator = "timed_more_than_limit_is_problem" // default
+	}
+	if taskConf.AggregatorKWArgs.NoDataMode == "" {
+		taskConf.AggregatorKWArgs.NoDataMode = "force_crit" // default
+	}
 	return nil
 }
 
