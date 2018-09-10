@@ -1,8 +1,10 @@
 export PATH := ~/go/bin:/usr/local/go/bin:$(PATH)
+export GO111MODULE := on
+
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell PATH="$(PATH)" bash -c "vgo list ./...|fgrep -v combaine/tests")
+PKGS := $(shell PATH="$(PATH)" bash -c "go list ./...|fgrep -v combaine/tests")
 
 .PHONY: clean all fmt vet lint build test fast-test proto docker docker-push docker-image
 
@@ -20,35 +22,35 @@ build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/combainer/main.go
+	go build -o $@ ./cmd/combainer/main.go
 
 ${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/worker/main.go
+	go build -o $@ ./cmd/worker/main.go
 
 ${DIR}/agave: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/agave/main.go
+	go build -o $@ ./cmd/agave/main.go
 
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/graphite/main.go
+	go build -o $@ ./cmd/graphite/main.go
 
 ${DIR}/razladki: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/razladki/main.go
+	go build -o $@ ./cmd/razladki/main.go
 
 ${DIR}/cbb: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/cbb/main.go
+	go build -o $@ ./cmd/cbb/main.go
 
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/solomon/main.go
+	go build -o $@ ./cmd/solomon/main.go
 
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
-	vgo build -o $@ ./cmd/juggler/main.go
+	go build -o $@ ./cmd/juggler/main.go
 
 proto: ${PREFIX}/rpc/rpc.pb.go
 
@@ -62,7 +64,7 @@ clean:
 
 vet:
 	@echo "+ $@"
-	@vgo vet $(PKGS)
+	@go vet $(PKGS)
 
 fmt:
 	@echo "+ $@"
@@ -76,12 +78,12 @@ lint:
 
 fast-test:
 	@echo "+ $@"
-	@set -e; for pkg in $(PKGS); do vgo test $$pkg; done
+	@set -e; for pkg in $(PKGS); do go test $$pkg; done
 
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
-	@set -e; for pkg in $(PKGS); do vgo test -race -coverprofile=profile.out -covermode=atomic $$pkg; \
+	@set -e; for pkg in $(PKGS); do go test -race -coverprofile=profile.out -covermode=atomic $$pkg; \
 	if [ -f profile.out ]; then \
 		cat profile.out >> coverage.txt; rm  profile.out; \
 	fi done; \
