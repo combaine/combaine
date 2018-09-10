@@ -4,8 +4,6 @@ export GO111MODULE := on
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-PKGS := $(shell PATH="$(PATH)" bash -c "go list ./...|fgrep -v combaine/tests")
-
 .PHONY: clean all fmt vet lint build test fast-test proto docker docker-push docker-image
 
 docker: clean build docker-image
@@ -64,7 +62,7 @@ clean:
 
 vet:
 	@echo "+ $@"
-	@go vet $(PKGS)
+	@go vet ./...
 
 fmt:
 	@echo "+ $@"
@@ -78,12 +76,9 @@ lint:
 
 fast-test:
 	@echo "+ $@"
-	@set -e; for pkg in $(PKGS); do go test $$pkg; done
+	@go test ./...
 
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
-	@set -e; for pkg in $(PKGS); do go test -race -coverprofile=profile.out -covermode=atomic $$pkg; \
-	if [ -f profile.out ]; then \
-		cat profile.out >> coverage.txt; rm  profile.out; \
-	fi done; \
+	@go test ./... -race -coverprofile=coverage.txt -covermode=atomic

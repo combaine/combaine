@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const repoPath = "../tests/testdata/configs"
+const repoPath = "../testdata/configs"
 
 func TestMain(m *testing.M) {
 	if err := repository.Init(repoPath); err != nil {

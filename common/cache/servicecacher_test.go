@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/combaine/combaine/tests"
+	tests "github.com/combaine/combaine/testdata"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetAggregationConfigs(t *testing.T) {
-	const repopath = "../tests/testdata/configs"
+	const repopath = "../testdata/configs"
 	repoErr := Init(repopath)
 	assert.NoError(t, repoErr)
 

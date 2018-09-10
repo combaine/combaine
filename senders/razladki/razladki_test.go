@@ -31,12 +31,12 @@ func TestSend(t *testing.T) {
 	defer ts.Close()
 	testConfig := Config{
 		Items: map[string]string{
-			"40x":              "testvalue",
-			"20x:MAP1.2xx":     "testvalue", // map in map not supported
-			"20x:MP2":          "testvalue",
-			"20x:MP3":          "testvalue",
-			"some.agg.20x:MP2": "testvalue",
-			"30x":              "testvalue",
+			"40x":                                   "testvalue",
+			"20x:MAP1.2xx":                          "testvalue", // map in map not supported
+			"20x:MP2":                               "testvalue",
+			"20x:MP3":                               "testvalue",
+			"some.agg.20x:MP2":                      "testvalue",
+			"30x":                                   "testvalue",
 			"aggWithTimings:aTimings[3]":            "testtimings",
 			"aggWithTimings:aTimings['2']":          "testtimings",
 			"aggWithTimings:aTimings[9]":            "testtimings",

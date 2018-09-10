@@ -12,25 +12,28 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
-	"github.com/combaine/combaine/tests"
+	tests "github.com/combaine/combaine/testdata"
 	"github.com/sirupsen/logrus"
 )
 
 const cfgName = "aggCore"
 
 var (
+	pcfg              repository.EncodedConfig
 	acfg              repository.EncodedConfig
 	parsingConfig     repository.ParsingConfig
 	aggregationConfig repository.AggregationConfig
 )
 
 func TestInit(t *testing.T) {
-	pcfg, err := repository.GetParsingConfig(cfgName)
-	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)
-	acfg, err := repository.GetAggregationConfig(cfgName)
-	assert.NoError(t, err, "unable to read aggCfg %s: %s", cfgName, err)
+	var err error
 
+	pcfg, err = repository.GetParsingConfig(cfgName)
+	assert.NoError(t, err, "unable to read parsingCfg %s: %s", cfgName, err)
 	assert.NoError(t, pcfg.Decode(&parsingConfig))
+
+	acfg, err = repository.GetAggregationConfig(cfgName)
+	assert.NoError(t, err, "unable to read aggCfg %s: %s", cfgName, err)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 }
 
@@ -87,8 +90,9 @@ func TestAggregating(t *testing.T) {
 			"test-combainer": 0, // metahost
 		}
 
-		shouldSendToSenders := 2
+		shouldSendToSenders := len(aggregationConfig.Senders)
 
+		logrus.Warn("Enter Spy loop")
 		for r := range tests.Spy { // r == []interface{cache.Service, []byte}
 			method := string(r[0].(string))
 			if method == "stop" {
@@ -112,6 +116,7 @@ func TestAggregating(t *testing.T) {
 
 			case "send":
 				shouldSendToSenders--
+				logrus.Warnf("Send: shouldSendToSenders=%v", shouldSendToSenders)
 
 				var payload common.SenderPayload
 				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
@@ -131,7 +136,7 @@ func TestAggregating(t *testing.T) {
 		}
 		t.Log("Test senders")
 		for k, v := range sendersCount {
-			assert.Equal(t, 3, v, fmt.Sprintf("senders for '%s' failed", k))
+			assert.Equal(t, len(aggregationConfig.Senders), v, fmt.Sprintf("senders for '%s' failed", k))
 		}
 	}()
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))

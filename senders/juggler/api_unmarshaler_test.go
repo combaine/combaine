@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const repoPath = "../../tests/testdata/configs"
+const repoPath = "../../testdata/configs"
 const cfgName = "aggCore"
 
 var (

@@ -9,7 +9,7 @@ import (
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
-	"github.com/combaine/combaine/tests"
+	tests "github.com/combaine/combaine/testdata"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,19 +89,19 @@ func TestParsing(t *testing.T) {
 			var r map[string]interface{}
 			assert.NoError(t, common.Unpack(k[1].([]byte), &r))
 			var payload common.FetcherTask
-			assert.NoError(t, common.Unpack(r["Data"].([]byte), &payload))
+			assert.NoError(t, common.Unpack([]byte(r["Data"].(string)), &payload))
 
 			key := payload.Target
-			cfg := r["Config"].(map[interface{}]interface{})
+			cfg := r["Config"].(map[string]interface{})
 
 			if tp, ok := cfg["type"]; ok {
-				key += "." + string(tp.([]byte))
+				key += "." + tp.(string)
 			}
 			if cl, ok := cfg["class"]; ok {
-				key += "." + string(cl.([]byte))
+				key += "." + cl.(string)
 			}
 			if so, ok := cfg["someOpts"]; ok {
-				key += "." + string(so.([]byte))
+				key += "." + so.(string)
 			}
 
 			_, ok = expectParsingResult[key]
@@ -123,7 +123,7 @@ func TestParsing(t *testing.T) {
 		var i map[string]interface{}
 		assert.NoError(t, common.Unpack(v, &i))
 		assert.Equal(t, parsingTask.Frame.Current, i["CurrTime"].(int64))
-		assert.Equal(t, parsingTask.Id, string(i["Id"].([]byte)))
+		assert.Equal(t, parsingTask.Id, i["Id"].(string))
 	}
 
 	<-done // wait parsing complete

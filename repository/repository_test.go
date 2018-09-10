@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const repopath = "../tests/testdata/configs"
+const repopath = "../testdata/configs"
 
 func TestUtilityFunctions(t *testing.T) {
 	assert.False(t, isConfig("blabla"))
