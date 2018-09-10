@@ -25,9 +25,12 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
+	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.0.5
 	github.com/stretchr/testify v1.2.2
 	github.com/ugorji/go v0.0.0-20141014124450-dca82994cf14
+	github.com/yudai/gojsondiff v1.0.0
+	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
 	github.com/yuin/gopher-lua v0.0.0-20180611022520-ca850f594eaa
 	golang.org/x/crypto v0.0.0-20180614221331-a8fb68e7206f

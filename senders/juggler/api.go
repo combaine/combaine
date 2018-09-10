@@ -12,6 +12,9 @@ import (
 
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/pkg/errors"
+	diff "github.com/yudai/gojsondiff"
+	"github.com/yudai/gojsondiff/formatter"
 )
 
 const (
@@ -44,18 +47,13 @@ type jugglerCheck struct {
 	Service          string                 `json:"service"`
 	Description      string                 `json:"description"`
 	Aggregator       string                 `json:"aggregator"`
-	AggregatorKWArgs aggKWArgs              `json:"aggregator_kwargs"`
+	AggregatorKWArgs json.RawMessage        `json:"aggregator_kwargs"`
 	TTL              int                    `json:"ttl"`
 	Tags             []string               `json:"tags"`
 	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
 	Namespace        string                 `json:"namespace"`
-}
-
-type aggKWArgs struct {
-	NoDataMode string                   `codec:"nodata_mode" json:"nodata_mode"`
-	Limits     []map[string]interface{} `codec:"limits,omitempty" json:"limits,omitempty"`
 }
 
 type jugglerEvent struct {
@@ -192,10 +190,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			check = jugglerCheck{Update: true}
 		}
 
-		// ensure check only once, but in if we can not
-		// test metahost tag like t.Tags["type"] == "metahost"
-		// because user may specify filter 'type: host'
-		// and there will be triggers only for hosts
+		// Ensure check only once.
 		if _, ok := updated[t.Service]; !ok {
 			updated[t.Service] = struct{}{}
 			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
@@ -276,40 +271,33 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 	}
 }
 
-func (js *Sender) ensureAggregator(c *jugglerCheck) {
+func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 	aggregatorOutdated := false
 	if c.Aggregator != js.Aggregator {
 		aggregatorOutdated = true
 	}
-	if c.AggregatorKWArgs.NoDataMode != js.AggregatorKWArgs.NoDataMode {
-		aggregatorOutdated = true
+	configKWArgs, err := json.Marshal(js.AggregatorKWArgs)
+	d, err := diff.New().Compare(configKWArgs, []byte(c.AggregatorKWArgs))
+	if err != nil {
+		return errors.Wrap(err, "ensureAggregator: Failed to unmarshal")
 	}
-	if len(c.AggregatorKWArgs.Limits) != len(js.AggregatorKWArgs.Limits) {
-		aggregatorOutdated = true
-	}
-	if !aggregatorOutdated {
-	CHECK:
-		for i, v := range js.AggregatorKWArgs.Limits {
-			for k, jv := range v {
-				if cv, ok := c.AggregatorKWArgs.Limits[i][k]; ok {
-					if fmt.Sprintf("%v", cv) != fmt.Sprintf("%v", jv) {
-						aggregatorOutdated = true
-						break CHECK
-					}
-				} else {
-					aggregatorOutdated = true
-					break CHECK
-				}
-			}
+	if c.Update = aggregatorOutdated || d.Modified(); c.Update {
+		if aggregatorOutdated {
+			logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.Aggregator, js.Aggregator)
+			c.Aggregator = js.Aggregator
 		}
-
+		if d.Modified() {
+			f := &formatter.DeltaFormatter{PrintIndent: false}
+			diffString, err := f.Format(d)
+			if err != nil {
+				return errors.Wrap(err, "ensureAggregator: format diff")
+			}
+			diffString = diffString[:len(diffString)-1] // - \n
+			logger.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
+			c.AggregatorKWArgs = configKWArgs
+		}
 	}
-	if aggregatorOutdated {
-		c.Update = true
-		logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.AggregatorKWArgs, js.AggregatorKWArgs)
-		c.Aggregator = js.Aggregator
-		c.AggregatorKWArgs = js.AggregatorKWArgs
-	}
+	return nil
 }
 
 func (js *Sender) ensureMethods(c *jugglerCheck) {

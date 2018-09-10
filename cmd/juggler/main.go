@@ -29,8 +29,6 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
 		return
 	}
-	// common.Unpack unpack some strings as []byte, need convert it
-	juggler.StringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
 	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
 	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)

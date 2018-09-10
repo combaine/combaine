@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	mh codec.MsgpackHandle
-	h  = &mh
+	h = &codec.MsgpackHandle{RawToString: true}
 	// global ClientID counter
 	clientID uint64
 )
