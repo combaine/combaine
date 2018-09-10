@@ -122,11 +122,11 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 				body, rerr := ioutil.ReadAll(resp.Body)
 				resp.Body.Close()
 				if rerr != nil {
-					jerrors = append(jerrors, fmt.Errorf("%s: %s", jhost, rerr))
+					jerrors = append(jerrors, errors.Errorf("%s: %s", jhost, rerr))
 					continue
 				}
 				if resp.StatusCode != http.StatusOK {
-					jerrors = append(jerrors, fmt.Errorf("%s: %v %s", jhost, resp.StatusCode, body))
+					jerrors = append(jerrors, errors.Errorf("%s: %v %s", jhost, resp.StatusCode, body))
 					continue
 				}
 				logger.Debugf("%s Juggler response: %s", js.id, body)
@@ -135,11 +135,11 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 				jerrors = append(jerrors, err)
 				break GET_CHECK
 			default:
-				jerrors = append(jerrors, fmt.Errorf("%s: %s", jhost, err))
+				jerrors = append(jerrors, errors.Errorf("%s: %s", jhost, err))
 				continue
 			}
 		}
-		return nil, fmt.Errorf("Failed to get juggler check: %q", jerrors)
+		return nil, errors.Errorf("Failed to get juggler check: %q", jerrors)
 	}
 	cJSON, err := GlobalCache.Get(js.id, js.Host, checkFetcher)
 	if err != nil {
@@ -198,7 +198,11 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			// ttl
 			js.ensureTTL(&check)
 			// aggregator
-			js.ensureAggregator(&check)
+			err := js.ensureAggregator(&check)
+			if err != nil {
+				logger.Errf("ensureCheck: %s", err)
+				return err
+			}
 			// methods
 			js.ensureMethods(&check)
 			// flap
@@ -277,9 +281,13 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 		aggregatorOutdated = true
 	}
 	configKWArgs, err := json.Marshal(js.AggregatorKWArgs)
-	d, err := diff.New().Compare(configKWArgs, []byte(c.AggregatorKWArgs))
+	checkKWArgs := string(c.AggregatorKWArgs)
+	if checkKWArgs == "" {
+		checkKWArgs = "null"
+	}
+	d, err := diff.New().Compare(configKWArgs, []byte(checkKWArgs))
 	if err != nil {
-		return errors.Wrap(err, "ensureAggregator: Failed to unmarshal")
+		return errors.Wrapf(err, "ensureAggregator: Failed to unmarshal configKWArgs: %s, checkKWArgs: %s", configKWArgs, checkKWArgs)
 	}
 	if c.Update = aggregatorOutdated || d.Modified(); c.Update {
 		if aggregatorOutdated {
@@ -446,8 +454,8 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", errs)
+		return errors.Errorf("%s", errs)
 	}
 	logger.Errf("%s failed to sent update check for %v", js.id, check)
-	return fmt.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
+	return errors.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
 }

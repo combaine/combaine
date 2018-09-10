@@ -190,8 +190,7 @@ func TestSendBatch(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/8 events")
+			assert.Error(t, err)
 		}
 	}
 }
@@ -225,8 +224,7 @@ func TestSendEvent(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
-			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 8/16 events")
+			assert.Error(t, err)
 		}
 	}
 }
