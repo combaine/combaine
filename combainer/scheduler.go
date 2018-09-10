@@ -192,7 +192,7 @@ var releaseConfig = func(c *Cluster, host, config string) error {
 func (c *FSM) handleTask(config string, stopCh chan struct{}) {
 	var iteration uint64
 	log := c.log.WithField("config", config)
-	clientStartDelay := time.Duration(rand.Int63n(clientStartDelayRange)+1) * time.Second
+	clientStartDelay := time.Duration(rand.Int63n(clientStartDelayRange)+1)*time.Second + c.config.RaftUpdateInterval
 	log.Infof("scheduler.handleTask: enter, clientStartDelay=%s", clientStartDelay)
 	time.Sleep(clientStartDelay)
 	defer func() { log.Info("scheduler.handleTask: exit") }()
