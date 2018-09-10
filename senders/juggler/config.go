@@ -30,7 +30,7 @@ type Config struct {
 	Method           string                       `codec:"Method"`
 	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
-	AggregatorKWArgs interface{}                  `codec:"aggregator_kwargs"`
+	AggregatorKWArgs repository.PluginConfig      `codec:"aggregator_kwargs"`
 	TTL              int                          `codec:"ttl"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
@@ -51,6 +51,20 @@ type Config struct {
 	Token            string                       `codec:"-"` // do not pass token
 }
 
+// SenderConfig contains configuration loaded from combaine's config file
+// placed in sender config
+type SenderConfig struct {
+	CacheTTL           time.Duration           `yaml:"cache_ttl"`
+	CacheCleanInterval time.Duration           `yaml:"cache_clean_interval"`
+	PluginsDir         string                  `yaml:"plugins_dir"`
+	Hosts              []string                `yaml:"juggler_hosts"`
+	Frontend           []string                `yaml:"juggler_frontend"`
+	BatchSize          int                     `yaml:"batch_size"`
+	BatchEndpoint      string                  `yaml:"batch_endpoint"`
+	Token              string                  `yaml:"token"`
+	Store              pluginEventsStoreConfig `yaml:"store"`
+}
+
 // DefaultConfig build default config for sender, it has sanity defaults
 func DefaultConfig() *Config {
 	return &Config{
@@ -59,7 +73,7 @@ func DefaultConfig() *Config {
 		Host:             "",
 		Methods:          []string{},
 		Aggregator:       "",
-		AggregatorKWArgs: new(interface{}),
+		AggregatorKWArgs: make(map[string]interface{}),
 		CheckName:        "",
 		Description:      "",
 		Tags:             []string{"combaine"},
@@ -74,20 +88,6 @@ func DefaultConfig() *Config {
 		WARN:             []string{},
 		CRIT:             []string{},
 	}
-}
-
-// SenderConfig contains configuration loaded from combaine's config file
-// placed in sender config
-type SenderConfig struct {
-	CacheTTL           time.Duration           `yaml:"cache_ttl"`
-	CacheCleanInterval time.Duration           `yaml:"cache_clean_interval"`
-	PluginsDir         string                  `yaml:"plugins_dir"`
-	Hosts              []string                `yaml:"juggler_hosts"`
-	Frontend           []string                `yaml:"juggler_frontend"`
-	BatchSize          int                     `yaml:"batch_size"`
-	BatchEndpoint      string                  `yaml:"batch_endpoint"`
-	Token              string                  `yaml:"token"`
-	Store              pluginEventsStoreConfig `yaml:"store"`
 }
 
 // EnsureDefaultTag add default tag "combaine" if it not present in tags

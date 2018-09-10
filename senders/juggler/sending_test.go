@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -164,12 +166,15 @@ func TestSendBatch(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = interface{}(map[string]interface{}{
+	confg := repository.PluginConfig{
 		"nodata_mode": "force_ok",
-		"limits": []map[string]interface{}{
-			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
+		"limits": []map[interface{}]interface{}{
+			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		},
-	})
+	}
+	blob, err := common.Pack(confg)
+	assert.NoError(t, err)
+	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
@@ -190,7 +195,7 @@ func TestSendBatch(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			assert.Error(t, err)
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/8 events")
 		}
 	}
 }
@@ -199,12 +204,15 @@ func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = interface{}(map[string]interface{}{
+	confg := repository.PluginConfig{
 		"nodata_mode": "force_ok",
-		"limits": []map[string]interface{}{
-			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
+		"limits": []map[interface{}]interface{}{
+			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		},
-	})
+	}
+	blob, err := common.Pack(confg)
+	assert.NoError(t, err)
+	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
@@ -224,7 +232,7 @@ func TestSendEvent(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			assert.Error(t, err)
+			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 8/16 events")
 		}
 	}
 }

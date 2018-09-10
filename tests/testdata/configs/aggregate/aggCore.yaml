@@ -30,3 +30,10 @@ senders:
       limits:
         - {crit: "146%",time_start: 20,time_end: 9,day_end: 7,day_start: 1}
         - {crit: 0,time_start: 10,time_end: 19,day_end: 7,day_start: 1}
+  monitoring3:
+    type: juggler
+    Host: "combaine-test"
+    Aggregator: timed_more_than_limit_is_problem
+    Method: SMS
+    description: "Some very important check"
+    checkname: "checkname3"

@@ -139,11 +139,11 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 				continue
 			}
 		}
-		return nil, errors.Errorf("Failed to get juggler check: %q", jerrors)
+		return nil, errors.Errorf("getCheck: Failed to get juggler check: %q", jerrors)
 	}
 	cJSON, err := GlobalCache.Get(js.id, js.Host, checkFetcher)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "getCheck")
 	}
 	var hostChecks jugglerResponse
 	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
@@ -200,8 +200,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			// aggregator
 			err := js.ensureAggregator(&check)
 			if err != nil {
-				logger.Errf("ensureCheck: %s", err)
-				return err
+				return errors.Wrap(err, "ensureCheck")
 			}
 			// methods
 			js.ensureMethods(&check)
@@ -281,6 +280,9 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 		aggregatorOutdated = true
 	}
 	configKWArgs, err := json.Marshal(js.AggregatorKWArgs)
+	if err != nil {
+		return errors.Wrap(err, "ensureAggregator: Marshal configKWArgs")
+	}
 	checkKWArgs := string(c.AggregatorKWArgs)
 	if checkKWArgs == "" {
 		checkKWArgs = "null"
@@ -301,6 +303,7 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 				return errors.Wrap(err, "ensureAggregator: format diff")
 			}
 			diffString = diffString[:len(diffString)-1] // - \n
+			// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
 			logger.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
 			c.AggregatorKWArgs = configKWArgs
 		}

@@ -41,7 +41,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 
 	jCli, err := juggler.NewSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("%s Unexpected error %s", task.ID, err)
+		logger.Errf("%s send: Unexpected error %s", task.ID, err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	defer cancel()
 	err = jCli.Send(ctx, task.Data)
 	if err != nil {
-		logger.Errf("%s Sending error %s", task.ID, err)
+		logger.Errf("%s send: %s", task.ID, err)
 		return
 	}
 	response.Write("DONE")

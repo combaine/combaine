@@ -71,14 +71,14 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 	}
 	checks, err := js.getCheck(ctx, jEvents)
 	if err != nil {
-		return errors.Wrap(err, "getCheck")
+		return errors.Wrap(err, "Send")
 	}
 	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
-		return errors.Wrap(err, "ensureCheck")
+		return errors.Wrap(err, "Send")
 	}
 
 	if err := js.sendInternal(ctx, jEvents); err != nil {
-		return errors.Wrap(err, "sendInternal")
+		return errors.Wrap(err, "Send")
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 	jWg.Wait()
 
 	if sendEeventsFailed > 0 {
-		return errors.Errorf("failed to send %d/%d events", sendEeventsFailed, total)
+		return errors.Errorf("sendInternal: failed to send %d/%d events", sendEeventsFailed, total)
 	}
 	logger.Infof("%s successfully send %d events", js.id, total)
 
