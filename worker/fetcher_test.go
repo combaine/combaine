@@ -21,7 +21,7 @@ type fether struct {
 }
 
 func (f *fether) Fetch(_ context.Context, task *common.FetcherTask) ([]byte, error) {
-	fch <- string(f.c["timetail_url"].([]byte))
+	fch <- string(f.c["timetail_url"].(string))
 	return common.Pack(*task)
 }
 

@@ -21,13 +21,16 @@ func unpack(data []byte, res interface{}) error {
 	return codec.NewDecoderBytes(data, h).Decode(res)
 }
 
+// Service ...
 type Service interface {
 	Call(name string, args ...interface{}) chan cocaine.ServiceResult
 	Close()
 }
 
-var Spy = make(chan []interface{}, 2) // avoid blocking
-var Rake = make(chan error, 2)        // avoid blocking
+// Spy ...
+var Spy = make(chan []interface{}, 99) // avoid blocking
+// Rake ...
+var Rake = make(chan error, 99) // avoid blocking
 
 type serviceResult struct {
 	err  error
@@ -76,6 +79,7 @@ func (ts *tService) Close() {
 	close(ts.r)
 }
 
+// NewService ...
 func NewService(name string, args ...interface{}) (Service, error) {
 	if name == "errorService" {
 		return nil, fmt.Errorf("ask error service")

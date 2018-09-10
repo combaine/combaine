@@ -10,22 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// GlobalCache is singleton for juggler sender
-
-func TestStringifyLimits(t *testing.T) {
-	cases := []map[string]interface{}{
-		{"bytes": []byte("here"), "str": "s"},
-		{"all": "str", "ing": "here"},
-	}
-
-	StringifyAggregatorLimits(cases)
-	for _, i := range cases {
-		for _, j := range i {
-			assert.Equal(t, "string", fmt.Sprintf("%T", j))
-		}
-	}
-}
-
 func TestEnsureDefaultTags(t *testing.T) {
 	cases := [][]string{
 		{},

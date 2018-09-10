@@ -29,8 +29,6 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
 		return
 	}
-	// common.Unpack unpack some strings as []byte, need convert it
-	juggler.StringifyAggregatorLimits(task.Config.AggregatorKWArgs.Limits)
 	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
 	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)
@@ -43,7 +41,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 
 	jCli, err := juggler.NewSender(&task.Config, task.ID)
 	if err != nil {
-		logger.Errf("%s Unexpected error %s", task.ID, err)
+		logger.Errf("%s send: Unexpected error %s", task.ID, err)
 		return
 	}
 
@@ -51,7 +49,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	defer cancel()
 	err = jCli.Send(ctx, task.Data)
 	if err != nil {
-		logger.Errf("%s Sending error %s", task.ID, err)
+		logger.Errf("%s send: %s", task.ID, err)
 		return
 	}
 	response.Write("DONE")

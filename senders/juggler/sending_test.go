@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -60,8 +62,8 @@ func TestGetCheck(t *testing.T) {
 		{"frontend", true, 4, map[string]*jugglerFlapConfig{
 			"upstream_timings":      nil,
 			"ssl_handshake_timings": {StableTime: 60, CriticalTime: 90},
-			"4xx": nil,
-			"2xx": nil,
+			"4xx":                   nil,
+			"2xx":                   nil,
 		}},
 		{"withUnmarshalError", true, 1, map[string]*jugglerFlapConfig{
 			"checkName": {CriticalTime: 90},
@@ -98,7 +100,7 @@ func TestEnsureCheck(t *testing.T) {
 		}, false},
 		{"frontend", map[string][]string{
 			"ssl_handshake_timings": {"app", "front", "core", "combaine"},
-			"4xx": {"combaine"},
+			"4xx":                   {"combaine"},
 		}, false},
 		{"backend", map[string][]string{
 			"2xx": {"Yep", "app", "back", "core", "combaine"},
@@ -164,10 +166,15 @@ func TestSendBatch(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{NoDataMode: "force_ok",
-		Limits: []map[string]interface{}{
-			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
-		}}
+	confg := repository.PluginConfig{
+		"nodata_mode": "force_ok",
+		"limits": []map[interface{}]interface{}{
+			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
+		},
+	}
+	blob, err := common.Pack(confg)
+	assert.NoError(t, err)
+	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
@@ -188,7 +195,6 @@ func TestSendBatch(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
 			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/8 events")
 		}
 	}
@@ -198,10 +204,15 @@ func TestSendEvent(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 
 	jconf.Aggregator = "timed_more_than_limit_is_problem"
-	jconf.AggregatorKWArgs = aggKWArgs{NoDataMode: "force_ok",
-		Limits: []map[string]interface{}{
-			{"crit": "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
-		}}
+	confg := repository.PluginConfig{
+		"nodata_mode": "force_ok",
+		"limits": []map[interface{}]interface{}{
+			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
+		},
+	}
+	blob, err := common.Pack(confg)
+	assert.NoError(t, err)
+	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
@@ -221,7 +232,6 @@ func TestSendEvent(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			err = js.Send(context.TODO(), data)
-			//assert.Contains(t, fmt.Sprintf("%s", err), "getsockopt: connection refused")
 			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 8/16 events")
 		}
 	}

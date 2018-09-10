@@ -30,7 +30,7 @@ type Config struct {
 	Method           string                       `codec:"Method"`
 	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
-	AggregatorKWArgs aggKWArgs                    `codec:"aggregator_kwargs"`
+	AggregatorKWArgs repository.PluginConfig      `codec:"aggregator_kwargs"`
 	TTL              int                          `codec:"ttl"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
@@ -65,17 +65,28 @@ type SenderConfig struct {
 	Store              pluginEventsStoreConfig `yaml:"store"`
 }
 
-// StringifyAggregatorLimits check all AggregatorLimits values
-// and convert it to sting
-func StringifyAggregatorLimits(limits []map[string]interface{}) {
-	for _, v := range limits {
-		for k, iv := range v {
-			if byteVal, ok := iv.([]byte); ok {
-				// json encode []bytes in base64, but there string expected
-				iv = string(byteVal)
-				v[k] = iv
-			}
-		}
+// DefaultConfig build default config for sender, it has sanity defaults
+func DefaultConfig() *Config {
+	return &Config{
+		PluginsDir:       "/etc/combaine/juggler/plugins",
+		Plugin:           "",
+		Host:             "",
+		Methods:          []string{},
+		Aggregator:       "",
+		AggregatorKWArgs: make(map[string]interface{}),
+		CheckName:        "",
+		Description:      "",
+		Tags:             []string{"combaine"},
+		Flap:             nil,
+		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
+		JPluginConfig:    repository.PluginConfig{},
+		JHosts:           []string{},
+		JFrontend:        []string{},
+		BatchEndpoint:    "",
+		OK:               []string{},
+		INFO:             []string{},
+		WARN:             []string{},
+		CRIT:             []string{},
 	}
 }
 
@@ -162,9 +173,6 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 	if taskConf.Aggregator == "" {
 		taskConf.Aggregator = "timed_more_than_limit_is_problem" // default
 	}
-	if taskConf.AggregatorKWArgs.NoDataMode == "" {
-		taskConf.AggregatorKWArgs.NoDataMode = "force_crit" // default
-	}
 	return nil
 }
 
@@ -173,30 +181,5 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 func AddJugglerToken(taskConf *Config, token string) {
 	if token != "" && token != "no-token" {
 		taskConf.Token = token
-	}
-}
-
-// DefaultConfig build default config for sender, it has sanity defaults
-func DefaultConfig() *Config {
-	return &Config{
-		PluginsDir:       "/etc/combaine/juggler/plugins",
-		Plugin:           "",
-		Host:             "",
-		Methods:          []string{},
-		Aggregator:       "",
-		AggregatorKWArgs: aggKWArgs{},
-		CheckName:        "",
-		Description:      "",
-		Tags:             []string{"combaine"},
-		Flap:             nil,
-		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
-		JPluginConfig:    repository.PluginConfig{},
-		JHosts:           []string{},
-		JFrontend:        []string{},
-		BatchEndpoint:    "",
-		OK:               []string{},
-		INFO:             []string{},
-		WARN:             []string{},
-		CRIT:             []string{},
 	}
 }

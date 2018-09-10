@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -14,8 +15,14 @@ import (
 )
 
 var (
-	mh codec.MsgpackHandle
-	h  = &mh
+	h = &codec.MsgpackHandle{
+		BasicHandle: codec.BasicHandle{
+			DecodeOptions: codec.DecodeOptions{
+				MapType: reflect.TypeOf(map[string]interface{}(nil)),
+			},
+		},
+		RawToString: true,
+	}
 	// global ClientID counter
 	clientID uint64
 )

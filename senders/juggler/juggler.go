@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
@@ -50,19 +51,19 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	if err != nil {
-		return fmt.Errorf("LoadPlugin: %s", err)
+		return errors.Wrap(err, "LoadPlugin")
 	}
 	defer state.Close() // see TODO in LoadPlugin
 	js.state = state
 
 	logger.Debugf("%s Prepare state of lua plugin", js.id)
 	if err := js.preparePluginEnv(data); err != nil {
-		return fmt.Errorf("preparePluginEnv: %s", err)
+		return errors.Wrap(err, "preparePluginEnv")
 	}
 
 	jEvents, err := js.runPlugin()
 	if err != nil {
-		return fmt.Errorf("runPlugin: %s", err)
+		return errors.Wrap(err, "runPlugin")
 	}
 	if len(jEvents) == 0 {
 		logger.Infof("%s Nothing to send", js.id)
@@ -70,14 +71,14 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 	}
 	checks, err := js.getCheck(ctx, jEvents)
 	if err != nil {
-		return fmt.Errorf("getCheck: %s", err)
+		return errors.Wrap(err, "Send")
 	}
 	if err := js.ensureCheck(ctx, checks, jEvents); err != nil {
-		return fmt.Errorf("ensureCheck: %s", err)
+		return errors.Wrap(err, "Send")
 	}
 
 	if err := js.sendInternal(ctx, jEvents); err != nil {
-		return fmt.Errorf("sendInternal: %s", err)
+		return errors.Wrap(err, "Send")
 	}
 	return nil
 }
@@ -155,7 +156,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 	jWg.Wait()
 
 	if sendEeventsFailed > 0 {
-		return fmt.Errorf("failed to send %d/%d events", sendEeventsFailed, total)
+		return errors.Errorf("sendInternal: failed to send %d/%d events", sendEeventsFailed, total)
 	}
 	logger.Infof("%s successfully send %d events", js.id, total)
 
@@ -190,7 +191,7 @@ SEND_LOOP:
 				logger.Infof("%s successfully sent data in %d attempts", js.id, retry)
 				break SEND_LOOP
 			}
-			err = fmt.Errorf("http status='%s', response: %s", resp.Status, responseBody)
+			err = errors.Errorf("http status='%s', response: %s", resp.Status, responseBody)
 		case context.Canceled, context.DeadlineExceeded:
 			ctx, cancel = context.WithTimeout(context.Background(), DefaultTimeout)
 		default:

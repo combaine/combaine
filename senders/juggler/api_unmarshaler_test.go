@@ -1,6 +1,7 @@
 package juggler
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/combaine/combaine/common"
@@ -8,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const repoPath = "../../tests/testdata/configs"
+const repoPath = "../../testdata/configs"
 const cfgName = "aggCore"
 
 var (
@@ -43,5 +44,24 @@ func TestCustomUnmarshaler(t *testing.T) {
 		}
 		//logger.Debugf("%#v", nowDecodedConfig)
 		assert.NoError(t, err, "Failed to decode juggler config")
+	}
+}
+
+func TestMarshalJSON(t *testing.T) {
+	thisTestInit(t)
+	for _, senderConfig := range aggregationConfig.Senders {
+		sType, err := senderConfig.Type()
+		assert.NoError(t, err, "Failed to check sender type")
+		if sType != "juggler" {
+			continue
+		}
+		encodedSenderConfig, err := common.Pack(senderConfig)
+		assert.NoError(t, err, "Failed to pack aggregation config")
+		var nowDecodedConfig Config
+		err = common.Unpack(encodedSenderConfig, &nowDecodedConfig)
+		assert.NoError(t, err, "Failed to decode juggler config")
+		checkJSON, err := json.Marshal(nowDecodedConfig.AggregatorKWArgs)
+		t.Logf("TestMarshalJSON: AggregatorKWArgs: %s", checkJSON)
+		assert.NoError(t, err, "Failed to json.Marshal AggregatorKWArgs")
 	}
 }

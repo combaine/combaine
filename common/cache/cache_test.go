@@ -32,7 +32,7 @@ func TestCacheSetGetDelete(t *testing.T) {
 
 	a, _ := GlobalCache.Get(id, key, checkFetcher)
 	assert.Equal(t, expected, a)
-	time.Sleep(time.Millisecond * 8)
+	time.Sleep(time.Millisecond * 5)
 	checkFetcher = func() ([]byte, error) { return []byte("Updated"), nil }
 	b, _ := GlobalCache.Get(id, key, checkFetcher)
 	assert.Equal(t, expected, b)

@@ -6,11 +6,11 @@ import (
 
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/tests"
+	tests "github.com/combaine/combaine/testdata"
 	"github.com/sirupsen/logrus"
 )
 
-const repoPath = "../tests/testdata/configs"
+const repoPath = "../testdata/configs"
 
 func NewService(n string, a ...interface{}) (cache.Service, error) {
 	return tests.NewService(n, a...)
