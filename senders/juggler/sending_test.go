@@ -144,6 +144,10 @@ func TestEnsureCheck(t *testing.T) {
 				Enable: 1, StableTime: 10, CriticalTime: 3000,
 			}
 		}
+		if c.name == "frontend" {
+			js.Method = "SMS,GOLEM"
+		}
+
 		assert.NoError(t, err)
 		checks["nonExistingHost"] = map[string]jugglerCheck{"nonExistingCheck": {}}
 		assert.NoError(t, js.ensureCheck(ctx, checks, jEvents))
@@ -151,7 +155,8 @@ func TestEnsureCheck(t *testing.T) {
 			assert.Equal(t, tags, checks[c.name][service].Tags, fmt.Sprintf("host %s servce %s", c.name, service))
 		}
 		// reset tags here for coverage purpose
-		js.Tags = []string{}
+		js.Tags = nil
+		js.Notifications = nil
 		js.ChecksOptions = map[string]jugglerFlapConfig{}
 	}
 	// non existing check check

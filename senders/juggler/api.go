@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
@@ -18,12 +19,23 @@ import (
 )
 
 const (
-	getChecksURL   = "http://%s/api/checks/checks?%s"
-	updateCheckURL = "http://%s/api/checks/add_or_update?do=1"
-	sendEventURL   = "http://%s/juggler-fcgi.py?%s"
+	getChecksURL             = "http://%s/api/checks/checks?%s"
+	updateCheckURL           = "http://%s/api/checks/add_or_update?do=1"
+	sendEventURL             = "http://%s/juggler-fcgi.py?%s"
+	notificationsDescription = "autocreated by combaine (github.com/combaine)"
 )
 
-var defaultTags = []string{"combaine"}
+var (
+	defaultTags   = []string{"combaine"}
+	golemTemplate = json.RawMessage(
+		`{"template_name": "golem", "template_kwargs": {}, "description": "` + notificationsDescription + `"}`)
+	smsTemplate = json.RawMessage(
+		`{"template_name": "on_status_change", "template_kwargs": {
+"golem_responsible": true, "method": ["sms"], "status": [
+	{ "from": "OK", "to": "CRIT"}, { "from": "WARN", "to": "CRIT"},
+	{ "from": "CRIT", "to": "WARN"}, { "from": "CRIT", "to": "OK"}
+], "min_interval": 60 }, "description": "` + notificationsDescription + `"}`)
+)
 
 type jugglerResponse map[ /*hostname*/ string]map[ /*serviceName*/ string]jugglerCheck
 
@@ -48,9 +60,9 @@ type jugglerCheck struct {
 	Description      string                 `json:"description"`
 	Aggregator       string                 `json:"aggregator"`
 	AggregatorKWArgs json.RawMessage        `json:"aggregator_kwargs"`
+	Notifications    []json.RawMessage      `json:"notifications"`
 	TTL              int                    `json:"ttl"`
 	Tags             []string               `json:"tags"`
-	Methods          []string               `json:"methods"`
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
 	Namespace        string                 `json:"namespace"`
@@ -95,10 +107,11 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 	}
 	//do=1&include_children=true&tag_name=combaine&host_name={js.Host}
 	query := url.Values{
-		"do":               {"1"},
-		"include_children": {"true"},
-		"tag_name":         defaultTags, // for query all known combainer checks
-		"host_name":        {js.Host},
+		"do":                    {"1"},
+		"include_children":      {"true"},
+		"include_notifications": {"true"},
+		"tag_name":              defaultTags, // for query all known combainer checks
+		"host_name":             {js.Host},
 	}.Encode()
 
 	checkFetcher := func() ([]byte, error) {
@@ -203,7 +216,10 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 				return errors.Wrap(err, "ensureCheck")
 			}
 			// methods
-			js.ensureMethods(&check)
+			err = js.ensureNotifications(&check)
+			if err != nil {
+				return errors.Wrap(err, "ensureCheck")
+			}
 			// flap
 			js.ensureFlap(&check)
 			// tags
@@ -238,7 +254,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		// or before return in case updateCheck ends with error
 		if cleanCache {
 			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
-			GlobalCache.Delete(js.Host + js.CheckName)
+			GlobalCache.Delete(js.Host)
 		}
 	}()
 	for _, c := range services {
@@ -287,6 +303,7 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 	if checkKWArgs == "" {
 		checkKWArgs = "null"
 	}
+	// TODO(sakateka) add real tests, currently tested by reading logs
 	d, err := diff.New().Compare(configKWArgs, []byte(checkKWArgs))
 	if err != nil {
 		return errors.Wrapf(err, "ensureAggregator: Failed to unmarshal configKWArgs: %s, checkKWArgs: %s", configKWArgs, checkKWArgs)
@@ -311,37 +328,82 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 	return nil
 }
 
-func (js *Sender) ensureMethods(c *jugglerCheck) {
-	if len(js.Methods) == 0 {
-		if js.Method != "" {
-			js.Methods = strings.Split(js.Method, ",")
-			for idx, m := range js.Methods {
-				js.Methods[idx] = strings.ToUpper(strings.TrimSpace(m))
-			}
+func (js *Sender) ensureNotifications(c *jugglerCheck) error {
+	notifications := make([]json.RawMessage, 0) // allocate to avoid comparison with {description: null}
+
+	if js.Method != "" {
+		if len(js.Notifications) != 0 {
+			logger.Errf("%s 'Method' conflict with 'notifications', i'm ignore 'Method'", js.id)
 		} else {
-			js.Methods = []string{"GOLEM"}
-		}
-	}
-	methodsOutdated := false
-	if len(c.Methods) != len(js.Methods) {
-		methodsOutdated = true
-	} else {
-		checkMSet := make(map[string]struct{}, len(c.Methods))
-		for _, m := range c.Methods {
-			checkMSet[strings.ToUpper(m)] = struct{}{}
-		}
-		for _, m := range js.Methods {
-			if _, ok := checkMSet[m]; !ok {
-				methodsOutdated = true
-				break
+			logger.Infof("%s convert js.Method=%s to notifications", js.id, js.Method)
+			for _, m := range strings.Split(js.Method, ",") {
+				m = strings.TrimLeftFunc(m, unicode.IsSpace)
+				if len(m) > 0 {
+					m = strings.ToLower(m[:1])
+					switch m {
+					case "s":
+						notifications = append(notifications, smsTemplate)
+					case "g":
+						notifications = append(notifications, golemTemplate)
+					}
+				}
 			}
 		}
 	}
-	if methodsOutdated {
-		c.Update = true
-		logger.Infof("%s Check outdated, METHODS differ: %s != %s", js.id, c.Methods, js.Methods)
-		c.Methods = js.Methods
+
+	for idx := range js.Notifications {
+		n := js.Notifications[idx]
+		if _, ok := n["description"]; !ok {
+			n["description"] = notificationsDescription
+		}
+		notificationJSON, err := json.Marshal(n)
+		if err != nil {
+			return errors.Wrapf(err, "ensureNotifications: config.notifications[%d]=%#v", idx, n)
+		}
+		notifications = append(notifications, notificationJSON)
 	}
+
+	// TODO(sakateka) add real tests, currently tested by reading logs
+
+	c.Update = len(notifications) != len(c.Notifications)
+
+	if !c.Update {
+		nJSON, nErr := json.Marshal(map[string]interface{}{"notifications": notifications})
+		if nErr != nil {
+			return errors.Wrapf(nErr, "ensureNotifications: config.notifications=%#v", notifications)
+		}
+
+		if c.Notifications == nil {
+			c.Notifications = make([]json.RawMessage, 0) // allocate to avoid comparison with {notifications: null}
+		}
+		cJSON, cErr := json.Marshal(map[string]interface{}{"notifications": c.Notifications})
+		if cErr != nil {
+			return errors.Wrapf(cErr, "ensureNotifications: check.notifications=%#v", c.Notifications)
+		}
+
+		d, err := diff.New().Compare(nJSON, cJSON)
+		if err != nil {
+			return errors.Wrapf(err, "ensureNotifications: unmarshal nJSON: %s, cJSON: %s", nJSON, cJSON)
+		}
+		c.Update = d.Modified()
+		if c.Update {
+			f := &formatter.DeltaFormatter{PrintIndent: false}
+			diffString, err := f.Format(d)
+			if err != nil {
+				return errors.Wrap(err, "ensureNotifications: format diff")
+			}
+			diffString = diffString[:len(diffString)-1] // - \n
+			// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
+			logger.Infof("%s Check outdated, notifications differ: %s", js.id, diffString)
+		}
+	} else {
+		logger.Infof("%s Check outdated, len(notifications) not match: config=%d, from juggler=%d",
+			js.id, len(notifications), len(c.Notifications))
+	}
+	if c.Update {
+		c.Notifications = notifications
+	}
+	return nil
 }
 
 func (js *Sender) ensureFlap(c *jugglerCheck) {
