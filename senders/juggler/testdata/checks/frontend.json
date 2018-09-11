@@ -44,8 +44,8 @@
           "service": "upstream_timings"
         }
       ],
-      "methods": [
-        "GOLEM"
+      "notifications": [
+        {"template_name": "golem", "template_kwargs": {}, "description": "autocreated by combaine (github.com/combaine)"}
       ]
     },
     "ssl_handshake_timings": {

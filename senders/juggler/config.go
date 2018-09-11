@@ -28,9 +28,9 @@ type Config struct {
 	Plugin           string                       `codec:"plugin"`
 	Host             string                       `codec:"Host"`
 	Method           string                       `codec:"Method"`
-	Methods          []string                     `codec:"Methods"`
 	Aggregator       string                       `codec:"Aggregator"`
 	AggregatorKWArgs repository.PluginConfig      `codec:"aggregator_kwargs"`
+	Notifications    []repository.PluginConfig    `codec:"notifications"`
 	TTL              int                          `codec:"ttl"`
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
@@ -69,24 +69,11 @@ type SenderConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		PluginsDir:       "/etc/combaine/juggler/plugins",
-		Plugin:           "",
-		Host:             "",
-		Methods:          []string{},
-		Aggregator:       "",
 		AggregatorKWArgs: make(map[string]interface{}),
-		CheckName:        "",
-		Description:      "",
 		Tags:             []string{"combaine"},
 		Flap:             nil,
 		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
 		JPluginConfig:    repository.PluginConfig{},
-		JHosts:           []string{},
-		JFrontend:        []string{},
-		BatchEndpoint:    "",
-		OK:               []string{},
-		INFO:             []string{},
-		WARN:             []string{},
-		CRIT:             []string{},
 	}
 }
 
@@ -171,7 +158,11 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 		taskConf.BatchEndpoint = conf.BatchEndpoint
 	}
 	if taskConf.Aggregator == "" {
-		taskConf.Aggregator = "timed_more_than_limit_is_problem" // default
+		taskConf.Aggregator = "timed_more_than_limit_is_problem" // add default
+	}
+
+	if taskConf.Method == "" && len(taskConf.Notifications) == 0 {
+		taskConf.Method = "GOLEM" // add default
 	}
 	return nil
 }
