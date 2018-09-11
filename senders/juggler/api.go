@@ -385,7 +385,23 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 		if err != nil {
 			return errors.Wrapf(err, "ensureNotifications: unmarshal nJSON: %s, cJSON: %s", nJSON, cJSON)
 		}
-		c.Update = d.Modified()
+		if d.Modified() {
+			// the server may sort the notifications, thereby moving the elements :-(
+			// recheck for modifications
+			c.Update = false
+
+			// because the above is checked that the notification is arrays
+			arrDiff := d.Deltas()[0].(*diff.Array)
+		MODIFIED:
+			for _, adelta := range arrDiff.Deltas {
+				switch adelta.(type) {
+				case *diff.Moved:
+				default:
+					c.Update = true
+					break MODIFIED
+				}
+			}
+		}
 		if c.Update {
 			f := &formatter.DeltaFormatter{PrintIndent: false}
 			diffString, err := f.Format(d)

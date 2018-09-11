@@ -197,14 +197,20 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "Failed to read file %s, %s", fileName, err)
+				return
+			}
+			var tmpObject interface{}
+			if jsonUnmarshalErr := json.Unmarshal(resp, &tmpObject); jsonUnmarshalErr != nil {
+				panic(jsonUnmarshalErr)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(resp)
+			json.NewEncoder(w).Encode(tmpObject)
 		case "/api/checks/add_or_update":
 			reqBytes, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				w.WriteHeader(500)
 				fmt.Fprintln(w, err)
+				return
 			}
 			w.WriteHeader(200)
 			io.Copy(w, bytes.NewReader(reqBytes))
@@ -215,6 +221,7 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				w.WriteHeader(500)
 				fmt.Fprintln(w, err)
+				return
 			}
 			w.WriteHeader(200)
 			var batch jugglerBatchRequest
@@ -222,6 +229,7 @@ func TestMain(m *testing.M) {
 			if err != nil || batch.Events == nil {
 				w.WriteHeader(500)
 				fmt.Fprintln(w, errors.Errorf("Unmarshal batch failed %s", err))
+				return
 			}
 			var jResp jugglerBatchResponse
 			for _, e := range batch.Events {

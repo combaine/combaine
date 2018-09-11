@@ -78,8 +78,20 @@
           "service": "ssl_handshake_timings"
         }
       ],
-      "methods": [
-        "GOLEM"
+      "notifications": [
+        {"template_name": "golem", "template_kwargs": {}, "description": "autocreated by combaine (github.com/combaine)"},
+		{"template_name": "on_status_change",
+         "template_kwargs": {
+            "golem_responsible": true,
+            "method": ["sms"],
+            "status": [
+                { "from": "OK", "to": "CRIT"}, { "from": "WARN", "to": "CRIT"},
+                { "from": "CRIT", "to": "WARN"}, { "from": "CRIT", "to": "OK"}
+            ],
+            "min_interval": 60
+         },
+         "description": "autocreated by combaine (github.com/combaine)"
+        }
       ]
     },
     "4xx": {
