@@ -104,8 +104,8 @@ class Custom(object):
             cfg['logger'] = logger
 
             klass = self.all_custom_parsers[klass_name]
-            prevtime, currtime = task["PrevTime"], task["CurrTime"]
-            result = klass(cfg).aggregate_host(payload, prevtime, currtime)
+            prevtime, currtime, hostname = task["PrevTime"], task["CurrTime"], task["Meta"]["Host"]
+            result = klass(cfg).aggregate_host(payload, prevtime, currtime, hostname)
 
             if cfg.get("logHostResult", False):
                 logger.info("Aggregate host result %s: %s", task['Meta'], result)
