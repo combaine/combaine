@@ -2,13 +2,13 @@ package repository
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
 
 	"github.com/alecthomas/template"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -209,6 +209,18 @@ func (p *PluginConfig) Type() (typeName string, err error) {
 	}
 
 	return
+}
+
+// GetBool value if present or false
+func (p *PluginConfig) GetBool(key string) (bool, error) {
+	var val bool
+	if rawVal, ok := (*p)[key]; ok {
+		val, ok = rawVal.(bool)
+		if !ok {
+			return false, errors.Errorf("%s is not bool value", key)
+		}
+	}
+	return val, nil
 }
 
 // PluginConfigsUpdate update target PluginConfig with

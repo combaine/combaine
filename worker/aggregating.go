@@ -107,16 +107,11 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 				aggParsingResults = append(aggParsingResults, data)
 				subGroupParsingResults = append(subGroupParsingResults, data)
 
-				perHost, ok := cfg["perHost"]
-				if !ok {
-					continue
-				}
-				v, ok := perHost.(bool)
-				if !ok {
-					log.Error("'perHost' support only bool value")
-					continue
-				}
-				if !v {
+				perHost, err := cfg.GetBool("perHost")
+				if !perHost || err != nil {
+					if err != nil {
+						log.Errorf("skip per host aggregating: %s", err)
+					}
 					continue
 				}
 
@@ -135,6 +130,11 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 
 			if len(subGroupParsingResults) == 0 {
 				log.Infof("%s %s nothing aggregate", name, subGroup)
+				continue
+			}
+
+			skipPerDC, err := cfg.GetBool("skipPerDatacenter")
+			if skipPerDC && err == nil {
 				continue
 			}
 
