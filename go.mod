@@ -23,6 +23,7 @@ require (
 	github.com/mitchellh/mapstructure v0.0.0-20180511142126-bb74f1db0675
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0
+	github.com/samuel/go-zookeeper v0.0.0-20180130194729-c4fab1ac1bec
 	github.com/satori/go.uuid v1.2.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/sergi/go-diff v1.0.0 // indirect

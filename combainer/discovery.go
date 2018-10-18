@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/samuel/go-zookeeper/zk"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -28,6 +29,9 @@ func init() {
 		panic(err)
 	}
 	if err := RegisterFetcherLoader("rtc", newRTCFetcher); err != nil {
+		panic(err)
+	}
+	if err := RegisterFetcherLoader("zk", newZKFetcher); err != nil {
 		panic(err)
 	}
 }
@@ -93,22 +97,17 @@ func newPredefineFetcher(config repository.PluginConfig) (HostFetcher, error) {
 func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	hosts, ok := p.Clusters[groupname]
+	hostList, ok := p.Clusters[groupname]
 	if !ok {
 		return nil, fmt.Errorf("hosts for group `%s` are not specified", groupname)
 	}
-	return hosts, nil
+	return hostList, nil
 }
 
 // SimpleFetcher recive plain text with tab separated fields
 // it expect format `fqdn\tdatacenter`
 // or json configured by Format config
 type SimpleFetcher struct {
-	SimpleFetcherConfig
-}
-
-// SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
-type SimpleFetcherConfig struct {
 	Separator   string
 	Format      string
 	ReadTimeout int64
@@ -118,30 +117,29 @@ type SimpleFetcherConfig struct {
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
 func newHTTPFetcher(config repository.PluginConfig) (HostFetcher, error) {
-	var fetcherConfig SimpleFetcherConfig
-	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+	var fetcher SimpleFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
 
-	if fetcherConfig.Separator == "" {
-		fetcherConfig.Separator = "\t"
+	if fetcher.Separator == "" {
+		fetcher.Separator = "\t"
 	}
-	if fetcherConfig.ReadTimeout <= 0 {
-		fetcherConfig.ReadTimeout = 10
-	}
-
-	if fetcherConfig.Options == nil {
-		fetcherConfig.Options = make(map[string]string)
-	}
-	if _, ok := fetcherConfig.Options["fqdn_key_name"]; !ok {
-		fetcherConfig.Options["fqdn_key_name"] = "fqdn"
-	}
-	if _, ok := fetcherConfig.Options["dc_key_name"]; !ok {
-		fetcherConfig.Options["dc_key_name"] = "root_datacenter_name"
+	if fetcher.ReadTimeout <= 0 {
+		fetcher.ReadTimeout = 10
 	}
 
-	f := &SimpleFetcher{SimpleFetcherConfig: fetcherConfig}
-	return f, nil
+	if fetcher.Options == nil {
+		fetcher.Options = make(map[string]string)
+	}
+	if _, ok := fetcher.Options["fqdn_key_name"]; !ok {
+		fetcher.Options["fqdn_key_name"] = "fqdn"
+	}
+	if _, ok := fetcher.Options["dc_key_name"]; !ok {
+		fetcher.Options["dc_key_name"] = "root_datacenter_name"
+	}
+
+	return &fetcher, nil
 }
 
 // Fetch resolve the group name in the list of hosts
@@ -152,7 +150,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
 
-	fetcher := func() ([]byte, error) {
+	fetcher := func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(
 			context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 		)
@@ -184,9 +182,9 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	// Body parsing
 	switch s.Format {
 	case "json":
-		return s.parseJSON(body)
+		return s.parseJSON(body.([]byte))
 	default:
-		return s.parseTSV(body)
+		return s.parseTSV(body.([]byte))
 	}
 }
 
@@ -244,11 +242,6 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 
 // RTCFetcher recive hosts from RTC groups
 type RTCFetcher struct {
-	RTCFetcherConfig
-}
-
-// RTCFetcherConfig ...
-type RTCFetcherConfig struct {
 	ReadTimeout int64
 	Geo         []string `mapstructure:"geo"`
 	BasicURL    string   `mapstructure:"BasicUrl"`
@@ -256,20 +249,19 @@ type RTCFetcherConfig struct {
 
 // newRTCFetcher return list of hosts fethed from http discovery service
 func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
-	var fetcherConfig RTCFetcherConfig
-	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+	var fetcher RTCFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
 
-	if fetcherConfig.ReadTimeout <= 0 {
-		fetcherConfig.ReadTimeout = 10
+	if fetcher.ReadTimeout <= 0 {
+		fetcher.ReadTimeout = 10
 	}
-	if len(fetcherConfig.Geo) == 0 {
+	if len(fetcher.Geo) == 0 {
 		return nil, common.ErrRTCGeoMissing
 	}
 
-	f := &RTCFetcher{RTCFetcherConfig: fetcherConfig}
-	return f, nil
+	return &fetcher, nil
 }
 
 // Fetch resolve the group name in the list of hosts
@@ -284,7 +276,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
 
-		fetcher := func() ([]byte, error) {
+		fetcher := func() (interface{}, error) {
 			ctx, cancel := context.WithTimeout(
 				context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 			)
@@ -313,7 +305,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 			log.Errorf("Cache.Get failed for: %s", urlGeo)
 			continue
 		}
-		hostnames, err := s.parseJSON(body)
+		hostnames, err := s.parseJSON(body.([]byte))
 		if err != nil {
 			log.Errorf("Failed to parse response: %s", err)
 		}
@@ -340,9 +332,66 @@ func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
 		return nil, err
 	}
 
-	hosts := make([]string, len(resp.Items))
+	hostList := make([]string, len(resp.Items))
 	for idx, item := range resp.Items {
-		hosts[idx] = item.Hostname
+		hostList[idx] = item.Hostname
 	}
-	return hosts, nil
+	return hostList, nil
+}
+
+// ZKFetcher recive hosts from ZK dir
+type ZKFetcher struct {
+	Servers   []string `mapstructure:"servers"`
+	Path      string   `mapstructure:"path"`
+	StripPort bool     `mapstructure:"strip_port"`
+}
+
+// newZKFetcher return list of hosts fetched from zk discovery service
+func newZKFetcher(config repository.PluginConfig) (HostFetcher, error) {
+	var fetcher ZKFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
+		return nil, err
+	}
+	return &fetcher, nil
+}
+
+func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "ZKFetcher")
+
+	var response = make(hosts.Hosts)
+
+	url := "zk://" + strings.Join(s.Servers, ",") + "/" + s.Path
+	fetcher := func() (interface{}, error) {
+
+		conn, _, err := zk.Connect(s.Servers, time.Second*10, zk.WithLogger(log))
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+
+		list, _, err := conn.Children(s.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		return list, nil
+	}
+
+	listIface, err := combainerCache.Get(groupname, url, fetcher)
+	list := listIface.([]string)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.StripPort {
+		for idx, item := range list {
+			delimIdx := strings.LastIndex(item, ":")
+			if delimIdx > -1 {
+				list[idx] = item[:delimIdx]
+			}
+		}
+	}
+
+	response["unk"] = list
+	return response, nil
 }

@@ -10,7 +10,7 @@ import (
 // item holds cached item
 type itemType struct {
 	expires time.Time
-	value   []byte
+	value   interface{}
 	err     error
 	ready   chan struct{}
 }
@@ -46,10 +46,10 @@ func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration, cleanupA
 	c.Unlock()
 }
 
-type fetcher func() ([]byte, error)
+type fetcher func() (interface{}, error)
 
 // Get return not expired element from cacahe or nil
-func (c *TTLCache) Get(id string, key string, f fetcher) ([]byte, error) {
+func (c *TTLCache) Get(id string, key string, f fetcher) (interface{}, error) {
 	c.Lock()
 	item := c.store[key]
 	if item == nil {
