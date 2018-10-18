@@ -378,10 +378,11 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	}
 
 	listIface, err := combainerCache.Get(groupname, url, fetcher)
-	list := listIface.([]string)
 	if err != nil {
 		return nil, err
 	}
+
+	list := listIface.([]string)
 
 	if s.StripPort {
 		for idx, item := range list {
