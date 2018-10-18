@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/samuel/go-zookeeper/zk"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -28,6 +29,9 @@ func init() {
 		panic(err)
 	}
 	if err := RegisterFetcherLoader("rtc", newRTCFetcher); err != nil {
+		panic(err)
+	}
+	if err := RegisterFetcherLoader("zk", newZKFetcher); err != nil {
 		panic(err)
 	}
 }
@@ -93,11 +97,11 @@ func newPredefineFetcher(config repository.PluginConfig) (HostFetcher, error) {
 func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	hosts, ok := p.Clusters[groupname]
+	hostList, ok := p.Clusters[groupname]
 	if !ok {
 		return nil, fmt.Errorf("hosts for group `%s` are not specified", groupname)
 	}
-	return hosts, nil
+	return hostList, nil
 }
 
 // SimpleFetcher recive plain text with tab separated fields
@@ -152,7 +156,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
 
-	fetcher := func() ([]byte, error) {
+	fetcher := func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(
 			context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 		)
@@ -184,9 +188,9 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	// Body parsing
 	switch s.Format {
 	case "json":
-		return s.parseJSON(body)
+		return s.parseJSON(body.([]byte))
 	default:
-		return s.parseTSV(body)
+		return s.parseTSV(body.([]byte))
 	}
 }
 
@@ -284,7 +288,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
 
-		fetcher := func() ([]byte, error) {
+		fetcher := func() (interface{}, error) {
 			ctx, cancel := context.WithTimeout(
 				context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 			)
@@ -313,7 +317,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 			log.Errorf("Cache.Get failed for: %s", urlGeo)
 			continue
 		}
-		hostnames, err := s.parseJSON(body)
+		hostnames, err := s.parseJSON(body.([]byte))
 		if err != nil {
 			log.Errorf("Failed to parse response: %s", err)
 		}
@@ -340,9 +344,73 @@ func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
 		return nil, err
 	}
 
-	hosts := make([]string, len(resp.Items))
+	hostList := make([]string, len(resp.Items))
 	for idx, item := range resp.Items {
-		hosts[idx] = item.Hostname
+		hostList[idx] = item.Hostname
 	}
-	return hosts, nil
+	return hostList, nil
+}
+
+// ZKFetcher recive hosts from ZK dir
+type ZKFetcher struct {
+	ZKFetcherConfig
+}
+
+// ZKFetcherConfig ...
+type ZKFetcherConfig struct {
+	Servers   []string `mapstructure:"servers"`
+	Path      string   `mapstructure:"path"`
+	StripPort bool     `mapstructure:"strip_port"`
+}
+
+// newZKFetcher return list of hosts fetched from zk discovery service
+func newZKFetcher(config repository.PluginConfig) (HostFetcher, error) {
+	var fetcherConfig ZKFetcherConfig
+	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+		return nil, err
+	}
+
+	f := &ZKFetcher{ZKFetcherConfig: fetcherConfig}
+	return f, nil
+}
+
+func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "ZKFetcher")
+
+	var response = make(hosts.Hosts)
+
+	url := "zk://" + strings.Join(s.Servers, ",") + "/" + s.Path
+	fetcher := func() (interface{}, error) {
+
+		conn, _, err := zk.Connect(s.Servers, time.Second * 10, zk.WithLogger(log))
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+
+		list, _, err := conn.Children(s.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		return list, nil
+	}
+
+	listIface, err := combainerCache.Get(groupname, url, fetcher)
+	list := listIface.([]string)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.StripPort {
+		for idx, item := range list {
+			delimIdx := strings.LastIndex(item, ":")
+			if delimIdx > -1 {
+				list[idx] = item[:delimIdx]
+			}
+		}
+	}
+
+	response["unk"] = list
+	return response, nil
 }
