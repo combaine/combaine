@@ -114,7 +114,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		"host_name":             {js.Host},
 	}.Encode()
 
-	checkFetcher := func() (interface{}, error) {
+	checkFetcher := func() ([]byte, error) {
 		var jerrors []error
 		var cancel func()
 
@@ -154,17 +154,17 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		}
 		return nil, errors.Errorf("getCheck: Failed to get juggler check: %q", jerrors)
 	}
-	cJSON, err := GlobalCache.Get(js.id, js.Host, checkFetcher)
+	cJSON, err := GlobalCache.GetBytes(js.id, js.Host, checkFetcher)
 	if err != nil {
 		return nil, errors.Wrap(err, "getCheck")
 	}
 	var hostChecks jugglerResponse
-	if err := json.Unmarshal(cJSON.([]byte), &hostChecks); err != nil {
+	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
 		logger.Errf("Failed to Unmarshal hostChecks: %s", err)
 		hostChecks = jugglerResponse{js.Host: make(map[string]jugglerCheck)}
 	}
 	var flap map[string]map[string]*jugglerFlapConfig
-	if err := json.Unmarshal(cJSON.([]byte), &flap); err != nil {
+	if err := json.Unmarshal(cJSON, &flap); err != nil {
 		logger.Errf("Failed to Unmarshal flaps: %s", err)
 		flap = map[string]map[string]*jugglerFlapConfig{
 			js.Host: make(map[string]*jugglerFlapConfig),
