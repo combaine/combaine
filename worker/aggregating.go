@@ -133,11 +133,8 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 				continue
 			}
 
-			perDC, err := cfg.GetBool("perDatacenter")
-			if !perDC || err != nil {
-				if err != nil {
-					log.Errorf("skip per Datacenter aggregating: %s", err)
-				}
+			skipPerDC, err := cfg.GetBool("skipPerDatacenter")
+			if skipPerDC && err == nil {
 				continue
 			}
 
