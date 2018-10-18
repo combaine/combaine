@@ -122,30 +122,29 @@ type SimpleFetcherConfig struct {
 
 // newHTTPFetcher return list of hosts fethed from http discovery service
 func newHTTPFetcher(config repository.PluginConfig) (HostFetcher, error) {
-	var fetcherConfig SimpleFetcherConfig
-	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+	var fetcher SimpleFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
 
-	if fetcherConfig.Separator == "" {
-		fetcherConfig.Separator = "\t"
+	if fetcher.Separator == "" {
+		fetcher.Separator = "\t"
 	}
-	if fetcherConfig.ReadTimeout <= 0 {
-		fetcherConfig.ReadTimeout = 10
-	}
-
-	if fetcherConfig.Options == nil {
-		fetcherConfig.Options = make(map[string]string)
-	}
-	if _, ok := fetcherConfig.Options["fqdn_key_name"]; !ok {
-		fetcherConfig.Options["fqdn_key_name"] = "fqdn"
-	}
-	if _, ok := fetcherConfig.Options["dc_key_name"]; !ok {
-		fetcherConfig.Options["dc_key_name"] = "root_datacenter_name"
+	if fetcher.ReadTimeout <= 0 {
+		fetcher.ReadTimeout = 10
 	}
 
-	f := &SimpleFetcher{SimpleFetcherConfig: fetcherConfig}
-	return f, nil
+	if fetcher.Options == nil {
+		fetcher.Options = make(map[string]string)
+	}
+	if _, ok := fetcher.Options["fqdn_key_name"]; !ok {
+		fetcher.Options["fqdn_key_name"] = "fqdn"
+	}
+	if _, ok := fetcher.Options["dc_key_name"]; !ok {
+		fetcher.Options["dc_key_name"] = "root_datacenter_name"
+	}
+
+	return &fetcher, nil
 }
 
 // Fetch resolve the group name in the list of hosts
@@ -260,20 +259,19 @@ type RTCFetcherConfig struct {
 
 // newRTCFetcher return list of hosts fethed from http discovery service
 func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
-	var fetcherConfig RTCFetcherConfig
-	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+	var fetcher RTCFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
 
-	if fetcherConfig.ReadTimeout <= 0 {
-		fetcherConfig.ReadTimeout = 10
+	if fetcher.ReadTimeout <= 0 {
+		fetcher.ReadTimeout = 10
 	}
-	if len(fetcherConfig.Geo) == 0 {
+	if len(fetcher.Geo) == 0 {
 		return nil, common.ErrRTCGeoMissing
 	}
 
-	f := &RTCFetcher{RTCFetcherConfig: fetcherConfig}
-	return f, nil
+	return &fetcher, nil
 }
 
 // Fetch resolve the group name in the list of hosts
@@ -365,13 +363,11 @@ type ZKFetcherConfig struct {
 
 // newZKFetcher return list of hosts fetched from zk discovery service
 func newZKFetcher(config repository.PluginConfig) (HostFetcher, error) {
-	var fetcherConfig ZKFetcherConfig
-	if err := mapstructure.Decode(config, &fetcherConfig); err != nil {
+	var fetcher ZKFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
-
-	f := &ZKFetcher{ZKFetcherConfig: fetcherConfig}
-	return f, nil
+	return &fetcher, nil
 }
 
 func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
@@ -382,7 +378,7 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	url := "zk://" + strings.Join(s.Servers, ",") + "/" + s.Path
 	fetcher := func() (interface{}, error) {
 
-		conn, _, err := zk.Connect(s.Servers, time.Second * 10, zk.WithLogger(log))
+		conn, _, err := zk.Connect(s.Servers, time.Second*10, zk.WithLogger(log))
 		if err != nil {
 			return nil, err
 		}
