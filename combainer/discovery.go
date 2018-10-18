@@ -108,11 +108,6 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 // it expect format `fqdn\tdatacenter`
 // or json configured by Format config
 type SimpleFetcher struct {
-	SimpleFetcherConfig
-}
-
-// SimpleFetcherConfig contains parmeters from 'parsing' section of the combainer config
-type SimpleFetcherConfig struct {
 	Separator   string
 	Format      string
 	ReadTimeout int64
@@ -247,11 +242,6 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 
 // RTCFetcher recive hosts from RTC groups
 type RTCFetcher struct {
-	RTCFetcherConfig
-}
-
-// RTCFetcherConfig ...
-type RTCFetcherConfig struct {
 	ReadTimeout int64
 	Geo         []string `mapstructure:"geo"`
 	BasicURL    string   `mapstructure:"BasicUrl"`
@@ -351,11 +341,6 @@ func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
 
 // ZKFetcher recive hosts from ZK dir
 type ZKFetcher struct {
-	ZKFetcherConfig
-}
-
-// ZKFetcherConfig ...
-type ZKFetcherConfig struct {
 	Servers   []string `mapstructure:"servers"`
 	Path      string   `mapstructure:"path"`
 	StripPort bool     `mapstructure:"strip_port"`
