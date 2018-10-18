@@ -150,7 +150,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
 
-	fetcher := func() (interface{}, error) {
+	fetcher := func() ([]byte, error) {
 		ctx, cancel := context.WithTimeout(
 			context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 		)
@@ -174,7 +174,7 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		}
 		return body, nil
 	}
-	body, err := combainerCache.Get(groupname, url, fetcher)
+	body, err := combainerCache.GetBytes(groupname, url, fetcher)
 	if err != nil {
 		return nil, err
 	}
@@ -182,9 +182,9 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	// Body parsing
 	switch s.Format {
 	case "json":
-		return s.parseJSON(body.([]byte))
+		return s.parseJSON(body)
 	default:
-		return s.parseTSV(body.([]byte))
+		return s.parseTSV(body)
 	}
 }
 
@@ -276,7 +276,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
 
-		fetcher := func() (interface{}, error) {
+		fetcher := func() ([]byte, error) {
 			ctx, cancel := context.WithTimeout(
 				context.Background(), time.Duration(s.ReadTimeout)*time.Second,
 			)
@@ -300,12 +300,12 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 			}
 			return body, nil
 		}
-		body, err := combainerCache.Get(groupname, urlGeo, fetcher)
+		body, err := combainerCache.GetBytes(groupname, urlGeo, fetcher)
 		if err != nil {
 			log.Errorf("Cache.Get failed for: %s", urlGeo)
 			continue
 		}
-		hostnames, err := s.parseJSON(body.([]byte))
+		hostnames, err := s.parseJSON(body)
 		if err != nil {
 			log.Errorf("Failed to parse response: %s", err)
 		}
@@ -361,7 +361,7 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	var response = make(hosts.Hosts)
 
 	url := "zk://" + strings.Join(s.Servers, ",") + "/" + s.Path
-	fetcher := func() (interface{}, error) {
+	fetcher := func() ([]string, error) {
 
 		conn, _, err := zk.Connect(s.Servers, time.Second*10, zk.WithLogger(log))
 		if err != nil {
@@ -377,12 +377,10 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return list, nil
 	}
 
-	listIface, err := combainerCache.Get(groupname, url, fetcher)
+	list, err := combainerCache.GetStrings(groupname, url, fetcher)
 	if err != nil {
 		return nil, err
 	}
-
-	list := listIface.([]string)
 
 	if s.StripPort {
 		for idx, item := range list {

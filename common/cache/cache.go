@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -47,9 +48,11 @@ func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration, cleanupA
 }
 
 type fetcher func() (interface{}, error)
+type bytesFetcher func() ([]byte, error)
+type stringsFetcher func() ([]string, error)
 
 // Get return not expired element from cacahe or nil
-func (c *TTLCache) Get(id string, key string, f fetcher) (interface{}, error) {
+func (c *TTLCache) get(id string, key string, f fetcher) (interface{}, error) {
 	c.Lock()
 	item := c.store[key]
 	if item == nil {
@@ -92,6 +95,30 @@ func (c *TTLCache) Get(id string, key string, f fetcher) (interface{}, error) {
 		}()
 	}
 	return item.value, item.err
+}
+
+func (c *TTLCache) GetBytes(id string, key string, f bytesFetcher) ([]byte, error) {
+	rawData, err := c.get(id, key, func() (interface{}, error) { return f() })
+	if err != nil {
+		return nil, err
+	}
+	data, ok := rawData.([]byte)
+	if !ok {
+		return nil, errors.New("data is not []bytes")
+	}
+	return data, nil
+}
+
+func (c *TTLCache) GetStrings(id string, key string, f stringsFetcher) ([]string, error) {
+	rawData, err := c.get(id, key, func() (interface{}, error) { return f() })
+	if err != nil {
+		return nil, err
+	}
+	data, ok := rawData.([]string)
+	if !ok {
+		return nil, errors.New("data is not []string")
+	}
+	return data, nil
 }
 
 // Delete element in the TTLCache
