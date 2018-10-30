@@ -10,6 +10,7 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 	tests "github.com/combaine/combaine/testdata"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,8 +42,8 @@ func TestParsing(t *testing.T) {
 	var aggregationConfig2 repository.AggregationConfig
 	assert.NoError(t, acfg.Decode(&aggregationConfig2))
 
-	encParsingConfig, _ := common.Pack(parsingConfig)
-	encAggregationConfigs, _ := common.Pack(map[string]repository.AggregationConfig{
+	encParsingConfig, _ := utils.Pack(parsingConfig)
+	encAggregationConfigs, _ := utils.Pack(map[string]repository.AggregationConfig{
 		aggConf:  aggregationConfig1,
 		moreConf: aggregationConfig2,
 	})
@@ -87,9 +88,9 @@ func TestParsing(t *testing.T) {
 			}
 
 			var r map[string]interface{}
-			assert.NoError(t, common.Unpack(k[1].([]byte), &r))
+			assert.NoError(t, utils.Unpack(k[1].([]byte), &r))
 			var payload common.FetcherTask
-			assert.NoError(t, common.Unpack([]byte(r["Data"].(string)), &payload))
+			assert.NoError(t, utils.Unpack([]byte(r["Data"].(string)), &payload))
 
 			key := payload.Target
 			cfg := r["Config"].(map[string]interface{})
@@ -121,7 +122,7 @@ func TestParsing(t *testing.T) {
 	assert.Equal(t, expectedResultLen, len(res.Data))
 	for _, v := range res.Data {
 		var i map[string]interface{}
-		assert.NoError(t, common.Unpack(v, &i))
+		assert.NoError(t, utils.Unpack(v, &i))
 		assert.Equal(t, parsingTask.Frame.Current, i["CurrTime"].(int64))
 		assert.Equal(t, parsingTask.Id, i["Id"].(string))
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 )
 
 var (
@@ -183,7 +184,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 			s.prefix = aPrefix[1] + "."
 		}
 
-		host, err = common.GetSubgroupName(item.Tags)
+		host, err = utils.GetSubgroupName(item.Tags)
 		if err != nil {
 			err = fmt.Errorf("skip task: %s", err)
 			continue

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 )
@@ -89,7 +90,7 @@ func (c *CombaineServer) Serve() error {
 		fetcherConfig = c.CombainerConfig.CloudSection.HostFetcher
 	}
 
-	f, err := LoadHostFetcher(fetcherConfig)
+	f, err := common.LoadHostFetcherWithCache(fetcherConfig, combainerCache)
 	if err != nil {
 		return err
 	}

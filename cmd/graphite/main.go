@@ -7,6 +7,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders/graphite"
+	"github.com/combaine/combaine/utils"
 )
 
 var (
@@ -38,7 +39,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	raw := <-request.Read()
 	var task graphiteTask
-	err := common.Unpack(raw, &task)
+	err := utils.Unpack(raw, &task)
 	if err != nil {
 		logger.Errf("%s Failed to unpack graphite task %s", task.ID, err)
 		response.ErrorMsg(-100, err.Error())

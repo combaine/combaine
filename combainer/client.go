@@ -19,6 +19,7 @@ import (
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
+	"github.com/combaine/combaine/utils"
 )
 
 type sessionParams struct {
@@ -63,7 +64,7 @@ func NewClient(opt ...func(*Client) error) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	id := common.GenerateClientID()
+	id := utils.GenerateClientID()
 	c := &Client{ID: id, conn: conn, aggConn: aggConn}
 
 	for _, f := range opt {
@@ -108,7 +109,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	log.Infof("updating config metahost: %s", parsingConfig.Metahost)
 
-	hostFetcher, err := LoadHostFetcher(parsingConfig.HostFetcher)
+	hostFetcher, err := common.LoadHostFetcherWithCache(parsingConfig.HostFetcher, combainerCache)
 	if err != nil {
 		log.Errorf("Unable to construct SimpleFetcher: %s", err)
 		return
@@ -139,9 +140,9 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	}
 
 	// TODO: replace with more effective tinylib/msgp
-	packedParsingConfig, _ := common.Pack(parsingConfig)
-	packedAggregationConfigs, _ := common.Pack(aggregationConfigs)
-	packedHosts, _ := common.Pack(allHosts)
+	packedParsingConfig, _ := utils.Pack(parsingConfig)
+	packedAggregationConfigs, _ := utils.Pack(aggregationConfigs)
+	packedHosts, _ := utils.Pack(allHosts)
 
 	// Tasks for parsing
 	pTasks := make([]rpc.ParsingTask, len(listOfHosts))
@@ -157,7 +158,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 
 	aggTasks := make([]rpc.AggregatingTask, len(parsingConfig.AggConfigs))
 	for idx, name := range parsingConfig.AggConfigs {
-		packedAggregationConfig, _ := common.Pack((*aggregationConfigs)[name])
+		packedAggregationConfig, _ := utils.Pack((*aggregationConfigs)[name])
 		aggTasks[idx] = rpc.AggregatingTask{
 			Frame:                    new(rpc.TimeFrame),
 			Config:                   name,

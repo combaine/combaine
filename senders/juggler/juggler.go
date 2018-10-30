@@ -18,6 +18,7 @@ import (
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -119,7 +120,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 
 				b := jugglerBatchRequest{
 					Events: je,
-					Source: "combainer " + common.Hostname(),
+					Source: "combainer " + utils.Hostname(),
 				}
 				batchJSON, err := json.Marshal(b)
 

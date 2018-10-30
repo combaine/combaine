@@ -7,6 +7,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/rpc"
@@ -92,7 +93,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 					log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
 					return
 				}
-				t, err := common.Pack(map[string]interface{}{
+				t, err := utils.Pack(map[string]interface{}{
 					"Config": v,
 					"Data":   blob,
 					// TODO define task structure in common

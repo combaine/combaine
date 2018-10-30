@@ -12,6 +12,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders/razladki"
+	"github.com/combaine/combaine/utils"
 )
 
 const (
@@ -65,7 +66,7 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 
 	raw := <-request.Read()
 	var task razladkiTask
-	err := common.Unpack(raw, &task)
+	err := utils.Unpack(raw, &task)
 	if err != nil {
 		response.ErrorMsg(-100, err.Error())
 		return

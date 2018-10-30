@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
 )
@@ -29,6 +30,7 @@ type eventHistory struct {
 
 type pluginEventsStoreConfig struct {
 	Cluster  string
+	Fetcher  repository.PluginConfig
 	Timeout  uint
 	Database string
 	AuthDB   string
@@ -71,9 +73,11 @@ func (s *pluginEventsStore) Connect() error {
 	}
 	s.session.SetMode(mgo.Eventual, true)
 
-	err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
-	if err != nil {
-		return errors.Wrap(err, "mongo login")
+	if s.config.User != "" {
+		err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
+		if err != nil {
+			return errors.Wrap(err, "mongo login")
+		}
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -171,13 +172,13 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 			errs[fmt.Sprintf("Missing tag type for %s", name)] = ""
 			return
 		}
-		subgroup, err := common.GetSubgroupName(je.taskTags)
+		subgroup, err := utils.GetSubgroupName(je.taskTags)
 		if err != nil {
 			errs[fmt.Sprintf("Failed to get subgroup for %s: %s", name, err)] = ""
 			return
 		}
 		// set je.Host, we want set js.Host-subgroup
-		// see common.GetSubgroupName implementation for futher details
+		// see utils.GetSubgroupName implementation for futher details
 		je.Host = js.Host + "-" + subgroup
 		if je.Description = lua.LVAsString(lt.RawGetString("description")); je.Description == "" {
 			je.Description = "no trigger description"

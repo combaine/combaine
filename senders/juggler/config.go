@@ -5,8 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -118,9 +120,6 @@ func GetSenderConfig() (*SenderConfig, error) {
 	if sConf.BatchSize == 0 {
 		sConf.BatchSize = defaultBatchSize
 	}
-	if sConf.Store.Timeout == 0 {
-		sConf.Store.Timeout = defaultStoreTimeout
-	}
 	if sConf.PluginsDir == "" {
 		sConf.PluginsDir = defaultPluginsDir
 	}
@@ -132,6 +131,23 @@ func GetSenderConfig() (*SenderConfig, error) {
 	}
 	sConf.CacheTTL *= time.Second
 	sConf.CacheCleanInterval *= time.Second
+	// load store configs
+	if _, err := sConf.Store.Fetcher.Type(); err == nil {
+		fetcher, err := common.LoadHostFetcher(sConf.Store.Fetcher)
+		if err != nil {
+			return nil, err
+		}
+		hosts, err := fetcher.Fetch(sConf.Store.Cluster)
+		if err != nil {
+			return nil, err
+		}
+		sConf.Store.Cluster = strings.Join(hosts.AllHosts(), ",")
+
+	}
+	if sConf.Store.Timeout == 0 {
+		sConf.Store.Timeout = defaultStoreTimeout
+	}
+
 	return &sConf, nil
 }
 

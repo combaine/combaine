@@ -8,6 +8,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders/juggler"
+	"github.com/combaine/combaine/utils"
 	"github.com/globalsign/mgo"
 )
 
@@ -27,7 +28,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 
 	raw := <-request.Read()
 	var task senderTask
-	err := common.Unpack(raw, &task)
+	err := utils.Unpack(raw, &task)
 	if err != nil {
 		logger.Errf("%s Failed to unpack task %s", task.ID, err)
 		return
@@ -57,11 +58,12 @@ func main() {
 	}
 	session.SetMode(mgo.Eventual, true)
 
-	err = session.DB(cfg.Store.AuthDB).Login(cfg.Store.User, cfg.Store.Password)
-	if err != nil {
-		log.Fatalf("Failed to login mongo %s", err)
+	if cfg.Store.User != "" {
+		err = session.DB(cfg.Store.AuthDB).Login(cfg.Store.User, cfg.Store.Password)
+		if err != nil {
+			log.Fatalf("Failed to login mongo %s", err)
+		}
 	}
-
 	binds := map[string]cocaine.EventHandler{
 		"send": send,
 	}
