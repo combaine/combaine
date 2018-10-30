@@ -5,6 +5,7 @@ require (
 	github.com/armon/go-metrics v0.0.0-20180620213357-58588f401c2c
 	github.com/cocaine/cocaine-framework-go v0.0.0-20160727160248-a071d9bf57bb
 	github.com/davecgh/go-spew v0.0.0-20180221174620-8991bc29aa16
+	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/golang/protobuf v1.1.0
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
@@ -40,6 +41,5 @@ require (
 	golang.org/x/text v0.3.0
 	google.golang.org/genproto v0.0.0-20180608181217-32ee49c4dd80
 	google.golang.org/grpc v1.13.0
-	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528
 	gopkg.in/yaml.v2 v2.2.1
 )

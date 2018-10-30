@@ -2,11 +2,11 @@ package juggler
 
 import (
 	"github.com/combaine/combaine/common/logger"
+	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
-	mgo "gopkg.in/mgo.v2"
 )
 
-// juggler events history
+// EventsStore juggler events history
 type EventsStore interface {
 	// Connect store
 	Connect() error
@@ -21,7 +21,7 @@ type pluginEventsStore struct {
 }
 
 type eventHistory struct {
-	Id     string `bson:"_id"`
+	ID     string `bson:"_id"`
 	Events []string
 }
 
@@ -88,7 +88,7 @@ func (s *pluginEventsStore) Push(key, event string, history int) ([]string, erro
 	c := s.session.DB(s.config.Database).C("events")
 	err := c.FindId(key).One(&result)
 	if err != nil {
-		result.Id = key
+		result.ID = key
 		result.Events = []string{event}
 		err = c.Insert(result)
 		if err != nil {
