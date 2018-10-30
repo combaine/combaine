@@ -13,7 +13,7 @@ import (
 )
 
 type senderTask struct {
-	ID     string
+	ID     string `codec:"Id"`
 	Data   []common.AggregationResult
 	Config juggler.Config
 }
@@ -33,15 +33,17 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to unpack task %s", task.ID, err)
 		return
 	}
-	logger.Debugf("%s Task: %v", task.ID, task.Data)
+	logger.Debugf("%s Task len: %v documents", task.ID, len(task.Data))
 	c := session.DB(cfg.Store.Database).C(task.Config.Namespace)
-	if err = c.Insert(task.Data); err != nil {
-		// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
-		session.Refresh()
-		logger.Errf("%s Failed to insert %s.%s: %s", task.ID, cfg.Store.Database, task.Config.Namespace, err)
-	} else {
-		response.Write("DONE")
+	for _, d := range task.Data {
+		if err = c.Insert(d); err != nil {
+			// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
+			session.Refresh()
+			logger.Errf("%s Failed to insert %s.%s: %s", task.ID, cfg.Store.Database, task.Config.Namespace, err)
+		}
 	}
+
+	response.Write("DONE")
 }
 
 func main() {
