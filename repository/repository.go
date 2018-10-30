@@ -1,13 +1,11 @@
 package repository
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
 
-	"github.com/alecthomas/template"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
@@ -72,13 +70,6 @@ func GetAggregationConfigs(pConfig *ParsingConfig, pName string) (*map[string]Ag
 			// going data processing on without config
 			logrus.Errorf("Unable to read aggregation config %s, %s", name, err)
 			return nil, err
-		}
-
-		if len(pConfig.Placeholders) > 0 {
-			content, err = content.Generate(&pConfig.Placeholders)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		var aggConfig AggregationConfig
@@ -234,19 +225,4 @@ func PluginConfigsUpdate(target *PluginConfig, source *PluginConfig) {
 // Decode Unmarshal yaml config
 func (e *EncodedConfig) Decode(inplace interface{}) error {
 	return yaml.Unmarshal(*e, inplace)
-}
-
-// Generate build new EncodedConfig
-func (e *EncodedConfig) Generate(placeholders *map[string]interface{}) (EncodedConfig, error) {
-	t, err := template.New("name").Parse(string(*e))
-	if err != nil {
-		return nil, err
-	}
-
-	b := new(bytes.Buffer)
-	if err = t.Execute(b, placeholders); err != nil {
-		return nil, err
-	}
-
-	return b.Bytes(), nil
 }

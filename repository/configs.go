@@ -53,13 +53,12 @@ type CombainerConfig struct {
 	CloudSection     `yaml:"cloud_config"`
 }
 
-// AggregationConfig represent serction aggregation
-// from combainer cilent config
+// AggregationConfig represent aggregation section from combainer client config
 type AggregationConfig struct {
+	// Configuration of data handlers (aka parsers)
+	Data map[string]PluginConfig `yaml:"data"`
 	// Configuration of possible senders
 	Senders map[string]PluginConfig `yaml:"senders"`
-	// Configuration of data habdlers
-	Data map[string]PluginConfig `yaml:"data"`
 }
 
 // ParsingConfig contains settings from parsing section of combainer configs
@@ -76,8 +75,6 @@ type ParsingConfig struct {
 	MainSection `yaml:"Combainer"`
 	// Overrides the same section in combainer.yaml
 	HostFetcher PluginConfig `yaml:"HostFetcher,omitempty"`
-	// Placeholders for template
-	Placeholders map[string]interface{} `yaml:"Placeholders,omitempty"`
 }
 
 // PluginConfig general description
