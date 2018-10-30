@@ -58,3 +58,4 @@ COPY build/razladki                /usr/lib/combaine/apps/
 COPY build/cbb                     /usr/lib/combaine/apps/
 COPY build/solomon                 /usr/lib/combaine/apps/
 COPY build/juggler                 /usr/lib/combaine/apps/
+COPY build/monder                  /usr/lib/combaine/apps/

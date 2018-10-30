@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	defaultConfigPath = "/etc/combaine/juggler.yaml"
-	defaultPlugin     = "simple"
-	defaultPluginsDir = "/usr/lib/yandex/combaine/juggler"
-	defaultBatchSize  = 50 // send 50 events in one batch
+	defaultConfigPath   = "/etc/combaine/juggler.yaml"
+	defaultPlugin       = "simple"
+	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
+	defaultBatchSize    = 50 // send 50 events in one batch
+	defaultStoreTimeout = 30 // 30 seconds...
 )
 
 // DefaultTimeout read timeout
@@ -116,6 +117,9 @@ func GetSenderConfig() (*SenderConfig, error) {
 	}
 	if sConf.BatchSize == 0 {
 		sConf.BatchSize = defaultBatchSize
+	}
+	if sConf.Store.Timeout == 0 {
+		sConf.Store.Timeout = defaultStoreTimeout
 	}
 	if sConf.PluginsDir == "" {
 		sConf.PluginsDir = defaultPluginsDir
