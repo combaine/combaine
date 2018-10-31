@@ -19,6 +19,7 @@ const (
 	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
 	defaultBatchSize    = 50 // send 50 events in one batch
 	defaultStoreTimeout = 30 // 30 seconds...
+	defaultDatabaseName = "combaine"
 )
 
 // DefaultTimeout read timeout
@@ -143,6 +144,9 @@ func GetSenderConfig() (*SenderConfig, error) {
 		}
 		sConf.Store.Cluster = strings.Join(hosts.AllHosts(), ",")
 
+	}
+	if sConf.Store.Database == "" {
+		sConf.Store.Database = defaultDatabaseName
 	}
 	if sConf.Store.Timeout == 0 {
 		sConf.Store.Timeout = defaultStoreTimeout

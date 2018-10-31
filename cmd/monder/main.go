@@ -54,6 +54,7 @@ func main() {
 	}
 	logger.MustCreateLogger()
 
+	logger.Infof("Connect to %s with timeout %ds", cfg.Store.Cluster, cfg.Store.Timeout)
 	session, err = mgo.DialWithTimeout(cfg.Store.Cluster, time.Duration(cfg.Store.Timeout)*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to connect mongo %s", err)
