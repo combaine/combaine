@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
@@ -36,6 +37,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	logger.Infof("%s Task len: %v documents save to '%s.%s'", task.ID, len(task.Data), cfg.Store.Database, task.Config.Namespace)
 	c := session.DB(cfg.Store.Database).C(task.Config.Namespace)
 	for _, d := range task.Data {
+		d.Tags["ts"] = strconv.FormatInt(time.Now().Unix(), 64)
 		if err = c.Insert(d); err != nil {
 			// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
 			session.Refresh()
