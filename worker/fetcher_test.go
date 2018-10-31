@@ -7,6 +7,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +23,7 @@ type fether struct {
 
 func (f *fether) Fetch(_ context.Context, task *common.FetcherTask) ([]byte, error) {
 	fch <- string(f.c["timetail_url"].(string))
-	return common.Pack(*task)
+	return utils.Pack(*task)
 }
 
 func NewTestFetcher(_ repository.PluginConfig) (Fetcher, error) {

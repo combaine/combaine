@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,11 +34,11 @@ func TestCustomUnmarshaler(t *testing.T) {
 		if sType != "juggler" {
 			continue
 		}
-		encodedSenderConfig, err := common.Pack(senderConfig)
+		encodedSenderConfig, err := utils.Pack(senderConfig)
 		assert.NoError(t, err, "Failed to pack aggregation config")
 		//logger.Debugf("%#v", senderConfig)
 		var nowDecodedConfig Config
-		err = common.Unpack(encodedSenderConfig, &nowDecodedConfig)
+		err = utils.Unpack(encodedSenderConfig, &nowDecodedConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -55,10 +55,10 @@ func TestMarshalJSON(t *testing.T) {
 		if sType != "juggler" {
 			continue
 		}
-		encodedSenderConfig, err := common.Pack(senderConfig)
+		encodedSenderConfig, err := utils.Pack(senderConfig)
 		assert.NoError(t, err, "Failed to pack aggregation config")
 		var nowDecodedConfig Config
-		err = common.Unpack(encodedSenderConfig, &nowDecodedConfig)
+		err = utils.Unpack(encodedSenderConfig, &nowDecodedConfig)
 		assert.NoError(t, err, "Failed to decode juggler config")
 		checkJSON, err := json.Marshal(nowDecodedConfig.AggregatorKWArgs)
 		t.Logf("TestMarshalJSON: AggregatorKWArgs: %s", checkJSON)

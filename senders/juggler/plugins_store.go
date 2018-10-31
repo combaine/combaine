@@ -1,7 +1,10 @@
 package juggler
 
 import (
+	"time"
+
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/repository"
 	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
 )
@@ -26,11 +29,13 @@ type eventHistory struct {
 }
 
 type pluginEventsStoreConfig struct {
-	Cluster  string `yaml:"cluster"`
-	Database string `yaml:"database"`
-	AuthDB   string `yaml:"authdb"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
+	Cluster  string
+	Fetcher  repository.PluginConfig
+	Timeout  uint
+	Database string
+	AuthDB   string
+	User     string
+	Password string
 }
 
 var eventsStore EventsStore
@@ -62,15 +67,17 @@ func InitEventsStore(config *pluginEventsStoreConfig) {
 // Connect event storage
 func (s *pluginEventsStore) Connect() error {
 	var err error
-	s.session, err = mgo.Dial(s.config.Cluster)
+	s.session, err = mgo.DialWithTimeout(s.config.Cluster, time.Duration(s.config.Timeout)*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "mongo connect")
 	}
 	s.session.SetMode(mgo.Eventual, true)
 
-	err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
-	if err != nil {
-		return errors.Wrap(err, "mongo login")
+	if s.config.User != "" {
+		err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
+		if err != nil {
+			return errors.Wrap(err, "mongo login")
+		}
 	}
 	return nil
 }

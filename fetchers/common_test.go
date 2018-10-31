@@ -162,7 +162,7 @@ func TestTimetailFetcherFetch(t *testing.T) {
 		timeout time.Duration
 	}{
 		{withErr, repository.PluginConfig{"timetail_url": "/TEST"}, 10 * time.Millisecond},
-		{ok, repository.PluginConfig{"timetail_url": "/TEST"}, 110 * time.Millisecond},
+		{ok, repository.PluginConfig{"timetail_url": "/TEST"}, 200 * time.Millisecond},
 	}
 
 	for _, c := range cases {

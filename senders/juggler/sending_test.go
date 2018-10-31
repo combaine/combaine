@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -177,9 +177,9 @@ func TestSendBatch(t *testing.T) {
 			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		},
 	}
-	blob, err := common.Pack(confg)
+	blob, err := utils.Pack(confg)
 	assert.NoError(t, err)
-	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
+	assert.NoError(t, utils.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
@@ -215,9 +215,9 @@ func TestSendEvent(t *testing.T) {
 			{interface{}("crit"): "146%", "day_start": 1, "day_end": 7, "time_start": 20, "time_end": 8},
 		},
 	}
-	blob, err := common.Pack(confg)
+	blob, err := utils.Pack(confg)
 	assert.NoError(t, err)
-	assert.NoError(t, common.Unpack(blob, &jconf.AggregatorKWArgs))
+	assert.NoError(t, utils.Unpack(blob, &jconf.AggregatorKWArgs))
 
 	jconf.JPluginConfig = commonJPluginConfig
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}

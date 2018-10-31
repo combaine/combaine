@@ -9,6 +9,7 @@ import (
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders/juggler"
+	"github.com/combaine/combaine/utils"
 )
 
 type senderTask struct {
@@ -24,7 +25,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 
 	raw := <-request.Read()
 	var task senderTask
-	err := common.Unpack(raw, &task)
+	err := utils.Unpack(raw, &task)
 	if err != nil {
 		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
 		return

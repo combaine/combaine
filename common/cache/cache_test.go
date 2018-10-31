@@ -50,13 +50,13 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 	myCache.GetBytes("TestCacheWithCleanupInterval", "key1", checkFetcher)
 
 	cases := []struct {
-		sleep   time.Duration
 		present bool
 		message string
+		sleep   time.Duration
 	}{
-		{time.Millisecond * 15, true, "should be present"},
-		{time.Millisecond * 15, true, "should be stil present"}, // item stale but present
-		{time.Millisecond * 1, false, "should be absent"},       // cleaner remove item
+		{true, "value should be present", time.Millisecond * 10},
+		{true, "value should be still present", time.Millisecond * 30}, // item stale but present
+		{false, "value should be absent", time.Millisecond * 1},        // cleaner remove item
 	}
 	for _, c := range cases {
 		myCache.RLock()

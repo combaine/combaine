@@ -4,19 +4,16 @@ export GO111MODULE := on
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
 
-.PHONY: clean all fmt vet lint build test fast-test proto docker docker-push docker-image
+.PHONY: clean all fmt vet lint build test fast-test proto docker docker-image
 
 docker: clean build docker-image
 
 docker-image:
 	docker build . -t combainer
-	docker tag combainer:latest uo0ya/combainer:latest
-
-docker-push: clean vet fmt fast-test docker
-	docker push uo0ya/combainer:latest
 
 build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler
+	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler \
+	   ${DIR}/monder
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -49,6 +46,10 @@ ${DIR}/solomon: $(wildcard **/*.go)
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/juggler/main.go
+
+${DIR}/monder: $(wildcard **/*.go)
+	@echo "+ $@"
+	go build -o $@ ./cmd/monder/main.go
 
 proto: ${PREFIX}/rpc/rpc.pb.go
 

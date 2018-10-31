@@ -1,24 +1,24 @@
-package combainer
+package common
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/samuel/go-zookeeper/zk"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/samuel/go-zookeeper/zk"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/repository"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -63,9 +63,28 @@ func LoadHostFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
 }
 
+// LoadHostFetcherWithCache create, configure and return new hosts fetcher
+func LoadHostFetcherWithCache(config repository.PluginConfig, cache *cache.TTLCache) (HostFetcher, error) {
+	name, err := config.Type()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get type of HostFetcher")
+	}
+
+	if initializer, ok := fetchers[name]; ok {
+		f, err := initializer(config)
+		if err != nil {
+			return nil, err
+		}
+		f.setCache(cache)
+		return f, nil
+	}
+	return nil, fmt.Errorf("HostFetcher `%s` isn't registered", name)
+}
+
 // HostFetcher interface
 type HostFetcher interface {
 	Fetch(group string) (hosts.Hosts, error)
+	setCache(cache *cache.TTLCache)
 }
 
 // PredefineFetcher is map[string /*datacenter name*/][]string /*list of hosts*/
@@ -92,6 +111,9 @@ func newPredefineFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	}
 	return f, nil
 }
+func (p *PredefineFetcher) setCache(_ *cache.TTLCache) {
+	return
+}
 
 // Fetch return hosts list from PredefineFetcher or error
 func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
@@ -108,6 +130,7 @@ func (p *PredefineFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 // it expect format `fqdn\tdatacenter`
 // or json configured by Format config
 type SimpleFetcher struct {
+	cache       *cache.TTLCache
 	Separator   string
 	Format      string
 	ReadTimeout int64
@@ -146,7 +169,7 @@ func newHTTPFetcher(config repository.PluginConfig) (HostFetcher, error) {
 func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	log := logrus.WithField("source", "SimpleFetcher")
 	if !strings.Contains(s.BasicURL, `%s`) {
-		return nil, common.ErrMissingFormatSpecifier
+		return nil, ErrMissingFormatSpecifier
 	}
 	url := fmt.Sprintf(s.BasicURL, groupname)
 
@@ -174,7 +197,13 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		}
 		return body, nil
 	}
-	body, err := combainerCache.GetBytes(groupname, url, fetcher)
+	var body []byte
+	var err error
+	if s.cache != nil {
+		body, err = s.cache.GetBytes(groupname, url, fetcher)
+	} else {
+		body, err = fetcher()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +215,9 @@ func (s *SimpleFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	default:
 		return s.parseTSV(body)
 	}
+}
+func (s *SimpleFetcher) setCache(c *cache.TTLCache) {
+	s.cache = c
 }
 
 func (s *SimpleFetcher) parseTSV(body []byte) (hosts.Hosts, error) {
@@ -206,7 +238,7 @@ func (s *SimpleFetcher) parseTSV(body []byte) (hosts.Hosts, error) {
 		parsed[dc] = append(parsed[dc], host)
 	}
 	if len(parsed) == 0 {
-		return parsed, common.ErrNoHosts
+		return parsed, ErrNoHosts
 	}
 	return parsed, nil
 }
@@ -235,13 +267,14 @@ func (s *SimpleFetcher) parseJSON(body []byte) (hosts.Hosts, error) {
 		parsed[dc] = append(parsed[dc], fqdn)
 	}
 	if len(parsed) == 0 {
-		return parsed, common.ErrNoHosts
+		return parsed, ErrNoHosts
 	}
 	return parsed, nil
 }
 
 // RTCFetcher recive hosts from RTC groups
 type RTCFetcher struct {
+	cache       *cache.TTLCache
 	ReadTimeout int64
 	Geo         []string `mapstructure:"geo"`
 	BasicURL    string   `mapstructure:"BasicUrl"`
@@ -257,10 +290,6 @@ func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	if fetcher.ReadTimeout <= 0 {
 		fetcher.ReadTimeout = 10
 	}
-	if len(fetcher.Geo) == 0 {
-		return nil, common.ErrRTCGeoMissing
-	}
-
 	return &fetcher, nil
 }
 
@@ -268,13 +297,17 @@ func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
 func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	log := logrus.WithField("source", "RTCFetcher")
 	if !strings.Contains(s.BasicURL, `%s`) {
-		return nil, common.ErrMissingFormatSpecifier
+		return nil, ErrMissingFormatSpecifier
 	}
 
 	var response = make(hosts.Hosts)
 	for _, geo := range s.Geo {
+		suffix := geo
+		if suffix != "" {
+			suffix = "_" + suffix
+		}
 
-		urlGeo := fmt.Sprintf(s.BasicURL, groupname+"_"+geo)
+		urlGeo := fmt.Sprintf(s.BasicURL, groupname+suffix)
 
 		fetcher := func() ([]byte, error) {
 			ctx, cancel := context.WithTimeout(
@@ -300,7 +333,13 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 			}
 			return body, nil
 		}
-		body, err := combainerCache.GetBytes(groupname, urlGeo, fetcher)
+		var body []byte
+		var err error
+		if s.cache != nil {
+			body, err = s.cache.GetBytes(groupname, urlGeo, fetcher)
+		} else {
+			body, err = fetcher()
+		}
 		if err != nil {
 			log.Errorf("Cache.Get failed for: %s", urlGeo)
 			continue
@@ -314,9 +353,12 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		}
 	}
 	if len(response) == 0 {
-		return response, common.ErrNoHosts
+		return response, ErrNoHosts
 	}
 	return response, nil
+}
+func (s *RTCFetcher) setCache(c *cache.TTLCache) {
+	s.cache = c
 }
 
 type rtcResponse struct {
@@ -341,6 +383,7 @@ func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
 
 // ZKFetcher recive hosts from ZK dir
 type ZKFetcher struct {
+	cache     *cache.TTLCache
 	Servers   []string `mapstructure:"servers"`
 	Path      string   `mapstructure:"path"`
 	StripPort bool     `mapstructure:"strip_port"`
@@ -355,6 +398,7 @@ func newZKFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	return &fetcher, nil
 }
 
+// Fetch hosts from zk node
 func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	log := logrus.WithField("source", "ZKFetcher")
 
@@ -377,7 +421,13 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		return list, nil
 	}
 
-	list, err := combainerCache.GetStrings(groupname, url, fetcher)
+	var list []string
+	var err error
+	if s.cache != nil {
+		list, err = s.cache.GetStrings(groupname, url, fetcher)
+	} else {
+		list, err = fetcher()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -393,4 +443,8 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 	response["unk"] = list
 	return response, nil
+}
+
+func (s *ZKFetcher) setCache(c *cache.TTLCache) {
+	s.cache = c
 }

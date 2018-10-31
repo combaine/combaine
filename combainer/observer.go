@@ -13,8 +13,8 @@ import (
 	"github.com/kr/pretty"
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -197,7 +197,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cl.Close()
-	ID := "launch-" + common.GenerateSessionID()
+	ID := "launch-" + utils.GenerateSessionID()
 	err = cl.Dispatch(0, name, ID, false)
 	fmt.Fprintf(w, "%s\n", ID)
 	w.(http.Flusher).Flush()

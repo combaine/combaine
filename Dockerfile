@@ -27,11 +27,13 @@ RUN apt-get -qq update \
     libsys-hostname-long-perl libconfig-tiny-perl liburi-perl \
     libfcgi-client-perl libbsd-resource-perl \
     \
-    salt-minion=2018.3.1-yandex1 zstd mawk yandex-timetail media-graphite-sender \
+    salt-minion=2018.3.2-yandex2 zstd mawk yandex-timetail media-graphite-sender \
     cocaine-tools cocaine-runtime cocaine-framework-python=0.11.1.12 libcocaine-core2 \
+    python-pip gcc python-dev python-setuptools \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 RUN curl -O http://dist.yandex.ru/storage/1028049/common/yandex-3132-fastcgi-loggiver_0.49_all.deb \
     && dpkg-deb --extract yandex-3132-fastcgi-loggiver*deb /
+RUN pip install ujson
 
 RUN curl -kO https://raw.githubusercontent.com/pixelb/ps_mem/master/ps_mem.py \
     && mv ps_mem.py /usr/bin/ps_mem \
@@ -58,3 +60,4 @@ COPY build/razladki                /usr/lib/combaine/apps/
 COPY build/cbb                     /usr/lib/combaine/apps/
 COPY build/solomon                 /usr/lib/combaine/apps/
 COPY build/juggler                 /usr/lib/combaine/apps/
+COPY build/monder                  /usr/lib/combaine/apps/

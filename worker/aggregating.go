@@ -9,6 +9,7 @@ import (
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
+	"github.com/combaine/combaine/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +37,7 @@ func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res 
 
 	defer wg.Done()
 
-	payload, err := common.Pack(common.AggregateGropuPayload{
+	payload, err := utils.Pack(common.AggregateGropuPayload{
 		Task: common.Task{
 			CurrTime: t.Frame.Current,
 			PrevTime: t.Frame.Previous,
@@ -216,7 +217,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 				Data:   result,
 			}
 
-			payload, err := common.Pack(senderPayload)
+			payload, err := utils.Pack(senderPayload)
 			if err != nil {
 				log.Errorf("unable to pack data for %s: %s", senderType, err)
 				return

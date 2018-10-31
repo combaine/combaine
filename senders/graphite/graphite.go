@@ -8,6 +8,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 )
 
 const (
@@ -35,16 +36,16 @@ type Config struct {
 	Fields   []string `codec:"Fields"`
 }
 
-type pointFormat func(common.NameStack, interface{}, uint64) string
+type pointFormat func(utils.NameStack, interface{}, uint64) string
 
 func makePoint(format, cluster, subgroup string) pointFormat {
-	return func(metric common.NameStack, value interface{}, timestamp uint64) string {
+	return func(metric utils.NameStack, value interface{}, timestamp uint64) string {
 		return fmt.Sprintf(
 			format,
 			cluster,
 			formatSubgroup(subgroup),
 			strings.Join(metric, "."),
-			common.InterfaceToString(value),
+			utils.InterfaceToString(value),
 			timestamp,
 		)
 	}
@@ -64,13 +65,13 @@ func (g *Sender) send(output io.Writer, data string) error {
 	return nil
 }
 
-func (g *Sender) sendInterface(output io.Writer, metricName common.NameStack,
+func (g *Sender) sendInterface(output io.Writer, metricName utils.NameStack,
 	f pointFormat, value interface{}, timestamp uint64) error {
 	data := f(metricName, value, timestamp)
 	return g.send(output, data)
 }
 
-func (g *Sender) sendSlice(output io.Writer, metricName common.NameStack, f pointFormat,
+func (g *Sender) sendSlice(output io.Writer, metricName utils.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) error {
 
 	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
@@ -82,7 +83,7 @@ func (g *Sender) sendSlice(output io.Writer, metricName common.NameStack, f poin
 		metricName.Push(g.fields[i])
 
 		item := rv.Index(i).Interface()
-		err := g.sendInterface(output, metricName, f, common.InterfaceToString(item), timestamp)
+		err := g.sendInterface(output, metricName, f, utils.InterfaceToString(item), timestamp)
 		if err != nil {
 			return err
 		}
@@ -92,13 +93,13 @@ func (g *Sender) sendSlice(output io.Writer, metricName common.NameStack, f poin
 	return nil
 }
 
-func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointFormat,
+func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFormat,
 	rv reflect.Value, timestamp uint64) (err error) {
 
 	keys := rv.MapKeys()
 	for _, key := range keys {
 		// Push key of map
-		metricName.Push(common.InterfaceToString(key.Interface()))
+		metricName.Push(utils.InterfaceToString(key.Interface()))
 
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
 		logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
@@ -110,7 +111,7 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 			err = g.sendMap(output, metricName, f, itemInterface, timestamp)
 		default:
 			err = g.sendInterface(output, metricName, f,
-				common.InterfaceToString(itemInterface.Interface()), timestamp)
+				utils.InterfaceToString(itemInterface.Interface()), timestamp)
 		}
 		if err != nil {
 			break
@@ -122,14 +123,14 @@ func (g *Sender) sendMap(output io.Writer, metricName common.NameStack, f pointF
 }
 
 func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
-	metricName := make(common.NameStack, 0, 3)
+	metricName := make(utils.NameStack, 0, 3)
 
 	logger.Infof("%s send %d aggregates", g.id, len(data))
 	for _, aggItem := range data {
 		aggname := aggItem.Tags["aggregate"]
 
 		metricName.Push(aggname)
-		subgroup, err := common.GetSubgroupName(aggItem.Tags)
+		subgroup, err := utils.GetSubgroupName(aggItem.Tags)
 		if err != nil {
 			logger.Errf("%s %s", g.id, err)
 			continue
@@ -144,7 +145,7 @@ func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64,
 		case reflect.Map:
 			err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
 		default:
-			err = g.sendInterface(output, metricName, pointFormatter, common.InterfaceToString(aggItem.Result), timestamp)
+			err = g.sendInterface(output, metricName, pointFormatter, utils.InterfaceToString(aggItem.Result), timestamp)
 		}
 		if err != nil {
 			return err

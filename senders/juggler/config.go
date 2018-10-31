@@ -5,17 +5,21 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	defaultConfigPath = "/etc/combaine/juggler.yaml"
-	defaultPlugin     = "simple"
-	defaultPluginsDir = "/usr/lib/yandex/combaine/juggler"
-	defaultBatchSize  = 50 // send 50 events in one batch
+	defaultConfigPath   = "/etc/combaine/juggler.yaml"
+	defaultPlugin       = "simple"
+	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
+	defaultBatchSize    = 50 // send 50 events in one batch
+	defaultStoreTimeout = 30 // 30 seconds...
+	defaultDatabaseName = "combaine"
 )
 
 // DefaultTimeout read timeout
@@ -128,6 +132,26 @@ func GetSenderConfig() (*SenderConfig, error) {
 	}
 	sConf.CacheTTL *= time.Second
 	sConf.CacheCleanInterval *= time.Second
+	// load store configs
+	if _, err := sConf.Store.Fetcher.Type(); err == nil {
+		fetcher, err := common.LoadHostFetcher(sConf.Store.Fetcher)
+		if err != nil {
+			return nil, err
+		}
+		hosts, err := fetcher.Fetch(sConf.Store.Cluster)
+		if err != nil {
+			return nil, err
+		}
+		sConf.Store.Cluster = strings.Join(hosts.AllHosts(), ",")
+
+	}
+	if sConf.Store.Database == "" {
+		sConf.Store.Database = defaultDatabaseName
+	}
+	if sConf.Store.Timeout == 0 {
+		sConf.Store.Timeout = defaultStoreTimeout
+	}
+
 	return &sConf, nil
 }
 

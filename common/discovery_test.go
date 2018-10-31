@@ -1,4 +1,4 @@
-package combainer
+package common
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
@@ -125,7 +124,7 @@ func TestHttpFetcher(t *testing.T) {
 		expect  hosts.Hosts
 	}{
 		{repository.PluginConfig{"type": "http", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr())},
-			"Missing Format", Failed, common.ErrMissingFormatSpecifier,
+			"Missing Format", Failed, ErrMissingFormatSpecifier,
 			hosts.Hosts{"NoDC": {"Host.in.NoDC"}, "dcA": {"host1.in.dcA", "host2.in.dcA"}, "dcB": {"host1.in.dcB", "host2.in.dcB"}},
 		},
 		{repository.PluginConfig{"type": "http", "BasicUrl": "http://non-exists:9898/%s"},

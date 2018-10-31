@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"github.com/pkg/errors"
@@ -173,7 +173,7 @@ func (c *Cluster) setupRaft() {
 	c.raftConfig.NotifyCh = c.leaderCh
 	c.raftConfig.LogOutput = c.log.Logger.Writer()
 	c.raftConfig.StartAsLeader = c.config.StartAsLeader
-	c.raftConfig.LocalID = raft.ServerID(common.Hostname())
+	c.raftConfig.LocalID = raft.ServerID(utils.Hostname())
 }
 
 // attempt to bootstrap raft cluster

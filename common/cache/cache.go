@@ -97,6 +97,7 @@ func (c *TTLCache) get(id string, key string, f fetcher) (interface{}, error) {
 	return item.value, item.err
 }
 
+// GetBytes from cache
 func (c *TTLCache) GetBytes(id string, key string, f bytesFetcher) ([]byte, error) {
 	rawData, err := c.get(id, key, func() (interface{}, error) { return f() })
 	if err != nil {
@@ -109,6 +110,7 @@ func (c *TTLCache) GetBytes(id string, key string, f bytesFetcher) ([]byte, erro
 	return data, nil
 }
 
+// GetStrings from cache
 func (c *TTLCache) GetStrings(id string, key string, f stringsFetcher) ([]string, error) {
 	rawData, err := c.get(id, key, func() (interface{}, error) { return f() })
 	if err != nil {

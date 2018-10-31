@@ -13,6 +13,7 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/rpc"
 	tests "github.com/combaine/combaine/testdata"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -46,9 +47,9 @@ func TestAggregating(t *testing.T) {
 		"DC2": {"Host3", "Host4"},
 	}
 
-	encHosts, _ := common.Pack(hostsPerDc)
-	encParsingConfig, _ := common.Pack(parsingConfig)
-	encAggregationConfig, _ := common.Pack(aggregationConfig)
+	encHosts, _ := utils.Pack(hostsPerDc)
+	encParsingConfig, _ := utils.Pack(parsingConfig)
+	encAggregationConfig, _ := utils.Pack(aggregationConfig)
 
 	aggTask := rpc.AggregatingTask{
 		Id:                       "testId",
@@ -103,7 +104,7 @@ func TestAggregating(t *testing.T) {
 				var akeys []string
 
 				var payload common.AggregateGropuPayload
-				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
+				assert.NoError(t, utils.Unpack(r[1].([]byte), &payload))
 
 				for _, v := range payload.Data {
 					akeys = append(akeys, string(v[:5])) // text for expectAggregatingGroup
@@ -119,7 +120,7 @@ func TestAggregating(t *testing.T) {
 				logrus.Warnf("Send: shouldSendToSenders=%v", shouldSendToSenders)
 
 				var payload common.SenderPayload
-				assert.NoError(t, common.Unpack(r[1].([]byte), &payload))
+				assert.NoError(t, utils.Unpack(r[1].([]byte), &payload))
 				for _, v := range payload.Data {
 					_, ok := sendersCount[v.Tags["name"]]
 					assert.True(t, ok, "Unexpected senders payload %s", v.Tags["name"])
@@ -169,12 +170,12 @@ func TestEnqueue(t *testing.T) {
 	// TODO(sakateka): make real testing
 	tests.Rake <- fmt.Errorf("test")
 	hostsPerDc := map[string][]string{"DC1": {"H1", "H2"}, "DC2": {"H3", "H4"}}
-	encHosts, _ := common.Pack(hostsPerDc)
-	encParsingConfig, _ := common.Pack(parsingConfig)
+	encHosts, _ := utils.Pack(hostsPerDc)
+	encParsingConfig, _ := utils.Pack(parsingConfig)
 
 	acfg, err = repository.GetAggregationConfig("bad" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
-	encAggregationConfig, _ := common.Pack(aggregationConfig)
+	encAggregationConfig, _ := utils.Pack(aggregationConfig)
 
 	aggTask := rpc.AggregatingTask{
 		Id:                       "testId",
@@ -192,7 +193,7 @@ func TestEnqueue(t *testing.T) {
 	acfg, err = repository.GetAggregationConfig("notPerHost" + cfgName)
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 
-	encAggregationConfig, _ = common.Pack(aggregationConfig)
+	encAggregationConfig, _ = utils.Pack(aggregationConfig)
 	aggTask.EncodedAggregationConfig = encAggregationConfig
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 

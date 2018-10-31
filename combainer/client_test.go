@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/stretchr/testify/assert"
 )
@@ -33,7 +34,7 @@ func TestUpdateSessionParams(t *testing.T) {
 	sessionParams, err = cl.updateSessionParams("aggCore")
 	assert.NoError(t, err)
 	assert.Equal(t, len(sessionParams.AggTasks), 1)
-	f, err := LoadHostFetcher(pCfg.HostFetcher)
+	f, err := common.LoadHostFetcher(pCfg.HostFetcher)
 	assert.NoError(t, err, "Faied to load PredefineFetcher")
 	predefinedHosts, err := f.Fetch(pCfg.Groups[0])
 	t.Log("Fetched hosts", predefinedHosts)

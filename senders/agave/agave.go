@@ -17,6 +17,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 )
 
 const (
@@ -113,7 +114,7 @@ func (as *Sender) send(data []common.AggregationResult) (map[string][]string, er
 			logger.Debugf("%s %s not in Items, skip task: %v", as.id, root, item)
 			continue
 		}
-		subgroup, err := common.GetSubgroupName(item.Tags)
+		subgroup, err := utils.GetSubgroupName(item.Tags)
 		if err != nil {
 			logger.Errf("%s %s", as.id, err)
 			continue
@@ -133,7 +134,7 @@ func (as *Sender) send(data []common.AggregationResult) (map[string][]string, er
 
 			forJoin := make([]string, 0, len(as.Fields))
 			for i, field := range as.Fields {
-				forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, common.InterfaceToString(rv.Index(i).Interface())))
+				forJoin = append(forJoin, fmt.Sprintf("%s:%s", field, utils.InterfaceToString(rv.Index(i).Interface())))
 			}
 
 			repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
@@ -161,19 +162,19 @@ func (as *Sender) send(data []common.AggregationResult) (map[string][]string, er
 					forJoin := make([]string, 0, len(as.Fields))
 					for i, field := range as.Fields {
 						forJoin = append(forJoin, fmt.Sprintf("%s:%s",
-							field, common.InterfaceToString(value.Index(i).Interface())))
+							field, utils.InterfaceToString(value.Index(i).Interface())))
 					}
 					repacked[subgroup] = append(repacked[subgroup], strings.Join(forJoin, "+"))
 				case reflect.Map:
 					//unsupported
 				default:
 					repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s",
-						mname, common.InterfaceToString(value.Interface())))
+						mname, utils.InterfaceToString(value.Interface())))
 				}
 			}
 		default:
 			repacked[subgroup] = append(repacked[subgroup], fmt.Sprintf("%s:%s",
-				root, common.InterfaceToString(item.Result)))
+				root, utils.InterfaceToString(item.Result)))
 		}
 	}
 

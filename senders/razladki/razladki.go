@@ -14,6 +14,7 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 )
 
 // Config containse fields from compbainer task config
@@ -113,7 +114,7 @@ func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*resul
 			logger.Debugf("%s %s not in Items, skip task: %v", r.id, root, item)
 			continue
 		}
-		subgroup, err := common.GetSubgroupName(item.Tags)
+		subgroup, err := utils.GetSubgroupName(item.Tags)
 		if err != nil {
 			logger.Errf("%s %s", r.id, err)
 			continue
@@ -165,19 +166,19 @@ func (r *Sender) send(data []common.AggregationResult, timestamp uint64) (*resul
 						logger.Errf("%s Failed to extract value at %d from %v", r.id, arrayIdx, value)
 						continue
 					}
-					res.Push(name, common.InterfaceToString(value.Interface()), title)
+					res.Push(name, utils.InterfaceToString(value.Interface()), title)
 
 				case reflect.Map:
 					// unsupported
 				default:
 					name = fmt.Sprintf("%s_%s", subgroup, key)
-					res.Push(name, common.InterfaceToString(value.Interface()), title)
+					res.Push(name, utils.InterfaceToString(value.Interface()), title)
 				}
 			}
 		default:
 			if title, ok := metrics[""]; ok {
 				name = fmt.Sprintf("%s_%s", subgroup, root)
-				res.Push(name, common.InterfaceToString(item.Result), title)
+				res.Push(name, utils.InterfaceToString(item.Result), title)
 			}
 		}
 	}
