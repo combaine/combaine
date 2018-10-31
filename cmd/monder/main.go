@@ -33,13 +33,13 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 		logger.Errf("%s Failed to unpack task %s", task.ID, err)
 		return
 	}
-	logger.Debugf("%s Task len: %v documents", task.ID, len(task.Data))
+	logger.Infof("%s Task len: %v documents save to '%s.%s'", task.ID, len(task.Data), cfg.Store.Database, task.Config.Namespace)
 	c := session.DB(cfg.Store.Database).C(task.Config.Namespace)
 	for _, d := range task.Data {
 		if err = c.Insert(d); err != nil {
 			// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
 			session.Refresh()
-			logger.Errf("%s Failed to insert %s.%s: %s", task.ID, cfg.Store.Database, task.Config.Namespace, err)
+			logger.Errf("%s Failed to insert: %s", task.ID, err)
 		}
 	}
 
