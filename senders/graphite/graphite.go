@@ -145,7 +145,7 @@ func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64,
 		case reflect.Map:
 			err = g.sendMap(output, metricName, pointFormatter, rv, timestamp)
 		default:
-			err = g.sendInterface(output, metricName, pointFormatter, utils.InterfaceToString(aggItem.Result), timestamp)
+			err = g.sendInterface(output, metricName, pointFormatter, aggItem.Result, timestamp)
 		}
 		if err != nil {
 			return err

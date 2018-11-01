@@ -3,20 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders/juggler"
 	"github.com/combaine/combaine/utils"
 )
-
-type senderTask struct {
-	ID     string `codec:"Id"`
-	Data   []common.AggregationResult
-	Config juggler.Config
-}
 
 var senderConfig *juggler.SenderConfig
 
@@ -24,33 +18,33 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	defer response.Close()
 
 	raw := <-request.Read()
-	var task senderTask
+	var task juggler.SenderTask
 	err := utils.Unpack(raw, &task)
 	if err != nil {
-		logger.Errf("%s Failed to unpack juggler task %s", task.ID, err)
+		logger.Errf("%s Failed to unpack juggler task %s", task.Id, err)
 		return
 	}
 	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
 	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)
 	if err != nil {
-		logger.Errf("%s Failed to update task config %s", task.ID, err)
+		logger.Errf("%s Failed to update task config %s", task.Id, err)
 		return
 	}
-	logger.Debugf("%s Task: %v", task.ID, task.Data)
+	logger.Debugf("%s Task: %v", task.Id, task.Data)
 	juggler.AddJugglerToken(&task.Config, senderConfig.Token)
 
-	jCli, err := juggler.NewSender(&task.Config, task.ID)
+	jCli, err := juggler.NewSender(&task.Config, task.Id)
 	if err != nil {
-		logger.Errf("%s send: Unexpected error %s", task.ID, err)
+		logger.Errf("%s send: Unexpected error %s", task.Id, err)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), juggler.DefaultTimeout)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Unix(task.CurrTime, 0))
 	defer cancel()
-	err = jCli.Send(ctx, task.Data)
+	err = jCli.Send(ctx, task)
 	if err != nil {
-		logger.Errf("%s send: %s", task.ID, err)
+		logger.Errf("%s send: %s", task.Id, err)
 		return
 	}
 	response.Write("DONE")

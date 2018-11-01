@@ -14,7 +14,6 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +26,7 @@ func init() {
 	})
 }
 
-var data []common.AggregationResult // loaded in TestMain
+var task SenderTask // loaded in TestMain
 var ts *httptest.Server
 
 func DefaultJugglerTestConfig() *Config {
@@ -115,7 +114,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	js.state = l
-	js.preparePluginEnv(data)
+	js.preparePluginEnv(task)
 
 	l.Push(l.GetGlobal("testEnv"))
 	l.Call(0, 1)
@@ -134,7 +133,7 @@ func TestRunPlugin(t *testing.T) {
 	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(data))
+	assert.NoError(t, js.preparePluginEnv(task))
 
 	_, err = js.runPlugin()
 	assert.NoError(t, err)
@@ -143,7 +142,7 @@ func TestRunPlugin(t *testing.T) {
 	l, err = LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(data))
+	assert.NoError(t, js.preparePluginEnv(task))
 	_, err = js.runPlugin()
 	if err == nil {
 		err = errors.New("incorrect should fail")
@@ -161,7 +160,7 @@ func TestQueryLuaTable(t *testing.T) {
 	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(data))
+	assert.NoError(t, js.preparePluginEnv(task))
 	l.Push(l.GetGlobal("testQuery"))
 	l.Call(0, 1)
 	result := l.ToTable(1)
@@ -177,8 +176,8 @@ func TestMain(m *testing.M) {
 	if yerr != nil {
 		panic(yerr)
 	}
-	//var data []common.AggregationResult is global
-	if yerr := yaml.Unmarshal([]byte(dataYaml), &data); yerr != nil {
+	//var task is global
+	if yerr := yaml.Unmarshal([]byte(dataYaml), &task.Data); yerr != nil {
 		panic(yerr)
 	}
 

@@ -2,6 +2,7 @@ package juggler
 
 import (
 	"strings"
+	"time"
 
 	"github.com/combaine/combaine/common/logger"
 	"github.com/yuin/gluare"
@@ -74,12 +75,12 @@ func eventsHistoryLoader(id string) func(l *lua.LState) int {
 		key := l.CheckString(1)
 		event := l.CheckString(2)
 		historyLen := l.CheckInt(3)
-
-		if eventsStore == nil {
-			l.Push(lua.LNil)
-			return 1
+		var deadline = time.Now().Add(5 * time.Second) // seconds default fallback deadline
+		if t, ok := l.GetGlobal("storeDeadline").(lua.LNumber); ok {
+			deadline = time.Unix(int64(t), 0)
 		}
-		if events, err := eventsStore.Push(key, event, historyLen); err != nil {
+
+		if events, err := eventsStore.Push(key, event, historyLen, deadline); err != nil {
 			logger.Errf(id+" Failed to update events history: %s", err)
 			l.Push(lua.LNil)
 		} else {

@@ -220,13 +220,16 @@ func LoadPlugin(id, dir, name string) (*lua.LState, error) {
 
 // preparePluginEnv add data from aggregate task as global variable in lua
 // plugin. Also inject juggler conditions from juggler configs and plugin config
-func (js *Sender) preparePluginEnv(data []common.AggregationResult) error {
-	ltable, err := dataToLuaTable(js.state, data)
+func (js *Sender) preparePluginEnv(task SenderTask) error {
+	ltable, err := dataToLuaTable(js.state, task.Data)
 	if err != nil {
 		return fmt.Errorf("Failed to convert AggregationResult to lua table: %s", err)
 	}
 
+	// only half of task deadline allowed for sending sevents history
+	deadline := task.PrevTime + (task.CurrTime-task.PrevTime)/2
 	js.state.SetGlobal("payload", ltable)
+	js.state.SetGlobal("storeDeadline", lua.LNumber(deadline))
 	js.state.SetGlobal("checkName", lua.LString(js.Config.CheckName))
 	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))
 	js.state.SetGlobal("checkTTL", lua.LNumber(js.Config.TTL))

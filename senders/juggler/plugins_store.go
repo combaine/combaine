@@ -19,8 +19,21 @@ type EventsStore interface {
 	Close()
 }
 type pluginEventsStore struct {
-	session *mgo.Session
-	config  *pluginEventsStoreConfig
+	session   *mgo.Session
+	config    *pluginEventsStoreConfig
+	queryChan chan storeRequest
+}
+
+type storeResult struct {
+	history []string
+	err     error
+}
+
+type storeRequest struct {
+	key     string
+	event   string
+	history int
+	out     chan storeResult
 }
 
 type eventHistory struct {
@@ -31,18 +44,22 @@ type eventHistory struct {
 type pluginEventsStoreConfig struct {
 	Cluster  string
 	Fetcher  repository.PluginConfig
-	Timeout  uint
 	Database string
 	AuthDB   string
 	User     string
 	Password string
 }
 
-var eventsStore EventsStore
+var eventsStore = &pluginEventsStore{
+	queryChan: make(chan storeRequest),
+}
 
 // InitEventsStore initiate global plugin events store
 // for save juggler events history and use it as antiflap method
 func InitEventsStore(config *pluginEventsStoreConfig) {
+	// always create instance
+	eventsStore.config = config
+
 	if config.Cluster == "" {
 		logger.Infof("Plugin events store not configured, skip")
 		return
@@ -55,30 +72,33 @@ func InitEventsStore(config *pluginEventsStoreConfig) {
 		config.AuthDB = config.Database
 	}
 
-	store := &pluginEventsStore{config: config}
-	if err := store.Connect(); err != nil {
+	if err := eventsStore.Connect(); err != nil {
 		logger.Errf("Failed to connect event storage %s", err)
 		return
 	}
-	eventsStore = store
+	go eventsStore.worker()
 	logger.Infof("Plugin event store connected sucessfully")
 }
 
 // Connect event storage
 func (s *pluginEventsStore) Connect() error {
-	var err error
-	s.session, err = mgo.DialWithTimeout(s.config.Cluster, time.Duration(s.config.Timeout)*time.Second)
+	var (
+		session *mgo.Session
+		err     error
+	)
+	session, err = mgo.DialWithTimeout(s.config.Cluster, 10*time.Second)
 	if err != nil {
 		return errors.Wrap(err, "mongo connect")
 	}
-	s.session.SetMode(mgo.Eventual, true)
+	session.SetMode(mgo.Eventual, true)
 
 	if s.config.User != "" {
-		err = s.session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
+		err = session.DB(s.config.AuthDB).Login(s.config.User, s.config.Password)
 		if err != nil {
 			return errors.Wrap(err, "mongo login")
 		}
 	}
+	s.session = session
 	return nil
 }
 
@@ -86,39 +106,71 @@ func (s *pluginEventsStore) Connect() error {
 func (s *pluginEventsStore) Close() {
 	if s.session != nil {
 		s.session.Close()
+		s.session = nil
+	}
+}
+
+// io worker
+func (s *pluginEventsStore) worker() {
+	for q := range s.queryChan {
+		mQuery := eventHistory{}
+		result := storeResult{}
+		c := s.session.DB(s.config.Database).C("events")
+		err := c.FindId(q.key).One(&mQuery)
+		if err != nil {
+			mQuery.ID = q.key
+			mQuery.Events = []string{q.event}
+			err = c.Insert(mQuery)
+			result.history = mQuery.Events
+			if err != nil {
+				result.err = errors.Wrap(err, "mongo insert query")
+			}
+		} else {
+			if len(mQuery.Events) < q.history {
+				mQuery.Events = append(mQuery.Events, "") // add room for one fresh
+				q.history = len(mQuery.Events)
+			}
+			for i := q.history - 1; i > 0; i-- {
+				mQuery.Events[i] = mQuery.Events[i-1]
+			}
+			mQuery.Events[0] = q.event
+			mQuery.Events = mQuery.Events[:q.history]
+			result.history = mQuery.Events
+			_, err = c.UpsertId(q.key, mQuery)
+			if err != nil {
+				result.err = errors.Wrap(err, "mongo upsert query")
+			}
+		}
+
+		select {
+		case q.out <- storeResult{history: mQuery.Events}:
+		default:
+		}
+		// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
+		s.session.Refresh()
 	}
 }
 
 // Push new event and get back current history
-func (s *pluginEventsStore) Push(key, event string, history int) ([]string, error) {
-	result := eventHistory{}
-	c := s.session.DB(s.config.Database).C("events")
-	err := c.FindId(key).One(&result)
-	if err != nil {
-		result.ID = key
-		result.Events = []string{event}
-		err = c.Insert(result)
-		if err != nil {
-			// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
-			s.session.Refresh()
-			return nil, errors.Wrap(err, "mongo insert query")
-		}
-		return result.Events, nil
+func (s *pluginEventsStore) Push(key, event string, history int, deadline time.Time) ([]string, error) {
+	if s.session == nil {
+		return nil, errors.New("plugin store not connected")
 	}
-	if len(result.Events) < history {
-		result.Events = append(result.Events, "") // add room for one fresh
-		history = len(result.Events)
+	query := storeRequest{
+		key:     key,
+		event:   event,
+		history: history,
+		out:     make(chan storeResult),
 	}
-	for i := history - 1; i > 0; i-- {
-		result.Events[i] = result.Events[i-1]
+	select {
+	case s.queryChan <- query:
+	case <-time.After(time.Until(deadline)):
+		return nil, errors.New("store send DeadlineExceeded")
 	}
-	result.Events[0] = event
-	result.Events = result.Events[:history]
-	_, err = c.UpsertId(key, result)
-	if err != nil {
-		// https://godoc.org/gopkg.in/mgo.v2#Session.Refresh
-		s.session.Refresh()
-		return nil, errors.Wrap(err, "mongo update query")
+	select {
+	case <-time.After(time.Until(deadline)):
+		return nil, errors.New("store read DeadlineExceeded")
+	case resp := <-query.out:
+		return resp.history, resp.err
 	}
-	return result.Events, nil
 }

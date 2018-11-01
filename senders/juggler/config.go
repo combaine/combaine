@@ -18,12 +18,15 @@ const (
 	defaultPlugin       = "simple"
 	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
 	defaultBatchSize    = 50 // send 50 events in one batch
-	defaultStoreTimeout = 3  // 3 seconds...
 	defaultDatabaseName = "combaine"
 )
 
-// DefaultTimeout read timeout
-var DefaultTimeout = 5 * time.Second
+// SenderTask ...
+type SenderTask struct {
+	common.Task
+	Data   []common.AggregationResult
+	Config Config
+}
 
 // Config contains config section from combainer's aggregations section
 // also it include default sender config (or user specified) yaml config
@@ -148,10 +151,6 @@ func GetSenderConfig() (*SenderConfig, error) {
 	if sConf.Store.Database == "" {
 		sConf.Store.Database = defaultDatabaseName
 	}
-	if sConf.Store.Timeout == 0 {
-		sConf.Store.Timeout = defaultStoreTimeout
-	}
-
 	return &sConf, nil
 }
 

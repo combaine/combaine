@@ -14,7 +14,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
@@ -48,7 +47,7 @@ func NewSender(conf *Config, id string) (*Sender, error) {
 }
 
 // Send make all things abount juggler sender tasks
-func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) error {
+func (js *Sender) Send(ctx context.Context, task SenderTask) error {
 	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	if err != nil {
@@ -58,7 +57,7 @@ func (js *Sender) Send(ctx context.Context, data []common.AggregationResult) err
 	js.state = state
 
 	logger.Debugf("%s Prepare state of lua plugin", js.id)
-	if err := js.preparePluginEnv(data); err != nil {
+	if err := js.preparePluginEnv(task); err != nil {
 		return errors.Wrap(err, "preparePluginEnv")
 	}
 
@@ -194,7 +193,8 @@ SEND_LOOP:
 			}
 			err = errors.Errorf("http status='%s', response: %s", resp.Status, responseBody)
 		case context.Canceled, context.DeadlineExceeded:
-			ctx, cancel = context.WithTimeout(context.Background(), DefaultTimeout)
+			// last attempt
+			ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		default:
 		}
 
