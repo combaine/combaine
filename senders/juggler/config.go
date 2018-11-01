@@ -18,7 +18,7 @@ const (
 	defaultPlugin       = "simple"
 	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
 	defaultBatchSize    = 50 // send 50 events in one batch
-	defaultStoreTimeout = 30 // 30 seconds...
+	defaultStoreTimeout = 3  // 3 seconds...
 	defaultDatabaseName = "combaine"
 )
 
