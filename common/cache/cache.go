@@ -50,6 +50,7 @@ func (c *TTLCache) TuneCache(ttl time.Duration, interval time.Duration, cleanupA
 type fetcher func() (interface{}, error)
 type bytesFetcher func() ([]byte, error)
 type stringsFetcher func() ([]string, error)
+type mapStringStringsFetcher func() (map[string][]string, error)
 
 // Get return not expired element from cacahe or nil
 func (c *TTLCache) get(id string, key string, f fetcher) (interface{}, error) {
@@ -119,6 +120,19 @@ func (c *TTLCache) GetStrings(id string, key string, f stringsFetcher) ([]string
 	data, ok := rawData.([]string)
 	if !ok {
 		return nil, errors.New("data is not []string")
+	}
+	return data, nil
+}
+
+// GetMapStringStrings from cache
+func (c *TTLCache) GetMapStringStrings(id string, key string, f mapStringStringsFetcher) (map[string][]string, error) {
+	rawData, err := c.get(id, key, func() (interface{}, error) { return f() })
+	if err != nil {
+		return nil, err
+	}
+	data, ok := rawData.(map[string][]string)
+	if !ok {
+		return nil, errors.New("data is not map[string][]string")
 	}
 	return data, nil
 }

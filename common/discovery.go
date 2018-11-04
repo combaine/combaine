@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/miekg/dns"
 	"github.com/samuel/go-zookeeper/zk"
 
 	"github.com/combaine/combaine/common/cache"
@@ -32,6 +33,9 @@ func init() {
 		panic(err)
 	}
 	if err := RegisterFetcherLoader("zk", newZKFetcher); err != nil {
+		panic(err)
+	}
+	if err := RegisterFetcherLoader("qloud", newQDNSFetcher); err != nil {
 		panic(err)
 	}
 }
@@ -385,7 +389,6 @@ func (s *RTCFetcher) parseJSON(body []byte) ([]string, error) {
 type ZKFetcher struct {
 	cache     *cache.TTLCache
 	Servers   []string `mapstructure:"servers"`
-	Path      string   `mapstructure:"path"`
 	StripPort bool     `mapstructure:"strip_port"`
 }
 
@@ -399,12 +402,12 @@ func newZKFetcher(config repository.PluginConfig) (HostFetcher, error) {
 }
 
 // Fetch hosts from zk node
-func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
+func (s *ZKFetcher) Fetch(path string) (hosts.Hosts, error) {
 	log := logrus.WithField("source", "ZKFetcher")
 
 	var response = make(hosts.Hosts)
 
-	url := "zk://" + strings.Join(s.Servers, ",") + "/" + s.Path
+	url := "zk://" + strings.Join(s.Servers, ",") + "/" + path
 	fetcher := func() ([]string, error) {
 
 		conn, _, err := zk.Connect(s.Servers, time.Second*10, zk.WithLogger(log))
@@ -413,7 +416,7 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 		}
 		defer conn.Close()
 
-		list, _, err := conn.Children(s.Path)
+		list, _, err := conn.Children(path)
 		if err != nil {
 			return nil, err
 		}
@@ -424,7 +427,7 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	var list []string
 	var err error
 	if s.cache != nil {
-		list, err = s.cache.GetStrings(groupname, url, fetcher)
+		list, err = s.cache.GetStrings(path, url, fetcher)
 	} else {
 		list, err = fetcher()
 	}
@@ -447,4 +450,93 @@ func (s *ZKFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 
 func (s *ZKFetcher) setCache(c *cache.TTLCache) {
 	s.cache = c
+}
+
+// QDNSFetcher recive hosts from dns discovery
+type QDNSFetcher struct {
+	cache    *cache.TTLCache
+	Resolver string `mapstructure:"resolver"`
+}
+
+// newQDNSFetcher return dns discovery client
+func newQDNSFetcher(config repository.PluginConfig) (HostFetcher, error) {
+	var fetcher QDNSFetcher
+	if err := mapstructure.Decode(config, &fetcher); err != nil {
+		return nil, err
+	}
+	if fetcher.Resolver == "" {
+		fetcher.Resolver = "[::1]:53"
+	}
+	return &fetcher, nil
+}
+
+func dcIndex(c rune) bool {
+	if c < 0x61 {
+		c = c + 0x20 // make lowercase
+	}
+	return c < 'a' || c > 'z'
+}
+
+// Fetch hosts from dns discovery service
+func (d *QDNSFetcher) Fetch(entity string) (hosts.Hosts, error) {
+	log := logrus.WithField("source", "QDNSFetcher")
+
+	if !strings.HasSuffix(entity, ".") {
+		entity += "."
+	}
+
+	fetcher := func() (map[string][]string, error) {
+		m := new(dns.Msg)
+		m.SetQuestion(entity, dns.TypeSRV)
+		in, err := dns.Exchange(m, d.Resolver)
+		if err != nil {
+			log.Errorf("%s %s", entity, err)
+			return nil, err
+		}
+		var targets []string
+		for _, r := range in.Answer {
+			if t, ok := r.(*dns.SRV); ok {
+				targets = append(targets, t.Target)
+			}
+		}
+		discovered := make(map[string][]string)
+		for _, t := range targets {
+			m.SetQuestion("_host_."+t, dns.TypeSRV)
+			in, err := dns.Exchange(m, d.Resolver)
+			if err != nil {
+				log.Errorf("%s %s", entity, err)
+				continue
+			}
+			if rt, ok := in.Answer[0].(*dns.SRV); ok {
+				dcIdx := strings.IndexFunc(rt.Target, dcIndex)
+				if dcIdx > 0 {
+					dc := rt.Target[:dcIdx]
+					discovered[dc] = append(discovered[dc], strings.TrimRight(t, "."))
+				} else {
+					discovered["NoDC"] = append(discovered["NoDC"], strings.TrimRight(t, "."))
+				}
+			}
+		}
+		if len(discovered) == 0 {
+			return nil, ErrNoHosts
+		}
+		return discovered, nil
+	}
+
+	var response hosts.Hosts
+	var err error
+	if d.cache != nil {
+		response, err = d.cache.GetMapStringStrings(entity, entity, fetcher)
+	} else {
+		response, err = fetcher()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (d *QDNSFetcher) setCache(c *cache.TTLCache) {
+	d.cache = c
 }
