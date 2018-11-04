@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 """Aggregator with extensions support"""
 
+import imp
+import logging
 import os
 import sys
-import imp
-
-import logging
 from time import time
 
 import msgpack
-# pylint: disable=import-error
-from cocaine.worker import Worker
+
 from cocaine.logging import Logger
 from cocaine.logging.hanlders import CocaineHandler
-# pylint: enable=import-error
+from cocaine.worker import Worker
 
 Logger().info("Initialize custom.py")
 PATH = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
@@ -45,7 +43,6 @@ class Custom(object):
         self.last_load_time = time()
         self.all_custom_parsers = {}
         self.plugin_import(True)
-
 
     def plugin_import(self, force=False):
         """
@@ -86,7 +83,6 @@ class Custom(object):
         logger.info("%s are available custom plugin for parsing" % parsers.keys())
         self.all_custom_parsers = parsers
 
-
     def aggregate_host(self, request, response):
         """
         Gets the result of a single host,
@@ -103,23 +99,23 @@ class Custom(object):
             klass_name = cfg['class']
             cfg['logger'] = logger
 
-            klass = self.all_custom_parsers[klass_name]
-            prevtime, currtime, hostname = task["PrevTime"], task["CurrTime"], task["Meta"]["Host"]
-            result = klass(cfg).aggregate_host(payload, prevtime, currtime, hostname)
+            klass = self.all_custom_parsers.get(klass_name, None)
+            if not klass:
+                response.error(-100, "There's no class named %s" % klass_name)
+                logger.error("class %s is absent", klass_name)
+            else:
+                prevtime, currtime, hostname = task["PrevTime"], task["CurrTime"], task["Meta"]["Host"]
+                result = klass(cfg).aggregate_host(payload, prevtime, currtime, hostname)
 
-            if cfg.get("logHostResult", False):
-                logger.info("Aggregate host result %s: %s", task['Meta'], result)
-            response.write(msgpack.packb(result))
-        except KeyError:
-            response.error(-100, "There's no class named %s" % klass_name)
-            logger.error("class %s is absent", klass_name)
+                if cfg.get("logHostResult", False):
+                    logger.info("Aggregate host result %s: %s", task['Meta'], result)
+                response.write(msgpack.packb(result))
         except Exception as err:  # pylint: disable=broad-except
-            response.error(-3, "Exception during handling %s" % repr(err))
-            logger.error("Error %s", err)
+            response.error(-3, "Exception during handling aggregate_host: %s" % repr(err))
+            logger.error("Error aggregate_host: %s", repr(err))
         finally:
             response.close()
         self.plugin_import()
-
 
     def aggregate_group(self, request, response):
         """
@@ -136,18 +132,19 @@ class Custom(object):
             klass_name = cfg['class']
             cfg['logger'] = logger
 
-            klass = self.all_custom_parsers[klass_name]
-            result = klass(cfg).aggregate_group(payload)
+            klass = self.all_custom_parsers.get(klass_name, None)
+            if not klass:
+                response.error(-100, "There's no class named %s" % klass_name)
+                logger.error("class %s is absent", klass_name)
+            else:
+                result = klass(cfg).aggregate_group(payload)
 
-            if cfg.get("logGroupResult", False):
-                logger.info("Aggregate group result %s: %s", task['Meta'], result)
-            response.write(result)
-        except KeyError:
-            response.error(-100, "There's no class named %s" % klass_name)
-            logger.error("class %s is absent", klass_name)
+                if cfg.get("logGroupResult", False):
+                    logger.info("Aggregate group result %s: %s", task['Meta'], result)
+                response.write(result)
         except Exception as err:  # pylint: disable=broad-except
-            response.error(100, repr(err))
-            logger.error("Error %s", err)
+            response.error(100, "Exception during handling aggregate_group: %s" % repr(err))
+            logger.error("Error aggregate_group: %s", repr(err))
         finally:
             response.close()
         self.plugin_import()
