@@ -464,6 +464,9 @@ func newQDNSFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
 	}
+	if fetcher.Resolver == "" {
+		fetcher.Resolver = "[::1]:53"
+	}
 	return &fetcher, nil
 }
 
