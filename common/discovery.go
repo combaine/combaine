@@ -454,8 +454,10 @@ func (s *ZKFetcher) setCache(c *cache.TTLCache) {
 
 // QDNSFetcher recive hosts from dns discovery
 type QDNSFetcher struct {
-	cache    *cache.TTLCache
-	Resolver string `mapstructure:"resolver"`
+	cache        *cache.TTLCache
+	Resolver     string
+	QueryTimeout int64
+	timeout      time.Duration
 }
 
 // newQDNSFetcher return dns discovery client
@@ -467,6 +469,10 @@ func newQDNSFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	if fetcher.Resolver == "" {
 		fetcher.Resolver = "[::1]:53"
 	}
+	if fetcher.QueryTimeout == 0 {
+		fetcher.QueryTimeout = 10
+	}
+	fetcher.timeout = time.Duration(fetcher.QueryTimeout) * time.Second
 	return &fetcher, nil
 }
 
@@ -488,7 +494,11 @@ func (d *QDNSFetcher) Fetch(entity string) (hosts.Hosts, error) {
 	fetcher := func() (map[string][]string, error) {
 		m := new(dns.Msg)
 		m.SetQuestion(entity, dns.TypeSRV)
-		in, err := dns.Exchange(m, d.Resolver)
+		var in *dns.Msg
+		var err error
+
+		client := dns.Client{Net: "tcp", Timeout: d.timeout}
+		in, _, err = client.Exchange(m, d.Resolver)
 		if err != nil {
 			log.Errorf("%s %s", entity, err)
 			return nil, err
