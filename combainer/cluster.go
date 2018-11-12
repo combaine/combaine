@@ -220,7 +220,7 @@ func (c *Cluster) maybeBootstrap() error {
 	return nil
 }
 
-// Peers is used to return known raft peers.
+// Peers is used to return alive raft peers.
 func (c *Cluster) Peers() ([]string, error) {
 	if c.raft == nil {
 		return nil, errors.New("Peers: cluster raft not configured")
@@ -230,9 +230,18 @@ func (c *Cluster) Peers() ([]string, error) {
 		return nil, err
 	}
 	config := future.Configuration()
-	peers := make([]string, len(config.Servers))
-	for i := 0; i < len(config.Servers); i++ {
-		peers[i] = string(config.Servers[i].ID)
+
+	aliveHosts := make(map[string]struct{})
+	for _, sm := range c.AliveMembers() {
+		aliveHosts[sm.Name] = struct{}{}
+	}
+
+	var peers []string
+	for _, server := range config.Servers {
+		peersID := string(server.ID)
+		if _, ok := aliveHosts[peersID]; ok {
+			peers = append(peers, peersID)
+		}
 	}
 	return peers, nil
 }
