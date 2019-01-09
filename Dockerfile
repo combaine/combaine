@@ -27,7 +27,7 @@ RUN apt-get -qq update \
     libsys-hostname-long-perl libconfig-tiny-perl liburi-perl \
     libfcgi-client-perl libbsd-resource-perl \
     \
-    salt-minion=2018.3.2-yandex2 zstd mawk yandex-timetail media-graphite-sender \
+    salt-minion=2018.3.2-yandex3 zstd mawk yandex-timetail media-graphite-sender \
     cocaine-tools cocaine-runtime cocaine-framework-python=0.11.1.12 libcocaine-core2 \
     python-pip gcc python-dev python-setuptools iptables \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*

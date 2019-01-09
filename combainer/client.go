@@ -269,7 +269,7 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 	var remote peer.Peer
 	reply, err := c.DoParsing(ctx, task, grpc.Peer(&remote))
 	if err != nil {
-		log.Errorf("doParsing: reply error from %s: %s", remote.Addr.String(), err)
+		log.Errorf("doParsing: reply error from %v: %s", remote.Addr, err)
 		cl.clientStats.AddFailedParsing()
 		return
 	}
@@ -294,7 +294,7 @@ func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask, 
 	var remote peer.Peer
 	_, err := c.DoAggregating(ctx, task, grpc.Peer(&remote))
 	if err != nil {
-		log.Errorf("doAggregation: reply error from %s: %s", remote.Addr.String(), err)
+		log.Errorf("doAggregation: reply error from %v: %s", remote.Addr, err)
 		cl.clientStats.AddFailedAggregate()
 		return
 	}
