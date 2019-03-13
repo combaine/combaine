@@ -212,32 +212,33 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			check = jugglerCheck{update: true}
 		}
 
-		// Ensure check only once.
-		if _, ok := updated[t.Service]; !ok {
-			updated[t.Service] = struct{}{}
-			logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
-
-			// ttl
-			js.ensureTTL(&check)
-			// aggregator
-			err := js.ensureAggregator(&check)
-			if err != nil {
-				return errors.Wrap(err, "ensureCheck")
-			}
-			// methods
-			err = js.ensureNotifications(&check)
-			if err != nil {
-				return errors.Wrap(err, "ensureCheck")
-			}
-			// flap
-			js.ensureFlap(&check)
-			// tags
-			js.ensureTags(&check)
-			// description
-			js.ensureDescription(&check)
-			// namespace
-			js.ensureNamespace(&check)
+		if _, ok := updated[t.Service]; ok {
+			continue // Ensure check only once.
 		}
+		updated[t.Service] = struct{}{}
+
+		logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
+
+		// ttl
+		js.ensureTTL(&check)
+		// aggregator
+		err := js.ensureAggregator(&check)
+		if err != nil {
+			return errors.Wrap(err, "ensureCheck")
+		}
+		// methods
+		err = js.ensureNotifications(&check)
+		if err != nil {
+			return errors.Wrap(err, "ensureCheck")
+		}
+		// flap
+		js.ensureFlap(&check)
+		// tags
+		js.ensureTags(&check)
+		// description
+		js.ensureDescription(&check)
+		// namespace
+		js.ensureNamespace(&check)
 
 		// add children
 		if _, ok := childSet[t.Host+":"+t.Service]; !ok {

@@ -1,5 +1,6 @@
 export PATH := ~/go/bin:/usr/local/go/bin:$(PATH)
 export GO111MODULE := on
+export CGO_ENABLED := 0
 
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
