@@ -54,7 +54,7 @@ type jugglerFlapConfig struct {
 }
 
 type jugglerCheck struct {
-	Update           bool                   `json:"-"`
+	update           bool
 	Host             string                 `json:"host"`
 	Service          string                 `json:"service"`
 	Description      string                 `json:"description"`
@@ -66,6 +66,15 @@ type jugglerCheck struct {
 	Children         []jugglerChildrenCheck `json:"children"`
 	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
 	Namespace        string                 `json:"namespace"`
+}
+
+func (c *jugglerCheck) needUpdated() {
+	if !c.update {
+		c.update = true
+	}
+}
+func (c *jugglerCheck) modified() bool {
+	return c.update
 }
 
 type jugglerEvent struct {
@@ -200,7 +209,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		check, ok := services[t.Service]
 		if !ok {
 			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
-			check = jugglerCheck{Update: true}
+			check = jugglerCheck{update: true}
 		}
 
 		// Ensure check only once.
@@ -232,7 +241,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 
 		// add children
 		if _, ok := childSet[t.Host+":"+t.Service]; !ok {
-			check.Update = true
+			check.needUpdated()
 			child := jugglerChildrenCheck{
 				Host:    t.Host,
 				Type:    "HOST", // FIXME? hardcode, delete?
@@ -242,7 +251,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 			check.Children = append(check.Children, child)
 		}
 
-		if check.Update {
+		if check.modified() {
 			check.Host = js.Host
 			check.Service = t.Service
 			services[t.Service] = check
@@ -258,7 +267,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		}
 	}()
 	for _, c := range services {
-		if c.Update {
+		if c.modified() {
 			cleanCache = true
 			if err := js.updateCheck(ctx, c); err != nil {
 				return err
@@ -273,7 +282,7 @@ func (js *Sender) ensureTTL(c *jugglerCheck) {
 		js.TTL = 900 // default juggler ttl
 	}
 	if c.TTL != js.TTL {
-		c.Update = true
+		c.needUpdated()
 		logger.Infof("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
 		c.TTL = js.TTL
 	}
@@ -284,16 +293,17 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 		js.Description = js.CheckName
 	}
 	if c.Description != js.Description && js.Description != "" {
-		c.Update = true
+		c.needUpdated()
 		logger.Infof("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
 		c.Description = js.Description
 	}
 }
 
 func (js *Sender) ensureAggregator(c *jugglerCheck) error {
-	aggregatorOutdated := false
 	if c.Aggregator != js.Aggregator {
-		aggregatorOutdated = true
+		c.needUpdated()
+		logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.Aggregator, js.Aggregator)
+		c.Aggregator = js.Aggregator
 	}
 	configKWArgs, err := json.Marshal(js.AggregatorKWArgs)
 	if err != nil {
@@ -308,22 +318,17 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 	if err != nil {
 		return errors.Wrapf(err, "ensureAggregator: Failed to unmarshal configKWArgs: %s, checkKWArgs: %s", configKWArgs, checkKWArgs)
 	}
-	if c.Update = aggregatorOutdated || d.Modified(); c.Update {
-		if aggregatorOutdated {
-			logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.Aggregator, js.Aggregator)
-			c.Aggregator = js.Aggregator
+	if d.Modified() {
+		c.needUpdated()
+		f := &formatter.DeltaFormatter{PrintIndent: false}
+		diffString, err := f.Format(d)
+		if err != nil {
+			return errors.Wrap(err, "ensureAggregator: format diff")
 		}
-		if d.Modified() {
-			f := &formatter.DeltaFormatter{PrintIndent: false}
-			diffString, err := f.Format(d)
-			if err != nil {
-				return errors.Wrap(err, "ensureAggregator: format diff")
-			}
-			diffString = diffString[:len(diffString)-1] // - \n
-			// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
-			logger.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
-			c.AggregatorKWArgs = configKWArgs
-		}
+		diffString = diffString[:len(diffString)-1] // - \n
+		// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
+		logger.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
+		c.AggregatorKWArgs = configKWArgs
 	}
 	return nil
 }
@@ -363,11 +368,10 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 		notifications = append(notifications, notificationJSON)
 	}
 
+	update := false
+
 	// TODO(sakateka) add real tests, currently tested by reading logs
-
-	c.Update = len(notifications) != len(c.Notifications)
-
-	if !c.Update {
+	if len(notifications) == len(c.Notifications) {
 		nJSON, nErr := json.Marshal(map[string]interface{}{"notifications": notifications})
 		if nErr != nil {
 			return errors.Wrapf(nErr, "ensureNotifications: config.notifications=%#v", notifications)
@@ -388,8 +392,6 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 		if d.Modified() {
 			// the server may sort the notifications, thereby moving the elements :-(
 			// recheck for modifications
-			c.Update = false
-
 			// because the above is checked that the notification is arrays
 			arrDiff := d.Deltas()[0].(*diff.Array)
 		MODIFIED:
@@ -397,12 +399,12 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 				switch adelta.(type) {
 				case *diff.Moved:
 				default:
-					c.Update = true
+					update = true
 					break MODIFIED
 				}
 			}
 		}
-		if c.Update {
+		if update {
 			f := &formatter.DeltaFormatter{PrintIndent: false}
 			diffString, err := f.Format(d)
 			if err != nil {
@@ -413,10 +415,12 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 			logger.Infof("%s Check outdated, notifications differ: %s", js.id, diffString)
 		}
 	} else {
+		update = true
 		logger.Infof("%s Check outdated, len(notifications) not match: config=%d, from juggler=%d",
 			js.id, len(notifications), len(c.Notifications))
 	}
-	if c.Update {
+	if update {
+		c.needUpdated()
 		c.Notifications = notifications
 	}
 	return nil
@@ -431,7 +435,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 	if f, ok := js.ChecksOptions[c.Service]; ok {
 		if f.Enable == 1 {
 			if *c.Flap != f {
-				c.Update = true
+				c.needUpdated()
 				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
 				c.Flap = &f
 			}
@@ -440,7 +444,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 		// if flap setting not set for check individually, try apply global settings
 		if js.Flap != nil && js.Flap.Enable == 1 {
 			if *c.Flap != *js.Flap {
-				c.Update = true
+				c.needUpdated()
 				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
 				c.Flap = js.Flap
 			}
@@ -456,7 +460,7 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 	}
 	// TODO: tags by servces in juggler config as for flaps?
 	if c.Tags == nil || len(c.Tags) == 0 {
-		c.Update = true
+		c.needUpdated()
 		logger.Infof("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
 		c.Tags = make([]string, len(js.Tags))
 		copy(c.Tags, js.Tags)
@@ -467,7 +471,7 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 		}
 		for _, tag := range js.Tags {
 			if _, ok := tagsSet[tag]; !ok {
-				c.Update = true
+				c.needUpdated()
 				logger.Infof("%s Add tag %s", js.id, tag)
 				c.Tags = append(c.Tags, tag)
 			}
@@ -480,7 +484,7 @@ func (js *Sender) ensureNamespace(c *jugglerCheck) {
 		js.Namespace = "combaine"
 	}
 	if js.Config.Token != "" && c.Namespace != js.Namespace {
-		c.Update = true
+		c.needUpdated()
 		logger.Infof("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
 		c.Namespace = js.Namespace
 	}
