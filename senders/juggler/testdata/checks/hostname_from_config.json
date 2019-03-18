@@ -7,7 +7,7 @@
       "tags": null,
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947534,
-      "flap_time": null,
+      "flaps": null,
       "active_kwargs": null,
       "alert_interval": [
         null,
@@ -26,11 +26,8 @@
           }
         ]
       },
-      "critical_time": null,
-      "boost_time": null,
       "ttl": 900,
       "active": null,
-      "stable_time": null,
       "children": [
         {
           "instance": "",
@@ -74,7 +71,6 @@
       "tags": [ "app" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947562,
-      "flap_time": 0,
       "active_kwargs": null,
       "alert_interval": [
         null,
@@ -93,11 +89,13 @@
           }
         ]
       },
-      "critical_time": 90,
-      "boost_time": 0,
+      "flaps": {
+          "boost_time": 0,
+          "stable_time": 60,
+          "critical_time": 90
+      },
       "ttl": 900,
       "active": null,
-      "stable_time": 60,
       "children": [
         {
           "instance": "",
@@ -123,7 +121,6 @@
       "tags": [ "combaine" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947562,
-      "flap_time": null,
       "active_kwargs": null,
       "alert_interval": [
         null,
@@ -142,11 +139,9 @@
           }
         ]
       },
-      "critical_time": null,
-      "boost_time": null,
       "ttl": 900,
       "active": null,
-      "stable_time": null,
+      "flaps": null,
       "children": [
         {
           "instance": "",
@@ -202,7 +197,6 @@
       "tags": [ "common" ],
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947572,
-      "flap_time": null,
       "active_kwargs": null,
       "alert_interval": [
         null,
@@ -221,11 +215,9 @@
           }
         ]
       },
-      "critical_time": null,
-      "boost_time": null,
+      "flaps": null,
       "ttl": 900,
       "active": null,
-      "stable_time": null,
       "children": [
         {
           "instance": "",
@@ -281,7 +273,6 @@
       "tags": null,
       "aggregator": "timed_more_than_limit_is_problem",
       "creation_time": 1480947558,
-      "flap_time": null,
       "active_kwargs": null,
       "alert_interval": [
         null,
@@ -300,11 +291,8 @@
           }
         ]
       },
-      "critical_time": null,
-      "boost_time": null,
       "ttl": 900,
       "active": null,
-      "stable_time": null,
       "children": [
         {
           "instance": "",

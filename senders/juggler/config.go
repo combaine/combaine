@@ -42,9 +42,9 @@ type Config struct {
 	CheckName        string                       `codec:"checkname"`
 	Description      string                       `codec:"description"`
 	Tags             []string                     `codec:"tags"`
-	Flap             *jugglerFlapConfig           `codec:"flap"`
+	Flaps            *jugglerFlapConfig           `codec:"flaps"`
 	Variables        map[string]string            `codec:"variables"`
-	ChecksOptions    map[string]jugglerFlapConfig `codec:"checks_options"`
+	FlapsByChecks    map[string]jugglerFlapConfig `codec:"flaps_by_checks"`
 	JPluginConfig    repository.PluginConfig      `codec:"config"`
 	JHosts           []string                     `codec:"juggler_hosts"`
 	JFrontend        []string                     `codec:"juggler_frontend"`
@@ -78,8 +78,8 @@ func DefaultConfig() *Config {
 		PluginsDir:       "/etc/combaine/juggler/plugins",
 		AggregatorKWArgs: make(map[string]interface{}),
 		Tags:             []string{"combaine"},
-		Flap:             nil,
-		ChecksOptions:    make(map[string]jugglerFlapConfig, 0),
+		Flaps:            nil,
+		FlapsByChecks:    make(map[string]jugglerFlapConfig, 0),
 		JPluginConfig:    repository.PluginConfig{},
 	}
 }

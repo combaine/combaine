@@ -83,4 +83,4 @@ fast-test:
 test: vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
-	@go test ./... -race -coverprofile=coverage.txt -covermode=atomic
+	CGO_ENABLED=1 go test ./... -race -coverprofile=coverage.txt -covermode=atomic
