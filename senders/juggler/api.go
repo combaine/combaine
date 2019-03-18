@@ -47,7 +47,6 @@ type jugglerChildrenCheck struct {
 }
 
 type jugglerFlapConfig struct {
-	Enable       int64 `codec:"enable" json:"-"`
 	BoostTime    int64 `codec:"boost_time" json:"boost_time"`
 	StableTime   int64 `codec:"stable_time" json:"stable_time"`
 	CriticalTime int64 `codec:"critical_time" json:"critical_time"`
@@ -64,7 +63,7 @@ type jugglerCheck struct {
 	TTL              int                    `json:"ttl"`
 	Tags             []string               `json:"tags"`
 	Children         []jugglerChildrenCheck `json:"children"`
-	Flap             *jugglerFlapConfig     `json:"flaps,omitempty"`
+	Flaps            *jugglerFlapConfig     `json:"flaps,omitempty"`
 	Namespace        string                 `json:"namespace"`
 }
 
@@ -171,20 +170,6 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
 		logger.Errf("Failed to Unmarshal hostChecks: %s", err)
 		hostChecks = jugglerResponse{js.Host: make(map[string]jugglerCheck)}
-	}
-	var flap map[string]map[string]*jugglerFlapConfig
-	if err := json.Unmarshal(cJSON, &flap); err != nil {
-		logger.Errf("Failed to Unmarshal flaps: %s", err)
-		flap = map[string]map[string]*jugglerFlapConfig{
-			js.Host: make(map[string]*jugglerFlapConfig),
-		}
-	}
-	for c, v := range flap[js.Host] {
-		if v.StableTime != 0 || v.CriticalTime != 0 || v.BoostTime != 0 {
-			chk := hostChecks[js.Host][c]
-			chk.Flap = v
-			hostChecks[js.Host][c] = chk
-		}
 	}
 	return hostChecks, nil
 }
@@ -428,29 +413,26 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 }
 
 func (js *Sender) ensureFlap(c *jugglerCheck) {
-	if c.Flap == nil {
-		c.Flap = &jugglerFlapConfig{}
-	}
-	c.Flap.Enable = 1 // enable field not set by json, set in manually
-
-	if f, ok := js.ChecksOptions[c.Service]; ok {
-		if f.Enable == 1 {
-			if *c.Flap != f {
-				c.needUpdated()
-				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
-				c.Flap = &f
-			}
+	if f, ok := js.FlapsByChecks[c.Service]; ok {
+		if c.Flaps == nil || *c.Flaps != f {
+			c.needUpdated()
+			logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
+			c.Flaps = &f
 		}
 	} else {
 		// if flap setting not set for check individually, try apply global settings
-		if js.Flap != nil && js.Flap.Enable == 1 {
-			if *c.Flap != *js.Flap {
+		if js.Flaps != nil {
+			if c.Flaps == nil || *c.Flaps != *js.Flaps {
 				c.needUpdated()
-				logger.Infof("%s Check outdated, Flap differ: %s != %s", js.id, c.Flap, js.Flap)
-				c.Flap = js.Flap
+				logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
+				c.Flaps = js.Flaps
 			}
 		} else {
-			c.Flap = nil
+			if c.Flaps != nil {
+				c.needUpdated()
+				logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
+			}
+			c.Flaps = nil
 		}
 	}
 }

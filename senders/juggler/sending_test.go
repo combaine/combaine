@@ -46,6 +46,7 @@ func TestGetCheck(t *testing.T) {
 
 	jconf.JHosts = []string{"localhost:3333", ts.Listener.Addr().String()}
 	js, err = NewSender(jconf, "Test ID")
+	assert.NoError(t, err)
 	cases := []struct {
 		name      string
 		exists    bool
@@ -83,7 +84,7 @@ func TestGetCheck(t *testing.T) {
 		assert.Len(t, jugglerResp[js.Host], c.len)
 
 		for k, v := range c.withFlaps {
-			assert.Equal(t, v, jugglerResp[c.name][k].Flap)
+			assert.Equal(t, v, jugglerResp[c.name][k].Flaps, "k=%s", k)
 		}
 	}
 }
@@ -109,7 +110,7 @@ func TestEnsureCheck(t *testing.T) {
 	}
 
 	jconf := DefaultJugglerTestConfig()
-	jconf.Flap = &jugglerFlapConfig{Enable: 1, StableTime: 60}
+	jconf.Flaps = &jugglerFlapConfig{StableTime: 60}
 	jconf.JPluginConfig = commonJPluginConfig
 
 	jconf.JHosts = []string{ts.Listener.Addr().String()}
@@ -140,9 +141,7 @@ func TestEnsureCheck(t *testing.T) {
 		if c.name == "backend" {
 			// remove first tag, ensureCheck should add it again
 			js.Tags = c.tags["2xx"][1:]
-			js.ChecksOptions["2xx"] = jugglerFlapConfig{
-				Enable: 1, StableTime: 10, CriticalTime: 3000,
-			}
+			js.FlapsByChecks["2xx"] = jugglerFlapConfig{StableTime: 10, CriticalTime: 3000}
 		}
 		if c.name == "frontend" {
 			js.Method = "SMS,GOLEM"
@@ -157,7 +156,7 @@ func TestEnsureCheck(t *testing.T) {
 		// reset tags here for coverage purpose
 		js.Tags = nil
 		js.Notifications = nil
-		js.ChecksOptions = map[string]jugglerFlapConfig{}
+		js.FlapsByChecks = map[string]jugglerFlapConfig{}
 	}
 	// non existing check check
 	js.Host = "someHost"
