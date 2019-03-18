@@ -432,7 +432,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 	if f, ok := js.FlapsByChecks[c.Service]; ok {
 		if c.Flaps == nil || *c.Flaps != f {
 			c.needUpdated()
-			logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
+			logger.Infof("%s Check outdated, Flaps (from FlapsByChecks) differ: %s != %s", js.id, c.Flaps, js.Flaps)
 			c.Flaps = &f
 		}
 	} else {
