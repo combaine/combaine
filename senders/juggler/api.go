@@ -429,27 +429,32 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 }
 
 func (js *Sender) ensureFlap(c *jugglerCheck) {
+	var inConfig *jugglerFlapConfig
+	var msg string
 	if f, ok := js.FlapsByChecks[c.Service]; ok {
-		if c.Flaps == nil || *c.Flaps != f {
-			c.needUpdated()
-			logger.Infof("%s Check outdated, Flaps (from FlapsByChecks) differ: %s != %s", js.id, c.Flaps, js.Flaps)
-			c.Flaps = &f
-		}
+		inConfig = &f
+		msg = " (from FlapsByChecks)"
 	} else {
 		// if flap setting not set for check individually, try apply global settings
-		if js.Flaps != nil {
-			if c.Flaps == nil || *c.Flaps != *js.Flaps {
-				c.needUpdated()
-				logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
-				c.Flaps = js.Flaps
-			}
-		} else {
-			if c.Flaps != nil {
-				c.needUpdated()
-				logger.Infof("%s Check outdated, Flaps differ: %s != %s", js.id, c.Flaps, js.Flaps)
-			}
-			c.Flaps = nil
-		}
+		inConfig = js.Flaps
+	}
+	if inConfig != nil && inConfig.StableTime == 0 && inConfig.CriticalTime == 0 && inConfig.BoostTime == 0 {
+		logger.Infof("%s Check's flaps not configured, skip")
+		inConfig = nil
+	}
+
+	var update bool
+	if (c.Flaps == nil && inConfig != nil) ||
+		(c.Flaps != nil && inConfig == nil) ||
+		(c.Flaps != nil && inConfig != nil && *c.Flaps != *inConfig) {
+
+		c.needUpdated()
+		c.Flaps = inConfig
+		update = true
+	}
+
+	if update {
+		logger.Infof("%s Check outdated, Flaps%s differ: %s (juggler) != %s (inConfig)", js.id, msg, c.Flaps, inConfig)
 	}
 }
 
