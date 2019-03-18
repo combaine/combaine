@@ -52,6 +52,7 @@
       "refresh_time": 90,
       "description": "ssl_handshake_timings",
       "aggregator": "timed_more_than_limit_is_problem",
+      "flap_time": 0,
       "tags": [ "app", "front", "core" ],
       "aggregator_kwargs": {
         "nodata_mode": "force_ok",
@@ -65,12 +66,10 @@
           }
         ]
       },
-      "flaps": {
-          "critical_time": 90,
-          "boost_time": 0,
-          "stable_time": 60
-      },
+      "critical_time": 90,
+      "boost_time": 0,
       "ttl": 900,
+      "stable_time": 60,
       "children": [
         {
           "instance": "",

@@ -12,10 +12,9 @@
         ]
       },
       "ttl": 900,
-      "flaps": {
-          "critical_time": 90,
-          "boost_time": 0
-      },
+      "flap_time": 10,
+      "critical_time": 90,
+      "boost_time": 0,
       "methods": [ "GOLEM" ]
     }
   }

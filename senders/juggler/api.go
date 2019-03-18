@@ -171,6 +171,22 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 		logger.Errf("Failed to Unmarshal hostChecks: %s", err)
 		hostChecks = jugglerResponse{js.Host: make(map[string]jugglerCheck)}
 	}
+	// XXX: do not remove this crutch, until you are 100% sure,
+	// check json returned from api/checks/checks
+	var flap map[string]map[string]*jugglerFlapConfig
+	if err := json.Unmarshal(cJSON, &flap); err != nil {
+		logger.Errf("Failed to Unmarshal flaps: %s", err)
+		flap = map[string]map[string]*jugglerFlapConfig{
+			js.Host: make(map[string]*jugglerFlapConfig),
+		}
+	}
+	for c, v := range flap[js.Host] {
+		if v.StableTime != 0 || v.CriticalTime != 0 || v.BoostTime != 0 {
+			chk := hostChecks[js.Host][c]
+			chk.Flaps = v
+			hostChecks[js.Host][c] = chk
+		}
+	}
 	return hostChecks, nil
 }
 
