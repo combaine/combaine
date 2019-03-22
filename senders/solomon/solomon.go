@@ -16,6 +16,7 @@ import (
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/utils"
+	"github.com/hashicorp/go-multierror"
 )
 
 var (
@@ -233,10 +234,11 @@ func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 		return err
 	}
 	logger.Infof("%s Send %d items", s.id, len(data))
+	var merr *multierror.Error
 	for _, v := range data {
 		push, err := json.Marshal(v)
 		if err != nil {
-			return err
+			merr = multierror.Append(merr, err)
 		}
 		logger.Debugf("%s Data to POST: %s", s.id, string(push))
 
@@ -244,7 +246,7 @@ func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 		JobQueue <- Job{PushData: push, SolCli: s}
 
 	}
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // InitializeLogger create cocaine logger
