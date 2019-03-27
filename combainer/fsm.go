@@ -50,28 +50,62 @@ func (c *FSM) Apply(l *raft.Log) interface{} {
 	return nil
 }
 
+// Snapshot create FSM snapshot
+func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
+	c.log.Info("fsm: Make snapshot")
+	dump := c.store.Dump()
+	data, err := json.Marshal(dump)
+	if err != nil {
+		return nil, err
+	}
+	return &FSMSnapshot{Data: data}, nil
+}
+
 // Restore FSM from snapshot
 func (c *FSM) Restore(rc io.ReadCloser) error {
 	c.log.Infof("fsm: Restore from %+v", rc)
+	c.store.Lock()
+	defer c.store.Unlock()
+	c.store.clean()
+
+	var data []byte
+	_, err := rc.Read(data)
+	if err != nil {
+		return err
+	}
+	var newStore map[string][]string
+	if err := json.Unmarshal(data, &newStore); err != nil {
+		return err
+	}
+
+	for host := range newStore {
+		for _, config := range newStore[host] {
+			stopCh := c.store.Put(host, config)
+			if host == c.Name {
+				go c.handleTask(config, stopCh)
+			}
+		}
+	}
 	return nil
 }
 
 // FSMSnapshot ...
-type FSMSnapshot struct{}
+type FSMSnapshot struct {
+	Data []byte
+}
 
 // Persist ...
-func (f *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
+func (s *FSMSnapshot) Persist(sink raft.SnapshotSink) error {
+	if _, err := sink.Write(s.Data); err != nil {
+		sink.Cancel()
+		return err
+	}
+	sink.Close()
 	return nil
 }
 
 // Release ...
-func (f *FSMSnapshot) Release() {}
-
-// Snapshot create FSM snapshot
-func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
-	c.log.Info("fsm: Make snapshot")
-	return &FSMSnapshot{}, nil
-}
+func (s *FSMSnapshot) Release() {}
 
 // NewFSMStore create new FSM storage
 func NewFSMStore() *FSMStore {
@@ -131,6 +165,32 @@ func (s *FSMStore) Remove(host, config string) {
 	s.Unlock()
 }
 
+// Dump ...
+func (s *FSMStore) Dump() map[string][]string {
+	s.RLock()
+	defer s.RUnlock()
+	var dump map[string][]string
+	for k := range s.store {
+		for cfg := range s.store[k] {
+			dump[k] = append(dump[k], cfg)
+		}
+	}
+	return dump
+}
+
+// Clean the store
+func (s *FSMStore) clean() {
+	for k := range s.store {
+		for cfg := range s.store[k] {
+			if ch := s.store[k][cfg]; ch != nil {
+				close(ch)
+			}
+			delete(s.store[k], cfg)
+		}
+		delete(s.store, k)
+	}
+}
+
 // DistributionStatistic dump number of configs assigned to hosts
 func (s *FSMStore) DistributionStatistic() [][2]string {
 	idx := 0
@@ -147,15 +207,9 @@ func (s *FSMStore) DistributionStatistic() [][2]string {
 // Replace store for testing
 func (s *FSMStore) Replace(newStore map[string]map[string]chan struct{}) {
 	s.Lock()
-	for k := range s.store {
-		for cfg := range s.store[k] {
-			if ch := s.store[k][cfg]; ch != nil {
-				close(ch)
-			}
-			delete(s.store[k], cfg)
-		}
-		delete(s.store, k)
-	}
+	defer s.Unlock()
+
+	s.clean()
 	for k := range newStore {
 		for cfg := range newStore[k] {
 			if _, ok := s.store[k]; !ok {
@@ -164,5 +218,4 @@ func (s *FSMStore) Replace(newStore map[string]map[string]chan struct{}) {
 			s.store[k][cfg] = make(chan struct{})
 		}
 	}
-	s.Unlock()
 }
