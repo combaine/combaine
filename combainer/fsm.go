@@ -120,18 +120,12 @@ type FSMStore struct {
 
 // List return configs assigned to host
 func (s *FSMStore) List(host string) []string {
-	var configs []string
 	s.RLock()
+	defer s.RUnlock()
 	if hostConfigs, ok := s.store[host]; ok {
-		configs = make([]string, len(hostConfigs))
-		idx := 0
-		for n := range hostConfigs {
-			configs[idx] = n
-			idx++
-		}
+		return keys(hostConfigs)
 	}
-	s.RUnlock()
-	return configs
+	return nil
 }
 
 // Put assign new config to host
@@ -171,9 +165,7 @@ func (s *FSMStore) Dump() map[string][]string {
 	defer s.RUnlock()
 	var dump map[string][]string
 	for k := range s.store {
-		for cfg := range s.store[k] {
-			dump[k] = append(dump[k], cfg)
-		}
+		dump[k] = keys(s.store[k])
 	}
 	return dump
 }
@@ -218,4 +210,14 @@ func (s *FSMStore) Replace(newStore map[string]map[string]chan struct{}) {
 			s.store[k][cfg] = make(chan struct{})
 		}
 	}
+}
+
+func keys(m map[string]chan struct{}) []string {
+	configs := make([]string, len(m))
+	idx := 0
+	for k := range m {
+		configs[idx] = k
+		idx++
+	}
+	return configs
 }
