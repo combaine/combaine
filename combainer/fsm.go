@@ -163,7 +163,7 @@ func (s *FSMStore) Remove(host, config string) {
 func (s *FSMStore) Dump() map[string][]string {
 	s.RLock()
 	defer s.RUnlock()
-	var dump map[string][]string
+	dump := make(map[string][]string, len(s.store))
 	for k := range s.store {
 		dump[k] = keys(s.store[k])
 	}
