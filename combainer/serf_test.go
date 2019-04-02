@@ -1,6 +1,7 @@
 package combainer
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,9 @@ func TestKeysUtil(t *testing.T) {
 		"key3": make(chan struct{}),
 	}
 
-	assert.EqualValues(t, []string{"key1", "key2", "key3"}, keys(testMap["one"]))
+	mapKeys := keys(testMap["one"])
+	sort.Sort(sort.StringSlice(mapKeys))
+	assert.EqualValues(t, []string{"key1", "key2", "key3"}, mapKeys)
 
 	testMap["two"] = map[string]chan struct{}{
 		"key": make(chan struct{}),
