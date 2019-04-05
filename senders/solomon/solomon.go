@@ -33,6 +33,7 @@ type Config struct {
 	Service string   `codec:"service"`
 	Timeout int      `codec:"rw_timeout"`
 	Fields  []string `codec:"Fields"`
+	Schema  []string `codec:"Schema"`
 }
 
 // Sender object
@@ -49,7 +50,8 @@ type comLabels struct {
 	Service string `json:"service"`
 }
 
-type sensor struct {
+// Sensor type
+type Sensor struct {
 	Labels map[string]string `json:"labels"`
 	Ts     uint64            `json:"ts"`
 	Value  float64           `json:"value"`
@@ -57,7 +59,7 @@ type sensor struct {
 
 type solomonPush struct {
 	CommonLabels comLabels `json:"commonLabels"`
-	Sensors      []sensor  `json:"sensors"`
+	Sensors      []Sensor  `json:"sensors"`
 }
 
 // Job contains sender and PushData
@@ -73,7 +75,7 @@ type Worker struct {
 	RetryInterval time.Duration // ms
 }
 
-func (s *Sender) dumpSensor(name string, value reflect.Value, timestamp uint64) (*sensor, error) {
+func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp uint64) (*Sensor, error) {
 	var (
 		err         error
 		sensorValue float64
@@ -97,28 +99,53 @@ func (s *Sender) dumpSensor(name string, value reflect.Value, timestamp uint64) 
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", err, value)
 	}
-
-	return &sensor{
-		Labels: map[string]string{"sensor": s.prefix + name},
+	sensor := Sensor{
+		Labels: make(map[string]string),
 		Ts:     timestamp,
 		Value:  sensorValue,
-	}, nil
+	}
+
+	if len(s.Schema) > 0 {
+		if len(path) == 1 {
+			logger.Infof("%s Handle graphite compatible sensor name %s by schema %+v", s.id, path, s.Schema)
+			path = strings.Split(path[0], ".")
+		}
+
+		if len(s.Schema) >= len(path) {
+			msg := fmt.Errorf("Unable to send %+v(size %d) with schema %+v(size %d)",
+				path, len(path), s.Schema, len(s.Schema))
+			logger.Errf("%s %s", s.id, msg)
+			return nil, msg
+		}
+		for i := 0; i < len(s.Schema); i++ {
+			sensor.Labels[s.Schema[i]] = path[i]
+		}
+		sensor.Labels["sensor"] = strings.Join(path[len(s.Schema):], ".")
+		if s.prefix != "" {
+			sensor.Labels["prefix"] = strings.TrimRight(s.prefix, ".")
+		}
+	} else {
+		sensor.Labels["sensor"] = s.prefix + strings.Join(path, ".")
+	}
+
+	return &sensor, nil
 }
 
-func (s *Sender) dumpSlice(sensors *[]sensor, name string,
+func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
 	rv reflect.Value, timestamp uint64) error {
 
 	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
-		msg := fmt.Sprintf("%s Unable to send a slice. Fields len %d, len of value %d",
+		msg := fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
 			s.id, len(s.Fields), rv.Len())
 		logger.Errf("%s %s", s.id, msg)
-		return fmt.Errorf(msg)
+		return msg
 	}
 
 	for i := 0; i < rv.Len(); i++ {
-		sensorName := fmt.Sprintf("%s.%s", name, s.Fields[i])
 		data := reflect.ValueOf(rv.Index(i).Interface())
-		item, err := s.dumpSensor(sensorName, data, timestamp)
+		path.Push(s.Fields[i])
+		item, err := s.dumpSensor(path, data, timestamp)
+		path.Pop()
 		if err != nil {
 			return err
 		}
@@ -127,30 +154,24 @@ func (s *Sender) dumpSlice(sensors *[]sensor, name string,
 	return nil
 }
 
-func (s *Sender) dumpMap(sensors *[]sensor, name string, rv reflect.Value, timestamp uint64) error {
+func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Value, timestamp uint64) error {
 	var (
-		item *sensor
+		item *Sensor
 		err  error
 	)
 
-	keys := rv.MapKeys()
-	for _, key := range keys {
-
-		delimiter := "."
-		if name == "" {
-			delimiter = ""
-		}
-		sensorName := fmt.Sprintf("%s%s%s", name, delimiter, key)
+	for _, key := range rv.MapKeys() {
+		path.Push(fmt.Sprintf("%s", key))
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
 		logger.Debugf("%s Item of key %s is: %v", s.id, key, itemInterface.Kind())
 
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
-			err = s.dumpSlice(sensors, sensorName, itemInterface, timestamp)
+			err = s.dumpSlice(sensors, path, itemInterface, timestamp)
 		case reflect.Map:
-			err = s.dumpMap(sensors, sensorName, itemInterface, timestamp)
+			err = s.dumpMap(sensors, path, itemInterface, timestamp)
 		default:
-			item, err = s.dumpSensor(sensorName, itemInterface, timestamp)
+			item, err = s.dumpSensor(path, itemInterface, timestamp)
 			if err == nil {
 				*sensors = append(*sensors, *item)
 			}
@@ -159,6 +180,7 @@ func (s *Sender) dumpMap(sensors *[]sensor, name string, rv reflect.Value, times
 		if err != nil {
 			return err
 		}
+		path.Pop()
 	}
 	return err
 }
@@ -191,7 +213,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 			continue
 		}
 		//for host, value := range subgroupsAndValues {
-		var sensors []sensor
+		var sensors []Sensor
 		pushData := solomonPush{
 			CommonLabels: comLabels{
 				Host:    host,
@@ -208,7 +230,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 			err = fmt.Errorf("Value of group should be dict, skip: %v", rv)
 			continue
 		}
-		err = s.dumpMap(&sensors, "", rv, timestamp)
+		err = s.dumpMap(&sensors, []string{}, rv, timestamp)
 		if err != nil {
 			err = fmt.Errorf("bad value for %s - %s: %v", aggname, err, item.Result)
 			continue
