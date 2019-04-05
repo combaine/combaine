@@ -62,7 +62,7 @@ func TestDumpSensor(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		s := Sender{Config: Config{}, id: "TEST", prefix: c.prefix, Schema: c.schema}
+		s := Sender{Config: Config{Schema: c.schema}, id: "TEST", prefix: c.prefix}
 		t.Logf("Case %d, %#v", i, s)
 		sensor, err := s.dumpSensor(c.path, c.value, uint64(i))
 		if c.prefix != "ERROR" {

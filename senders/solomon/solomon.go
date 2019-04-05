@@ -33,6 +33,7 @@ type Config struct {
 	Service string   `codec:"service"`
 	Timeout int      `codec:"rw_timeout"`
 	Fields  []string `codec:"Fields"`
+	Schema  []string `codec:"Schema"`
 }
 
 // Sender object
@@ -40,7 +41,6 @@ type Sender struct {
 	Config
 	id     string
 	prefix string
-	Schema []string
 }
 
 type comLabels struct {
