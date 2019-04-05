@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,6 +21,55 @@ func init() {
 		logger.CocaineLog = logger.LocalLogger()
 		return logger.CocaineLog
 	})
+}
+
+func TestDumpSensor(t *testing.T) {
+	cases := []struct {
+		prefix string
+		path   utils.NameStack
+		value  reflect.Value
+		schema []string
+		expect *Sensor
+	}{
+		{"", utils.NameStack{"1", "2", "3", "val"}, reflect.ValueOf(1),
+			[]string{"l1", "l2", "l3"},
+			&Sensor{
+				Labels: map[string]string{"l1": "1", "l2": "2", "l3": "3", "sensor": "val"},
+				Value:  float64(1),
+				Ts:     0,
+			},
+		},
+		{"p", utils.NameStack{"1", "val"}, reflect.ValueOf(1),
+			[]string{"l1"},
+			&Sensor{
+				Labels: map[string]string{"prefix": "p", "l1": "1", "sensor": "val"},
+				Value:  float64(1),
+				Ts:     1,
+			},
+		},
+		{"graphiteLikeName", utils.NameStack{"1.2.val"}, reflect.ValueOf(1),
+			[]string{"l1", "l2"},
+			&Sensor{
+				Labels: map[string]string{"prefix": "graphiteLikeName", "l1": "1", "l2": "2", "sensor": "val"},
+				Value:  float64(1),
+				Ts:     2,
+			},
+		},
+		{"ERROR", utils.NameStack{"1", "val"}, reflect.ValueOf(1),
+			[]string{"l1", "l2", "too many schema"},
+			nil,
+		},
+	}
+
+	for i, c := range cases {
+		s := Sender{Config: Config{}, id: "TEST", prefix: c.prefix, Schema: c.schema}
+		t.Logf("Case %d, %#v", i, s)
+		sensor, err := s.dumpSensor(c.path, c.value, uint64(i))
+		if c.prefix != "ERROR" {
+			assert.NoError(t, err)
+		}
+		assert.Equal(t, c.expect, sensor)
+	}
 }
 
 func TestNewWorker(t *testing.T) {
