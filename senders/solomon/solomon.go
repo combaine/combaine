@@ -31,9 +31,9 @@ type Config struct {
 	Project string   `codec:"project"`
 	Cluster string   `codec:"cluster"`
 	Service string   `codec:"service"`
-	Timeout int      `codec:"rw_timeout"`
+	Timeout int      `codec:"timeout"`
 	Fields  []string `codec:"Fields"`
-	Schema  []string `codec:"Schema"`
+	Schema  []string `codec:"schema"`
 }
 
 // Sender object
