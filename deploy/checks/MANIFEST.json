@@ -1,9 +1,0 @@
-{
-    "version":1,
-    "checks": [
-        {"check_script": "cocaine-app-status.py",
-         "timeout": 30, "interval": 60,
-         "services": ["cocaine-app"],
-         "args": [ "graphite", "juggler", "solomon", "razladki", "custom" ]}
-    ]
-}
