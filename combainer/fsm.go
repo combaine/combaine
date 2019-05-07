@@ -82,7 +82,7 @@ func (c *FSM) Restore(rc io.ReadCloser) error {
 		for _, config := range newStore[host] {
 			stopCh := c.store.Put(host, config)
 			if host == c.Name {
-				c.log.Info("fsm.Restore: handle task %s", config)
+				c.log.Infof("fsm.Restore: handle task %s", config)
 				go c.handleTask(config, stopCh)
 			}
 		}
