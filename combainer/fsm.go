@@ -63,16 +63,16 @@ func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
 
 // Restore FSM from snapshot
 func (c *FSM) Restore(rc io.ReadCloser) error {
-	c.log.Infof("fsm: Restore from %+v", rc)
-	c.store.Lock()
-	defer c.store.Unlock()
-	c.store.clean()
-
+	c.log.Info("fsm: Restore snapshot")
 	var data []byte
 	_, err := rc.Read(data)
 	if err != nil {
 		return err
 	}
+	c.store.Lock()
+	defer c.store.Unlock()
+	c.store.clean()
+
 	var newStore map[string][]string
 	if err := json.Unmarshal(data, &newStore); err != nil {
 		return err
@@ -82,6 +82,7 @@ func (c *FSM) Restore(rc io.ReadCloser) error {
 		for _, config := range newStore[host] {
 			stopCh := c.store.Put(host, config)
 			if host == c.Name {
+				c.log.Info("fsm.Restore: handle task %s", config)
 				go c.handleTask(config, stopCh)
 			}
 		}
