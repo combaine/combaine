@@ -129,14 +129,18 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 		if wantage == 0 && setLen > 0 {
 			wantage = setLen / len(state.hosts)
 		}
-		// rebalance assigned configs
+		// look at the next host, if the current one is not overloaded. If all
+		// hosts are not overloaded, it means that the first host has at least
+		// average+1 configurations, we take away one configuration from it
 		if state.quantity[overloadedHost]-state.permissibleNumber <= 0 {
-			if overloadedIndex >= 0 {
+			if overloadedIndex > 0 {
 				overloadedHost = state.hosts[overloadedIndex]
 				overloadedIndex--
 			}
 		}
-		toRelase := min(state.quantity[overloadedHost]-state.permissibleNumber, wantage)
+
+		// rebalance assigned configs
+		toRelase := min(state.quantity[overloadedHost]-state.average, wantage)
 		if toRelase > 0 {
 			for _, cfg := range c.store.List(overloadedHost) {
 				toRelase--
