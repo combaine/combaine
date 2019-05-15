@@ -139,7 +139,7 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 			}
 		}
 
-		// rebalance assigned configs
+		// rebalance (release) assigned configs
 		toRelase := min(state.quantity[overloadedHost]-state.average, wantage)
 		if toRelase > 0 {
 			for _, cfg := range c.store.List(overloadedHost) {
@@ -159,6 +159,8 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 		if toAdd > 0 {
 			c.log.Infof("scheduler: Rebalance host %s (add %d, has %d, total %d)", host, toAdd, state.quantity[host], setLen)
 		}
+		// Distribution of idle configurations
+		// if toAdd == 0, they are certainly distributed one for each participant.
 		var configsToAssign []string
 		for cfg := range configSet {
 			toAdd--
