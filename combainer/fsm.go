@@ -64,20 +64,16 @@ func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
 // Restore FSM from snapshot
 func (c *FSM) Restore(rc io.ReadCloser) error {
 	c.log.Info("fsm: Restore snapshot")
-	var data []byte
-	_, err := rc.Read(data)
-	if err != nil {
+	dec := json.NewDecoder(rc)
+	var newStore map[string][]string
+	if err := dec.Decode(&newStore); err != nil {
 		return err
 	}
+	c.log.Debugf("fsm: Decoded snapshot: %+v", newStore)
+
 	c.store.Lock()
 	defer c.store.Unlock()
 	c.store.clean()
-
-	var newStore map[string][]string
-	if err := json.Unmarshal(data, &newStore); err != nil {
-		return err
-	}
-
 	for host := range newStore {
 		for _, config := range newStore[host] {
 			stopCh := c.store.Put(host, config)
