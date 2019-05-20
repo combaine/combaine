@@ -110,7 +110,7 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 	// now overloadedHosts at end of the hosts lists
 	sort.Sort(state)
 
-	if err := c.runBalancer(state, freeConfigSet, clusterSize-1); err != nil {
+	if err := c.runBalancer(state, freeConfigSet); err != nil {
 		return errors.Wrap(err, "Balancer error")
 	}
 
@@ -120,7 +120,10 @@ func (c *Cluster) distributeTasks(hosts []string) error {
 	return nil
 }
 
-func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, overloadedIndex int) error {
+func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}) error {
+	// The list is sorted by host load,
+	// the most loaded host at the end of the list
+	var overloadedIndex = len(state.hosts) - 1
 	var overloadedHost = state.hosts[overloadedIndex]
 	for _, host := range state.hosts {
 		wantage := state.average - state.quantity[host]
@@ -129,9 +132,8 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 		if wantage == 0 && setLen > 0 {
 			wantage = setLen / len(state.hosts)
 		}
-		// look at the next host, if the current one is not overloaded. If all
-		// hosts are not overloaded, it means that the first host has at least
-		// average+1 configurations, we take away one configuration from it
+		// Look at the next host, if the current one is not overloaded.
+		// If all hosts are not overloaded, it means that cluster in balanced state
 		if state.quantity[overloadedHost]-state.permissibleNumber <= 0 {
 			if overloadedIndex > 0 {
 				overloadedHost = state.hosts[overloadedIndex]
@@ -140,7 +142,11 @@ func (c *Cluster) runBalancer(state *balance, configSet map[string]struct{}, ove
 		}
 
 		// rebalance (release) assigned configs
-		toRelase := min(state.quantity[overloadedHost]-state.average, wantage)
+		overload := state.quantity[overloadedHost] - state.average
+		if wantage == 0 && overload > 1 {
+			wantage = 1
+		}
+		toRelase := min(overload, wantage)
 		if toRelase > 0 {
 			for _, cfg := range c.store.List(overloadedHost) {
 				toRelase--

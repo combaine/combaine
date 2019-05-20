@@ -159,7 +159,7 @@ func TestDistributeTasks(t *testing.T) {
 		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1"])
-		assert.Equal(t, a > 8, a < 12, "Test failed for %s, 8 < host1(%d) < 12 store: %v",
+		assert.True(t, a > 9, a < 12, "Test failed for %s, 9 < host1(%d) < 12 store: %v",
 			n, a,
 			cl.store.DistributionStatistic(),
 		)
@@ -192,7 +192,7 @@ func TestDistributeTasks(t *testing.T) {
 		cl.store.Replace(c)
 		cl.distributeTasks(hosts)
 		a := len(cl.store.store["host1"])
-		assert.Equal(t, a > 12, a < 17, "Test failed for %s: 12 < host1(%d) < 17 store: %v",
+		assert.Equal(t, a > 13, a < 17, "Test failed for %s: 13 < host1(%d) < 17 store: %v",
 			n, a,
 			cl.store.DistributionStatistic(),
 		)
