@@ -1,45 +1,52 @@
 module github.com/combaine/combaine
 
+go 1.12
+
 require (
-	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
-	github.com/armon/go-metrics v0.0.0-20180620213357-58588f401c2c
+	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/cocaine/cocaine-framework-go v0.0.0-20160727160248-a071d9bf57bb
-	github.com/davecgh/go-spew v0.0.0-20180221174620-8991bc29aa16
+	github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b // indirect
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-	github.com/golang/protobuf v1.1.0
-	github.com/gorilla/context v1.1.1
-	github.com/gorilla/mux v1.6.2
-	github.com/grpc/grpc-go v1.13.0
-	github.com/hashicorp/errwrap v1.0.0
-	github.com/hashicorp/go-immutable-radix v0.0.0-20180129170900-7f3cd4390caa
-	github.com/hashicorp/go-msgpack v0.0.0-20150518234257-fa3f63826f7c
+	github.com/gogo/protobuf v1.2.1 // indirect
+	github.com/golang/protobuf v1.3.1
+	github.com/gorilla/mux v1.7.2
+	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
+	github.com/hashicorp/go-hclog v0.9.2 // indirect
 	github.com/hashicorp/go-multierror v1.0.0
-	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86
-	github.com/hashicorp/golang-lru v0.0.0-20180201235237-0fb14efe8c47
-	github.com/hashicorp/memberlist v0.0.0-20180208193901-2288bf30e9c8
-	github.com/hashicorp/raft v0.0.0-20180212141504-a3fb4581fb07
-	github.com/hashicorp/serf v0.0.0-20180530105958-984a73625de3
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
+	github.com/hashicorp/raft v1.0.2-0.20190517171940-a890928b9c8a // indirect
+	github.com/hashicorp/serf v0.8.3
+	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
+	github.com/kisielk/errcheck v1.2.0 // indirect
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.1.0
-	github.com/miekg/dns v1.0.8
-	github.com/mitchellh/mapstructure v0.0.0-20180511142126-bb74f1db0675
-	github.com/pkg/errors v0.8.0
-	github.com/pmezard/go-difflib v1.0.0
+	github.com/miekg/dns v1.1.11
+	github.com/mitchellh/mapstructure v1.1.2
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
+	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v0.9.3 // indirect
+	github.com/prometheus/procfs v0.0.0-20190519111021-9935e8e0588d // indirect
+	github.com/prometheus/tsdb v0.8.0 // indirect
 	github.com/samuel/go-zookeeper v0.0.0-20180130194729-c4fab1ac1bec
-	github.com/satori/go.uuid v1.2.0
-	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
+	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/sergi/go-diff v1.0.0 // indirect
-	github.com/sirupsen/logrus v1.0.5
-	github.com/stretchr/testify v1.2.2
+	github.com/sirupsen/logrus v1.4.2
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/stretchr/testify v1.3.0
 	github.com/ugorji/go v0.0.0-20141014124450-dca82994cf14
 	github.com/yudai/gojsondiff v1.0.0
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
+	github.com/yudai/pp v2.0.1+incompatible // indirect
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
-	github.com/yuin/gopher-lua v0.0.0-20180611022520-ca850f594eaa
-	golang.org/x/crypto v0.0.0-20180614221331-a8fb68e7206f
-	golang.org/x/net v0.0.0-20180611182652-db08ff08e862
-	golang.org/x/sys v0.0.0-20180616030259-6c888cc515d3
-	golang.org/x/text v0.3.0
-	google.golang.org/genproto v0.0.0-20180608181217-32ee49c4dd80
-	google.golang.org/grpc v1.13.0
-	gopkg.in/yaml.v2 v2.2.1
+	github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036
+	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f // indirect
+	golang.org/x/net v0.0.0-20190520210107-018c4d40a106
+	golang.org/x/sys v0.0.0-20190520201301-c432e742b0af // indirect
+	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/tools v0.0.0-20190520220859-26647e34d3c0 // indirect
+	google.golang.org/grpc v1.20.1
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gopkg.in/yaml.v2 v2.2.2
 )

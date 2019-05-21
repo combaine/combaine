@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/raft"
+	"github.com/pkg/errors"
 )
 
 // FSM is cluster state
@@ -63,17 +64,19 @@ func (c *FSM) Snapshot() (raft.FSMSnapshot, error) {
 
 // Restore FSM from snapshot
 func (c *FSM) Restore(rc io.ReadCloser) error {
+	defer rc.Close()
+
 	c.log.Info("fsm: Restore snapshot")
 	dec := json.NewDecoder(rc)
 	var newStore map[string][]string
 	if err := dec.Decode(&newStore); err != nil {
-		return err
+		return errors.Wrap(err, "decode fsm store")
 	}
 	c.log.Debugf("fsm: Decoded snapshot: %+v", newStore)
 
 	c.store.Lock()
-	defer c.store.Unlock()
 	c.store.clean()
+	c.store.Unlock() // Unlock here, Put will do Lock
 	for host := range newStore {
 		for _, config := range newStore[host] {
 			stopCh := c.store.Put(host, config)
