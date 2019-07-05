@@ -62,8 +62,8 @@ clean:
 	@echo "+ $@"
 	rm -rf ${DIR}/ || true
 	find . -name '__pycache__' -exec rm -vrf {} +
-	rm -v aggregator/*_pb2_grpc.py aggregator/*_pb2.py
-	rm -v worker/*.pb.go
+	rm -vf aggregator/*_pb2_grpc.py aggregator/*_pb2.py || true
+	rm -vf worker/*.pb.go || true
 
 vet:
 	@echo "+ $@"
