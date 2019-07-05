@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option go_package = "worker";
+import "timeframe.proto";
+
+message Task {
+    string id = 1;
+    TimeFrame frame = 2;
+    bytes config = 3;
+    map<string, string> meta = 4;
+}
+
+message AggregateHostRequest {
+    Task task = 1;
+    string class_name = 2;
+    string payload = 3;
+}
+
+message AggregateHostResponse {
+    bytes result = 1;
+}
+
+message AggregateGroupRequest {
+    Task task = 1;
+    string class_name = 2;
+    repeated bytes payload = 3;
+}
+
+message AggregateGroupResponse {
+    bytes result = 1;
+}
+
+service Aggregator {
+    rpc AggregateHost(AggregateHostRequest) returns(AggregateHostResponse){};
+    rpc AggregateGroup(AggregateGroupRequest) returns(AggregateGroupResponse){};
+}

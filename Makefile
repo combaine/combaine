@@ -12,7 +12,7 @@ docker: clean build docker-image
 docker-image:
 	docker build . -t combainer
 
-build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
+build: proto ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
 	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler \
 	   ${DIR}/monder
 
@@ -52,15 +52,18 @@ ${DIR}/monder: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/monder/main.go
 
-proto: ${PREFIX}/rpc/rpc.pb.go
-
-${PREFIX}/rpc/rpc.pb.go: $(wildcard **/*.proto)
+proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto
 	@echo "+ $@"
-	protoc -I rpc/ rpc/rpc.proto --go_out=plugins=grpc:rpc
+	protoc -I rpc/ rpc/*.proto --go_out=plugins=grpc:worker
+	python3 -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
+
 
 clean:
 	@echo "+ $@"
 	rm -rf ${DIR}/ || true
+	find . -name '__pycache__' -exec rm -vrf {} +
+	rm -v aggregator/*_pb2_grpc.py aggregator/*_pb2.py
+	rm -v worker/*.pb.go
 
 vet:
 	@echo "+ $@"

@@ -11,7 +11,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/rpc"
 	tests "github.com/combaine/combaine/testdata"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
@@ -51,15 +50,15 @@ func TestAggregating(t *testing.T) {
 	encParsingConfig, _ := utils.Pack(parsingConfig)
 	encAggregationConfig, _ := utils.Pack(aggregationConfig)
 
-	aggTask := rpc.AggregatingTask{
+	aggTask := AggregatingTask{
 		Id:                       "testId",
-		Frame:                    &rpc.TimeFrame{Current: 61, Previous: 1},
+		Frame:                    &TimeFrame{Current: 61, Previous: 1},
 		Config:                   cfgName,
 		ParsingConfigName:        cfgName,
 		EncodedParsingConfig:     encParsingConfig,
 		EncodedAggregationConfig: encAggregationConfig,
 		EncodedHosts:             encHosts,
-		ParsingResult: &rpc.ParsingResult{
+		ParsingResult: &ParsingResult{
 			Data: map[string][]byte{
 				"Host1;appsName": []byte("Host1;appsName"),
 				"Host2;appsName": []byte("Host2;appsName"),
@@ -177,15 +176,15 @@ func TestEnqueue(t *testing.T) {
 	assert.NoError(t, acfg.Decode(&aggregationConfig))
 	encAggregationConfig, _ := utils.Pack(aggregationConfig)
 
-	aggTask := rpc.AggregatingTask{
+	aggTask := AggregatingTask{
 		Id:                       "testId",
-		Frame:                    &rpc.TimeFrame{Current: 61, Previous: 1},
+		Frame:                    &TimeFrame{Current: 61, Previous: 1},
 		Config:                   cfgName,
 		ParsingConfigName:        cfgName,
 		EncodedParsingConfig:     encParsingConfig,
 		EncodedAggregationConfig: encAggregationConfig,
 		EncodedHosts:             encHosts,
-		ParsingResult: &rpc.ParsingResult{
+		ParsingResult: &ParsingResult{
 			Data: map[string][]byte{"Host1;appsName": []byte("Host1;appsName")},
 		}}
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
@@ -197,7 +196,7 @@ func TestEnqueue(t *testing.T) {
 	aggTask.EncodedAggregationConfig = encAggregationConfig
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))
 
-	aggTask.ParsingResult = &rpc.ParsingResult{
+	aggTask.ParsingResult = &ParsingResult{
 		Data: map[string][]byte{"H1;appsName": []byte("H1;appsName")},
 	}
 	assert.NoError(t, DoAggregating(context.TODO(), &aggTask))

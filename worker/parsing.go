@@ -9,11 +9,9 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
-
-	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(ctx context.Context, task *rpc.ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
+func fetchDataFromTarget(ctx context.Context, task *ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
 	startTm := time.Now()
 	log := logrus.WithFields(logrus.Fields{
 		"config":  task.ParsingConfigName,
@@ -47,7 +45,7 @@ func fetchDataFromTarget(ctx context.Context, task *rpc.ParsingTask, parsingConf
 }
 
 // DoParsing distribute tasks accross cluster
-func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 	log := logrus.WithFields(logrus.Fields{
 		"config":  task.ParsingConfigName,
 		"target":  task.Host,
@@ -141,7 +139,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 		close(ch)
 	}()
 
-	result := rpc.ParsingResult{Data: make(map[string][]byte)}
+	result := ParsingResult{Data: make(map[string][]byte)}
 	for res := range ch {
 		result.Data[res.key] = res.res
 	}

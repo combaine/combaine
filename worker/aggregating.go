@@ -8,7 +8,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -32,7 +31,7 @@ func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, er
 	return rawRes, nil
 }
 
-func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res *common.AggregationResult,
+func aggregating(t *AggregatingTask, ch chan *common.AggregationResult, res *common.AggregationResult,
 	c repository.PluginConfig, d [][]byte, app cache.Service, wg *sync.WaitGroup) {
 
 	defer wg.Done()
@@ -61,7 +60,7 @@ func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res 
 }
 
 // DoAggregating send tasks to cluster
-func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
+func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()

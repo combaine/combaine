@@ -18,8 +18,8 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/hosts"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/utils"
+	"github.com/combaine/combaine/worker"
 )
 
 type sessionParams struct {
@@ -27,8 +27,8 @@ type sessionParams struct {
 	ParallelParsings int
 	ParsingTime      time.Duration
 	WholeTime        time.Duration
-	PTasks           []rpc.ParsingTask
-	AggTasks         []rpc.AggregatingTask
+	PTasks           []worker.ParsingTask
+	AggTasks         []worker.AggregatingTask
 }
 
 // Client is a distributor of tasks across the computation grid
@@ -145,10 +145,10 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 	packedHosts, _ := utils.Pack(allHosts)
 
 	// Tasks for parsing
-	pTasks := make([]rpc.ParsingTask, len(listOfHosts))
+	pTasks := make([]worker.ParsingTask, len(listOfHosts))
 	for idx, host := range listOfHosts {
-		pTasks[idx] = rpc.ParsingTask{
-			Frame:                     new(rpc.TimeFrame),
+		pTasks[idx] = worker.ParsingTask{
+			Frame:                     new(worker.TimeFrame),
 			Host:                      host,
 			ParsingConfigName:         config,
 			EncodedParsingConfig:      packedParsingConfig,
@@ -156,11 +156,11 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 		}
 	}
 
-	aggTasks := make([]rpc.AggregatingTask, len(parsingConfig.AggConfigs))
+	aggTasks := make([]worker.AggregatingTask, len(parsingConfig.AggConfigs))
 	for idx, name := range parsingConfig.AggConfigs {
 		packedAggregationConfig, _ := utils.Pack((*aggregationConfigs)[name])
-		aggTasks[idx] = rpc.AggregatingTask{
-			Frame:                    new(rpc.TimeFrame),
+		aggTasks[idx] = worker.AggregatingTask{
+			Frame:                    new(worker.TimeFrame),
 			Config:                   name,
 			ParsingConfigName:        config,
 			EncodedParsingConfig:     packedParsingConfig,
@@ -213,7 +213,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 	pctx, pcancel := context.WithDeadline(wctx, startTime.Add(params.ParsingTime))
 	totalTasksAmount := len(params.PTasks)
 	log.Infof("Send %d tasks to parsing", totalTasksAmount)
-	parsingResult := rpc.ParsingResult{Data: make(map[string][]byte)}
+	parsingResult := worker.ParsingResult{Data: make(map[string][]byte)}
 	tokens := make(chan struct{}, params.ParallelParsings)
 	for _, task := range params.PTasks {
 		// Description of task
@@ -223,7 +223,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 
 		wg.Add(1)
 		tokens <- struct{}{} // acqure
-		go func(t rpc.ParsingTask) {
+		go func(t worker.ParsingTask) {
 			defer wg.Done()
 			defer func() { <-tokens }() // release
 			cl.doParsing(pctx, &t, &mu, parsingResult)
@@ -243,7 +243,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 		task.ParsingResult = &parsingResult
 
 		wg.Add(1)
-		go func(t rpc.AggregatingTask) {
+		go func(t worker.AggregatingTask) {
 			defer wg.Done()
 			cl.doAggregation(wctx, &t, params.aggregateLocally)
 		}(task)
@@ -262,10 +262,10 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 	return nil
 }
 
-func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.Mutex, r rpc.ParsingResult) {
+func (cl *Client) doParsing(ctx context.Context, task *worker.ParsingTask, m *sync.Mutex, r worker.ParsingResult) {
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
-	c := rpc.NewWorkerClient(cl.conn)
+	c := worker.NewWorkerClient(cl.conn)
 	var remote peer.Peer
 	reply, err := c.DoParsing(ctx, task, grpc.Peer(&remote))
 	if err != nil {
@@ -282,7 +282,7 @@ func (cl *Client) doParsing(ctx context.Context, task *rpc.ParsingTask, m *sync.
 
 }
 
-func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask, local bool) {
+func (cl *Client) doAggregation(ctx context.Context, task *worker.AggregatingTask, local bool) {
 	log := logrus.WithFields(logrus.Fields{"session": task.Id})
 
 	conn := cl.conn
@@ -290,7 +290,7 @@ func (cl *Client) doAggregation(ctx context.Context, task *rpc.AggregatingTask, 
 		log.Debug("doAggregation: locally")
 		conn = cl.aggConn
 	}
-	c := rpc.NewWorkerClient(conn)
+	c := worker.NewWorkerClient(conn)
 	var remote peer.Peer
 	_, err := c.DoAggregating(ctx, task, grpc.Peer(&remote))
 	if err != nil {

@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-hclog v0.9.2 // indirect
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/hashicorp/raft v1.0.2-0.20190517171940-a890928b9c8a // indirect
+	github.com/hashicorp/raft v1.0.2-0.20190517171940-a890928b9c8a
 	github.com/hashicorp/serf v0.8.3
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect

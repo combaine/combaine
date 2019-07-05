@@ -13,7 +13,6 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/worker"
 	"github.com/sirupsen/logrus"
 
@@ -46,15 +45,15 @@ func init() {
 
 type server struct{}
 
-func (s *server) DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func (s *server) DoParsing(ctx context.Context, task *worker.ParsingTask) (*worker.ParsingResult, error) {
 	return worker.DoParsing(ctx, task)
 }
 
-func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (*rpc.AggregatingResult, error) {
+func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask) (*worker.AggregatingResult, error) {
 	if err := worker.DoAggregating(ctx, task); err != nil {
 		return nil, err
 	}
-	return new(rpc.AggregatingResult), nil
+	return new(worker.AggregatingResult), nil
 }
 
 func main() {
@@ -73,6 +72,6 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	rpc.RegisterWorkerServer(s, &server{})
+	worker.RegisterWorkerServer(s, &server{})
 	s.Serve(lis)
 }

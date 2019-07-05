@@ -1,9 +1,8 @@
 syntax = "proto3";
 
-message TimeFrame {
-    int64 previous = 1;
-    int64 current = 2;
-}
+package worker;
+
+import "timeframe.proto";
 
 service Worker {
     rpc DoParsing(ParsingTask) returns (ParsingResult) {}

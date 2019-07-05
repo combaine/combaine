@@ -8,7 +8,6 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/rpc"
 	tests "github.com/combaine/combaine/testdata"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
@@ -48,9 +47,9 @@ func TestParsing(t *testing.T) {
 		moreConf: aggregationConfig2,
 	})
 
-	parsingTask := rpc.ParsingTask{
+	parsingTask := ParsingTask{
 		Id:                        "testId",
-		Frame:                     &rpc.TimeFrame{Current: 61, Previous: 1},
+		Frame:                     &TimeFrame{Current: 61, Previous: 1},
 		Host:                      "test-host",
 		ParsingConfigName:         aggConf,
 		EncodedParsingConfig:      encParsingConfig,
