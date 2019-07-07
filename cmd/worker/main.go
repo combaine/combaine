@@ -73,5 +73,9 @@ func main() {
 		}),
 	)
 	worker.RegisterWorkerServer(s, &server{})
+
+	if err := worker.SpawnAggregator(); err != nil {
+		log.Fatalf("Failed to spawn aggregator: %v", err)
+	}
 	s.Serve(lis)
 }

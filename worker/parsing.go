@@ -7,7 +7,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -84,53 +83,35 @@ func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 					log.Errorf("DoParsing: %s", err)
 					return
 				}
-				log.Debugf("DoParsing: send to '%s'", aggType)
-
-				app, err := cacher.Get(aggType)
+				aggClass, err := v.Class()
 				if err != nil {
-					log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
+					log.Errorf("DoParsing resolve %s Class: %s", aggType, err)
 					return
 				}
-				t, err := utils.Pack(map[string]interface{}{
-					"Config": v,
-					"Data":   blob,
-					// TODO define task structure in common
-					"Meta": map[string]string{
-						"Host": task.Host,
-						"Key":  k,
+				log.Debugf("DoParsing: send to '%s:%s'", aggType, aggClass)
+
+				req := &AggregateHostRequest{
+					Task: &Task{
+						Id:     task.Id,
+						Frame:  task.Frame,
+						Config: v,
+						Meta: map[string]string{
+							"Host": task.Host,
+							"Key":  k,
+						},
 					},
-					"PrevTime": task.Frame.Previous,
-					"CurrTime": task.Frame.Current,
-					"Id":       task.Id,
-				})
+					ClassName: aggClass,
+					Payload:   blob,
+				}
+				key := task.Host + ";" + k
+				c := NewAggregatorClient(aggregatorConnection)
+				res, err := c.AggregateHost(ctx, req)
 				if err != nil {
-					log.Errorf("failed to pack task: %s", err)
+					log.Errorf("Failed to call aggregator.AggregatorHost: %v", err)
 					return
 				}
-
-				key := task.Host + ";" + k
-				select {
-				case res := <-app.Call("enqueue", "aggregate_host", t):
-					if res == nil {
-						log.Errorf("task failed: %s", common.ErrAppCall)
-						return
-					}
-					if res.Err() != nil {
-						log.Errorf("task failed: %s", res.Err())
-						return
-					}
-
-					var rawRes []byte
-					if err := res.Extract(&rawRes); err != nil {
-						log.Errorf("unable to extract result: %s", err.Error())
-						return
-					}
-
-					ch <- item{key: key, res: rawRes}
-					log.Debugf("write data with key %s", key)
-				case <-ctx.Done():
-					log.Errorf("failed task: %s", ctx.Err())
-				}
+				log.Debugf("write data with key %s", key)
+				ch <- item{key: key, res: res.GetResult()}
 			}(k, v)
 		}
 	}

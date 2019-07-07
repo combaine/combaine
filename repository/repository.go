@@ -13,7 +13,8 @@ import (
 
 const (
 	// Well-known field to explore plugin name
-	typeKey = "type"
+	typeKey  = "type"
+	classKey = "type"
 	// DefaultConfigsPath default directory with combainer configs
 	DefaultConfigsPath = "/etc/combaine"
 	parsingSuffix      = "parsing"
@@ -197,6 +198,24 @@ func (p *PluginConfig) Type() (typeName string, err error) {
 		typeName = fmt.Sprintf("%s", rawTypeName)
 	default:
 		err = fmt.Errorf("Invalid `type` argument type. String is expected. Got %s", t)
+	}
+
+	return
+}
+
+// Class check plugin config class
+func (p *PluginConfig) Class() (className string, err error) {
+	rawClassName, ok := (*p)[classKey]
+	if !ok {
+		err = fmt.Errorf("Missing `class` value")
+		return
+	}
+
+	switch t := rawClassName.(type) {
+	case string, []byte:
+		className = fmt.Sprintf("%s", rawClassName)
+	default:
+		err = fmt.Errorf("Invalid `class` argument type. String is expected. Got %s", t)
 	}
 
 	return
