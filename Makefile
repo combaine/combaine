@@ -12,9 +12,8 @@ docker: clean build docker-image
 docker-image:
 	docker build . -t combainer
 
-build: proto ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler \
-	   ${DIR}/monder
+build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite \
+	   ${DIR}/razladki ${DIR}/solomon ${DIR}/juggler \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -24,10 +23,6 @@ ${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/worker/main.go
 
-${DIR}/agave: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/agave/main.go
-
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/graphite/main.go
@@ -36,10 +31,6 @@ ${DIR}/razladki: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/razladki/main.go
 
-${DIR}/cbb: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/cbb/main.go
-
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/solomon/main.go
@@ -47,10 +38,6 @@ ${DIR}/solomon: $(wildcard **/*.go)
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/juggler/main.go
-
-${DIR}/monder: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/monder/main.go
 
 proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto
 	@echo "+ $@"
