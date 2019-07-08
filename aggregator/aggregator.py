@@ -101,6 +101,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         performs parsing and their aggregation
         """
         cfg = self.GetConfig(request)
+        logger = cfg['logger']
 
         klass = self.GetClass(request.class_name, context)
 
@@ -110,7 +111,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         result = klass(cfg).aggregate_host(request.payload, prevtime, currtime, hostname)
 
         if cfg.get("logHostResult", False):
-            self.log.info("Aggregate host result %s: %s", request.task.meta, result)
+            logger.info("Aggregate host result %s: %s", request.task.meta, result)
 
         result_bytes = msgpack.packb(result)
         return aggregator_pb2.AggregateHostResponse(result=result_bytes)

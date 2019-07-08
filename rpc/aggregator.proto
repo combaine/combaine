@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "worker";
 import "timeframe.proto";
 
-message Task {
+message AggregatorTask {
     string id = 1;
     TimeFrame frame = 2;
     bytes config = 3;
@@ -11,7 +11,7 @@ message Task {
 }
 
 message AggregateHostRequest {
-    Task task = 1;
+    AggregatorTask task = 1;
     string class_name = 2;
     bytes payload = 3;
 }
@@ -21,7 +21,7 @@ message AggregateHostResponse {
 }
 
 message AggregateGroupRequest {
-    Task task = 1;
+    AggregatorTask task = 1;
     string class_name = 2;
     repeated bytes payload = 3;
 }

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/worker"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -60,7 +60,7 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		task := &common.FetcherTask{Task: common.Task{Id: "ID"}, Target: target}
+		task := &worker.FetcherTask{ID: "ID", Target: target}
 
 		c.config["port"], _ = strconv.Atoi(port)
 		f, err := NewTCPSocketFetcher(c.config)
@@ -113,7 +113,7 @@ func TestHTTPFetcherFetch(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		task := &common.FetcherTask{Task: common.Task{Id: "ID"}, Target: target}
+		task := &worker.FetcherTask{ID: "ID", Target: target}
 
 		c.config["port"], _ = strconv.Atoi(port)
 		f, err := NewHTTPFetcher(c.config)
@@ -166,7 +166,7 @@ func TestTimetailFetcherFetch(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		task := &common.FetcherTask{Task: common.Task{Id: "ID"}, Target: target}
+		task := &worker.FetcherTask{ID: "ID", Target: target}
 
 		c.config["timetail_port"], _ = strconv.Atoi(port)
 		f, err := NewTimetailFetcher(c.config)

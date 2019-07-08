@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
 	tests "github.com/combaine/combaine/testdata"
@@ -88,7 +87,7 @@ func TestParsing(t *testing.T) {
 
 			var r map[string]interface{}
 			assert.NoError(t, utils.Unpack(k[1].([]byte), &r))
-			var payload common.FetcherTask
+			var payload worker.FetcherTask
 			assert.NoError(t, utils.Unpack([]byte(r["Data"].(string)), &payload))
 
 			key := payload.Target

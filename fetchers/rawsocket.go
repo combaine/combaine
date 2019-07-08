@@ -7,7 +7,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
 	"github.com/sirupsen/logrus"
@@ -37,8 +36,8 @@ func NewTCPSocketFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 }
 
 // Fetch dial with timeout and read data without timeout
-func (t *tcpSocketFetcher) Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error) {
-	log := logrus.WithField("session", task.Id)
+func (t *tcpSocketFetcher) Fetch(ctx context.Context, task *worker.FetcherTask) ([]byte, error) {
+	log := logrus.WithField("session", task.ID)
 
 	address := net.JoinHostPort(task.Target, t.Port)
 	deadline, ok := ctx.Deadline()

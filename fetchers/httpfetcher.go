@@ -9,7 +9,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
@@ -40,8 +39,8 @@ func NewHTTPFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	return &fetcher, nil
 }
 
-func (t *httpFetcher) Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error) {
-	log := logrus.WithField("session", task.Id)
+func (t *httpFetcher) Fetch(ctx context.Context, task *worker.FetcherTask) ([]byte, error) {
+	log := logrus.WithField("session", task.ID)
 
 	deadline, ok := ctx.Deadline()
 	if !ok {

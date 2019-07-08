@@ -9,7 +9,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/worker"
@@ -40,7 +39,7 @@ func NewTimetailFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	return &fetcher, nil
 }
 
-func (t *timetailFetcher) Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error) {
+func (t *timetailFetcher) Fetch(ctx context.Context, task *worker.FetcherTask) ([]byte, error) {
 	log := logrus.WithField("session", task.Id)
 
 	period := t.Offset + (task.CurrTime - task.PrevTime)

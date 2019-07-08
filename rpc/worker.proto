@@ -1,13 +1,7 @@
 syntax = "proto3";
 
-package worker;
-
+option go_package = "worker";
 import "timeframe.proto";
-
-service Worker {
-    rpc DoParsing(ParsingTask) returns (ParsingResult) {}
-    rpc DoAggregating(AggregatingTask) returns (AggregatingResult) {}
-}
 
 message ParsingTask {
     string id = 1;
@@ -45,5 +39,27 @@ message AggregatingTask {
     ParsingResult parsing_result = 8;
 }
 
-message AggregatingResult {
+message AggregatingResponse {
 }
+
+message AggregationResult {
+	map<string, string> tags = 4;
+	bytes result = 2;
+}
+
+message SenderRequest {
+    string id = 1;
+    TimeFrame frame = 2;
+	bytes Config = 3;
+	repeated AggregationResult data = 5;
+}
+
+message SenderResponse {
+}
+
+service Worker {
+    rpc DoParsing(ParsingTask) returns (ParsingResult) {}
+    rpc DoAggregating(AggregatingTask) returns (AggregatingResponse) {}
+    rpc DoSend(SenderRequest) returns (SenderResponse) {}
+}
+
