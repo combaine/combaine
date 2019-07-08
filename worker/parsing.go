@@ -7,6 +7,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,12 +90,16 @@ func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 					return
 				}
 				log.Debugf("DoParsing: send to '%s:%s'", aggType, aggClass)
-
+				encodedCfg, err := utils.Pack(v)
+				if err != nil {
+					log.Errorf("Failed to pack task config: %v", err)
+					return
+				}
 				req := &AggregateHostRequest{
 					Task: &Task{
 						Id:     task.Id,
 						Frame:  task.Frame,
-						Config: v,
+						Config: encodedCfg,
 						Meta: map[string]string{
 							"Host": task.Host,
 							"Key":  k,
