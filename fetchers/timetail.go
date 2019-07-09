@@ -40,9 +40,9 @@ func NewTimetailFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 }
 
 func (t *timetailFetcher) Fetch(ctx context.Context, task *worker.FetcherTask) ([]byte, error) {
-	log := logrus.WithField("session", task.Id)
+	log := logrus.WithField("session", task.ID)
 
-	period := t.Offset + (task.CurrTime - task.PrevTime)
+	period := t.Offset + (task.Frame.Current - task.Frame.Previous)
 
 	url := fmt.Sprintf("http://%s:%d%s%s&time=%d", task.Target, t.Port, t.URL, t.Logname, period)
 	deadline, ok := ctx.Deadline()

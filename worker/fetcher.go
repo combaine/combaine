@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/pkg/errors"
 )
@@ -21,7 +20,7 @@ func Register(name string, f func(repository.PluginConfig) (Fetcher, error)) {
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error)
+	Fetch(ctx context.Context, task *FetcherTask) ([]byte, error)
 }
 
 // NewFetcher get and initialize new fetcher

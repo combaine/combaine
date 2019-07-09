@@ -7,9 +7,9 @@ import (
 	"strconv"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -189,7 +189,7 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 		if lvl := lt.RawGetString("level"); lvl != lua.LNil {
 			je.Status = lua.LVAsString(lvl)
 		} else {
-			logger.Errf("%s Missing level in %s plugin result, force status to OK", js.id, js.Plugin)
+			logrus.Errorf("%s Missing level in %s plugin result, force status to OK", js.id, js.Plugin)
 			je.Status = "OK"
 			je.Description = je.Description + " (force OK)"
 		}

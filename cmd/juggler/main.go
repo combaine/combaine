@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders/juggler"
 	"github.com/combaine/combaine/utils"
@@ -21,22 +20,22 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	var task juggler.SenderTask
 	err := utils.Unpack(raw, &task)
 	if err != nil {
-		logger.Errf("%s Failed to unpack juggler task %s", task.Id, err)
+		logrus.Errorf("%s Failed to unpack juggler task %s", task.Id, err)
 		return
 	}
 	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
 
 	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)
 	if err != nil {
-		logger.Errf("%s Failed to update task config %s", task.Id, err)
+		logrus.Errf("%s Failed to update task config %s", task.Id, err)
 		return
 	}
-	logger.Debugf("%s Task: %v", task.Id, task.Data)
+	logrus.Debugf("%s Task: %v", task.Id, task.Data)
 	juggler.AddJugglerToken(&task.Config, senderConfig.Token)
 
 	jCli, err := juggler.NewSender(&task.Config, task.Id)
 	if err != nil {
-		logger.Errf("%s send: Unexpected error %s", task.Id, err)
+		logrus.Errf("%s send: Unexpected error %s", task.Id, err)
 		return
 	}
 
@@ -44,7 +43,7 @@ func send(request *cocaine.Request, response *cocaine.Response) {
 	defer cancel()
 	err = jCli.Send(ctx, task)
 	if err != nil {
-		logger.Errf("%s send: %s", task.Id, err)
+		logrus.Errf("%s send: %s", task.Id, err)
 		return
 	}
 	response.Write("DONE")
@@ -57,7 +56,7 @@ func main() {
 		log.Fatalf("Failed to load sender config %s", err)
 	}
 
-	juggler.InitializeLogger(logger.MustCreateLogger)
+	juggler.InitializeCache()
 
 	err = repository.Init(juggler.GetConfigDir())
 	if err != nil {

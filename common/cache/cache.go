@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // item holds cached item
@@ -72,17 +72,17 @@ func (c *TTLCache) get(id string, key string, f fetcher) (interface{}, error) {
 		close(item.ready)
 	} else {
 		c.Unlock()
-		logger.Infof("%s Use cached entry for %s", id, key)
+		logrus.Infof("%s Use cached entry for %s", id, key)
 	}
 	<-item.ready
 	if time.Since(item.expires) > 0 {
 		go func() {
 			value, err := f()
 			if err != nil {
-				logger.Debugf("%s Failed to update stale cached entry for %s: %s", id, key, err)
+				logrus.Debugf("%s Failed to update stale cached entry for %s: %s", id, key, err)
 				return
 			}
-			logger.Debugf("%s Update stale cached entry for %s", id, key)
+			logrus.Debugf("%s Update stale cached entry for %s", id, key)
 			updated := &itemType{
 				value:   value,
 				err:     err,
@@ -145,7 +145,7 @@ func (c *TTLCache) Delete(key string) {
 }
 
 func (c *TTLCache) cleaner() {
-	logger.Debugf("Run TTLCache cleaner")
+	logrus.Debugf("Run TTLCache cleaner")
 	var interval time.Duration
 	for {
 		c.RLock()

@@ -40,7 +40,6 @@ func init() {
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
-	worker.InitializeServiceCacher()
 }
 
 type server struct{}
@@ -49,11 +48,11 @@ func (s *server) DoParsing(ctx context.Context, task *worker.ParsingTask) (*work
 	return worker.DoParsing(ctx, task)
 }
 
-func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask) (*worker.AggregatingResult, error) {
+func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask) (*worker.AggregatingResponse, error) {
 	if err := worker.DoAggregating(ctx, task); err != nil {
 		return nil, err
 	}
-	return new(worker.AggregatingResult), nil
+	return new(worker.AggregatingResponse), nil
 }
 
 func main() {
@@ -75,7 +74,7 @@ func main() {
 	worker.RegisterWorkerServer(s, &server{})
 
 	if err := worker.SpawnAggregator(); err != nil {
-		log.Fatalf("Failed to spawn aggregator: %v", err)
+		log.Fatalf("Failed to spawn worker services: %v", err)
 	}
 	s.Serve(lis)
 }

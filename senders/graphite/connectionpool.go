@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 )
 
 var connPool Cacher
@@ -39,7 +39,7 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 		} else {
 			err = fmt.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, i)
 		}
-		logger.Debugf("Failed to connect endpoint %s: %s", endpoint, err)
+		logrus.Debugf("Failed to connect endpoint %s: %s", endpoint, err)
 		if i < retry {
 			time.Sleep(time.Duration(reconnectInterval) * time.Millisecond)
 		}

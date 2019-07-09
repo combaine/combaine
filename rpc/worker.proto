@@ -55,11 +55,14 @@ message SenderRequest {
 }
 
 message SenderResponse {
+    string response = 1;
 }
 
 service Worker {
     rpc DoParsing(ParsingTask) returns (ParsingResult) {}
     rpc DoAggregating(AggregatingTask) returns (AggregatingResponse) {}
-    rpc DoSend(SenderRequest) returns (SenderResponse) {}
 }
 
+service Sender {
+    rpc DoSend(SenderRequest) returns (SenderResponse) {}
+}

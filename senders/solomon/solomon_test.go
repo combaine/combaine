@@ -11,17 +11,9 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	InitializeLogger(func() logger.Logger {
-		logger.CocaineLog = logger.LocalLogger()
-		return logger.CocaineLog
-	})
-}
 
 func TestDumpSensor(t *testing.T) {
 	cases := []struct {

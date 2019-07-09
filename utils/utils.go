@@ -18,10 +18,10 @@ var (
 	h = &codec.MsgpackHandle{
 		BasicHandle: codec.BasicHandle{
 			DecodeOptions: codec.DecodeOptions{
-				MapType: reflect.TypeOf(map[string]interface{}(nil)),
+				MapType:     reflect.TypeOf(map[string]interface{}(nil)),
+				RawToString: true,
 			},
 		},
-		RawToString: true,
 	}
 	// global ClientID counter
 	clientID uint64

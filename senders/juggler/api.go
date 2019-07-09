@@ -12,8 +12,8 @@ import (
 	"unicode"
 
 	"github.com/combaine/combaine/common/chttp"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	diff "github.com/yudai/gojsondiff"
 	"github.com/yudai/gojsondiff/formatter"
 )
@@ -111,7 +111,7 @@ type jugglerBatchError struct {
 func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerResponse, error) {
 	if len(js.Tags) == 0 {
 		js.Tags = defaultTags
-		logger.Debugf("%s Set query tags to default %s", js.id, js.Tags)
+		logrus.Debugf("%s Set query tags to default %s", js.id, js.Tags)
 	}
 	//do=1&include_children=true&tag_name=combaine&host_name={js.Host}
 	query := url.Values{
@@ -135,7 +135,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 	GET_CHECK:
 		for _, jhost := range js.JHosts {
 			url := fmt.Sprintf(getChecksURL, jhost, query)
-			logger.Infof("%s Query check %s", js.id, url)
+			logrus.Infof("%s Query check %s", js.id, url)
 
 			resp, err := chttp.Get(ctx, url)
 			switch err {
@@ -150,7 +150,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 					jerrors = append(jerrors, errors.Errorf("%s: %v %s", jhost, resp.StatusCode, body))
 					continue
 				}
-				logger.Debugf("%s Juggler response: %s", js.id, body)
+				logrus.Debugf("%s Juggler response: %s", js.id, body)
 				return body, nil
 			case context.Canceled, context.DeadlineExceeded:
 				jerrors = append(jerrors, err)
@@ -168,14 +168,14 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 	}
 	var hostChecks jugglerResponse
 	if err := json.Unmarshal(cJSON, &hostChecks); err != nil {
-		logger.Errf("Failed to Unmarshal hostChecks: %s", err)
+		logrus.Errorf("Failed to Unmarshal hostChecks: %s", err)
 		hostChecks = jugglerResponse{js.Host: make(map[string]jugglerCheck)}
 	}
 	// XXX: do not remove this crutch, until you are 100% sure,
 	// check json returned from api/checks/checks
 	var flap map[string]map[string]*jugglerFlapConfig
 	if err := json.Unmarshal(cJSON, &flap); err != nil {
-		logger.Errf("Failed to Unmarshal flaps: %s", err)
+		logrus.Errorf("Failed to Unmarshal flaps: %s", err)
 		flap = map[string]map[string]*jugglerFlapConfig{
 			js.Host: make(map[string]*jugglerFlapConfig),
 		}
@@ -195,7 +195,7 @@ func (js *Sender) getCheck(ctx context.Context, events []jugglerEvent) (jugglerR
 func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, triggers []jugglerEvent) error {
 	services, ok := hostChecks[js.Host]
 	if !ok {
-		logger.Debugf("%s Create new checks for %s", js.id, js.Host)
+		logrus.Debugf("%s Create new checks for %s", js.id, js.Host)
 		services = make(map[string]jugglerCheck)
 		hostChecks[js.Host] = services
 	}
@@ -209,7 +209,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 	for _, t := range triggers {
 		check, ok := services[t.Service]
 		if !ok {
-			logger.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
+			logrus.Infof("%s Add new check %s.%s", js.id, js.Host, t.Service)
 			check = jugglerCheck{update: true}
 		}
 
@@ -218,7 +218,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		}
 		updated[t.Service] = struct{}{}
 
-		logger.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
+		logrus.Infof("%s Ensure check %s for %s", js.id, t.Service, js.Host)
 
 		// ttl
 		js.ensureTTL(&check)
@@ -249,7 +249,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 				Type:    "HOST", // FIXME? hardcode, delete?
 				Service: t.Service,
 			}
-			logger.Debugf("%s Add children %s", js.id, child)
+			logrus.Debugf("%s Add children %s", js.id, child)
 			check.Children = append(check.Children, child)
 		}
 
@@ -264,7 +264,7 @@ func (js *Sender) ensureCheck(ctx context.Context, hostChecks jugglerResponse, t
 		// defer because cached item should be deleted after all check updated
 		// or before return in case updateCheck ends with error
 		if cleanCache {
-			logger.Debugf("%s Clean cache for %s", js.id, js.Host)
+			logrus.Debugf("%s Clean cache for %s", js.id, js.Host)
 			GlobalCache.Delete(js.Host)
 		}
 	}()
@@ -285,7 +285,7 @@ func (js *Sender) ensureTTL(c *jugglerCheck) {
 	}
 	if c.TTL != js.TTL {
 		c.needUpdated()
-		logger.Infof("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
+		logrus.Infof("%s Check outdated, ttl differ: %d != %d", js.id, c.TTL, js.TTL)
 		c.TTL = js.TTL
 	}
 }
@@ -296,7 +296,7 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 	}
 	if c.Description != js.Description && js.Description != "" {
 		c.needUpdated()
-		logger.Infof("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
+		logrus.Infof("%s Check outdated, description differ: '%s' != '%s'", js.id, c.Description, js.Description)
 		c.Description = js.Description
 	}
 }
@@ -304,7 +304,7 @@ func (js *Sender) ensureDescription(c *jugglerCheck) {
 func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 	if c.Aggregator != js.Aggregator {
 		c.needUpdated()
-		logger.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.Aggregator, js.Aggregator)
+		logrus.Infof("%s Check outdated, aggregator differ: %s != %s", js.id, c.Aggregator, js.Aggregator)
 		c.Aggregator = js.Aggregator
 	}
 	configKWArgs, err := json.Marshal(js.AggregatorKWArgs)
@@ -329,7 +329,7 @@ func (js *Sender) ensureAggregator(c *jugglerCheck) error {
 		}
 		diffString = diffString[:len(diffString)-1] // - \n
 		// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
-		logger.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
+		logrus.Infof("%s Check outdated, aggregator_kwargs differ: %s", js.id, diffString)
 		c.AggregatorKWArgs = configKWArgs
 	}
 	return nil
@@ -340,9 +340,9 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 
 	if js.Method != "" {
 		if len(js.Notifications) != 0 {
-			logger.Errf("%s 'Method' conflict with 'notifications', i'm ignore 'Method'", js.id)
+			logrus.Errorf("%s 'Method' conflict with 'notifications', i'm ignore 'Method'", js.id)
 		} else {
-			logger.Infof("%s convert js.Method=%s to notifications", js.id, js.Method)
+			logrus.Infof("%s convert js.Method=%s to notifications", js.id, js.Method)
 			for _, m := range strings.Split(js.Method, ",") {
 				m = strings.TrimLeftFunc(m, unicode.IsSpace)
 				if len(m) > 0 {
@@ -414,11 +414,11 @@ func (js *Sender) ensureNotifications(c *jugglerCheck) error {
 			}
 			diffString = diffString[:len(diffString)-1] // - \n
 			// https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md
-			logger.Infof("%s Check outdated, notifications differ: %s", js.id, diffString)
+			logrus.Infof("%s Check outdated, notifications differ: %s", js.id, diffString)
 		}
 	} else {
 		update = true
-		logger.Infof("%s Check outdated, len(notifications) not match: config=%d, from juggler=%d",
+		logrus.Infof("%s Check outdated, len(notifications) not match: config=%d, from juggler=%d",
 			js.id, len(notifications), len(c.Notifications))
 	}
 	if update {
@@ -439,7 +439,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 		inConfig = js.Flaps
 	}
 	if inConfig != nil && inConfig.StableTime == 0 && inConfig.CriticalTime == 0 && inConfig.BoostTime == 0 {
-		logger.Infof("%s Check's flaps not configured, skip")
+		logrus.Infof("%s Check's flaps not configured, skip")
 		inConfig = nil
 	}
 
@@ -454,7 +454,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 	}
 
 	if update {
-		logger.Infof("%s Check outdated, Flaps%s differ: %s (juggler) != %s (inConfig)", js.id, msg, c.Flaps, inConfig)
+		logrus.Infof("%s Check outdated, Flaps%s differ: %s (juggler) != %s (inConfig)", js.id, msg, c.Flaps, inConfig)
 	}
 }
 
@@ -465,7 +465,7 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 	// TODO: tags by servces in juggler config as for flaps?
 	if c.Tags == nil || len(c.Tags) == 0 {
 		c.needUpdated()
-		logger.Infof("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
+		logrus.Infof("%s Check outdated, Tags differ: %s != %s", js.id, c.Tags, js.Tags)
 		c.Tags = make([]string, len(js.Tags))
 		copy(c.Tags, js.Tags)
 	} else {
@@ -476,7 +476,7 @@ func (js *Sender) ensureTags(c *jugglerCheck) {
 		for _, tag := range js.Tags {
 			if _, ok := tagsSet[tag]; !ok {
 				c.needUpdated()
-				logger.Infof("%s Add tag %s", js.id, tag)
+				logrus.Infof("%s Add tag %s", js.id, tag)
 				c.Tags = append(c.Tags, tag)
 			}
 		}
@@ -489,19 +489,19 @@ func (js *Sender) ensureNamespace(c *jugglerCheck) {
 	}
 	if js.Config.Token != "" && c.Namespace != js.Namespace {
 		c.needUpdated()
-		logger.Infof("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
+		logrus.Infof("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
 		c.Namespace = js.Namespace
 	}
 }
 
 func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
-	logger.Infof("%s Update check %s for %s", js.id, check.Service, check.Host)
+	logrus.Infof("%s Update check %s for %s", js.id, check.Service, check.Host)
 
 	cJSON, err := json.Marshal(check)
 	if err != nil {
 		return err
 	}
-	logger.Debugf("%s JSON payload for updating check: %s", js.id, cJSON)
+	logrus.Debugf("%s JSON payload for updating check: %s", js.id, cJSON)
 
 	errs := make(map[string]string, 0)
 	for _, host := range js.JHosts {
@@ -521,23 +521,23 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 			body, err := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			if err != nil {
-				logger.Errf("%s %s", js.id, err)
+				logrus.Errorf("%s %s", js.id, err)
 				errs[err.Error()] = ""
 				continue
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				logger.Warnf("%s Update check query %s: %d - %s", js.id, url, resp.StatusCode, body)
+				logrus.Warnf("%s Update check query %s: %d - %s", js.id, url, resp.StatusCode, body)
 				errs[string(body)] = ""
 				continue
 			}
-			logger.Infof("%s Sucessfully send update %s.%s %s: %s", js.id, check.Host, check.Service, url, body)
+			logrus.Infof("%s Sucessfully send update %s.%s %s: %s", js.id, check.Host, check.Service, url, body)
 			return nil
 		case context.Canceled, context.DeadlineExceeded:
-			logger.Errf("%s %s", js.id, err)
+			logrus.Errorf("%s %s", js.id, err)
 			return err
 		default:
-			logger.Errf("%s %s", js.id, err)
+			logrus.Errorf("%s %s", js.id, err)
 			errs[err.Error()] = ""
 			continue
 		}
@@ -545,6 +545,6 @@ func (js *Sender) updateCheck(ctx context.Context, check jugglerCheck) error {
 	if len(errs) > 0 {
 		return errors.Errorf("%s", errs)
 	}
-	logger.Errf("%s failed to sent update check for %v", js.id, check)
+	logrus.Errorf("%s failed to sent update check for %v", js.id, check)
 	return errors.Errorf("Upexpected error, can't update check for %s.%s", check.Host, check.Service)
 }

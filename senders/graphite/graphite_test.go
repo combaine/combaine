@@ -8,16 +8,8 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	InitializeLogger(func() logger.Logger {
-		logger.CocaineLog = logger.LocalLogger()
-		return logger.CocaineLog
-	})
-}
 
 type ioWriteFailerCloser struct {
 	counter int

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/utils"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +20,7 @@ type fether struct {
 	c repository.PluginConfig
 }
 
-func (f *fether) Fetch(_ context.Context, task *common.FetcherTask) ([]byte, error) {
+func (f *fether) Fetch(_ context.Context, task *FetcherTask) ([]byte, error) {
 	fch <- string(f.c["timetail_url"].(string))
 	return utils.Pack(*task)
 }
@@ -32,7 +31,7 @@ func NewTestFetcher(_ repository.PluginConfig) (Fetcher, error) {
 
 type testFether struct{}
 
-func (f *testFether) Fetch(_ context.Context, _ *common.FetcherTask) ([]byte, error) {
+func (f *testFether) Fetch(_ context.Context, _ *FetcherTask) ([]byte, error) {
 	return nil, nil
 }
 

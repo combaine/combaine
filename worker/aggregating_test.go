@@ -11,7 +11,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
-	tests "github.com/combaine/combaine/testdata"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )

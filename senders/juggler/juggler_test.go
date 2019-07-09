@@ -14,17 +14,10 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/combaine/combaine/common/logger"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	InitializeLogger(func() logger.Logger {
-		logger.CocaineLog = logger.LocalLogger()
-		return logger.CocaineLog
-	})
-}
 
 var task SenderTask // loaded in TestMain
 var ts *httptest.Server
@@ -191,7 +184,7 @@ func TestMain(m *testing.M) {
 				return
 			}
 			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
-			logger.Infof("Read check from file %s", fileName)
+			logrus.Infof("Read check from file %s", fileName)
 			resp, err := ioutil.ReadFile(fileName)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)

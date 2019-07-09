@@ -19,9 +19,9 @@ type FetcherTask struct {
 
 func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error) {
 	log := logrus.WithFields(logrus.Fields{
-		"config":  task.GetParsingConfigName(),
-		"target":  task.GetHost(),
-		"session": task.GetId(),
+		"config":  task.ParsingConfigName,
+		"target":  task.Host,
+		"session": task.Id,
 	})
 	var parsingConfig = task.GetParsingConfig()
 
@@ -37,8 +37,8 @@ func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error)
 
 	fetcherTask := FetcherTask{
 		ID:     task.Id,
-		Frame:  taks.Frame,
-		Target: task.GetHost(),
+		Frame:  *task.Frame,
+		Target: task.Host,
 	}
 
 	defer func(t time.Time) {
@@ -56,9 +56,9 @@ func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error)
 // DoParsing distribute tasks accross cluster
 func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 	log := logrus.WithFields(logrus.Fields{
-		"config":  task.GetParsingConfigName(),
-		"target":  task.GetHost(),
-		"session": task.GetId(),
+		"config":  task.ParsingConfigName,
+		"target":  task.Host,
+		"session": task.Id,
 	})
 	log.Debugf("start parsing")
 

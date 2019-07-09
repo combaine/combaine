@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/repository"
-	tests "github.com/combaine/combaine/testdata"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -110,10 +108,6 @@ func TestParsing(t *testing.T) {
 	}()
 
 	t.Log("start parsing")
-	cacher = cache.NewServiceCacher(
-		func(n string, a ...interface{}) (cache.Service, error) {
-			return tests.NewService(n, a...)
-		})
 	res, err := DoParsing(context.Background(), &parsingTask)
 	t.Log("parsing completed")
 	assert.NoError(t, err)

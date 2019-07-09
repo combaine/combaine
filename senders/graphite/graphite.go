@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -56,9 +56,9 @@ func formatSubgroup(input string) string {
 }
 
 func (g *Sender) send(output io.Writer, data string) error {
-	logger.Debugf("%s Send %s", g.id, data)
+	logrus.Debugf("%s Send %s", g.id, data)
 	if _, err := fmt.Fprint(output, data); err != nil {
-		logger.Errf("%s Sending error: %s", g.id, err)
+		logrus.Errorf("%s Sending error: %s", g.id, err)
 		connPool.Evict(output)
 		return err
 	}
@@ -102,7 +102,7 @@ func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFo
 		metricName.Push(utils.InterfaceToString(key.Interface()))
 
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-		logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
+		logrus.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
 
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -125,19 +125,19 @@ func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFo
 func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
 	metricName := make(utils.NameStack, 0, 3)
 
-	logger.Infof("%s send %d aggregates", g.id, len(data))
+	logrus.Infof("%s send %d aggregates", g.id, len(data))
 	for _, aggItem := range data {
 		aggname := aggItem.Tags["aggregate"]
 
 		metricName.Push(aggname)
 		subgroup, err := utils.GetSubgroupName(aggItem.Tags)
 		if err != nil {
-			logger.Errf("%s %s", g.id, err)
+			logrus.Errorf("%s %s", g.id, err)
 			continue
 		}
 		pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
 		rv := reflect.ValueOf(aggItem.Result)
-		logger.Debugf("%s data kind '%s' for aggregate %s", g.id, rv.Kind(), aggname)
+		logrus.Debugf("%s data kind '%s' for aggregate %s", g.id, rv.Kind(), aggname)
 
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -169,9 +169,6 @@ func (g *Sender) Send(data []common.AggregationResult, timestamp uint64) error {
 
 	return g.sendInternal(data, timestamp, sock)
 }
-
-// InitializeLogger create cocaine logger
-func InitializeLogger(init func() logger.Logger) { init() }
 
 // NewSender return pointer to sender with specified config
 func NewSender(cfg *Config, id string) (gs *Sender, err error) {
