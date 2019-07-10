@@ -29,9 +29,8 @@ func TestInitializeLogger(t *testing.T) {
 	}
 	defer os.Remove(tmpfile) // clean up
 
-	CocaineLog = LocalLogger()
-	CocaineLog.Err("line1")
-	CocaineLog.Errf("line2")
+	logrus.Error("line1")
+	logrus.Errorf("line2")
 
 	stat, err := os.Stat(tmpfile)
 	assert.NoError(t, err)
@@ -46,10 +45,10 @@ func TestInitializeLogger(t *testing.T) {
 	if _, err := os.Stat(tmpfile); os.IsNotExist(err) {
 		t.Fatalf("Failed to rotate logger file %s: %s", tmpfile, err)
 	}
-	Debugf("line3")
-	Infof("line4")
-	Errf("line5")
-	Warnf("line6")
+	logrus.Debugf("line3")
+	logrus.Infof("line4")
+	logrus.Errorf("line5")
+	logrus.Warnf("line6")
 
 	expected := []struct {
 		level string

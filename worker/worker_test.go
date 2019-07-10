@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"log"
 	"os"
 	"testing"
 
@@ -11,7 +12,7 @@ const repoPath = "../testdata/configs"
 
 func TestMain(m *testing.M) {
 	if err := repository.Init(repoPath); err != nil {
-		m.Log(err)
+		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }

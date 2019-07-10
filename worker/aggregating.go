@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +29,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 	var aggWg sync.WaitGroup
 
 	meta := parsingConfig.Metahost
-	ch := make(chan *AggregationResult)
+	ch := make(chan *senders.AggregationResult)
 
 	initCap := len(aggregationConfig.Data) * len(Hosts)
 	for name, cfg := range aggregationConfig.Data {
@@ -94,7 +95,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 					if err != nil {
 						log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", r.Task.Meta["name"], err)
 					} else {
-						ch <- &AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+						ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
 					}
 				}(hostReq)
 			}
@@ -132,7 +133,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 				if err != nil {
 					log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", r.Task.Meta["name"], err)
 				} else {
-					ch <- &AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+					ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
 				}
 			}(groupReq)
 		}
@@ -164,7 +165,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 			if err != nil {
 				log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", meta, err)
 			} else {
-				ch <- &AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+				ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
 			}
 		}(metaReq)
 	}
@@ -174,7 +175,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 		close(ch)
 	}()
 
-	var result []*AggregationResult
+	var result []*senders.AggregationResult
 	for item := range ch {
 		result = append(result, item)
 	}

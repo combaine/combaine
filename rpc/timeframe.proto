@@ -1,4 +1,5 @@
 syntax = "proto3";
+option go_package = "worker";
 
 message TimeFrame {
     int64 previous = 1;

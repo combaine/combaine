@@ -62,51 +62,6 @@ func TestParsing(t *testing.T) {
 		"test-host.custom.GeneralAggregator": false,
 	}
 
-	go func() {
-		defer func() {
-			close(done)
-			close(fch)
-			close(tests.Spy)
-		}()
-
-		for remain := expectedResultLen; remain != 0; remain-- {
-			t.Logf("iteration %d", expectedResultLen-remain+1)
-			select {
-			case url, ok := <-fch:
-				if ok {
-					urls[url]++
-				}
-			default:
-			}
-			k, ok := <-tests.Spy
-			if !ok {
-				return
-			}
-
-			var r map[string]interface{}
-			assert.NoError(t, utils.Unpack(k[1].([]byte), &r))
-			var payload worker.FetcherTask
-			assert.NoError(t, utils.Unpack([]byte(r["Data"].(string)), &payload))
-
-			key := payload.Target
-			cfg := r["Config"].(map[string]interface{})
-
-			if tp, ok := cfg["type"]; ok {
-				key += "." + tp.(string)
-			}
-			if cl, ok := cfg["class"]; ok {
-				key += "." + cl.(string)
-			}
-			if so, ok := cfg["someOpts"]; ok {
-				key += "." + so.(string)
-			}
-
-			_, ok = expectParsingResult[key]
-			assert.True(t, ok, "Unexpected parsing result %s", key)
-			expectParsingResult[key] = true
-		}
-	}()
-
 	t.Log("start parsing")
 	res, err := DoParsing(context.Background(), &parsingTask)
 	t.Log("parsing completed")

@@ -3,6 +3,7 @@ package worker
 import (
 	"time"
 
+	"github.com/combaine/combaine/senders"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
@@ -11,7 +12,7 @@ import (
 var aggregatorConnection *grpc.ClientConn
 
 // GetSenderClient return grpc client to locally spawned senders
-func GetSenderClient(aType string) (SenderClient, error) {
+func GetSenderClient(aType string) (senders.SenderClient, error) {
 	return nil, errors.New("Not implemented yet")
 }
 
@@ -24,8 +25,7 @@ func SpawnAggregator() error {
 			grpc.MaxCallRecvMsgSize(1024*1024*128),
 		),
 	}
-	//TODO
-	cmd.Exec ...
+	//TODO cmd.Exec ...
 
 	var attempts = 20
 	for i := 0; i <= attempts; i++ {

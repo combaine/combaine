@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	lua "github.com/yuin/gopher-lua"
@@ -27,7 +27,7 @@ func jPluginConfigToLuaTable(l *lua.LState, in repository.PluginConfig) (*lua.LT
 	return table, nil
 }
 
-func dataToLuaTable(l *lua.LState, in []common.AggregationResult) (*lua.LTable, error) {
+func dataToLuaTable(l *lua.LState, in []*senders.AggregationResult) (*lua.LTable, error) {
 	out := l.CreateTable(len(in), 0)
 	for _, item := range in {
 		table := l.CreateTable(0, 2)
@@ -226,7 +226,7 @@ func (js *Sender) preparePluginEnv(task SenderTask) error {
 		return fmt.Errorf("Failed to convert AggregationResult to lua table: %s", err)
 	}
 
-	// only half of task deadline allowed for sending sevents history
+	// only half of task deadline allowed for sending events history
 	deadline := task.PrevTime + (task.CurrTime-task.PrevTime)/2
 	js.state.SetGlobal("payload", ltable)
 	js.state.SetGlobal("storeDeadline", lua.LNumber(deadline))

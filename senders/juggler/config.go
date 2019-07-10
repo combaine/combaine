@@ -10,6 +10,7 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/senders"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -23,9 +24,10 @@ const (
 
 // SenderTask ...
 type SenderTask struct {
-	common.Task
-	Data   []common.AggregationResult
-	Config Config
+	PrevTime int64
+	CurrTime int64
+	Config   Config
+	Data     []*senders.AggregationResult
 }
 
 // Config contains config section from combainer's aggregations section

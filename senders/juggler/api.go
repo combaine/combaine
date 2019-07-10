@@ -439,7 +439,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 		inConfig = js.Flaps
 	}
 	if inConfig != nil && inConfig.StableTime == 0 && inConfig.CriticalTime == 0 && inConfig.BoostTime == 0 {
-		logrus.Infof("%s Check's flaps not configured, skip")
+		logrus.Infof("%s Check's flaps not configured, skip", js.id)
 		inConfig = nil
 	}
 
@@ -454,7 +454,7 @@ func (js *Sender) ensureFlap(c *jugglerCheck) {
 	}
 
 	if update {
-		logrus.Infof("%s Check outdated, Flaps%s differ: %s (juggler) != %s (inConfig)", js.id, msg, c.Flaps, inConfig)
+		logrus.Infof("%s Check outdated, Flaps%s differ: %v (juggler) != %v (inConfig)", js.id, msg, c.Flaps, inConfig)
 	}
 }
 

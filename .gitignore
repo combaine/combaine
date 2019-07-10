@@ -6,3 +6,4 @@ go.sum
 aggregator/*_pb2_grpc.py
 aggregator/*_pb2.py
 worker/*.pb.go
+senders/*.pb.go

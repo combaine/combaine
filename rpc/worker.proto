@@ -42,27 +42,7 @@ message AggregatingTask {
 message AggregatingResponse {
 }
 
-message AggregationResult {
-	map<string, string> tags = 4;
-	bytes result = 2;
-}
-
-message SenderRequest {
-    string id = 1;
-    TimeFrame frame = 2;
-	bytes Config = 3;
-	repeated AggregationResult data = 5;
-}
-
-message SenderResponse {
-    string response = 1;
-}
-
 service Worker {
     rpc DoParsing(ParsingTask) returns (ParsingResult) {}
     rpc DoAggregating(AggregatingTask) returns (AggregatingResponse) {}
-}
-
-service Sender {
-    rpc DoSend(SenderRequest) returns (SenderResponse) {}
 }

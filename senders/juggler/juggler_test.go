@@ -113,7 +113,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	l.Call(0, 1)
 
 	result := l.ToString(1)
-	assert.Equal(t, "OK", result)
+	assert.Equal(t, "Missing Payload", result)
 }
 
 func TestRunPlugin(t *testing.T) {
