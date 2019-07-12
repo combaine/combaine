@@ -11,7 +11,6 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/senders/juggler"
-	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -44,22 +43,12 @@ type sender struct {
 func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})
 
-	var task juggler.SenderTask
-	err := utils.Unpack(req.Config, &task.Config)
+	task, err := juggler.RepackSenderRequest(req, senderConfig)
 	if err != nil {
-		log.Errorf("Failed to unpack juggler config %s", err)
+		log.Errorf("Failed to repack sender request: %v", err)
 		return nil, err
 	}
-	task.Config.Tags = juggler.EnsureDefaultTag(task.Config.Tags)
-
-	err = juggler.UpdateTaskConfig(&task.Config, senderConfig)
-	if err != nil {
-		log.Errorf("Failed to update task config %s", err)
-		return nil, err
-	}
-	log.Debugf("Task: %v", task.Data)
-	juggler.AddJugglerToken(&task.Config, senderConfig.Token)
-
+	log.Debugf("Task.Data: %v", task.Data)
 	jCli, err := juggler.NewSender(&task.Config, req.Id)
 	if err != nil {
 		log.Errorf("DoSend: Unexpected error %s", err)
@@ -68,7 +57,7 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 
 	err = jCli.Send(ctx, task)
 	if err != nil {
-		log.Errorf("send: %s", err)
+		log.Errorf("client.Send: %s", err)
 		return nil, err
 	}
 	return &senders.SenderResponse{Response: "Ok"}, nil

@@ -9,15 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// EventsStore juggler events history
-type EventsStore interface {
-	// Connect store
-	Connect() error
-	// Update and get events history
-	Push(key, event string, historyLen int) ([]string, error)
-	// Close juggler events store
-	Close()
-}
 type pluginEventsStore struct {
 	session   *mgo.Session
 	config    *pluginEventsStoreConfig

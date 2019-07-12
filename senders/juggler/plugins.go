@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	lua "github.com/yuin/gopher-lua"
@@ -27,7 +26,7 @@ func jPluginConfigToLuaTable(l *lua.LState, in repository.PluginConfig) (*lua.LT
 	return table, nil
 }
 
-func dataToLuaTable(l *lua.LState, in []*senders.AggregationResult) (*lua.LTable, error) {
+func dataToLuaTable(l *lua.LState, in []*Payload) (*lua.LTable, error) {
 	out := l.CreateTable(len(in), 0)
 	for _, item := range in {
 		table := l.CreateTable(0, 2)
@@ -220,15 +219,16 @@ func LoadPlugin(id, dir, name string) (*lua.LState, error) {
 
 // preparePluginEnv add data from aggregate task as global variable in lua
 // plugin. Also inject juggler conditions from juggler configs and plugin config
-func (js *Sender) preparePluginEnv(task SenderTask) error {
+func (js *Sender) preparePluginEnv(task *SenderTask) error {
 	ltable, err := dataToLuaTable(js.state, task.Data)
 	if err != nil {
-		return fmt.Errorf("Failed to convert AggregationResult to lua table: %s", err)
+		return fmt.Errorf("Failed to convert Payload to lua table: %s", err)
 	}
 
+	js.state.SetGlobal("payload", ltable)
 	// only half of task deadline allowed for sending events history
 	deadline := task.PrevTime + (task.CurrTime-task.PrevTime)/2
-	js.state.SetGlobal("payload", ltable)
+	// this value passed to plugin_store Push method
 	js.state.SetGlobal("storeDeadline", lua.LNumber(deadline))
 	js.state.SetGlobal("checkName", lua.LString(js.Config.CheckName))
 	js.state.SetGlobal("checkDescription", lua.LString(js.Config.Description))

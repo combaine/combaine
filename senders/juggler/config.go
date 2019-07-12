@@ -11,6 +11,8 @@ import (
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders"
+	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -22,12 +24,18 @@ const (
 	defaultDatabaseName = "combaine"
 )
 
+// Payload for sender.
+type Payload struct {
+	Tags   map[string]string
+	Result interface{} // various sender payloads
+}
+
 // SenderTask ...
 type SenderTask struct {
 	PrevTime int64
 	CurrTime int64
 	Config   Config
-	Data     []*senders.AggregationResult
+	Data     []*Payload
 }
 
 // Config contains config section from combainer's aggregations section
@@ -86,8 +94,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// EnsureDefaultTag add default tag "combaine" if it not present in tags
-func EnsureDefaultTag(jtags []string) []string {
+func ensureDefaultTag(jtags []string) []string {
 	for _, t := range jtags {
 		if t == "combaine" {
 			return jtags
@@ -192,10 +199,38 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 	return nil
 }
 
-// AddJugglerToken update current task config,
-// set default settings if it need
-func AddJugglerToken(taskConf *Config, token string) {
-	if token != "" && token != "no-token" {
-		taskConf.Token = token
+// RepackSenderRequest to internal representation
+func RepackSenderRequest(req *senders.SenderRequest, cfg *SenderConfig) (*SenderTask, error) {
+	log := logrus.WithFields(logrus.Fields{"session": req.Id})
+
+	task := SenderTask{Data: make([]*Payload, 0, len(req.Data))}
+
+	if req.Config != nil {
+		err := utils.Unpack(req.Config, &task.Config)
+		if err != nil {
+			log.Errorf("Failed to unpack juggler config %s", err)
+			return nil, err
+		}
 	}
+	// Repack sender task
+	for _, d := range req.Data {
+		p := Payload{Tags: d.Tags}
+		if err := utils.Unpack(d.Result, &p.Result); err != nil {
+			log.Errorf("Failed to unpack sender payload: %s", err)
+			continue
+		}
+		task.Data = append(task.Data, &p)
+	}
+
+	task.Config.Tags = ensureDefaultTag(task.Config.Tags)
+
+	err := UpdateTaskConfig(&task.Config, cfg)
+	if err != nil {
+		log.Errorf("Failed to update task config %s", err)
+		return nil, err
+	}
+	if cfg.Token != "" && cfg.Token != "no-token" {
+		task.Config.Token = cfg.Token
+	}
+	return &task, nil
 }

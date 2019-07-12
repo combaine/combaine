@@ -123,7 +123,7 @@ func TestEnsureCheck(t *testing.T) {
 	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
 	assert.NoError(t, err)
 	js.state = state
-	assert.NoError(t, js.preparePluginEnv(task))
+	assert.NoError(t, js.preparePluginEnv(globalTestTask))
 
 	jEvents, err := js.runPlugin()
 	assert.NoError(t, err)
@@ -193,12 +193,12 @@ func TestSendBatch(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			ctx, cancel := context.WithTimeout(context.Background(), 1)
-			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, task)), context.DeadlineExceeded.Error())
+			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, globalTestTask)), context.DeadlineExceeded.Error())
 			cancel()
 		} else {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
-			err = js.Send(context.TODO(), task)
+			err = js.Send(context.TODO(), globalTestTask)
 			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 1/8 events")
 		}
 	}
@@ -230,12 +230,12 @@ func TestSendEvent(t *testing.T) {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
 			ctx, cancel := context.WithTimeout(context.Background(), 1)
-			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, task)), context.DeadlineExceeded.Error())
+			assert.Contains(t, fmt.Sprintf("%s", js.Send(ctx, globalTestTask)), context.DeadlineExceeded.Error())
 			cancel()
 		} else {
 			js, err := NewSender(jconf, "Test ID")
 			assert.NoError(t, err)
-			err = js.Send(context.TODO(), task)
+			err = js.Send(context.TODO(), globalTestTask)
 			assert.Contains(t, fmt.Sprintf("%s", err), "failed to send 8/16 events")
 		}
 	}

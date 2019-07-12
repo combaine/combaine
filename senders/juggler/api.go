@@ -487,7 +487,7 @@ func (js *Sender) ensureNamespace(c *jugglerCheck) {
 	if js.Namespace == "" {
 		js.Namespace = "combaine"
 	}
-	if js.Config.Token != "" && c.Namespace != js.Namespace {
+	if c.Namespace != js.Namespace {
 		c.needUpdated()
 		logrus.Infof("%s Check outdated, namespace differ: '%s' != '%s'", js.id, c.Namespace, js.Namespace)
 		c.Namespace = js.Namespace
