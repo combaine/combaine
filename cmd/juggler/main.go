@@ -37,8 +37,7 @@ func init() {
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
-type sender struct {
-}
+type sender struct{}
 
 func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})

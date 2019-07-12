@@ -3,11 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"log"
+	"context"
 	"os"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/senders/solomon"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
@@ -28,8 +27,7 @@ var (
 )
 
 type solomonTask struct {
-	ID       string `codec:"Id"`
-	Data     []common.AggregationResult
+	Data     []senders.AggregationResult
 	Config   solomon.Config
 	CurrTime uint64
 	PrevTime uint64
@@ -52,18 +50,18 @@ func getAPIURL() (string, error) {
 	return "", scanner.Err()
 }
 
-// Send parse cocaine request and send sensort to solomon api
-func Send(request *cocaine.Request, response *cocaine.Response) {
-	defer response.Close()
+type sender struct{}
 
-	raw := <-request.Read()
+// DoSend repack request and send sensort to solomon api
+func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
+	log := logrus.WithFields(logrus.Fields{"session": req.Id})
+
 	var task solomonTask
-	err := utils.Unpack(raw, &task)
+	err := utils.Unpack(req.Config, &task.Config)
 	if err != nil {
-		response.ErrorMsg(-100, err.Error())
-		return
+		return nil, err
 	}
-	logrus.Debugf("%s Task: %v", task.ID, task)
+	log.Debugf("Task: %v", task)
 
 	if len(task.Config.Fields) == 0 {
 		task.Config.Fields = defaultFields
@@ -74,32 +72,21 @@ func Send(request *cocaine.Request, response *cocaine.Response) {
 	if task.Config.API == "" {
 		task.Config.API, err = getAPIURL()
 		if err != nil {
-			logrus.Errorf("%s Failed to get api url: %s", task.ID, err)
-			response.ErrorMsg(-100, err.Error())
-			return
+			log.Errorf("Failed to get api url: %s", err)
+			return nil, err
 		}
 	}
 
-	solCli, _ := solomon.NewSender(task.Config, task.ID)
+	solCli, _ := solomon.NewSender(task.Config, req.Id)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
-		logrus.Errorf("%s Sending error %s", task.ID, err)
-		response.ErrorMsg(-100, err.Error())
-		return
+		log.Errorf("Sending error %s", err)
+		return nil, err
 	}
-	response.Write("DONE")
+	return &senders.SenderResponse{Response: "Ok"}, nil
 }
 
 func main() {
-	binds := map[string]cocaine.EventHandler{
-		"send": Send,
-	}
-	Worker, err := cocaine.NewWorker()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	solomon.StartWorkers(solomon.JobQueue, sleepInterval)
-
-	Worker.Loop(binds)
+	// TODO
 }
