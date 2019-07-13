@@ -27,7 +27,7 @@ install:
   - pyenv global system 3.7.1
   - pip3 install grpcio
   - pip3 install grpcio-tools
-  - python3 -m grpc_tools.protoc --version
+  - python -m grpc_tools.protoc --version
 
 script:
   - make test
