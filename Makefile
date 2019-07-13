@@ -13,7 +13,7 @@ docker-image:
 	docker build . -t combainer
 
 build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/razladki ${DIR}/solomon ${DIR}/juggler \
+	   ${DIR}/solomon ${DIR}/juggler \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -26,10 +26,6 @@ ${PREFIX}/build/worker: $(wildcard **/*.go)
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/graphite/main.go
-
-${DIR}/razladki: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/razladki/main.go
 
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
