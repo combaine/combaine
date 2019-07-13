@@ -27,8 +27,7 @@ var (
 )
 
 type solomonTask struct {
-	Data     []senders.AggregationResult
-	Config   solomon.Config
+	Data     []interface{}
 	CurrTime uint64
 	PrevTime uint64
 }
@@ -56,28 +55,29 @@ type sender struct{}
 func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})
 
-	var task solomonTask
-	err := utils.Unpack(req.Config, &task.Config)
+	var cfg solomon.Config
+	err := utils.Unpack(req.Config, &cfg)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("Task: %v", task)
 
-	if len(task.Config.Fields) == 0 {
-		task.Config.Fields = defaultFields
+	task, err := senders.RepackSenderRequest(req)
+	log.Debugf("Task: %v", task)
+	if len(cfg.Fields) == 0 {
+		cfg.Fields = defaultFields
 	}
-	if task.Config.Timeout == 0 {
-		task.Config.Timeout = sendTimeout
+	if cfg.Timeout == 0 {
+		cfg.Timeout = sendTimeout
 	}
-	if task.Config.API == "" {
-		task.Config.API, err = getAPIURL()
+	if cfg.API == "" {
+		cfg.API, err = getAPIURL()
 		if err != nil {
 			log.Errorf("Failed to get api url: %s", err)
 			return nil, err
 		}
 	}
 
-	solCli, _ := solomon.NewSender(task.Config, req.Id)
+	solCli, _ := solomon.NewSender(cfg, req.Id)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
 		log.Errorf("Sending error %s", err)

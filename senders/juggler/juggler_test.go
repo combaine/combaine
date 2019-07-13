@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	globalTestTask *SenderTask // loaded in TestMain
+	globalTestTask *senders.SenderTask // loaded in TestMain
 	ts             *httptest.Server
 	payloadFile    = "testdata/payload.yaml"
 )
@@ -179,7 +179,7 @@ func TestMain(m *testing.M) {
 	if yerr != nil {
 		panic(yerr)
 	}
-	payload := []Payload{}
+	var payload []senders.Payload
 	if yerr := yaml.Unmarshal(dataYaml, &payload); yerr != nil {
 		log.Fatalf("Failed to unmarshal %s: %v", payloadFile, yerr)
 		panic(yerr)
@@ -192,7 +192,7 @@ func TestMain(m *testing.M) {
 		}
 		tmpSenderRequest.Data[idx] = &senders.AggregationResult{Tags: item.Tags, Result: res}
 	}
-	globalTestTask, yerr = RepackSenderRequest(&tmpSenderRequest, &SenderConfig{Hosts: []string{"localhost"}})
+	globalTestTask, yerr = senders.RepackSenderRequest(&tmpSenderRequest)
 	if yerr != nil {
 		log.Fatalf("Failed to repack sender request: %s", yerr)
 	}

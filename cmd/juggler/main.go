@@ -11,6 +11,7 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/senders/juggler"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -18,11 +19,11 @@ import (
 )
 
 var (
-	endpoint     string
-	logoutput    string
-	tracing      bool
-	loglevel     = logger.LogrusLevelFlag(logrus.InfoLevel)
-	senderConfig *juggler.SenderConfig
+	endpoint           string
+	logoutput          string
+	tracing            bool
+	loglevel           = logger.LogrusLevelFlag(logrus.InfoLevel)
+	globalSenderConfig *juggler.SenderConfig
 )
 
 func init() {
@@ -42,13 +43,26 @@ type sender struct{}
 func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})
 
-	task, err := juggler.RepackSenderRequest(req, senderConfig)
+	var cfg juggler.Config
+	if req.Config != nil {
+		err := utils.Unpack(req.Config, &cfg)
+		if err != nil {
+			log.Errorf("Failed to unpack juggler config %s", err)
+			return nil, err
+		}
+	}
+	err := juggler.UpdateTaskConfig(&cfg, globalSenderConfig)
+	if err != nil {
+		log.Errorf("Failed to update task config %s", err)
+		return nil, err
+	}
+	task, err := senders.RepackSenderRequest(req)
 	if err != nil {
 		log.Errorf("Failed to repack sender request: %v", err)
 		return nil, err
 	}
 	log.Debugf("Task.Data: %v", task.Data)
-	jCli, err := juggler.NewSender(&task.Config, req.Id)
+	jCli, err := juggler.NewSender(&cfg, req.Id)
 	if err != nil {
 		log.Errorf("DoSend: Unexpected error %s", err)
 		return nil, err
@@ -66,7 +80,7 @@ func main() {
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
 	var err error
-	senderConfig, err = juggler.GetSenderConfig()
+	globalSenderConfig, err = juggler.GetSenderConfig()
 	if err != nil {
 		log.Fatalf("Failed to load sender config %s", err)
 	}
@@ -80,11 +94,11 @@ func main() {
 	logrus.Infof("filesystemRepository initialized")
 
 	juggler.GlobalCache.TuneCache(
-		senderConfig.CacheTTL,
-		senderConfig.CacheCleanInterval,
-		senderConfig.CacheCleanInterval*10,
+		globalSenderConfig.CacheTTL,
+		globalSenderConfig.CacheCleanInterval,
+		globalSenderConfig.CacheCleanInterval*10,
 	)
-	juggler.InitEventsStore(&senderConfig.Store)
+	juggler.InitEventsStore(&globalSenderConfig.Store)
 
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {

@@ -10,9 +10,6 @@ import (
 
 	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/senders"
-	"github.com/combaine/combaine/utils"
-	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -23,20 +20,6 @@ const (
 	defaultBatchSize    = 50 // send 50 events in one batch
 	defaultDatabaseName = "combaine"
 )
-
-// Payload for sender.
-type Payload struct {
-	Tags   map[string]string
-	Result interface{} // various sender payloads
-}
-
-// SenderTask ...
-type SenderTask struct {
-	PrevTime int64
-	CurrTime int64
-	Config   Config
-	Data     []*Payload
-}
 
 // Config contains config section from combainer's aggregations section
 // also it include default sender config (or user specified) yaml config
@@ -166,6 +149,13 @@ func GetSenderConfig() (*SenderConfig, error) {
 // UpdateTaskConfig update current task config,
 // set default settings if it need
 func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
+
+	taskConf.Tags = ensureDefaultTag(taskConf.Tags)
+
+	if conf.Token != "" && conf.Token != "no-token" {
+		taskConf.Token = conf.Token
+	}
+
 	if len(taskConf.JHosts) == 0 {
 		if len(conf.Hosts) == 0 {
 			return errors.New("juggler hosts not defined")
@@ -197,40 +187,4 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 		taskConf.Method = "GOLEM" // add default
 	}
 	return nil
-}
-
-// RepackSenderRequest to internal representation
-func RepackSenderRequest(req *senders.SenderRequest, cfg *SenderConfig) (*SenderTask, error) {
-	log := logrus.WithFields(logrus.Fields{"session": req.Id})
-
-	task := SenderTask{Data: make([]*Payload, 0, len(req.Data))}
-
-	if req.Config != nil {
-		err := utils.Unpack(req.Config, &task.Config)
-		if err != nil {
-			log.Errorf("Failed to unpack juggler config %s", err)
-			return nil, err
-		}
-	}
-	// Repack sender task
-	for _, d := range req.Data {
-		p := Payload{Tags: d.Tags}
-		if err := utils.Unpack(d.Result, &p.Result); err != nil {
-			log.Errorf("Failed to unpack sender payload: %s", err)
-			continue
-		}
-		task.Data = append(task.Data, &p)
-	}
-
-	task.Config.Tags = ensureDefaultTag(task.Config.Tags)
-
-	err := UpdateTaskConfig(&task.Config, cfg)
-	if err != nil {
-		log.Errorf("Failed to update task config %s", err)
-		return nil, err
-	}
-	if cfg.Token != "" && cfg.Token != "no-token" {
-		task.Config.Token = cfg.Token
-	}
-	return &task, nil
 }

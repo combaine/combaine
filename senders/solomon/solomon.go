@@ -53,7 +53,7 @@ type comLabels struct {
 // Sensor type
 type Sensor struct {
 	Labels map[string]string `json:"labels"`
-	Ts     uint64            `json:"ts"`
+	Ts     int64             `json:"ts"`
 	Value  float64           `json:"value"`
 }
 
@@ -75,7 +75,7 @@ type Worker struct {
 	RetryInterval time.Duration // ms
 }
 
-func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp uint64) (*Sensor, error) {
+func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp int64) (*Sensor, error) {
 	var (
 		err         error
 		sensorValue float64
@@ -93,7 +93,7 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 	case reflect.String:
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
-		logrus.Errorf("%s Default case:, %t, %s:%s", s.id, value, value.Kind(), value)
+		logrus.Errorf("%s Default case:, %v, %s:%s", s.id, value, value.Kind(), value)
 		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
@@ -132,7 +132,7 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 }
 
 func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
-	rv reflect.Value, timestamp uint64) error {
+	rv reflect.Value, timestamp int64) error {
 
 	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
 		msg := fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
@@ -154,7 +154,7 @@ func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
 	return nil
 }
 
-func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Value, timestamp uint64) error {
+func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Value, timestamp int64) error {
 	var (
 		item *Sensor
 		err  error
@@ -185,7 +185,7 @@ func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Val
 	return err
 }
 
-func (s *Sender) sendInternal(data []*senders.AggregationResult, timestamp uint64) ([]solomonPush, error) {
+func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solomonPush, error) {
 	var (
 		groups []solomonPush
 		err    error
@@ -246,7 +246,7 @@ func (s *Sender) sendInternal(data []*senders.AggregationResult, timestamp uint6
 }
 
 // Send parse data, build and send http request to solomon api
-func (s *Sender) Send(task []*senders.AggregationResult, timestamp uint64) error {
+func (s *Sender) Send(task []*senders.Payload, timestamp int64) error {
 	if len(task) == 0 {
 		return fmt.Errorf("Empty data. Nothing to send")
 	}

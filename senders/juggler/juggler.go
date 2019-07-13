@@ -17,6 +17,7 @@ import (
 
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -46,7 +47,7 @@ func NewSender(conf *Config, id string) (*Sender, error) {
 }
 
 // Send make all things abount juggler sender tasks
-func (js *Sender) Send(ctx context.Context, task *SenderTask) error {
+func (js *Sender) Send(ctx context.Context, task *senders.SenderTask) error {
 	logrus.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	if err != nil {
