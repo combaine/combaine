@@ -8,6 +8,12 @@ matrix:
   - go: 1.12.x
     env: GO111MODULE=on
 
+addons:
+  apt:
+    packages:
+      - "python3"
+      - "python3-pip"
+
 install:
   - set -e
   - export PROTOBUF_VERSION=3.8.0
@@ -15,6 +21,11 @@ install:
   - wget -O $HOME/${PROTOC_FILENAME} https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOC_FILENAME}
   - unzip $HOME/${PROTOC_FILENAME} -d $HOME
   - protoc --version
+  - pip3 install grpcio --no-binary grpcio
+  - pip3 install grpcio-tools
+  - python3 -m grpc_tools.protoc --version
+  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - type protoc-gen-go
 
 script:
   - make test
