@@ -70,7 +70,7 @@ fast-test:
 	@echo "+ $@"
 	@go test ./...
 
-test: vet fmt
+test: vet fmt proto
 	@echo "+ $@"
 	@echo "" > coverage.txt
 	CGO_ENABLED=1 go test ./... -race -coverprofile=coverage.txt -covermode=atomic
