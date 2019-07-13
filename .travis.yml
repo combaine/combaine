@@ -21,11 +21,13 @@ install:
   - wget -O $HOME/${PROTOC_FILENAME} https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOC_FILENAME}
   - unzip $HOME/${PROTOC_FILENAME} -d $HOME
   - protoc --version
+  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - type protoc-gen-go
+
+  - pyenv global system 3.7.1
   - pip3 install grpcio --no-binary grpcio
   - pip3 install grpcio-tools
   - python3 -m grpc_tools.protoc --version
-  - go get -u github.com/golang/protobuf/protoc-gen-go
-  - type protoc-gen-go
 
 script:
   - make test
