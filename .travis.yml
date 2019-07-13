@@ -1,6 +1,4 @@
 language: go
-
-dist: disco
 sudo: false
 
 matrix:
