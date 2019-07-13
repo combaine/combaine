@@ -1,4 +1,6 @@
 language: go
+
+dist: disco
 sudo: false
 
 matrix:
@@ -22,7 +24,6 @@ install:
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - type protoc-gen-go
 
-  - pyenv install 3.7.1
   - pyenv global system 3.7.1
   - python -m pip install --user grpcio
   - python -m pip install --user grpcio-tools
