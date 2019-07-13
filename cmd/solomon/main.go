@@ -4,12 +4,20 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"flag"
+	"log"
+	"net"
 	"os"
+	"time"
 
+	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/senders/solomon"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/keepalive"
 )
 
 const (
@@ -26,10 +34,23 @@ var (
 	}
 )
 
-type solomonTask struct {
-	Data     []interface{}
-	CurrTime uint64
-	PrevTime uint64
+var (
+	endpoint  string
+	logoutput string
+	tracing   bool
+	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
+)
+
+func init() {
+	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
+	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
+	flag.BoolVar(&tracing, "trace", false, "enable tracing")
+	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.Parse()
+	grpc.EnableTracing = tracing
+
+	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
 func getAPIURL() (string, error) {
@@ -62,6 +83,10 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 	}
 
 	task, err := senders.RepackSenderRequest(req)
+	if err != nil {
+		log.Errorf("Failed to repack sender request: %v", err)
+		return nil, err
+	}
 	log.Debugf("Task: %v", task)
 	if len(cfg.Fields) == 0 {
 		cfg.Fields = defaultFields
@@ -88,5 +113,19 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 
 func main() {
 	solomon.StartWorkers(solomon.JobQueue, sleepInterval)
-	// TODO
+	lis, err := net.Listen("tcp", endpoint)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer(
+		grpc.MaxRecvMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxSendMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxConcurrentStreams(2000),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
+	senders.RegisterSenderServer(s, &sender{})
+	s.Serve(lis)
 }

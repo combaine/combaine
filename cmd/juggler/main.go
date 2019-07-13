@@ -19,11 +19,10 @@ import (
 )
 
 var (
-	endpoint           string
-	logoutput          string
-	tracing            bool
-	loglevel           = logger.LogrusLevelFlag(logrus.InfoLevel)
-	globalSenderConfig *juggler.SenderConfig
+	endpoint  string
+	logoutput string
+	tracing   bool
+	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
 func init() {
@@ -38,9 +37,11 @@ func init() {
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
-type sender struct{}
+type sender struct {
+	cfg *juggler.SenderConfig
+}
 
-func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
+func (s *sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})
 
 	var cfg juggler.Config
@@ -51,7 +52,7 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 			return nil, err
 		}
 	}
-	err := juggler.UpdateTaskConfig(&cfg, globalSenderConfig)
+	err := juggler.UpdateTaskConfig(&cfg, s.cfg)
 	if err != nil {
 		log.Errorf("Failed to update task config %s", err)
 		return nil, err
@@ -79,8 +80,7 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 func main() {
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
-	var err error
-	globalSenderConfig, err = juggler.GetSenderConfig()
+	cfg, err := juggler.GetSenderConfig()
 	if err != nil {
 		log.Fatalf("Failed to load sender config %s", err)
 	}
@@ -94,11 +94,11 @@ func main() {
 	logrus.Infof("filesystemRepository initialized")
 
 	juggler.GlobalCache.TuneCache(
-		globalSenderConfig.CacheTTL,
-		globalSenderConfig.CacheCleanInterval,
-		globalSenderConfig.CacheCleanInterval*10,
+		cfg.CacheTTL,
+		cfg.CacheCleanInterval,
+		cfg.CacheCleanInterval*10,
 	)
-	juggler.InitEventsStore(&globalSenderConfig.Store)
+	juggler.InitEventsStore(&cfg.Store)
 
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
@@ -113,6 +113,6 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	senders.RegisterSenderServer(s, &sender{})
+	senders.RegisterSenderServer(s, &sender{cfg: cfg})
 	s.Serve(lis)
 }
