@@ -1,24 +1,50 @@
-#!/usr/bin/env python
-"""
-Multimetrics parse data like 'metric_name value' from hosts loggiver, and
-aggregate result of hosts parsing via aggregate_group
-"""
+#!/usr/bin/env python3
+import logging
+
+LOG = logging.getLogger("combaine")
 
 DEFAULT_QUANTILE_VALUES = [75, 90, 93, 94, 95, 96, 97, 98, 99]
 
-import logging
-LOG = logging.getLogger("combaine")
-
 
 def _clean_timings(timings_str):
-    return timings_str.replace(',', ' ').replace('- ', ' ').replace(':', ' ')
+    return timings_str.replace(',', ' ').replace('-', ' ').replace(':', ' ')
 
 
 def _check_name(name):
-    if '<' in name or '>' in name or ';' in name:
-        raise NameError("Name of metric contains forbidden symbols: '<>;'")
-    if '[' in name or ']' in name or '\\' in name or '/' in name:
-        raise NameError("Name of metric contains forbidden symbols: '[]\\/'")
+    if '<' in name or '>' in name or ';' in name or '\\' in name:
+        raise NameError("Name of metric contains forbidden symbols: '<>;\\'")
+
+
+def _add_timings(container, name, timings_value, packed=False):
+    """
+    Pack comming timings in to compact dict where
+    keys are timings, and values are count of timings
+    """
+    try:
+        tim_dict = container[name]
+    except KeyError:
+        container[name] = {}
+        tim_dict = container[name]
+
+    if packed:
+        if '@' in timings_value:
+            timings_value, count = timings_value.split("@")
+            if not timings_value:  # skip entries like '@25' treat as parses errors
+                return
+        else:
+            # timings without count 0.124[@1] - @1 is optional ???
+            # count = 1
+            return  # or skip it???
+
+        count = float(count)
+    else:
+        count = 1.0
+
+    key = float(timings_value)
+    try:
+        tim_dict[key] += count
+    except KeyError:
+        tim_dict[key] = count
 
 
 class Multimetrics(object):
@@ -39,6 +65,7 @@ class Multimetrics(object):
     metric name should startwith @
     @uploader_timings_request_post_upload-url 0.001@300 0.002@3 0.001@12
     """
+
     def __init__(self, config):
         self.quantile = list(config.get("values", DEFAULT_QUANTILE_VALUES))
         self.quantile.sort()
@@ -53,38 +80,16 @@ class Multimetrics(object):
         # get prc of errors in info from metrics which contents 'ext_services'
         self.get_prc = config.get("get_prc", False)
 
-        self.log = config.get("logger", logging.LoggerAdapter(LOG, {"tid": "Multimetrics"}))
+        self.log = config.get("logger", logging.LoggerAdapter(LOG, {"tid": self.__class__.__name__}))
 
     def is_timings(self, name):
         "Check metric name against is timings"
-        return self.timings_is in name
+        if isinstance(name, bytes):
+            return name.decode().endswith(self.timings_is)
+        return name.endswith(self.timings_is)
 
-    def add_timings(self, container, name, timings_value, packed=False):
-        """
-        Pack comming timings in to compact dict where
-        keys are timings, and values are count of timings
-        """
-        try:
-            tim_dict = container[name]
-        except KeyError:
-            container[name] = {}
-            tim_dict = container[name]
-
-        if packed:
-            timings_value, count = timings_value.split("@")
-            count = float(count)
-        else:
-            count = 1.0
-
-        key = float(timings_value)
-        try:
-            tim_dict[key] += count
-        except KeyError:
-            tim_dict[key] = count
-
-    def aggregate_host(self, payload, prevtime, currtime):
+    def aggregate_host(self, payload, prevtime, currtime, hostname=None):
         """ Convert strings of 'payload' into dict[string][]float and return """
-        add_timings = self.add_timings
 
         delta = float(currtime - prevtime)
         if delta <= 0:
@@ -92,21 +97,22 @@ class Multimetrics(object):
 
         result = {}
         for line in payload.splitlines():
-            line = line.strip()
+            line = line.replace('\t', ' ').strip()
             if not line:
                 continue
 
-            name, _, metrics_as_strings = line.partition(" ")
+            name, _, metrics_as_strings = map(lambda x: x.strip(), line.partition(' '))
+            if not metrics_as_strings:
+                self.log.debug("skip %s", line)
+                continue
+
             try:
-                name.decode('ascii')
                 _check_name(name)
 
                 if self.is_timings(name):
-                    if name[0] == '@':
+                    timings_is_packed = name[0] == '@'
+                    if timings_is_packed:
                         name = name[1:]  # make timings name valid
-                        timings_is_packed = True
-                    else:
-                        timings_is_packed = False
 
                     metrics_as_strings = _clean_timings(metrics_as_strings)
 
@@ -114,7 +120,7 @@ class Multimetrics(object):
                         result[name] = {}
 
                     for tmn in metrics_as_strings.split():
-                        add_timings(result, name, tmn, timings_is_packed)
+                        _add_timings(result, name, tmn, timings_is_packed)
                 else:
                     metrics_as_values = sum(map(float, metrics_as_strings.split()))
                     if self.rps:
@@ -125,15 +131,17 @@ class Multimetrics(object):
                     except KeyError:
                         result[name] = metrics_as_values
             except Exception as err:  # pylint: disable=broad-except
-                self.log.error("Unable to parse %s: %s", line, err)
+                self.log.error("hostname=%s Unable to parse %s: %s", hostname, line, err)
         return result
 
     def aggregate_group(self, payload):
         """ Payload is list of dict[string][]float"""
-        if len(payload) == 0:
+        if not payload:
             raise Exception("No data to aggregate")
+
         names_of_metrics = set()
-        map(names_of_metrics.update, (i.keys() for i in payload))
+        for i in payload:
+            names_of_metrics.update(i.keys())
         result = {}
 
         for metric in names_of_metrics:
@@ -141,65 +149,92 @@ class Multimetrics(object):
                 agg_timings = {}
                 count = 0.0
                 for item in payload:
-                    for tmk, v in item.get(metric, {}).items():
+                    for tmk, val in item.get(metric, {}).items():
                         try:
-                            agg_timings[tmk] += v
-                        except:
-                            agg_timings[tmk] = v
-                        count += v
+                            agg_timings[tmk] += val
+                        except KeyError:
+                            agg_timings[tmk] = val
+                        count += val
 
-                if len(agg_timings) == 0:
+                if not agg_timings:
                     continue
 
-                keys = sorted(agg_timings.keys())
-                value = keys[0]
-
-                result[metric] = list()
-                for q in self.quantile:
-                    if q < 100:
-                        index = int(count / 100 * q)
-                        sumidx = 0
-                        for i in keys:
-                            sumidx += agg_timings[i]
-                            if index <= sumidx:
-                                value = i
-                                break
-                    else:
-                        value = keys[-1]
-
-                    result[metric].append(self.factor(value))
+                result[metric] = self.calculate_quantiles(agg_timings, count)
             else:
                 metric_sum = sum(item.get(metric, 0) for item in payload)
                 result[metric] = metric_sum
 
         if self.get_prc:
-            for field in self.get_prc:
-                prc_result = {}
-                p, a = self.get_prc[field].split('/')
-                for k in result:
-                    if field in k:
-                        mp = '.'.join(k.split('.')[:-1])
-                        mp_a = '.'.join((mp, a))
-                        mp_p = '.'.join((mp, p))
-                        mp_err = mp + '.err_prc'
-                        if mp_err not in result:
-                            if result[mp_a]:
-                                if result[mp_p]:
-                                    if result[mp_a] < result[mp_p]:
-                                        prc_result[mp_err] = 100
-                                    else:
-                                        prc_result[mp_err] = round(
-                                            result[mp_p] * 100.0 / result[mp_a], 2)
-                                else:
-                                    prc_result[mp_err] = 0
-                            elif result[mp_p]:
-                                prc_result[mp_err] = 100
-                result.update(prc_result)
+            self.calculate_percentage(result)
 
         return result
 
+    def calculate_quantiles(self, timings, total_count):
+        """
+        Calculate quantiles from dict {'timings_value': 'values_count', ...}
+        """
 
-def test(datafile):
+        keys = sorted(timings.keys())
+        value = keys[0]
+        quantiles = [value] * len(self.quantile)
+
+        for idx, quant in enumerate(self.quantile):
+            if quant < 100:
+                index = int(total_count / 100 * quant)
+                sumidx = 0
+                for i in keys:
+                    sumidx += timings[i]
+                    if index <= sumidx:
+                        value = i
+                        break
+            else:
+                value = keys[-1]
+
+            quantiles[idx] = self.factor(value)
+        return quantiles
+
+    def calculate_percentage(self, result):
+        """Get percentage one metric in other"""
+
+        for pattern in self.get_prc:
+            calc_result = {}
+            # prc_result = base * 100 / all , where base, all - last key in metric
+            base_key, all_key = self.get_prc[pattern].split('/')
+            for metric in result:
+                # Process only matching our pattern metrics
+                if pattern not in metric:
+                    continue
+                # Construct metric parts
+                metric_prefix = metric.rsplit('.', 1)[0]
+                metric_base = '%s.%s' % (metric_prefix, base_key)
+                metric_all = '%s.%s' % (metric_prefix, all_key)
+                metric_result = '%s.err_prc' % (metric_prefix)
+                # Do not process metric if we already have result
+                if metric_result in calc_result:
+                    continue
+
+                try:
+                    metric_base_value = result[metric_base]
+                except KeyError:
+                    # If there is no metric with base value, there 0% base in all
+                    calc_result[metric_result] = 0
+                    continue
+
+                try:
+                    metric_all_value = result[metric_all]
+                except KeyError:
+                    # If there is no metric with all value, there 100% base in all
+                    calc_result[metric_result] = 100
+                    continue
+
+                if metric_all_value < metric_base_value:
+                    calc_result[metric_result] = 100
+                else:
+                    calc_result[metric_result] = round(metric_base_value * 100.0 / metric_all_value, 2)
+            result.update(calc_result)
+
+
+def test(configfile):
     """Simple test with time measurement"""
     import time
     from pprint import pprint
@@ -217,6 +252,7 @@ def test(datafile):
     res = mms.aggregate_group(_payload)
     print("+++ Aggregate group ({} s) +++".format(time.time() - start))
     pprint(res, indent=1, width=120)
+
 
 if __name__ == '__main__':
     import sys
