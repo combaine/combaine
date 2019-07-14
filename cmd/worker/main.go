@@ -73,7 +73,9 @@ func main() {
 	)
 	worker.RegisterWorkerServer(s, &server{})
 
-	if err := worker.SpawnAggregator(); err != nil {
+	var stopCh = make(chan bool)
+	defer close(stopCh)
+	if err := worker.SpawnServices(stopCh); err != nil {
 		log.Fatalf("Failed to spawn worker services: %v", err)
 	}
 	s.Serve(lis)

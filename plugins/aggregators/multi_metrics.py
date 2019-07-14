@@ -234,7 +234,7 @@ class Multimetrics(object):
             result.update(calc_result)
 
 
-def test(configfile):
+def test(datafile):
     """Simple test with time measurement"""
     import time
     from pprint import pprint

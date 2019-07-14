@@ -6,6 +6,7 @@ import importlib
 import logging
 import multiprocessing
 import os
+import signal
 import socket
 import time
 from concurrent import futures
@@ -15,17 +16,17 @@ import msgpack
 
 import aggregator_pb2
 import aggregator_pb2_grpc
+import prctl
 
 _PROCESS_COUNT = 4
 
 
 class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
     """Combaine aggregator custom plugin loader"""
-
     def __init__(self):
         self.log = logging.getLogger("combaine")
 
-        self.path = os.environ.get('PLUGINS_PATH', '/usr/lib/yandex/combaine/custom')
+        self.path = os.environ.get('PLUGINS_PATH', '/usr/lib/combaine/custom')
         self.all_custom_parsers = self.load_plugins()
 
     def load_plugins(self):
@@ -141,7 +142,7 @@ def _reserve_port():
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     if sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT) != 1:
         raise RuntimeError("Failed to set SO_REUSEPORT.")
-    sock.bind(('', 50051))
+    sock.bind(('', 10000))
     try:
         yield sock.getsockname()[1]
     finally:
@@ -150,6 +151,7 @@ def _reserve_port():
 
 def _run_server(bind_address):
     """Start a server in a subprocess."""
+    prctl.set_pdeathsig(signal.SIGTERM)
     logging.info('Starting new server.')
     options = (
         ('grpc.so_reuseport', 1),
@@ -190,9 +192,14 @@ def serve():
             worker = multiprocessing.Process(target=_run_server, args=(bind_address, ))
             workers.append(worker)
         for worker in workers:
+            worker.daemon = True
             worker.start()
-        for worker in workers:
-            worker.join()
+        while True:
+            for worker in workers:
+                worker.join(1)
+                if worker.exitcode:
+                    logging.error("worker exit by %s", worker.exitcode)
+                    raise RuntimeError("Some worker disappear")
 
 
 if __name__ == '__main__':
