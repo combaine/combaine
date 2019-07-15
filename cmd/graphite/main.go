@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net"
 	"time"
 
@@ -86,6 +85,8 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 }
 
 func main() {
+	log := logrus.WithField("source", "graphite/main.go")
+
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -99,6 +100,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
+	log.Infof("Register as gRPC server on: %s", endpoint)
 	senders.RegisterSenderServer(s, &sender{})
 	s.Serve(lis)
 }

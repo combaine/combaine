@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"log"
 	"net"
 	"os"
 	"time"
@@ -112,6 +111,8 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 }
 
 func main() {
+	log := logrus.WithField("source", "solomon/main.go")
+
 	solomon.StartWorkers(solomon.JobQueue, sleepInterval)
 	lis, err := net.Listen("tcp", endpoint)
 	if err != nil {
@@ -126,6 +127,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
+	log.Infof("Register as gRPC server on: %s", endpoint)
 	senders.RegisterSenderServer(s, &sender{})
 	s.Serve(lis)
 }

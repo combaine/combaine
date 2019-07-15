@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/combaine/combaine/senders"
@@ -72,6 +73,9 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 					"-logoutput", logoutput,
 					"-loglevel", loglevel,
 				)
+				cmd.SysProcAttr = &syscall.SysProcAttr{
+					Pdeathsig: syscall.SIGTERM,
+				}
 				out, err := cmd.CombinedOutput()
 				if err != nil {
 					logrus.Errorf("Run failed for %s: %v", name, err)

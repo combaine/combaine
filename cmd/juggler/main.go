@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net"
 	"time"
 
@@ -78,6 +77,8 @@ func (s *sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*sende
 }
 
 func main() {
+	log := logrus.WithField("source", "juggler/main.go")
+
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
 	cfg, err := juggler.GetSenderConfig()
@@ -91,7 +92,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
 	}
-	logrus.Infof("filesystemRepository initialized")
+	log.Infof("filesystemRepository initialized")
 
 	juggler.GlobalCache.TuneCache(
 		cfg.CacheTTL,
@@ -113,6 +114,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
+	log.Infof("Register as gRPC server on: %s", endpoint)
 	senders.RegisterSenderServer(s, &sender{cfg: cfg})
 	s.Serve(lis)
 }

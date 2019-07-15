@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net"
 	"time"
 
@@ -56,6 +55,8 @@ func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask
 }
 
 func main() {
+	log := logrus.WithField("source", "worker/main.go")
+
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
 	lis, err := net.Listen("tcp", endpoint)
@@ -71,6 +72,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
+	log.Infof("Register as gRPC server on: %s", endpoint)
 	worker.RegisterWorkerServer(s, &server{})
 
 	var stopCh = make(chan bool)
