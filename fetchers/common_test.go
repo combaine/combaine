@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/worker"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,6 +19,11 @@ var (
 	withErr = true
 	ok      = false
 )
+
+func assertErrorIfContextWithoutDeadline(t *testing.T, err error) {
+	assert.Error(t, err)
+	assert.Contains(t, fmt.Sprintf("%s", err), "Context without deadline")
+}
 
 func TestTCPSocketFetcherConfig(t *testing.T) {
 	var plainConfig = repository.EncodedConfig("port: 18089")
@@ -56,20 +60,24 @@ func TestTCPSocketFetcherFetch(t *testing.T) {
 		expected string
 		config   repository.PluginConfig
 	}{
+		{withErr, "hello", repository.PluginConfig{}},
 		{ok, "hello", repository.PluginConfig{}},
 	}
 
 	for _, c := range cases {
-		task := &worker.FetcherTask{ID: "ID", Target: target}
+		task := &FetcherTask{ID: "ID", Target: target}
 
 		c.config["port"], _ = strconv.Atoi(port)
 		f, err := NewTCPSocketFetcher(c.config)
 		assert.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		if c.err {
+			ctx = context.Background()
+		}
 		defer cancel()
 		if body, err := f.Fetch(ctx, task); c.err {
-			assert.EqualValues(t, context.DeadlineExceeded, err)
+			assertErrorIfContextWithoutDeadline(t, err)
 		} else {
 			assert.EqualValues(t, c.expected, body)
 			assert.NoError(t, err)
@@ -108,16 +116,23 @@ func TestHTTPFetcherFetch(t *testing.T) {
 		config  repository.PluginConfig
 		timeout time.Duration
 	}{
-		{true, repository.PluginConfig{}, 50 * time.Millisecond},
-		{false, repository.PluginConfig{}, 150 * time.Millisecond},
+		{withErr, repository.PluginConfig{}, 0},
+		{withErr, repository.PluginConfig{}, 50 * time.Millisecond},
+		{ok, repository.PluginConfig{}, 150 * time.Millisecond},
 	}
 
 	for _, c := range cases {
-		task := &worker.FetcherTask{ID: "ID", Target: target}
+		task := &FetcherTask{ID: "ID", Target: target}
 
 		c.config["port"], _ = strconv.Atoi(port)
 		f, err := NewHTTPFetcher(c.config)
 		assert.NoError(t, err)
+
+		if c.timeout == 0 {
+			_, err := f.Fetch(context.Background(), task)
+			assertErrorIfContextWithoutDeadline(t, err)
+			continue
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 		defer cancel()
@@ -161,16 +176,23 @@ func TestTimetailFetcherFetch(t *testing.T) {
 		config  repository.PluginConfig
 		timeout time.Duration
 	}{
+		{withErr, repository.PluginConfig{"timetail_url": "/TEST"}, 0},
 		{withErr, repository.PluginConfig{"timetail_url": "/TEST"}, 10 * time.Millisecond},
 		{ok, repository.PluginConfig{"timetail_url": "/TEST"}, 200 * time.Millisecond},
 	}
 
 	for _, c := range cases {
-		task := &worker.FetcherTask{ID: "ID", Target: target}
+		task := &FetcherTask{ID: "ID", Target: target}
 
 		c.config["timetail_port"], _ = strconv.Atoi(port)
 		f, err := NewTimetailFetcher(c.config)
 		assert.NoError(t, err)
+
+		if c.timeout == 0 {
+			_, err := f.Fetch(context.Background(), task)
+			assertErrorIfContextWithoutDeadline(t, err)
+			continue
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 		defer cancel()

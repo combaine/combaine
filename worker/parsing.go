@@ -5,17 +5,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/combaine/combaine/fetchers"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
-
-// FetcherTask task for hosts fetchers
-type FetcherTask struct {
-	ID     string
-	Frame  TimeFrame
-	Target string
-}
 
 func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error) {
 	log := logrus.WithFields(logrus.Fields{
@@ -30,14 +24,14 @@ func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error)
 		return nil, err
 	}
 	log.Debugf("use %s for fetching data", fetcherType)
-	fetcher, err := NewFetcher(fetcherType, parsingConfig.DataFetcher)
+	fetcher, err := fetchers.NewFetcher(fetcherType, parsingConfig.DataFetcher)
 	if err != nil {
 		return nil, err
 	}
 
-	fetcherTask := FetcherTask{
+	fetcherTask := fetchers.FetcherTask{
 		ID:     task.Id,
-		Frame:  *task.Frame,
+		Period: task.Frame.Current - task.Frame.Previous,
 		Target: task.Host,
 	}
 

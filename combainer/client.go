@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -22,6 +23,9 @@ import (
 	"github.com/combaine/combaine/worker"
 )
 
+// global ClientID counter
+var clientID uint64
+
 type sessionParams struct {
 	aggregateLocally bool
 	ParallelParsings int
@@ -39,6 +43,10 @@ type Client struct {
 
 	conn    *grpc.ClientConn
 	aggConn *grpc.ClientConn
+}
+
+func generateClientID() uint64 {
+	return atomic.AddUint64(&clientID, 1)
 }
 
 // NewClient returns new client
@@ -64,7 +72,7 @@ func NewClient(opt ...func(*Client) error) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	id := utils.GenerateClientID()
+	id := generateClientID()
 	c := &Client{ID: id, conn: conn, aggConn: aggConn}
 
 	for _, f := range opt {

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -149,4 +150,9 @@ func BenchmarkGenSessionID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		GenerateSessionID()
 	}
+}
+
+func TestHostname(t *testing.T) {
+	name, _ := os.Hostname()
+	assert.Equal(t, name, Hostname())
 }

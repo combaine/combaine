@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/ugorji/go/codec"
@@ -23,8 +22,6 @@ var (
 			},
 		},
 	}
-	// global ClientID counter
-	clientID uint64
 )
 
 // Pack is helper for encode data in to msgpack
@@ -105,11 +102,6 @@ func GenerateSessionID() string {
 	buf = strconv.AppendInt(buf, rand.Int63(), 10)
 	val := md5.Sum(buf)
 	return fmt.Sprintf("%x", string(val[:]))
-}
-
-// GenerateClientID is return ++clientID
-func GenerateClientID() uint64 {
-	return atomic.AddUint64(&clientID, 1)
 }
 
 // Hostname return node hostname or panic on errors

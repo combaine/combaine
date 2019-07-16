@@ -29,7 +29,7 @@ type CacheConfig struct {
 type ClusterConfig struct {
 	BindAddr string `yaml:"BindAddr"`
 	RaftPort int    `yaml:"RaftPort"`
-	// expect serf nodes to bootstrap raft cluster
+	// expect N serf nodes to bootstrap raft cluster
 	BootstrapExpect    uint          `yaml:"BootstrapExpect"`
 	StartAsLeader      bool          `yaml:"StartAsLeader"`
 	RaftUpdateInterval time.Duration `yaml:"RaftUpdateInterval"`

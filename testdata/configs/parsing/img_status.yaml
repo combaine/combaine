@@ -6,6 +6,3 @@ parser: http_status
 HostFetcher: {
 	BasicUrl: "http://overrided=%s",
 }
-Placeholders: {
-	Field: "http_status",
-}

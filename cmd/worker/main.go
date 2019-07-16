@@ -14,12 +14,8 @@ import (
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/worker"
 	"github.com/sirupsen/logrus"
-
 	//_ "net/http/pprof"
-
 	//_ "golang.org/x/net/trace"
-
-	_ "github.com/combaine/combaine/fetchers"
 )
 
 var (

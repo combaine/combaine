@@ -1,4 +1,4 @@
-package worker
+package fetchers
 
 import (
 	"context"
@@ -7,6 +7,13 @@ import (
 	"github.com/combaine/combaine/repository"
 	"github.com/pkg/errors"
 )
+
+// FetcherTask task for hosts fetchers
+type FetcherTask struct {
+	ID     string
+	Period int64
+	Target string
+}
 
 var fLock sync.Mutex
 var fetchers = map[string]func(repository.PluginConfig) (Fetcher, error){}
