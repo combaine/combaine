@@ -4,7 +4,7 @@ RUN apt update && apt install -y --force-yes --no-install-recommends \
     vim htop subversion openssh-client git psmisc \
     bind9-host unbound lsof jq zstd jnettop util-linux \
     strace tcpdump htop curl moreutils iptables \
-    gcc python3-dev \
+    gcc python3-dev wget runit \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -13,6 +13,9 @@ RUN python3 -m pip install --no-cache-dir -U pip Cython setuptools
 RUN python3 -m pip install --no-cache-dir -U grpcio --no-binary grpcio
 RUN python3 -m pip install --no-cache-dir -U grpcio_tools python-prctl
 RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests
+
+RUN wget -O /usr/bin/combaine-client  https://github.com/combaine/combaine-client/releases/download/v0.0.1/combaine-client-static-linux-amd64
+RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v0.0.1/ttail-static-linux-amd64
 
 # basic configure
 RUN ln -vsTf /bin/bash /bin/sh
@@ -25,6 +28,7 @@ RUN touch /etc/combaine/juggler.yaml /etc/combaine/combaine.yaml
 
 COPY build/combainer               /usr/bin/
 COPY build/worker                  /usr/bin/combaine-worker
+RUN chmod -c +x /usr/bin/combaine* /usr/bin/ttail
 
 COPY aggregator/                   /usr/lib/combaine/apps/aggregator/
 COPY build/graphite                /usr/lib/combaine/apps/
