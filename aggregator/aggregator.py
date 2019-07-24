@@ -10,6 +10,7 @@ import signal
 import socket
 import time
 from concurrent import futures
+from logging.handlers import RotatingFileHandler
 
 import grpc
 import msgpack
@@ -23,6 +24,7 @@ _PROCESS_COUNT = 4
 
 class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
     """Combaine aggregator custom plugin loader"""
+
     def __init__(self):
         self.log = logging.getLogger("combaine")
 
@@ -203,6 +205,11 @@ def serve():
 
 
 if __name__ == '__main__':
-    logging.basicConfig()
+    root = logging.getLogger()
+    maxSize = 1024 * 1024 * 1024  # 1 Gb
+    h = logging.handlers.RotatingFileHandler('/var/log/aggregator.log', 'a', maxSize, 8)
+    f = logging.Formatter('%(asctime)s %(levelname)5s: %(lineno)4s#%(funcName)-12s %(message)s')
+    h.setFormatter(f)
+    root.addHandler(h)
     logging.getLogger().setLevel(logging.DEBUG)
     serve()
