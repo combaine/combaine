@@ -15,7 +15,7 @@ RUN python3 -m pip install --no-cache-dir -U grpcio_tools python-prctl
 RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests
 
 RUN wget -O /usr/bin/combaine-client  https://github.com/combaine/combaine-client/releases/download/v0.0.1/combaine-client-static-linux-amd64
-RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v0.0.1/ttail-static-linux-amd64
+RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v0.0.2/ttail-static-linux-amd64
 
 # basic configure
 RUN ln -vsTf /bin/bash /bin/sh
