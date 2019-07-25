@@ -4,7 +4,8 @@ RUN apt update && apt install -y --force-yes --no-install-recommends \
     vim htop subversion openssh-client git psmisc \
     bind9-host unbound lsof jq zstd jnettop util-linux \
     strace tcpdump htop curl moreutils iptables \
-    gcc python3-dev wget runit \
+    gcc python3-dev wget runit sudo less locales \
+    mawk python2 \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
