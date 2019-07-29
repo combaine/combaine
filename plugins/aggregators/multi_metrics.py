@@ -96,14 +96,15 @@ class Multimetrics(object):
             delta = 1.0
 
         result = {}
-        for line in payload.splitlines():
-            line = line.replace('\t', ' ').strip()
+        for raw_line in payload.splitlines():
+            line = raw_line.decode('ascii', errors='ignore')
+            line = line.strip().replace('\t', ' ')
             if not line:
                 continue
 
             name, _, metrics_as_strings = map(lambda x: x.strip(), line.partition(' '))
             if not metrics_as_strings:
-                self.log.debug("skip %s", line)
+                self.log.debug("skip line %s", raw_line)
                 continue
 
             try:
@@ -239,9 +240,10 @@ def test(datafile):
     import time
     from pprint import pprint
 
+    logging.getLogger().setLevel(logging.DEBUG)
     mms = Multimetrics({})
     print("+++ {} +++".format(mms.__dict__))
-    with open(datafile, 'r') as fname:
+    with open(datafile, 'rb') as fname:
         _payload = fname.read()
     start = time.time()
     res = mms.aggregate_host(_payload, 1, 3)
