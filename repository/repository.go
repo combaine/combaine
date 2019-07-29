@@ -14,7 +14,7 @@ import (
 const (
 	// Well-known field to explore plugin name
 	typeKey  = "type"
-	classKey = "type"
+	classKey = "class"
 	// DefaultConfigsPath default directory with combainer configs
 	DefaultConfigsPath = "/etc/combaine"
 	parsingSuffix      = "parsing"
