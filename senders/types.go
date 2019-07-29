@@ -22,7 +22,11 @@ type SenderTask struct {
 func RepackSenderRequest(req *SenderRequest) (*SenderTask, error) {
 	log := logrus.WithFields(logrus.Fields{"session": req.Id})
 
-	task := SenderTask{Data: make([]*Payload, 0, len(req.Data))}
+	task := SenderTask{
+		PrevTime: req.PrevTime,
+		CurrTime: req.CurrTime,
+		Data:     make([]*Payload, 0, len(req.Data)),
+	}
 
 	// Repack sender task
 	for _, d := range req.Data {
