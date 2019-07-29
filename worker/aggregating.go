@@ -5,95 +5,52 @@ import (
 	"sync"
 	"time"
 
-	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/cache"
-	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/rpc"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-func enqueue(method string, app cache.Service, payload *[]byte) (interface{}, error) {
-
-	var rawRes interface{}
-
-	res := <-app.Call("enqueue", method, *payload)
-	if res == nil {
-		return nil, common.ErrAppCall
-	}
-	if res.Err() != nil {
-		return nil, errors.Wrap(res.Err(), "task failed")
-	}
-
-	if err := res.Extract(&rawRes); err != nil {
-		return nil, errors.Wrap(err, "unable to extract result")
-	}
-	return rawRes, nil
-}
-
-func aggregating(t *rpc.AggregatingTask, ch chan *common.AggregationResult, res *common.AggregationResult,
-	c repository.PluginConfig, d [][]byte, app cache.Service, wg *sync.WaitGroup) {
-
-	defer wg.Done()
-
-	payload, err := utils.Pack(common.AggregateGropuPayload{
-		Task: common.Task{
-			CurrTime: t.Frame.Current,
-			PrevTime: t.Frame.Previous,
-			Id:       t.Id,
-		},
-		Config: c,
-		Meta:   res.Tags,
-		Data:   d,
-	})
-	if err != nil {
-		logrus.Errorf("%s unable to pack data: %s", t.Id, err)
-		return
-	}
-	data, err := enqueue("aggregate_group", app, &payload)
-	if err != nil {
-		logrus.Errorf("%s unable to aggregate %s: %s", t.Id, res, err)
-		return
-	}
-	res.Result = data
-	ch <- res
-}
-
 // DoAggregating send tasks to cluster
-func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
+func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 	startTm := time.Now()
 	var parsingConfig = task.GetParsingConfig()
 	var aggregationConfig = task.GetAggregationConfig()
 	var Hosts = task.GetHosts()
 
 	log := logrus.WithFields(logrus.Fields{
+		"stage":   "DoAggregating",
 		"config":  task.Config,
 		"session": task.Id,
 	})
 
-	log.Infof("start aggregating")
-	log.Debugf("aggregation hosts: %v", Hosts)
+	log.Infof("start")
+	log.Debugf("for hosts: %v", Hosts)
 
 	var aggWg sync.WaitGroup
 
 	meta := parsingConfig.Metahost
-	ch := make(chan *common.AggregationResult)
+	ch := make(chan *senders.AggregationResult)
 
 	initCap := len(aggregationConfig.Data) * len(Hosts)
 	for name, cfg := range aggregationConfig.Data {
+		encodedCfg, err := utils.Pack(cfg)
+		if err != nil {
+			log.Errorf("failed to pack config: %v", err)
+			continue
+		}
 		aggParsingResults := make([][]byte, 0, initCap)
 		aggType, err := cfg.Type()
 		if err != nil {
-			log.Errorf("unable to get aggregator type for %s: %s", name, err)
+			log.Errorf("resolve type for %s: %s", name, err)
 			continue
 		}
-		log.Infof("send %s to aggregate type %s", name, aggType)
-		app, err := cacher.Get(aggType)
+		aggClass, err := cfg.Class()
 		if err != nil {
-			log.Errorf("skip aggregator %s type %s %s", name, aggType, err)
+			log.Errorf("resolve %s Class for %s: %s", aggType, name, err)
 			continue
 		}
+		log.Infof("send %s to %s.%s", name, aggType, aggClass)
+		ac := NewAggregatorClient(aggregatorConnection)
 
 		for subGroup, hosts := range Hosts {
 			subGroupParsingResults := make([][]byte, 0, initCap)
@@ -101,7 +58,7 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 				key := host + ";" + name
 				data, ok := task.ParsingResult.Data[key]
 				if !ok {
-					log.Warnf("unable to aggregte %s, missing result for %s", aggType, key)
+					log.Warnf("missing result for %s", key)
 					continue
 				}
 
@@ -111,22 +68,36 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 				perHost, err := cfg.GetBool("perHost")
 				if !perHost || err != nil {
 					if err != nil {
-						log.Errorf("skip per host aggregating: %s", err)
+						log.Errorf("skip per host: %s", err)
 					}
 					continue
 				}
 
-				log.Debugf("aggregate host %s", host)
-				hostAggRes := &common.AggregationResult{
-					Tags: map[string]string{
-						"type":      "host",
-						"aggregate": name,
-						"name":      host,
-						"metahost":  meta,
+				log.Debugf("host %s", host)
+				hostReq := &AggregateGroupRequest{
+					Task: &AggregatorTask{
+						Id:     task.Id,
+						Config: encodedCfg,
+						Meta: map[string]string{
+							"type":      "host",
+							"aggregate": name,
+							"name":      host,
+							"metahost":  meta,
+						},
 					},
+					ClassName: aggClass,
+					Payload:   [][]byte{data},
 				}
 				aggWg.Add(1)
-				go aggregating(task, ch, hostAggRes, cfg, [][]byte{data}, app, &aggWg)
+				go func(r *AggregateGroupRequest) {
+					defer aggWg.Done()
+					res, err := ac.AggregateGroup(ctx, r)
+					if err != nil {
+						log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", r.Task.Meta["name"], err)
+					} else {
+						ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+					}
+				}(hostReq)
 			}
 
 			if len(subGroupParsingResults) == 0 {
@@ -136,20 +107,35 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 
 			skipPerDC, err := cfg.GetBool("skipPerDatacenter")
 			if skipPerDC && err == nil {
+				log.Debugf("%s %s skip by skipPerDatacenter config option", name, subGroup)
 				continue
 			}
 
-			log.Debugf("aggregate group %s", subGroup)
-			groupAggRes := &common.AggregationResult{
-				Tags: map[string]string{
-					"type":      "datacenter",
-					"aggregate": name,
-					"name":      subGroup,
-					"metahost":  meta,
+			log.Debugf("group %s", subGroup)
+			groupReq := &AggregateGroupRequest{
+				Task: &AggregatorTask{
+					Id:     task.Id,
+					Config: encodedCfg,
+					Meta: map[string]string{
+						"type":      "datacenter",
+						"aggregate": name,
+						"name":      subGroup,
+						"metahost":  meta,
+					},
 				},
+				ClassName: aggClass,
+				Payload:   subGroupParsingResults,
 			}
 			aggWg.Add(1)
-			go aggregating(task, ch, groupAggRes, cfg, subGroupParsingResults, app, &aggWg)
+			go func(r *AggregateGroupRequest) {
+				defer aggWg.Done()
+				res, err := ac.AggregateGroup(ctx, r)
+				if err != nil {
+					log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", r.Task.Meta["name"], err)
+				} else {
+					ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+				}
+			}(groupReq)
 		}
 
 		if len(aggParsingResults) == 0 {
@@ -157,17 +143,31 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 			continue
 		}
 
-		log.Debugf("aggregate metahost %s", meta)
-		metaAggRes := &common.AggregationResult{
-			Tags: map[string]string{
-				"type":      "metahost",
-				"aggregate": name,
-				"name":      meta,
-				"metahost":  meta,
+		log.Debugf("metahost %s", meta)
+		metaReq := &AggregateGroupRequest{
+			Task: &AggregatorTask{
+				Id:     task.Id,
+				Config: encodedCfg,
+				Meta: map[string]string{
+					"type":      "metahost",
+					"aggregate": name,
+					"name":      meta,
+					"metahost":  meta,
+				},
 			},
+			ClassName: aggClass,
+			Payload:   aggParsingResults,
 		}
 		aggWg.Add(1)
-		go aggregating(task, ch, metaAggRes, cfg, aggParsingResults, app, &aggWg)
+		go func(r *AggregateGroupRequest) {
+			defer aggWg.Done()
+			res, err := ac.AggregateGroup(ctx, r)
+			if err != nil {
+				log.Errorf("failed to call aggregator.AggregateGroup(%s): %v", meta, err)
+			} else {
+				ch <- &senders.AggregationResult{Tags: r.Task.Meta, Result: res.Result}
+			}
+		}(metaReq)
 	}
 
 	go func() {
@@ -175,62 +175,11 @@ func DoAggregating(ctx context.Context, task *rpc.AggregatingTask) error {
 		close(ch)
 	}()
 
-	var result []common.AggregationResult
+	var result []*senders.AggregationResult
 	for item := range ch {
-		result = append(result, *item)
+		result = append(result, item)
 	}
 
 	log.Infof("aggregation completed (took %.3f)", time.Now().Sub(startTm).Seconds())
-
-	startTm = time.Now()
-	log.Info("start sending")
-	log.Debugf("senders payload: %v", result)
-
-	var sendersWg sync.WaitGroup
-	for senderName, senderConf := range aggregationConfig.Senders {
-		if _, ok := senderConf["Host"]; !ok {
-			// parsing metahost as default value for plugin config
-			senderConf["Host"] = meta
-		}
-
-		sendersWg.Add(1)
-		go func(g *sync.WaitGroup, n string, i repository.PluginConfig) {
-			defer g.Done()
-			senderType, err := i.Type()
-			if err != nil {
-				log.Errorf("unknown sender type: %s", err)
-				return
-			}
-			log.Infof("send to sender %s", senderType)
-			app, err := cacher.Get(senderType)
-			if err != nil {
-				log.Errorf("skip sender %s: %s", senderType, err)
-				return
-			}
-			senderPayload := common.SenderPayload{
-				Task: common.Task{
-					CurrTime: task.Frame.Current,
-					PrevTime: task.Frame.Previous,
-					Id:       task.Id,
-				},
-				Config: i,
-				Data:   result,
-			}
-
-			payload, err := utils.Pack(senderPayload)
-			if err != nil {
-				log.Errorf("unable to pack data for %s: %s", senderType, err)
-				return
-			}
-			res, err := enqueue("send", app, &payload)
-			if err != nil {
-				log.Errorf("unable to send for %s: %s", senderType, err)
-				return
-			}
-			log.Infof("sender response for %s: %s", senderType, res)
-		}(&sendersWg, senderName, senderConf)
-	}
-	sendersWg.Wait()
-	log.Infof("senders completed (took %.3f)", time.Now().Sub(startTm).Seconds())
-	return nil
+	return DoSending(ctx, meta, task, aggregationConfig.Senders, result)
 }

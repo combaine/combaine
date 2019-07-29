@@ -1,14 +1,37 @@
 language: go
 
-dist: trusty
+dist: disco
 sudo: false
 
-go:
- - 1.11.x
+matrix:
+  include:
+  - go: 1.12.x
+    env: GO111MODULE=on
+
+addons:
+  apt:
+    packages:
+      - "python3"
+      - "python3-pip"
+
+install:
+  - set -e
+  - export PROTOBUF_VERSION=3.8.0
+  - export PROTOC_FILENAME=protoc-${PROTOBUF_VERSION}-linux-x86_64.zip
+  - wget -O $HOME/${PROTOC_FILENAME} https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOC_FILENAME}
+  - unzip $HOME/${PROTOC_FILENAME} -d $HOME
+  - protoc --version
+  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - type protoc-gen-go
+
+  - pyenv global system 3.7.1
+  - python -m pip install --user grpcio
+  - python -m pip install --user grpcio-tools
+  - python -m grpc_tools.protoc --version
 
 script:
- - make test
- - make build
+  - make build
+  - make test
 
 after_success:
- - bash <(curl -s https://codecov.io/bash)
+  - bash <(curl -s https://codecov.io/bash)

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net"
 	"time"
 
@@ -13,15 +12,10 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/combaine/combaine/common/logger"
-	"github.com/combaine/combaine/rpc"
 	"github.com/combaine/combaine/worker"
 	"github.com/sirupsen/logrus"
-
 	//_ "net/http/pprof"
-
 	//_ "golang.org/x/net/trace"
-
-	_ "github.com/combaine/combaine/fetchers"
 )
 
 var (
@@ -41,23 +35,24 @@ func init() {
 
 	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
-	worker.InitializeServiceCacher()
 }
 
 type server struct{}
 
-func (s *server) DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func (s *server) DoParsing(ctx context.Context, task *worker.ParsingTask) (*worker.ParsingResult, error) {
 	return worker.DoParsing(ctx, task)
 }
 
-func (s *server) DoAggregating(ctx context.Context, task *rpc.AggregatingTask) (*rpc.AggregatingResult, error) {
+func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask) (*worker.AggregatingResponse, error) {
 	if err := worker.DoAggregating(ctx, task); err != nil {
 		return nil, err
 	}
-	return new(rpc.AggregatingResult), nil
+	return new(worker.AggregatingResponse), nil
 }
 
 func main() {
+	log := logrus.WithField("source", "worker/main.go")
+
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
 	lis, err := net.Listen("tcp", endpoint)
@@ -73,6 +68,13 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	rpc.RegisterWorkerServer(s, &server{})
+	log.Infof("Register as gRPC server on: %s", endpoint)
+	worker.RegisterWorkerServer(s, &server{})
+
+	var stopCh = make(chan bool)
+	defer close(stopCh)
+	if err := worker.SpawnServices(stopCh); err != nil {
+		log.Fatalf("Failed to spawn worker services: %v", err)
+	}
 	s.Serve(lis)
 }

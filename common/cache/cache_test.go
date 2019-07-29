@@ -11,30 +11,30 @@ var GlobalCache = NewCache(time.Minute*10 /* ttl*/, time.Minute*20 /* interval*/
 
 func TestCacheSetGetDelete(t *testing.T) {
 	val := []string{"response"}
-	checkFetcher := func() ([]byte, error) {
-		return []byte(val[0]), nil
+	checkFetcher := func() ([]string, error) {
+		return val, nil
 	}
 
 	id := "TestCacheSetGetDelete"
 	GlobalCache.TuneCache(time.Millisecond*5, time.Millisecond*10, time.Microsecond*10)
 	key := "check_url"
-	resp, _ := GlobalCache.GetBytes(id, key, checkFetcher)
-	assert.Len(t, resp, len(val[0]))
-	assert.Equal(t, []byte(val[0]), resp)
+	resp, _ := GlobalCache.GetStrings(id, key, checkFetcher)
+	assert.Len(t, resp, len(val))
+	assert.Equal(t, val, resp)
 	GlobalCache.Delete(key)
-	resp, _ = GlobalCache.GetBytes(id, key, checkFetcher)
-	assert.Len(t, resp, len(val[0]))
+	resp, _ = GlobalCache.GetStrings(id, key, checkFetcher)
+	assert.Len(t, resp, len(val))
 	GlobalCache.Delete(key)
 
 	// expiration without cleaner test
 	expected := []byte("Result")
-	checkFetcher = func() ([]byte, error) { return expected, nil }
+	var bytesFetcher = func() ([]byte, error) { return expected, nil }
 
-	a, _ := GlobalCache.GetBytes(id, key, checkFetcher)
+	a, _ := GlobalCache.GetBytes(id, key, bytesFetcher)
 	assert.Equal(t, expected, a)
 	time.Sleep(time.Millisecond * 5)
-	checkFetcher = func() ([]byte, error) { return []byte("Updated"), nil }
-	b, _ := GlobalCache.GetBytes(id, key, checkFetcher)
+	bytesFetcher = func() ([]byte, error) { return []byte("Updated"), nil }
+	b, _ := GlobalCache.GetBytes(id, key, bytesFetcher)
 	assert.Equal(t, expected, b)
 }
 
@@ -45,9 +45,9 @@ func TestCacheWithCleanupInterval(t *testing.T) {
 		time.Minute*20, // interval
 		time.Minute*20, // cleanupAfter
 	)
-	checkFetcher := func() ([]byte, error) { return []byte("expected"), nil }
+	mapFetcher := func() (map[string][]string, error) { return map[string][]string{"expected": {"map"}}, nil }
 	myCache.TuneCache(time.Millisecond*10, time.Millisecond*20, time.Microsecond*20)
-	myCache.GetBytes("TestCacheWithCleanupInterval", "key1", checkFetcher)
+	myCache.GetMapStringStrings("TestCacheWithCleanupInterval", "key1", mapFetcher)
 
 	cases := []struct {
 		present bool

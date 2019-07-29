@@ -12,9 +12,8 @@ docker: clean build docker-image
 docker-image:
 	docker build . -t combainer
 
-build: ${DIR}/combainer ${DIR}/agave ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/razladki ${DIR}/cbb ${DIR}/solomon ${DIR}/juggler \
-	   ${DIR}/monder
+build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite \
+	   ${DIR}/solomon ${DIR}/juggler \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -24,21 +23,9 @@ ${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/worker/main.go
 
-${DIR}/agave: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/agave/main.go
-
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/graphite/main.go
-
-${DIR}/razladki: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/razladki/main.go
-
-${DIR}/cbb: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build -o $@ ./cmd/cbb/main.go
 
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -48,19 +35,22 @@ ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
 	go build -o $@ ./cmd/juggler/main.go
 
-${DIR}/monder: $(wildcard **/*.go)
+proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto rpc/senders.proto
 	@echo "+ $@"
-	go build -o $@ ./cmd/monder/main.go
+	protoc -I rpc/ rpc/aggregator.proto --go_out=plugins=grpc:worker
+	protoc -I rpc/ rpc/worker.proto --go_out=plugins=grpc:worker
+	protoc -I rpc/ rpc/timeframe.proto --go_out=plugins=grpc:worker
+	protoc -I rpc/ rpc/senders.proto --go_out=plugins=grpc:senders
+	python -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
 
-proto: ${PREFIX}/rpc/rpc.pb.go
-
-${PREFIX}/rpc/rpc.pb.go: $(wildcard **/*.proto)
-	@echo "+ $@"
-	protoc -I rpc/ rpc/rpc.proto --go_out=plugins=grpc:rpc
 
 clean:
 	@echo "+ $@"
 	rm -rf ${DIR}/ || true
+	find . -name '__pycache__' -exec rm -vrf {} +
+	rm -vf aggregator/*_pb2_grpc.py aggregator/*_pb2.py || true
+	rm -vf worker/*.pb.go || true
+	rm -vf senders/*.pb.go || true
 
 vet:
 	@echo "+ $@"
@@ -80,7 +70,7 @@ fast-test:
 	@echo "+ $@"
 	@go test ./...
 
-test: vet fmt
+test: proto vet fmt
 	@echo "+ $@"
 	@echo "" > coverage.txt
 	CGO_ENABLED=1 go test ./... -race -coverprofile=coverage.txt -covermode=atomic

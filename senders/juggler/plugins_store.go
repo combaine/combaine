@@ -3,21 +3,12 @@ package juggler
 import (
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
 	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-// EventsStore juggler events history
-type EventsStore interface {
-	// Connect store
-	Connect() error
-	// Update and get events history
-	Push(key, event string, historyLen int) ([]string, error)
-	// Close juggler events store
-	Close()
-}
 type pluginEventsStore struct {
 	session   *mgo.Session
 	config    *pluginEventsStoreConfig
@@ -61,23 +52,23 @@ func InitEventsStore(config *pluginEventsStoreConfig) {
 	eventsStore.config = config
 
 	if config.Cluster == "" {
-		logger.Infof("Plugin events store not configured, skip")
+		logrus.Infof("Plugin events store not configured, skip")
 		return
 	}
 	if config.Database == "" {
 		config.Database = "combaine"
-		logger.Infof("Plugin event store use default db name 'combaine'")
+		logrus.Infof("Plugin event store use default db name 'combaine'")
 	}
 	if config.AuthDB == "" {
 		config.AuthDB = config.Database
 	}
 
 	if err := eventsStore.Connect(); err != nil {
-		logger.Errf("Failed to connect event storage %s", err)
+		logrus.Errorf("Failed to connect event storage %s", err)
 		return
 	}
 	go eventsStore.worker()
-	logger.Infof("Plugin event store connected sucessfully")
+	logrus.Infof("Plugin event store connected sucessfully")
 }
 
 // Connect event storage

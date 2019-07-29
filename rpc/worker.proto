@@ -1,14 +1,7 @@
 syntax = "proto3";
 
-message TimeFrame {
-    int64 previous = 1;
-    int64 current = 2;
-}
-
-service Worker {
-    rpc DoParsing(ParsingTask) returns (ParsingResult) {}
-    rpc DoAggregating(AggregatingTask) returns (AggregatingResult) {}
-}
+option go_package = "worker";
+import "timeframe.proto";
 
 message ParsingTask {
     string id = 1;
@@ -46,5 +39,10 @@ message AggregatingTask {
     ParsingResult parsing_result = 8;
 }
 
-message AggregatingResult {
+message AggregatingResponse {
+}
+
+service Worker {
+    rpc DoParsing(ParsingTask) returns (ParsingResult) {}
+    rpc DoAggregating(AggregatingTask) returns (AggregatingResponse) {}
 }

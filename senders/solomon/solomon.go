@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
-	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/hashicorp/go-multierror"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -53,7 +53,7 @@ type comLabels struct {
 // Sensor type
 type Sensor struct {
 	Labels map[string]string `json:"labels"`
-	Ts     uint64            `json:"ts"`
+	Ts     int64             `json:"ts"`
 	Value  float64           `json:"value"`
 }
 
@@ -75,7 +75,7 @@ type Worker struct {
 	RetryInterval time.Duration // ms
 }
 
-func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp uint64) (*Sensor, error) {
+func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp int64) (*Sensor, error) {
 	var (
 		err         error
 		sensorValue float64
@@ -93,7 +93,7 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 	case reflect.String:
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
-		logger.Errf("%s Default case:, %t, %s:%s", s.id, value, value.Kind(), value)
+		logrus.Errorf("%s Default case:, %v, %s:%s", s.id, value, value.Kind(), value)
 		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
@@ -107,14 +107,14 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 
 	if len(s.Schema) > 0 {
 		if len(path) == 1 {
-			logger.Infof("%s Handle graphite compatible sensor name %s by schema %+v", s.id, path, s.Schema)
+			logrus.Infof("%s Handle graphite compatible sensor name %s by schema %+v", s.id, path, s.Schema)
 			path = strings.Split(path[0], ".")
 		}
 
 		if len(s.Schema) >= len(path) {
 			msg := fmt.Errorf("Unable to send %+v(size %d) with schema %+v(size %d)",
 				path, len(path), s.Schema, len(s.Schema))
-			logger.Errf("%s %s", s.id, msg)
+			logrus.Errorf("%s %s", s.id, msg)
 			return nil, msg
 		}
 		for i := 0; i < len(s.Schema); i++ {
@@ -132,12 +132,12 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 }
 
 func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
-	rv reflect.Value, timestamp uint64) error {
+	rv reflect.Value, timestamp int64) error {
 
 	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
 		msg := fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
 			s.id, len(s.Fields), rv.Len())
-		logger.Errf("%s %s", s.id, msg)
+		logrus.Errorf("%s %s", s.id, msg)
 		return msg
 	}
 
@@ -154,7 +154,7 @@ func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
 	return nil
 }
 
-func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Value, timestamp uint64) error {
+func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Value, timestamp int64) error {
 	var (
 		item *Sensor
 		err  error
@@ -163,7 +163,7 @@ func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Val
 	for _, key := range rv.MapKeys() {
 		path.Push(fmt.Sprintf("%s", key))
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-		logger.Debugf("%s Item of key %s is: %v", s.id, key, itemInterface.Kind())
+		logrus.Debugf("%s Item of key %s is: %v", s.id, key, itemInterface.Kind())
 
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -185,7 +185,7 @@ func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Val
 	return err
 }
 
-func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64) ([]solomonPush, error) {
+func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solomonPush, error) {
 	var (
 		groups []solomonPush
 		err    error
@@ -195,7 +195,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 	//for aggname, subgroupsAndValues := range data {
 	for _, item := range data {
 		aggname := item.Tags["aggregate"]
-		logger.Infof("%s Handle aggregate named %s", s.id, aggname)
+		logrus.Infof("%s Handle aggregate named %s", s.id, aggname)
 
 		service := s.Service
 		if service == "" {
@@ -224,7 +224,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 		}
 
 		rv := reflect.ValueOf(item.Result)
-		logger.Debugf("%s %s", s.id, rv.Kind())
+		logrus.Debugf("%s %s", s.id, rv.Kind())
 
 		if rv.Kind() != reflect.Map {
 			err = fmt.Errorf("Value of group should be dict, skip: %v", rv)
@@ -236,7 +236,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 			continue
 		}
 		if len(sensors) == 0 {
-			logger.Infof("%s Empty sensors for %v", s.id, pushData)
+			logrus.Infof("%s Empty sensors for %v", s.id, pushData)
 			continue
 		}
 		pushData.Sensors = sensors
@@ -246,7 +246,7 @@ func (s *Sender) sendInternal(data []common.AggregationResult, timestamp uint64)
 }
 
 // Send parse data, build and send http request to solomon api
-func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
+func (s *Sender) Send(task []*senders.Payload, timestamp int64) error {
 	if len(task) == 0 {
 		return fmt.Errorf("Empty data. Nothing to send")
 	}
@@ -255,24 +255,21 @@ func (s *Sender) Send(task []common.AggregationResult, timestamp uint64) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("%s Send %d items", s.id, len(data))
+	logrus.Infof("%s Send %d items", s.id, len(data))
 	var merr *multierror.Error
 	for _, v := range data {
 		push, err := json.Marshal(v)
 		if err != nil {
 			merr = multierror.Append(merr, err)
 		}
-		logger.Debugf("%s Data to POST: %s", s.id, string(push))
+		logrus.Debugf("%s Data to POST: %s", s.id, string(push))
 
-		logger.Debugf("%s Sending work to JobQueue", s.id)
+		logrus.Debugf("%s Sending work to JobQueue", s.id)
 		JobQueue <- Job{PushData: push, SolCli: s}
 
 	}
 	return merr.ErrorOrNil()
 }
-
-// InitializeLogger create cocaine logger
-func InitializeLogger(init func() logger.Logger) { init() }
 
 // NewSender return new instance of solomon sender
 func NewSender(config Config, id string) (*Sender, error) {
@@ -291,7 +288,7 @@ func (w Worker) sendToSolomon(job Job) error {
 		}
 		attempt++
 
-		logger.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.id, attempt)
+		logrus.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.id, attempt)
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
 		resp, err := chttp.Post(ctx, job.SolCli.API, "application/json", bytes.NewReader(job.PushData))
 		cancel()
@@ -305,7 +302,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			// err is nil and there may occure some http errors including timeout
 			if resp.StatusCode == http.StatusOK {
 				sendErr = nil
-				logger.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.id, attempt)
+				logrus.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.id, attempt)
 				break
 			}
 			sendErr = fmt.Errorf("bad status='%d %s', response: %s", resp.StatusCode, resp.Status, b)
@@ -321,7 +318,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			break
 		}
 
-		logger.Debugf("%s timed out. Worker %d. Retrying", job.SolCli.id, w.id)
+		logrus.Debugf("%s timed out. Worker %d. Retrying", job.SolCli.id, w.id)
 		if attempt < w.Retry {
 			time.Sleep(time.Millisecond * w.RetryInterval)
 		}
@@ -331,9 +328,9 @@ func (w Worker) sendToSolomon(job Job) error {
 
 func (w Worker) start(j chan Job) {
 	for job := range j {
-		logger.Debugf("%s worker %d received job", job.SolCli.id, w.id)
+		logrus.Debugf("%s worker %d received job", job.SolCli.id, w.id)
 		if err := w.sendToSolomon(job); err != nil {
-			logger.Errf("%s %s", job.SolCli.id, err)
+			logrus.Errorf("%s %s", job.SolCli.id, err)
 		}
 	}
 }
@@ -346,7 +343,7 @@ func newWorker(id int, retry int, interval int) Worker {
 // workers wait on channel JobQueue
 func StartWorkers(j chan Job, retryInterval int) {
 	for i := 0; i < cap(j); i++ {
-		logger.Debugf("Creating worker %d", i)
+		logrus.Debugf("Creating worker %d", i)
 		worker := newWorker(i, postRetries, retryInterval)
 		go worker.start(j)
 	}

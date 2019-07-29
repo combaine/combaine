@@ -88,7 +88,7 @@ func TestPluginSimple(t *testing.T) {
 			t.FailNow()
 		}
 		js.state = l
-		assert.NoError(t, js.preparePluginEnv(task))
+		assert.NoError(t, js.preparePluginEnv(globalTestTask))
 
 		events, err := js.runPlugin()
 		assert.NoError(t, err)
@@ -182,7 +182,7 @@ func BenchmarkDataToLuaTable(b *testing.B) {
 		panic(err)
 	}
 	for i := 0; i < b.N; i++ {
-		table, err := dataToLuaTable(l, task.Data)
+		table, err := dataToLuaTable(l, globalTestTask.Data)
 		if err != nil {
 			b.Fatal(err)
 		}

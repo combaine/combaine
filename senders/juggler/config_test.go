@@ -19,7 +19,7 @@ func TestEnsureDefaultTags(t *testing.T) {
 	}
 
 	for _, tags := range cases {
-		etags := EnsureDefaultTag(tags)
+		etags := ensureDefaultTag(tags)
 		tagsSet := make(map[string]struct{}, len(etags))
 		for _, tag := range etags {
 			tagsSet[tag] = struct{}{}

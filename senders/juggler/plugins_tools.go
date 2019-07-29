@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/combaine/combaine/common/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -45,14 +45,14 @@ func logLoader(id string) func(*lua.LState) int {
 }
 
 func getLogger(id, level string) func(l *lua.LState) int {
-	log := logger.Debugf
+	log := logrus.Debugf
 	switch level {
 	case "info":
-		log = logger.Infof
+		log = logrus.Infof
 	case "warn":
-		log = logger.Warnf
+		log = logrus.Warnf
 	case "error":
-		log = logger.Errf
+		log = logrus.Errorf
 	}
 	return func(l *lua.LState) int {
 		fmtstr := l.CheckString(1)
@@ -81,7 +81,7 @@ func eventsHistoryLoader(id string) func(l *lua.LState) int {
 		}
 
 		if events, err := eventsStore.Push(key, event, historyLen, deadline); err != nil {
-			logger.Errf(id+" Failed to update events history: %s", err)
+			logrus.Errorf(id+" Failed to update events history: %s", err)
 			l.Push(lua.LNil)
 		} else {
 			if len(events) > 0 {

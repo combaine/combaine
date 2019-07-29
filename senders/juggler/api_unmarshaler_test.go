@@ -36,13 +36,11 @@ func TestCustomUnmarshaler(t *testing.T) {
 		}
 		encodedSenderConfig, err := utils.Pack(senderConfig)
 		assert.NoError(t, err, "Failed to pack aggregation config")
-		//logger.Debugf("%#v", senderConfig)
 		var nowDecodedConfig Config
 		err = utils.Unpack(encodedSenderConfig, &nowDecodedConfig)
 		if err != nil {
 			panic(err)
 		}
-		//logger.Debugf("%#v", nowDecodedConfig)
 		assert.NoError(t, err, "Failed to decode juggler config")
 	}
 }

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option go_package = "senders";
+
+message SenderRequest {
+    string id = 1;
+    int64 PrevTime = 2;
+    int64 CurrTime = 3;
+	bytes config = 4;
+	repeated AggregationResult data = 5;
+}
+
+message SenderResponse {
+    string response = 1;
+}
+
+message AggregationResult {
+	map<string, string> tags = 4;
+	bytes result = 2;
+}
+
+service Sender {
+    rpc DoSend(SenderRequest) returns (SenderResponse) {}
+}

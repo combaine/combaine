@@ -9,14 +9,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/worker"
 )
 
 func init() {
-	worker.Register("http", NewHTTPFetcher)
+	Register("http", NewHTTPFetcher)
 }
 
 type httpFetcher struct {
@@ -25,7 +23,7 @@ type httpFetcher struct {
 }
 
 // NewHTTPFetcher return http data fetcher
-func NewHTTPFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
+func NewHTTPFetcher(cfg repository.PluginConfig) (Fetcher, error) {
 	var fetcher httpFetcher
 	if err := decodeConfig(cfg, &fetcher); err != nil {
 		return nil, err
@@ -40,8 +38,8 @@ func NewHTTPFetcher(cfg repository.PluginConfig) (worker.Fetcher, error) {
 	return &fetcher, nil
 }
 
-func (t *httpFetcher) Fetch(ctx context.Context, task *common.FetcherTask) ([]byte, error) {
-	log := logrus.WithField("session", task.Id)
+func (t *httpFetcher) Fetch(ctx context.Context, task *FetcherTask) ([]byte, error) {
+	log := logrus.WithField("session", task.ID)
 
 	deadline, ok := ctx.Deadline()
 	if !ok {

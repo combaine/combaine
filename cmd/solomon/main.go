@@ -3,14 +3,20 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"log"
+	"context"
+	"flag"
+	"net"
 	"os"
+	"time"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
-	"github.com/combaine/combaine/common"
 	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/senders/solomon"
 	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/keepalive"
 )
 
 const (
@@ -27,12 +33,23 @@ var (
 	}
 )
 
-type solomonTask struct {
-	ID       string `codec:"Id"`
-	Data     []common.AggregationResult
-	Config   solomon.Config
-	CurrTime uint64
-	PrevTime uint64
+var (
+	endpoint  string
+	logoutput string
+	tracing   bool
+	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
+)
+
+func init() {
+	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
+	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
+	flag.BoolVar(&tracing, "trace", false, "enable tracing")
+	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.Parse()
+	grpc.EnableTracing = tracing
+
+	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
 func getAPIURL() (string, error) {
@@ -52,56 +69,65 @@ func getAPIURL() (string, error) {
 	return "", scanner.Err()
 }
 
-// Send parse cocaine request and send sensort to solomon api
-func Send(request *cocaine.Request, response *cocaine.Response) {
-	defer response.Close()
+type sender struct{}
 
-	raw := <-request.Read()
-	var task solomonTask
-	err := utils.Unpack(raw, &task)
+// DoSend repack request and send sensort to solomon api
+func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders.SenderResponse, error) {
+	log := logrus.WithFields(logrus.Fields{"session": req.Id})
+
+	var cfg solomon.Config
+	err := utils.Unpack(req.Config, &cfg)
 	if err != nil {
-		response.ErrorMsg(-100, err.Error())
-		return
+		return nil, err
 	}
-	logger.Debugf("%s Task: %v", task.ID, task)
 
-	if len(task.Config.Fields) == 0 {
-		task.Config.Fields = defaultFields
+	task, err := senders.RepackSenderRequest(req)
+	if err != nil {
+		log.Errorf("Failed to repack sender request: %v", err)
+		return nil, err
 	}
-	if task.Config.Timeout == 0 {
-		task.Config.Timeout = sendTimeout
+	log.Debugf("Task: %v", task)
+	if len(cfg.Fields) == 0 {
+		cfg.Fields = defaultFields
 	}
-	if task.Config.API == "" {
-		task.Config.API, err = getAPIURL()
+	if cfg.Timeout == 0 {
+		cfg.Timeout = sendTimeout
+	}
+	if cfg.API == "" {
+		cfg.API, err = getAPIURL()
 		if err != nil {
-			logger.Errf("%s Failed to get api url: %s", task.ID, err)
-			response.ErrorMsg(-100, err.Error())
-			return
+			log.Errorf("Failed to get api url: %s", err)
+			return nil, err
 		}
 	}
 
-	solCli, _ := solomon.NewSender(task.Config, task.ID)
+	solCli, _ := solomon.NewSender(cfg, req.Id)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
-		logger.Errf("%s Sending error %s", task.ID, err)
-		response.ErrorMsg(-100, err.Error())
-		return
+		log.Errorf("Sending error %s", err)
+		return nil, err
 	}
-	response.Write("DONE")
+	return &senders.SenderResponse{Response: "Ok"}, nil
 }
 
 func main() {
-	solomon.InitializeLogger(logger.MustCreateLogger)
-
-	binds := map[string]cocaine.EventHandler{
-		"send": Send,
-	}
-	Worker, err := cocaine.NewWorker()
-	if err != nil {
-		log.Fatal(err)
-	}
+	log := logrus.WithField("source", "solomon/main.go")
 
 	solomon.StartWorkers(solomon.JobQueue, sleepInterval)
-
-	Worker.Loop(binds)
+	lis, err := net.Listen("tcp", endpoint)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer(
+		grpc.MaxRecvMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxSendMsgSize(1024*1024*128 /* 128 MB */),
+		grpc.MaxConcurrentStreams(2000),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
+	log.Infof("Register as gRPC server on: %s", endpoint)
+	senders.RegisterSenderServer(s, &sender{})
+	s.Serve(lis)
 }

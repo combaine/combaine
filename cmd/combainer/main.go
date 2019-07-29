@@ -41,9 +41,10 @@ func init() {
 }
 
 func main() {
+	log := logrus.WithField("source", "combainer/main.go")
+
 	//go func() { log.Println(http.ListenAndServe("[::]:8001", nil)) }()
 
-	log := logrus.WithField("source", "main")
 	err := repository.Init(configsPath)
 	if err != nil {
 		log.Fatalf("unable to initialize filesystemRepository: %s", err)
@@ -60,6 +61,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Infof("Listen REST endoint on: %s", endpoint)
 	if err = cmb.Serve(); err != nil {
 		log.Fatal(err)
 	}

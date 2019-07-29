@@ -5,49 +5,50 @@ import (
 	"sync"
 	"time"
 
-	"github.com/combaine/combaine/common"
+	"github.com/combaine/combaine/fetchers"
 	"github.com/combaine/combaine/repository"
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
-
-	"github.com/combaine/combaine/rpc"
 )
 
-func fetchDataFromTarget(ctx context.Context, task *rpc.ParsingTask, parsingConfig *repository.ParsingConfig) ([]byte, error) {
-	startTm := time.Now()
+func fetchDataFromTarget(ctx context.Context, task *ParsingTask) ([]byte, error) {
 	log := logrus.WithFields(logrus.Fields{
 		"config":  task.ParsingConfigName,
 		"target":  task.Host,
 		"session": task.Id,
 	})
+	var parsingConfig = task.GetParsingConfig()
+
 	fetcherType, err := parsingConfig.DataFetcher.Type()
 	if err != nil {
 		return nil, err
 	}
 	log.Debugf("use %s for fetching data", fetcherType)
-	fetcher, err := NewFetcher(fetcherType, parsingConfig.DataFetcher)
+	fetcher, err := fetchers.NewFetcher(fetcherType, parsingConfig.DataFetcher)
 	if err != nil {
 		return nil, err
 	}
 
-	fetcherTask := common.FetcherTask{
+	fetcherTask := fetchers.FetcherTask{
+		ID:     task.Id,
+		Period: task.Frame.Current - task.Frame.Previous,
 		Target: task.Host,
-		Task:   common.Task{Id: task.Id, PrevTime: task.Frame.Previous, CurrTime: task.Frame.Current},
 	}
+
+	defer func(t time.Time) {
+		log.Infof("fetching completed (took %.3f)", time.Now().Sub(t).Seconds())
+	}(time.Now())
 
 	blob, err := fetcher.Fetch(ctx, &fetcherTask)
-	endTm := time.Now().Sub(startTm).Seconds()
 	log.Debugf("fetch %d bytes: %q", len(blob), blob)
 	if err != nil {
-		log.Errorf("fetching completed (took %.3f)", endTm)
 		return nil, err
 	}
-	log.Infof("fetching completed (took %.3f)", endTm)
 	return blob, nil
 }
 
 // DoParsing distribute tasks accross cluster
-func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, error) {
+func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 	log := logrus.WithFields(logrus.Fields{
 		"config":  task.ParsingConfigName,
 		"target":  task.Host,
@@ -55,9 +56,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 	})
 	log.Debugf("start parsing")
 
-	var parsingConfig = task.GetParsingConfig()
-
-	blob, err := fetchDataFromTarget(ctx, task, &parsingConfig)
+	blob, err := fetchDataFromTarget(ctx, task)
 	if err != nil {
 		log.Errorf("DoParsing: %v", err)
 		return nil, err
@@ -83,56 +82,42 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 
 				aggType, err := v.Type()
 				if err != nil {
-					log.Errorf("DoParsing: %s", err)
+					log.Errorf("DoParsing resolve parser type for %s: %s", k, err)
 					return
 				}
-				log.Debugf("DoParsing: send to '%s'", aggType)
-
-				app, err := cacher.Get(aggType)
+				aggClass, err := v.Class()
 				if err != nil {
-					log.Errorf("DoParsing: cacher.Get: '%s': %s", aggType, err)
+					log.Errorf("DoParsing resolve %s Class for %s: %s", aggType, k, err)
 					return
 				}
-				t, err := utils.Pack(map[string]interface{}{
-					"Config": v,
-					"Data":   blob,
-					// TODO define task structure in common
-					"Meta": map[string]string{
-						"Host": task.Host,
-						"Key":  k,
+				log.Debugf("DoParsing: send to '%s:%s'", aggType, aggClass)
+				encodedCfg, err := utils.Pack(v)
+				if err != nil {
+					log.Errorf("Failed to pack task config: %v", err)
+					return
+				}
+				req := &AggregateHostRequest{
+					Task: &AggregatorTask{
+						Id:     task.Id,
+						Frame:  task.Frame,
+						Config: encodedCfg,
+						Meta: map[string]string{
+							"Host": task.Host,
+							"Key":  k,
+						},
 					},
-					"PrevTime": task.Frame.Previous,
-					"CurrTime": task.Frame.Current,
-					"Id":       task.Id,
-				})
+					ClassName: aggClass,
+					Payload:   blob,
+				}
+				key := task.Host + ";" + k
+				ac := NewAggregatorClient(aggregatorConnection)
+				res, err := ac.AggregateHost(ctx, req)
 				if err != nil {
-					log.Errorf("failed to pack task: %s", err)
+					log.Errorf("Failed to call aggregator.AggregateHost: %v", err)
 					return
 				}
-
-				key := task.Host + ";" + k
-				select {
-				case res := <-app.Call("enqueue", "aggregate_host", t):
-					if res == nil {
-						log.Errorf("task failed: %s", common.ErrAppCall)
-						return
-					}
-					if res.Err() != nil {
-						log.Errorf("task failed: %s", res.Err())
-						return
-					}
-
-					var rawRes []byte
-					if err := res.Extract(&rawRes); err != nil {
-						log.Errorf("unable to extract result: %s", err.Error())
-						return
-					}
-
-					ch <- item{key: key, res: rawRes}
-					log.Debugf("write data with key %s", key)
-				case <-ctx.Done():
-					log.Errorf("failed task: %s", ctx.Err())
-				}
+				log.Debugf("write data with key %s", key)
+				ch <- item{key: key, res: res.GetResult()}
 			}(k, v)
 		}
 	}
@@ -141,7 +126,7 @@ func DoParsing(ctx context.Context, task *rpc.ParsingTask) (*rpc.ParsingResult, 
 		close(ch)
 	}()
 
-	result := rpc.ParsingResult{Data: make(map[string][]byte)}
+	result := ParsingResult{Data: make(map[string][]byte)}
 	for res := range ch {
 		result.Data[res.key] = res.res
 	}

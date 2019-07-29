@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,20 +15,18 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
+	"github.com/combaine/combaine/utils"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	InitializeLogger(func() logger.Logger {
-		logger.CocaineLog = logger.LocalLogger()
-		return logger.CocaineLog
-	})
-}
-
-var task SenderTask // loaded in TestMain
-var ts *httptest.Server
+var (
+	globalTestTask *senders.SenderTask // loaded in TestMain
+	ts             *httptest.Server
+	payloadFile    = "testdata/payload.yaml"
+)
 
 func DefaultJugglerTestConfig() *Config {
 	conf := DefaultConfig()
@@ -114,7 +113,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	js.state = l
-	js.preparePluginEnv(task)
+	js.preparePluginEnv(globalTestTask)
 
 	l.Push(l.GetGlobal("testEnv"))
 	l.Call(0, 1)
@@ -133,7 +132,11 @@ func TestRunPlugin(t *testing.T) {
 	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(task))
+	t.Logf("Task: %#+v", globalTestTask)
+	for idx, res := range globalTestTask.Data {
+		t.Logf("Task.Data[%d].Result: %#+v", idx, res.Result)
+	}
+	assert.NoError(t, js.preparePluginEnv(globalTestTask))
 
 	_, err = js.runPlugin()
 	assert.NoError(t, err)
@@ -142,7 +145,7 @@ func TestRunPlugin(t *testing.T) {
 	l, err = LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(task))
+	assert.NoError(t, js.preparePluginEnv(globalTestTask))
 	_, err = js.runPlugin()
 	if err == nil {
 		err = errors.New("incorrect should fail")
@@ -160,7 +163,7 @@ func TestQueryLuaTable(t *testing.T) {
 	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
 	assert.NoError(t, err)
 	js.state = l
-	assert.NoError(t, js.preparePluginEnv(task))
+	assert.NoError(t, js.preparePluginEnv(globalTestTask))
 	l.Push(l.GetGlobal("testQuery"))
 	l.Call(0, 1)
 	result := l.ToTable(1)
@@ -172,13 +175,26 @@ func TestQueryLuaTable(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	dataYaml, yerr := ioutil.ReadFile("testdata/payload.yaml")
+	dataYaml, yerr := ioutil.ReadFile(payloadFile)
 	if yerr != nil {
 		panic(yerr)
 	}
-	//var task is global
-	if yerr := yaml.Unmarshal([]byte(dataYaml), &task.Data); yerr != nil {
+	var payload []senders.Payload
+	if yerr := yaml.Unmarshal(dataYaml, &payload); yerr != nil {
+		log.Fatalf("Failed to unmarshal %s: %v", payloadFile, yerr)
 		panic(yerr)
+	}
+	tmpSenderRequest := senders.SenderRequest{Data: make([]*senders.AggregationResult, len(payload))}
+	for idx, item := range payload {
+		res, err := utils.Pack(item.Result)
+		if err != nil {
+			log.Fatalf("Failed to pack %s: %v", payloadFile, err)
+		}
+		tmpSenderRequest.Data[idx] = &senders.AggregationResult{Tags: item.Tags, Result: res}
+	}
+	globalTestTask, yerr = senders.RepackSenderRequest(&tmpSenderRequest)
+	if yerr != nil {
+		log.Fatalf("Failed to repack sender request: %s", yerr)
 	}
 
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +207,7 @@ func TestMain(m *testing.M) {
 				return
 			}
 			fileName := fmt.Sprintf("testdata/checks/%s.json", hostName)
-			logger.Infof("Read check from file %s", fileName)
+			logrus.Infof("Read check from file %s", fileName)
 			resp, err := ioutil.ReadFile(fileName)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 
 def is_apdex(name):
@@ -51,7 +51,8 @@ class Apdex(object):
         factor = self.factor
         sat, tol = self.satisfied, self.tolerating
         result = {}
-        for line in (i for i in payload.splitlines() if is_apdex(i)):
+        for raw_line in (i for i in payload.splitlines() if is_apdex(i)):
+            line = raw_line.decode('ascii', errors='ignore')
             name, _, metrics_as_strings = line.partition(" ")
 
             # no value for this metric has stored yet and no value now
@@ -65,7 +66,7 @@ class Apdex(object):
                 metrics_as_values = map(factor, metrics_as_strings.split())
                 result[name].push(metrics_as_values)
             except ValueError as err:
-                raise Exception("Unable to parse %s: %s" % (line, err))
+                raise Exception("Unable to parse %s: %s" % (raw_line, err))
         return tuple((k, v.value()) for (k, v) in result.iteritems())
 
     def aggregate_group(self, payload):
@@ -89,8 +90,7 @@ if __name__ == '__main__':
     payload = "blabla_timings " + ' '.join(map(str, xrange(0, 100)))
     payload += "\nblabla_timings " + ' '.join(map(str, xrange(0, 100)))
     payload += "\nb_timings " + ' '.join(map(str, xrange(0, 300)))
-    config = {"satisfied": 30,
-              "tolerating": 90}
+    config = {"satisfied": 30, "tolerating": 90}
     apdex = Apdex(config)
     t = apdex.aggregate_host(payload, 0, 100)
     res = t[0]

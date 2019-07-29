@@ -16,17 +16,10 @@ import (
 const (
 	defaultConfigPath   = "/etc/combaine/juggler.yaml"
 	defaultPlugin       = "simple"
-	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
+	defaultPluginsDir   = "/usr/lib/combaine/juggler"
 	defaultBatchSize    = 50 // send 50 events in one batch
 	defaultDatabaseName = "combaine"
 )
-
-// SenderTask ...
-type SenderTask struct {
-	common.Task
-	Data   []common.AggregationResult
-	Config Config
-}
 
 // Config contains config section from combainer's aggregations section
 // also it include default sender config (or user specified) yaml config
@@ -84,8 +77,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// EnsureDefaultTag add default tag "combaine" if it not present in tags
-func EnsureDefaultTag(jtags []string) []string {
+func ensureDefaultTag(jtags []string) []string {
 	for _, t := range jtags {
 		if t == "combaine" {
 			return jtags
@@ -157,6 +149,13 @@ func GetSenderConfig() (*SenderConfig, error) {
 // UpdateTaskConfig update current task config,
 // set default settings if it need
 func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
+
+	taskConf.Tags = ensureDefaultTag(taskConf.Tags)
+
+	if conf.Token != "" && conf.Token != "no-token" {
+		taskConf.Token = conf.Token
+	}
+
 	if len(taskConf.JHosts) == 0 {
 		if len(conf.Hosts) == 0 {
 			return errors.New("juggler hosts not defined")
@@ -188,12 +187,4 @@ func UpdateTaskConfig(taskConf *Config, conf *SenderConfig) error {
 		taskConf.Method = "GOLEM" // add default
 	}
 	return nil
-}
-
-// AddJugglerToken update current task config,
-// set default settings if it need
-func AddJugglerToken(taskConf *Config, token string) {
-	if token != "" && token != "no-token" {
-		taskConf.Token = token
-	}
 }

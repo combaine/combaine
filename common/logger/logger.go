@@ -8,60 +8,9 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/cocaine/cocaine-framework-go/cocaine"
 	"github.com/sirupsen/logrus"
 )
-
-const waitForLogger = 5 // attempts
-
-// CocaineLog is logger with cocaine logger interface
-var CocaineLog = LocalLogger()
-
-// Logger is cocaine logger interface
-type Logger interface {
-	Debug(data ...interface{})
-	Debugf(format string, data ...interface{})
-	Info(data ...interface{})
-	Infof(format string, data ...interface{})
-	Warn(data ...interface{})
-	Warnf(format string, data ...interface{})
-	Err(data ...interface{})
-	Errf(format string, data ...interface{})
-}
-
-// MustCreateLogger create cocaine logger
-// senders should call this function in init function
-func MustCreateLogger() Logger {
-	var err error
-	for i := 0; i < waitForLogger; i++ {
-		CocaineLog, err = cocaine.NewLogger()
-		if err == nil {
-			return CocaineLog
-		}
-		log.Print("Unable to create Cocaine logger")
-		time.Sleep(time.Duration(i) * time.Second)
-	}
-	log.Panicf("Unable to create Cocaine logger, but must %v", err)
-	return nil
-}
-
-type loggerLogrus struct {
-	*logrus.Logger
-}
-
-func (l *loggerLogrus) Err(data ...interface{}) {
-	l.Error(data...)
-}
-func (l *loggerLogrus) Errf(format string, data ...interface{}) {
-	l.Errorf(format, data...)
-}
-
-// LocalLogger wrap logrus logger with cocaine logger interface
-func LocalLogger() Logger {
-	return &loggerLogrus{Logger: logrus.StandardLogger()}
-}
 
 // InitializeLogger initialize new logrus logger with rotate handler
 func InitializeLogger(loglevel logrus.Level, outputPath string) {
@@ -138,24 +87,4 @@ func (l *LogrusLevelFlag) ToLogrusLevel() logrus.Level {
 // String convert flag
 func (l *LogrusLevelFlag) String() string {
 	return l.ToLogrusLevel().String()
-}
-
-// Debugf format debug message
-func Debugf(format string, data ...interface{}) {
-	CocaineLog.Debugf(format, data...)
-}
-
-// Infof format info message
-func Infof(format string, data ...interface{}) {
-	CocaineLog.Infof(format, data...)
-}
-
-// Errf format error message
-func Errf(format string, data ...interface{}) {
-	CocaineLog.Errf(format, data...)
-}
-
-// Warnf format warning message
-func Warnf(format string, data ...interface{}) {
-	CocaineLog.Warnf(format, data...)
 }

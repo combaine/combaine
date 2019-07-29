@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -36,10 +36,10 @@ type Config struct {
 	Fields   []string `codec:"Fields"`
 }
 
-type pointFormat func(utils.NameStack, interface{}, uint64) string
+type pointFormat func(utils.NameStack, interface{}, int64) string
 
 func makePoint(format, cluster, subgroup string) pointFormat {
-	return func(metric utils.NameStack, value interface{}, timestamp uint64) string {
+	return func(metric utils.NameStack, value interface{}, timestamp int64) string {
 		return fmt.Sprintf(
 			format,
 			cluster,
@@ -56,9 +56,9 @@ func formatSubgroup(input string) string {
 }
 
 func (g *Sender) send(output io.Writer, data string) error {
-	logger.Debugf("%s Send %s", g.id, data)
+	logrus.Debugf("%s Send %s", g.id, data)
 	if _, err := fmt.Fprint(output, data); err != nil {
-		logger.Errf("%s Sending error: %s", g.id, err)
+		logrus.Errorf("%s Sending error: %s", g.id, err)
 		connPool.Evict(output)
 		return err
 	}
@@ -66,13 +66,13 @@ func (g *Sender) send(output io.Writer, data string) error {
 }
 
 func (g *Sender) sendInterface(output io.Writer, metricName utils.NameStack,
-	f pointFormat, value interface{}, timestamp uint64) error {
+	f pointFormat, value interface{}, timestamp int64) error {
 	data := f(metricName, value, timestamp)
 	return g.send(output, data)
 }
 
 func (g *Sender) sendSlice(output io.Writer, metricName utils.NameStack, f pointFormat,
-	rv reflect.Value, timestamp uint64) error {
+	rv reflect.Value, timestamp int64) error {
 
 	if len(g.fields) == 0 || len(g.fields) != rv.Len() {
 		return fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
@@ -94,7 +94,7 @@ func (g *Sender) sendSlice(output io.Writer, metricName utils.NameStack, f point
 }
 
 func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFormat,
-	rv reflect.Value, timestamp uint64) (err error) {
+	rv reflect.Value, timestamp int64) (err error) {
 
 	keys := rv.MapKeys()
 	for _, key := range keys {
@@ -102,7 +102,7 @@ func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFo
 		metricName.Push(utils.InterfaceToString(key.Interface()))
 
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-		logger.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
+		logrus.Debugf("%s Item of key %s is: %v", g.id, key, itemInterface.Kind())
 
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -122,22 +122,22 @@ func (g *Sender) sendMap(output io.Writer, metricName utils.NameStack, f pointFo
 	return
 }
 
-func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64, output io.Writer) (err error) {
+func (g *Sender) sendInternal(data []*senders.Payload, timestamp int64, output io.Writer) (err error) {
 	metricName := make(utils.NameStack, 0, 3)
 
-	logger.Infof("%s send %d aggregates", g.id, len(data))
+	logrus.Infof("%s send %d aggregates", g.id, len(data))
 	for _, aggItem := range data {
 		aggname := aggItem.Tags["aggregate"]
 
 		metricName.Push(aggname)
 		subgroup, err := utils.GetSubgroupName(aggItem.Tags)
 		if err != nil {
-			logger.Errf("%s %s", g.id, err)
+			logrus.Errorf("%s %s", g.id, err)
 			continue
 		}
 		pointFormatter := makePoint(onePointFormat, g.cluster, subgroup)
 		rv := reflect.ValueOf(aggItem.Result)
-		logger.Debugf("%s data kind '%s' for aggregate %s", g.id, rv.Kind(), aggname)
+		logrus.Debugf("%s data kind '%s' for aggregate %s", g.id, rv.Kind(), aggname)
 
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -156,7 +156,7 @@ func (g *Sender) sendInternal(data []common.AggregationResult, timestamp uint64,
 }
 
 // Send proxy send operation to all graphite endpoints
-func (g *Sender) Send(data []common.AggregationResult, timestamp uint64) error {
+func (g *Sender) Send(data []*senders.Payload, timestamp int64) error {
 	if len(data) == 0 {
 		return fmt.Errorf("%s Empty data. Nothing to send", g.id)
 	}
@@ -169,9 +169,6 @@ func (g *Sender) Send(data []common.AggregationResult, timestamp uint64) error {
 
 	return g.sendInternal(data, timestamp, sock)
 }
-
-// InitializeLogger create cocaine logger
-func InitializeLogger(init func() logger.Logger) { init() }
 
 // NewSender return pointer to sender with specified config
 func NewSender(cfg *Config, id string) (gs *Sender, err error) {

@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
-	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -31,9 +32,8 @@ type Sender struct {
 // GlobalCache for juggler checks
 var GlobalCache *cache.TTLCache
 
-// InitializeLogger create cocaine logger
-func InitializeLogger(init func() logger.Logger) {
-	_ = init() // init logger
+// InitializeCache ...
+func InitializeCache() {
 	GlobalCache = cache.NewCache(time.Minute /* ttl */, time.Minute*5, time.Minute*5)
 }
 
@@ -47,8 +47,8 @@ func NewSender(conf *Config, id string) (*Sender, error) {
 }
 
 // Send make all things abount juggler sender tasks
-func (js *Sender) Send(ctx context.Context, task SenderTask) error {
-	logger.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
+func (js *Sender) Send(ctx context.Context, task *senders.SenderTask) error {
+	logrus.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
 	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
 	if err != nil {
 		return errors.Wrap(err, "LoadPlugin")
@@ -56,7 +56,7 @@ func (js *Sender) Send(ctx context.Context, task SenderTask) error {
 	defer state.Close() // see TODO in LoadPlugin
 	js.state = state
 
-	logger.Debugf("%s Prepare state of lua plugin", js.id)
+	logrus.Debugf("%s Prepare state of lua plugin", js.id)
 	if err := js.preparePluginEnv(task); err != nil {
 		return errors.Wrap(err, "preparePluginEnv")
 	}
@@ -66,7 +66,7 @@ func (js *Sender) Send(ctx context.Context, task SenderTask) error {
 		return errors.Wrap(err, "runPlugin")
 	}
 	if len(jEvents) == 0 {
-		logger.Infof("%s Nothing to send", js.id)
+		logrus.Infof("%s Nothing to send", js.id)
 		return nil
 	}
 	checks, err := js.getCheck(ctx, jEvents)
@@ -97,7 +97,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 					defer jWg.Done()
 					if err := js.sendEvent(ctx, f, e); err != nil {
 						atomic.AddInt32(&sendEeventsFailed, 1)
-						logger.Errf("%s failed to send juggler Event %s: %s", js.id, e, err)
+						logrus.Errorf("%s failed to send juggler Event %s: %s", js.id, e, err)
 					}
 				}(event, jFront)
 			}
@@ -115,7 +115,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 			jWg.Add(1)
 			go func(je []jugglerEvent, f string) {
 				defer jWg.Done()
-				logger.Infof("%s Send batch %d events to %s", js.id, len(je), f)
+				logrus.Infof("%s Send batch %d events to %s", js.id, len(je), f)
 
 				b := jugglerBatchRequest{
 					Events: je,
@@ -124,30 +124,30 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 				batchJSON, err := json.Marshal(b)
 
 				if err != nil {
-					logger.Errf("%s failed to Marshal batch %s", js.id, err)
+					logrus.Errorf("%s failed to Marshal batch %s", js.id, err)
 					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
 					return
 				}
 				respJSON, err := js.sendBatch(ctx, batchJSON, f)
-				logger.Debugf("Juggler response %s", respJSON)
+				logrus.Debugf("Juggler response %s", respJSON)
 				if err != nil {
 					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
-					logger.Errf("%s failed to send juggler batch with %d events: %s", js.id, len(je), err)
+					logrus.Errorf("%s failed to send juggler batch with %d events: %s", js.id, len(je), err)
 				}
 				var resp jugglerBatchResponse
 				err = json.Unmarshal(respJSON, &resp)
 				if err != nil {
-					logger.Errf("%s Failed to unmarhal response %s", js.id, err)
+					logrus.Errorf("%s Failed to unmarhal response %s", js.id, err)
 					return
 				}
 				if resp.Error != nil {
-					logger.Errf("%s Failed to send batch: %v", js.id, resp.Error)
+					logrus.Errorf("%s Failed to send batch: %v", js.id, resp.Error)
 					atomic.AddInt32(&sendEeventsFailed, int32(len(je)))
 				}
 				for idx, e := range resp.Events {
 					if e.Code != 200 {
 						atomic.AddInt32(&sendEeventsFailed, 1)
-						logger.Errf("%s Failed to send event %v: %s", js.id, je[idx], e.Message)
+						logrus.Errorf("%s Failed to send event %v: %s", js.id, je[idx], e.Message)
 					}
 				}
 			}(batch, js.Config.BatchEndpoint)
@@ -158,7 +158,7 @@ func (js *Sender) sendInternal(ctx context.Context, events []jugglerEvent) error
 	if sendEeventsFailed > 0 {
 		return errors.Errorf("sendInternal: failed to send %d/%d events", sendEeventsFailed, total)
 	}
-	logger.Infof("%s successfully send %d events", js.id, total)
+	logrus.Infof("%s successfully send %d events", js.id, total)
 
 	return nil
 }
@@ -176,19 +176,19 @@ func (js *Sender) sendBatch(ctx context.Context, batch []byte, endpoint string) 
 SEND_LOOP:
 	for retry < 2 {
 		retry++
-		logger.Debugf("%s Attempt %d", js.id, retry)
+		logrus.Debugf("%s Attempt %d", js.id, retry)
 		resp, err = chttp.Post(ctx, endpoint, "application/json", bytes.NewReader(batch))
 		switch err {
 		case nil:
 			responseBody, err = ioutil.ReadAll(resp.Body)
 			if err != nil {
-				logger.Errf("%s Failed to read response from %s: %s", js.id, endpoint, err)
+				logrus.Errorf("%s Failed to read response from %s: %s", js.id, endpoint, err)
 			}
 			resp.Body.Close()
 			// err is nil and there may occure some http errors including timeout
 			if resp.StatusCode == http.StatusOK {
 				err = nil // override err and leave responseBody in undefined state
-				logger.Infof("%s successfully sent data in %d attempts", js.id, retry)
+				logrus.Infof("%s successfully sent data in %d attempts", js.id, retry)
 				break SEND_LOOP
 			}
 			err = errors.Errorf("http status='%s', response: %s", resp.Status, responseBody)
@@ -198,7 +198,7 @@ SEND_LOOP:
 		default:
 		}
 
-		logger.Errf("%s failed to send: %s. Attempt %d", js.id, err, retry)
+		logrus.Errorf("%s failed to send: %s. Attempt %d", js.id, err, retry)
 		if resp != nil && resp.StatusCode == 400 {
 			break
 		}
@@ -223,20 +223,20 @@ func (js *Sender) sendEvent(ctx context.Context, front string, event jugglerEven
 	}
 
 	url := fmt.Sprintf(sendEventURL, front, query.Encode())
-	logger.Debugf("%s Send event %s", js.id, url)
+	logrus.Debugf("%s Send event %s", js.id, url)
 	resp, err := chttp.Get(ctx, url)
 	if err != nil {
-		logger.Errf("%s %s", js.id, err)
+		logrus.Errorf("%s %s", js.id, err)
 		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		logger.Errf("%s %s", js.id, err)
+		logrus.Errorf("%s %s", js.id, err)
 		return err
 	}
-	logger.Infof("%s Response %s: %d - %q", js.id, url, resp.StatusCode, body)
+	logrus.Infof("%s Response %s: %d - %q", js.id, url, resp.StatusCode, body)
 
 	if resp.StatusCode != http.StatusOK {
 		return errors.New(string(body))

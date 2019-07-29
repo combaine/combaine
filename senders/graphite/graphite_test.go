@@ -7,17 +7,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/combaine/combaine/common"
-	"github.com/combaine/combaine/common/logger"
+	"github.com/combaine/combaine/senders"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	InitializeLogger(func() logger.Logger {
-		logger.CocaineLog = logger.LocalLogger()
-		return logger.CocaineLog
-	})
-}
 
 type ioWriteFailerCloser struct {
 	counter int
@@ -120,11 +112,11 @@ func TestGraphiteSend(t *testing.T) {
 	}
 
 	cases := []struct {
-		data     []common.AggregationResult
+		data     []*senders.Payload
 		expected []string
 	}{
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{"type": "host", "name": "simple", "metahost": "simple", "aggregate": "20x"},
 					Result: 2000},
 				{Tags: map[string]string{
@@ -148,7 +140,7 @@ func TestGraphiteSend(t *testing.T) {
 				"TESTCOMBAINE.combaine.map_of_array_DC1.20x.MAP2.C 402"},
 		},
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{
 					"type": "host", "name": "map_of_simple", "metahost": "map_of_simple", "aggregate": "20x"},
 					Result: map[string]interface{}{
@@ -159,7 +151,7 @@ func TestGraphiteSend(t *testing.T) {
 				"TESTCOMBAINE.combaine.map_of_simple.20x.MP2 1002"},
 		},
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{
 					"type": "host", "name": "map_of_map", "metahost": "map_of_map", "aggregate": "20x"},
 					Result: map[string]interface{}{
@@ -171,7 +163,7 @@ func TestGraphiteSend(t *testing.T) {
 				"TESTCOMBAINE.combaine.map_of_map.20x.MAPMAP1.MPMP2 1002"},
 		},
 		{
-			[]common.AggregationResult{{Tags: map[string]string{
+			[]*senders.Payload{{Tags: map[string]string{
 				"type": "host", "name": "simple", "metahost": "simple", "aggregate": "30x"},
 				Result: 2000,
 			}},
@@ -181,7 +173,7 @@ func TestGraphiteSend(t *testing.T) {
 
 	buff := new(bytes.Buffer)
 	for i, c := range cases {
-		err := grCfg.sendInternal(c.data, uint64(i), buff)
+		err := grCfg.sendInternal(c.data, int64(i), buff)
 		assert.NoError(t, err)
 		result := "\n" + buff.String() + "\n"
 
@@ -197,11 +189,11 @@ func TestGraphiteSendError(t *testing.T) {
 	ioWErr := new(ioWriteFailerCloser)
 
 	cases := []struct {
-		data     []common.AggregationResult
+		data     []*senders.Payload
 		expected string
 	}{
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{
 					"type": "host", "name": "array", "metahost": "array", "aggregate": "20x"},
 					Result: []int{20, 30, 40},
@@ -209,7 +201,7 @@ func TestGraphiteSendError(t *testing.T) {
 			"Unable to send a slice. Fields len 0, len of value 3",
 		},
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{
 					"type": "host", "name": "map_of_array", "metahost": "map_of_array", "aggregate": "20x"},
 					Result: map[string]interface{}{"MAP2": []interface{}{202}},
@@ -229,7 +221,7 @@ func TestGraphiteSendError(t *testing.T) {
 
 	grCfg = Sender{fields: []string{"A"}}
 
-	data := []common.AggregationResult{
+	data := []*senders.Payload{
 		{Tags: map[string]string{
 			"type": "host", "name": "arr", "metahost": "arr", "aggregate": "20x"},
 			Result: []int{20},
@@ -248,27 +240,27 @@ func TestNetSend(t *testing.T) {
 	gc := Sender{id: "TESTID", endpoint: l.Addr().String()}
 
 	cases := []struct {
-		data     []common.AggregationResult
+		data     []*senders.Payload
 		expected string
 		withErr  bool
 		fields   []string
 	}{
-		{[]common.AggregationResult{}, "Empty data. Nothing to send", true, []string{}},
+		{[]*senders.Payload{}, "Empty data. Nothing to send", true, []string{}},
 		{
-			[]common.AggregationResult{
+			[]*senders.Payload{
 				{Tags: map[string]string{
 					"type": "host", "name": "array", "metahost": "array", "aggregate": "20x"},
 					Result: []int{20, 30, 40},
 				}},
 			"TESTID Unable to send a slice. Fields len 0, len of value 3", true, []string{},
 		},
-		{[]common.AggregationResult{
+		{[]*senders.Payload{
 			{Tags: map[string]string{"type": "datacenter", "name": "DC1", "aggregate": "20x"}, Result: []int{0}}},
 			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
-		{[]common.AggregationResult{
+		{[]*senders.Payload{
 			{Tags: map[string]string{"type": "datacenter", "metahost": "array", "aggregate": "20x"}, Result: []int{0}}},
 			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
-		{[]common.AggregationResult{
+		{[]*senders.Payload{
 			{Tags: map[string]string{"metahost": "array", "name": "DC1", "aggregate": "20x"}, Result: []int{0}}},
 			"Failed to get data tag 'metahost', skip task", false, []string{"A"}},
 	}

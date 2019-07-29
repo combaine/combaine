@@ -2,8 +2,6 @@ Combainer:
   Main:
     MINIMUM_PERIOD: 60
     cloud: [combaine-cloud]
-    Serf:
-        SnapshotPath: /var/lib/combainer/serf.snapshot
     Cache:
       type: "InMemory"
 cloud_config:
