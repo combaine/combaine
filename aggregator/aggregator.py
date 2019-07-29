@@ -79,17 +79,17 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
     def _is_candidate(name):
         return not name.startswith("_") and name[0].isupper()
 
-    def GetClass(self, name, context):
+    def getClass(self, name, context):
         klass = self.all_custom_parsers.get(name, None)
         if not klass:
             context.set_code(grpc.StatusCode.NOT_FOUND)
-            msg = "Class '{}' not found!".format(klass)
+            msg = "Class '{}' not found!".format(name)
             context.set_details(msg)
             self.log.error(msg)
             raise NameError(msg)
         return klass
 
-    def GetConfig(self, request):
+    def getConfig(self, request):
         cfg = msgpack.unpackb(request.task.config, raw=False)
         logger = logging.LoggerAdapter(self.log, {'tid': request.task.id})
         cfg['logger'] = logger
@@ -103,10 +103,10 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         Gets the result of a single host,
         performs parsing and their aggregation
         """
-        cfg = self.GetConfig(request)
+        cfg = self.getConfig(request)
         logger = cfg['logger']
 
-        klass = self.GetClass(request.class_name, context)
+        klass = self.getClass(request.class_name, context)
 
         prevtime = request.task.frame.previous
         currtime = request.task.frame.current
@@ -125,10 +125,10 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         and performs aggregation by group
         """
         payload = [msgpack.unpackb(i) for i in request.payload]
-        cfg = self.GetConfig(request)
+        cfg = self.getConfig(request)
         logger = cfg['logger']
 
-        klass = self.GetClass(request.class_name, context)
+        klass = self.getClass(request.class_name, context)
         result = klass(cfg).aggregate_group(payload)
 
         if cfg.get("logGroupResult", False):
@@ -207,7 +207,7 @@ def serve():
 if __name__ == '__main__':
     root = logging.getLogger()
     maxSize = 1024 * 1024 * 1024  # 1 Gb
-    h = logging.handlers.RotatingFileHandler('/var/log/aggregator.log', 'a', maxSize, 8)
+    h = logging.handlers.RotatingFileHandler('/var/log/combaine/aggregator.log', 'a', maxSize, 8)
     f = logging.Formatter('%(asctime)s %(levelname)5s: %(lineno)4s#%(funcName)-12s %(message)s')
     h.setFormatter(f)
     root.addHandler(h)
