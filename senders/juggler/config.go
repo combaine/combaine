@@ -16,7 +16,7 @@ import (
 const (
 	defaultConfigPath   = "/etc/combaine/juggler.yaml"
 	defaultPlugin       = "simple"
-	defaultPluginsDir   = "/usr/lib/yandex/combaine/juggler"
+	defaultPluginsDir   = "/usr/lib/combaine/juggler"
 	defaultBatchSize    = 50 // send 50 events in one batch
 	defaultDatabaseName = "combaine"
 )
