@@ -5,15 +5,14 @@ RUN apt update && apt install -y --force-yes --no-install-recommends \
     bind9-host unbound lsof jq zstd jnettop util-linux \
     strace tcpdump htop curl moreutils iptables \
     gcc python3-dev wget runit sudo less locales \
-    mawk python2 \
+    mawk python2 logrotate \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
-
 
 RUN python3 -m pip install --no-cache-dir -U pip Cython setuptools
 RUN python3 -m pip install --no-cache-dir -U grpcio --no-binary grpcio
 RUN python3 -m pip install --no-cache-dir -U grpcio_tools python-prctl
-RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests
+RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests ps_mem
 
 RUN wget -O /usr/bin/combaine-client  https://github.com/combaine/combaine-client/releases/download/v0.0.1/combaine-client-static-linux-amd64
 RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v0.0.2/ttail-static-linux-amd64
