@@ -61,6 +61,7 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 	var targetPort = ":" + strconv.Itoa(port)
 	var endpoint = "[::]" + targetPort
 	go func() {
+		logrus.Infof("Spawn %s", name)
 		for {
 			select {
 			case <-stopCh:
@@ -76,13 +77,15 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 				cmd.SysProcAttr = &syscall.SysProcAttr{
 					Pdeathsig: syscall.SIGTERM,
 				}
-				out, err := cmd.CombinedOutput()
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				err := cmd.Run()
 				if err != nil {
 					logrus.Errorf("Run failed for %s: %v", name, err)
 				}
-				logrus.Infof("Service %s stopped: %s", name, out)
-				logrus.Infof("Respawn %s", name)
+				logrus.Infof("Service %s stopped", name)
 				time.Sleep(time.Second * 3)
+				logrus.Infof("Respawn %s", name)
 			}
 		}
 	}()
@@ -102,6 +105,12 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 
 // SpawnServices spawn subprocesses with services
 func SpawnServices(stopCh chan bool) error {
+
+	os.Stdout.WriteString("ENVIRON\n")
+	for _, s := range os.Environ() {
+		os.Stdout.WriteString(s + "\n")
+	}
+
 	port := 10000
 	acc, err := spawnService("aggregator/"+aggregatorService, port, stopCh)
 	if err != nil {
