@@ -16,6 +16,7 @@ import (
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,7 +40,7 @@ type Config struct {
 // Sender object
 type Sender struct {
 	Config
-	id     string
+	log    *logrus.Entry
 	prefix string
 }
 
@@ -93,7 +94,7 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 	case reflect.String:
 		sensorValue, err = strconv.ParseFloat(value.String(), 64)
 	default:
-		logrus.Errorf("%s Default case:, %v, %s:%s", s.id, value, value.Kind(), value)
+		s.log.Errorf("Default case:, %v, %s:%s", value, value.Kind(), value)
 		err = fmt.Errorf("Sensor is Not a Number")
 	}
 	if err != nil {
@@ -107,14 +108,14 @@ func (s *Sender) dumpSensor(path utils.NameStack, value reflect.Value, timestamp
 
 	if len(s.Schema) > 0 {
 		if len(path) == 1 {
-			logrus.Infof("%s Handle graphite compatible sensor name %s by schema %+v", s.id, path, s.Schema)
+			s.log.Infof("Handle graphite compatible sensor name %s by schema %+v", path, s.Schema)
 			path = strings.Split(path[0], ".")
 		}
 
 		if len(s.Schema) >= len(path) {
 			msg := fmt.Errorf("Unable to send %+v(size %d) with schema %+v(size %d)",
 				path, len(path), s.Schema, len(s.Schema))
-			logrus.Errorf("%s %s", s.id, msg)
+			s.log.Error(msg)
 			return nil, msg
 		}
 		for i := 0; i < len(s.Schema); i++ {
@@ -135,9 +136,8 @@ func (s *Sender) dumpSlice(sensors *[]Sensor, path utils.NameStack,
 	rv reflect.Value, timestamp int64) error {
 
 	if len(s.Fields) == 0 || len(s.Fields) != rv.Len() {
-		msg := fmt.Errorf("%s Unable to send a slice. Fields len %d, len of value %d",
-			s.id, len(s.Fields), rv.Len())
-		logrus.Errorf("%s %s", s.id, msg)
+		msg := errors.Errorf("Unable to send a slice. Fields len %d, len of value %d", len(s.Fields), rv.Len())
+		s.log.Error(msg)
 		return msg
 	}
 
@@ -163,7 +163,7 @@ func (s *Sender) dumpMap(sensors *[]Sensor, path utils.NameStack, rv reflect.Val
 	for _, key := range rv.MapKeys() {
 		path.Push(fmt.Sprintf("%s", key))
 		itemInterface := reflect.ValueOf(rv.MapIndex(key).Interface())
-		logrus.Debugf("%s Item of key %s is: %v", s.id, key, itemInterface.Kind())
+		s.log.Debugf("Item of key %s is: %v", key, itemInterface.Kind())
 
 		switch itemInterface.Kind() {
 		case reflect.Slice, reflect.Array:
@@ -195,7 +195,7 @@ func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solom
 	//for aggname, subgroupsAndValues := range data {
 	for _, item := range data {
 		aggname := item.Tags["aggregate"]
-		logrus.Infof("%s Handle aggregate named %s", s.id, aggname)
+		s.log.Infof("Handle aggregate named %s", aggname)
 
 		service := s.Service
 		if service == "" {
@@ -224,7 +224,7 @@ func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solom
 		}
 
 		rv := reflect.ValueOf(item.Result)
-		logrus.Debugf("%s %s", s.id, rv.Kind())
+		s.log.Debugf("%s", rv.Kind())
 
 		if rv.Kind() != reflect.Map {
 			err = fmt.Errorf("Value of group should be dict, skip: %v", rv)
@@ -236,7 +236,7 @@ func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solom
 			continue
 		}
 		if len(sensors) == 0 {
-			logrus.Infof("%s Empty sensors for %v", s.id, pushData)
+			s.log.Infof("Empty sensors for %v", pushData)
 			continue
 		}
 		pushData.Sensors = sensors
@@ -248,23 +248,22 @@ func (s *Sender) sendInternal(data []*senders.Payload, timestamp int64) ([]solom
 // Send parse data, build and send http request to solomon api
 func (s *Sender) Send(task []*senders.Payload, timestamp int64) error {
 	if len(task) == 0 {
-		return fmt.Errorf("Empty data. Nothing to send")
+		s.log.Warn("Empty data. Nothing to send")
+		return nil
 	}
 
 	data, err := s.sendInternal(task, timestamp)
 	if err != nil {
 		return err
 	}
-	logrus.Infof("%s Send %d items", s.id, len(data))
+	s.log.Infof("Send %d items", len(data))
 	var merr *multierror.Error
 	for _, v := range data {
 		push, err := json.Marshal(v)
 		if err != nil {
 			merr = multierror.Append(merr, err)
 		}
-		logrus.Debugf("%s Data to POST: %s", s.id, string(push))
-
-		logrus.Debugf("%s Sending work to JobQueue", s.id)
+		s.log.Debugf("Sending work to JobQueue, Data to POST: %s", string(push))
 		JobQueue <- Job{PushData: push, SolCli: s}
 
 	}
@@ -272,8 +271,8 @@ func (s *Sender) Send(task []*senders.Payload, timestamp int64) error {
 }
 
 // NewSender return new instance of solomon sender
-func NewSender(config Config, id string) (*Sender, error) {
-	return &Sender{Config: config, id: id}, nil
+func NewSender(config Config, log *logrus.Entry) (*Sender, error) {
+	return &Sender{Config: config, log: log}, nil
 }
 
 func (w Worker) sendToSolomon(job Job) error {
@@ -283,12 +282,12 @@ func (w Worker) sendToSolomon(job Job) error {
 
 	for {
 		if attempt >= w.Retry {
-			sendErr = fmt.Errorf("%s worker %d failed to send after %d attempts, dropping job", job.SolCli.id, w.id, attempt)
+			sendErr = errors.Errorf("worker %d failed to send after %d attempts, dropping job", w.id, attempt)
 			break
 		}
 		attempt++
 
-		logrus.Debugf("%s attempting to send. Worker %d. Attempt %d", job.SolCli.id, w.id, attempt)
+		job.SolCli.log.Debugf("attempting to send. Worker %d. Attempt %d", w.id, attempt)
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(job.SolCli.Timeout)*time.Millisecond)
 		resp, err := chttp.Post(ctx, job.SolCli.API, "application/json", bytes.NewReader(job.PushData))
 		cancel()
@@ -302,7 +301,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			// err is nil and there may occure some http errors including timeout
 			if resp.StatusCode == http.StatusOK {
 				sendErr = nil
-				logrus.Infof("%s worker %d successfully sent data in %d attempts", job.SolCli.id, w.id, attempt)
+				job.SolCli.log.Infof("worker %d successfully sent data in %d attempts", w.id, attempt)
 				break
 			}
 			sendErr = fmt.Errorf("bad status='%d %s', response: %s", resp.StatusCode, resp.Status, b)
@@ -310,7 +309,7 @@ func (w Worker) sendToSolomon(job Job) error {
 		case context.Canceled, context.DeadlineExceeded:
 			isTimeout = true
 		default:
-			sendErr = fmt.Errorf("send error: %s", err)
+			sendErr = fmt.Errorf("Sending error: %s", err)
 		}
 
 		if !isTimeout {
@@ -318,7 +317,7 @@ func (w Worker) sendToSolomon(job Job) error {
 			break
 		}
 
-		logrus.Debugf("%s timed out. Worker %d. Retrying", job.SolCli.id, w.id)
+		job.SolCli.log.Debugf("timed out. Worker %d. Retrying", w.id)
 		if attempt < w.Retry {
 			time.Sleep(time.Millisecond * w.RetryInterval)
 		}
@@ -328,9 +327,9 @@ func (w Worker) sendToSolomon(job Job) error {
 
 func (w Worker) start(j chan Job) {
 	for job := range j {
-		logrus.Debugf("%s worker %d received job", job.SolCli.id, w.id)
+		job.SolCli.log.Debugf("worker %d received job", w.id)
 		if err := w.sendToSolomon(job); err != nil {
-			logrus.Errorf("%s %s", job.SolCli.id, err)
+			job.SolCli.log.Error(err)
 		}
 	}
 }

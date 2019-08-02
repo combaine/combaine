@@ -101,7 +101,7 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 		}
 	}
 
-	solCli, _ := solomon.NewSender(cfg, req.Id)
+	solCli, _ := solomon.NewSender(cfg, log)
 	err = solCli.Send(task.Data, task.PrevTime)
 	if err != nil {
 		log.Errorf("Sending error %s", err)

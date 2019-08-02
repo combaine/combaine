@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/combaine/combaine/senders"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,14 +100,13 @@ func TestCacheGetEvict(t *testing.T) {
 }
 
 func TestNewGraphiteClient(t *testing.T) {
-	gSender, err := NewSender(&Config{}, "id")
+	_, err := NewSender(&Config{}, &logrus.Entry{})
 	assert.NoError(t, err)
-	assert.Equal(t, gSender.id, "id")
 }
 
 func TestGraphiteSend(t *testing.T) {
 	grCfg := Sender{
-		id:      "TESTID",
+		log:     logrus.WithField("id", "TESTID"),
 		cluster: "TESTCOMBAINE",
 		fields:  []string{"A", "B", "C"},
 	}
@@ -185,7 +185,7 @@ func TestGraphiteSend(t *testing.T) {
 }
 
 func TestGraphiteSendError(t *testing.T) {
-	grCfg := Sender{}
+	grCfg := Sender{log: logrus.WithField("id", "TESTID")}
 	ioWErr := new(ioWriteFailerCloser)
 
 	cases := []struct {
@@ -219,7 +219,7 @@ func TestGraphiteSendError(t *testing.T) {
 	assert.Error(t, grCfg.send(ioWErr, "test"))
 	assert.Contains(t, grCfg.send(ioWErr, "test").Error(), "testingErr")
 
-	grCfg = Sender{fields: []string{"A"}}
+	grCfg = Sender{log: logrus.WithField("id", "TESTID"), fields: []string{"A"}}
 
 	data := []*senders.Payload{
 		{Tags: map[string]string{
@@ -237,7 +237,7 @@ func TestNetSend(t *testing.T) {
 	defer l.Close()
 	t.Logf("work with addr %s", l.Addr().String())
 
-	gc := Sender{id: "TESTID", endpoint: l.Addr().String()}
+	gc := Sender{log: logrus.WithField("id", "TESTID"), endpoint: l.Addr().String()}
 
 	cases := []struct {
 		data     []*senders.Payload
@@ -245,7 +245,7 @@ func TestNetSend(t *testing.T) {
 		withErr  bool
 		fields   []string
 	}{
-		{[]*senders.Payload{}, "Empty data. Nothing to send", true, []string{}},
+		{[]*senders.Payload{}, "Empty data. Nothing to send", false, []string{}},
 		{
 			[]*senders.Payload{
 				{Tags: map[string]string{
@@ -270,24 +270,24 @@ func TestNetSend(t *testing.T) {
 		err := gc.Send(c.data, 1)
 		if c.withErr {
 			assert.Error(t, err)
-			assert.Contains(t, fmt.Sprintf("%v", err), c.expected)
+			assert.Contains(t, c.expected, fmt.Sprintf("%v", err))
 		} else {
 			assert.Nil(t, err)
 		}
 	}
 
-	gc = Sender{endpoint: ":::port"}
+	gc = Sender{log: logrus.WithField("id", "TESTID"), endpoint: ":::port"}
 	err := gc.Send(cases[1].data, 1)
 	assert.Error(t, err)
 	assert.Contains(t, fmt.Sprintf("%v", err), "too many colons in address")
 
-	gc = Sender{endpoint: ":10101"}
+	gc = Sender{log: logrus.WithField("id", "TESTID"), endpoint: ":10101"}
 	connectionTimeout = -1
 	reconnectInterval = 5
 	err = gc.Send(cases[1].data, 3)
 	assert.Error(t, err)
 
-	gc = Sender{fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
+	gc = Sender{log: logrus.WithField("id", "TESTID"), fields: []string{"A", "B", "C"}, endpoint: l.Addr().String()}
 	err = gc.Send(cases[1].data, 1)
 	assert.NoError(t, err)
 }

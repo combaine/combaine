@@ -12,6 +12,7 @@ import (
 
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +55,7 @@ func TestDumpSensor(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		s := Sender{Config: Config{Schema: c.schema}, id: "TEST", prefix: c.prefix}
+		s := Sender{Config: Config{Schema: c.schema}, log: logrus.WithField("id", "TEST"), prefix: c.prefix}
 		t.Logf("Case %d, %#v", i, s)
 		sensor, err := s.dumpSensor(c.path, c.value, int64(i))
 		if c.prefix != "ERROR" {
@@ -72,8 +73,7 @@ func TestNewWorker(t *testing.T) {
 }
 
 func TestNewSender(t *testing.T) {
-	scl, _ := NewSender(Config{API: "api.addr"}, "id")
-	assert.Equal(t, scl.id, "id")
+	scl, _ := NewSender(Config{API: "api.addr"}, logrus.WithField("id", "TESTID"))
 	assert.Equal(t, scl.API, "api.addr")
 }
 
@@ -81,7 +81,7 @@ func TestStartWorkers(t *testing.T) {
 	j := make(chan Job, 1)
 	StartWorkers(j, 5)
 
-	j <- Job{PushData: []byte{}, SolCli: &Sender{Config: Config{API: "bad://proto"}}}
+	j <- Job{PushData: []byte{}, SolCli: &Sender{Config: Config{API: "bad://proto"}, log: logrus.WithField("id", "TEST")}}
 	for i := 6; i > 0; i-- {
 		if len(j) == 0 {
 			close(j)
@@ -120,26 +120,32 @@ func TestRequest(t *testing.T) {
 		attempt  int
 		err      bool
 	}{
-		{Job{PushData: []byte{}, SolCli: &Sender{}},
+		{Job{PushData: []byte{}, SolCli: &Sender{log: logrus.WithField("id", "TEST")}},
 			"worker 0 failed to send after 0 attempts, dropping job", 0, true},
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: "://bad_url", Timeout: 10}}},
 			"parse ://bad_url: missing protocol scheme", 1, true},
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: uriWithoutListener, Timeout: 10}}},
 			"connection refused", 1, true},
 
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: ts.URL + "/timeout", Timeout: 5}}},
 			"worker 3 failed to send after 8 attempts, dropping job", 8, false},
 
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: ts.URL + "/200", Timeout: 10}}},
 			"worker 4 failed to send after 2 attempts, dropping job", 2, false},
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: ts.URL + "/404", Timeout: 10}}},
 			"404 Not Found", 3, true},
 		{Job{PushData: []byte{}, SolCli: &Sender{
+			log:    logrus.WithField("id", "TEST"),
 			Config: Config{API: ts.URL + "/408", Timeout: 10}}},
 			"worker 6 failed to send after 3 attempts, dropping job", 3, true},
 	}
@@ -160,7 +166,7 @@ func TestRequest(t *testing.T) {
 
 func TestSolomonClientSendNil(t *testing.T) {
 	dropJobs(JobQueue)
-	cli, _ := NewSender(Config{API: "api.addr"}, "id")
+	cli, _ := NewSender(Config{API: "api.addr"}, logrus.WithField("id", "TESTID"))
 
 	// bad task
 	task := []*senders.Payload{
@@ -179,14 +185,13 @@ func TestSolomonClientSendNil(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = cli.Send(nil, 111)
-	assert.Contains(t, fmt.Sprintf("%v", err), "Nothing to send")
-
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(JobQueue))
 }
 
 func TestSolomonClientSendArray(t *testing.T) {
 	dropJobs(JobQueue)
-	cli, _ := NewSender(Config{}, "_id")
+	cli, _ := NewSender(Config{}, logrus.WithField("id", "TESTID"))
 
 	task := []*senders.Payload{
 		{Tags: map[string]string{"type": "host", "name": "grp", "metahost": "grp", "aggregate": "app"},
@@ -196,7 +201,7 @@ func TestSolomonClientSendArray(t *testing.T) {
 	assert.Contains(t, fmt.Sprintf("%v", err), "Unable to send a slice. Fields len 0")
 	assert.Equal(t, 0, len(JobQueue))
 
-	cli, _ = NewSender(Config{Fields: []string{"1f", "2f"}}, "_id")
+	cli, _ = NewSender(Config{Fields: []string{"1f", "2f"}}, logrus.WithField("id", "TESTID"))
 	err = cli.Send(task, 111)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(JobQueue))
@@ -251,7 +256,7 @@ func TestSolomonClientSendNotANumber(t *testing.T) {
 				Result: map[interface{}]interface{}{nil: nil}}},
 			"Failed to get data tag 'metahost'"},
 	}
-	cli, _ := NewSender(Config{API: "api.addr", Fields: []string{"1_prc", "2_prc"}}, "id")
+	cli, _ := NewSender(Config{API: "api.addr", Fields: []string{"1_prc", "2_prc"}}, logrus.WithField("id", "TESTID"))
 
 	for _, c := range cases {
 		assert.NotPanics(t, func() {
@@ -270,7 +275,7 @@ func TestSolomonInternalSend(t *testing.T) {
 
 	solCfg := Sender{
 		Config: Config{Project: "combaine", Cluster: "backend"},
-		id:     "testId",
+		log:    logrus.WithField("id", "TESTID"),
 	}
 
 	simpleOneItemData := []*senders.Payload{
@@ -319,7 +324,7 @@ func TestSolomonInternalSend(t *testing.T) {
 			Cluster: "TESTCOMBAINE",
 			Fields:  []string{"25_prc", "50_prc", "99_prc"},
 		},
-		id: "TESTID",
+		log: logrus.WithField("id", "TESTID"),
 	}
 	app1Data := []*senders.Payload{
 		{Tags: map[string]string{"type": "host", "name": "group1", "metahost": "group1", "aggregate": "app1"},

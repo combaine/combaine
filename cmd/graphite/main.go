@@ -70,7 +70,7 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 		cfg.Endpoint = defaultGraphiteEndpoint
 	}
 
-	gCli, err := graphite.NewSender(&cfg, req.Id)
+	gCli, err := graphite.NewSender(&cfg, log)
 	if err != nil {
 		log.Errorf("Unexpected error %s", err)
 		return nil, err

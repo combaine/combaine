@@ -2,13 +2,13 @@ package graphite
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"reflect"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,12 +21,12 @@ func init() {
 // NewConn provide new connections for connection pool
 func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("Not enought arguments")
+		return nil, errors.New("Not enought arguments")
 	}
 	retry, rok := args[0].(int)
 	timeout, tok := args[1].(int)
 	if !rok || !tok {
-		return nil, fmt.Errorf("Failed to parse arguments retry or timeout")
+		return nil, errors.New("Failed to parse arguments retry or timeout")
 	}
 
 	for i := 1; i <= retry; i++ {
@@ -37,7 +37,7 @@ func NewConn(endpoint string, args ...interface{}) (conn io.WriteCloser, err err
 		if err == nil {
 			break
 		} else {
-			err = fmt.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, i)
+			err = errors.Errorf("Unable to connect endpoin %s: %s after %d attempts", endpoint, err, i)
 		}
 		logrus.Debugf("Failed to connect endpoint %s: %s", endpoint, err)
 		if i < retry {
