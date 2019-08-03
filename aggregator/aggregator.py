@@ -22,6 +22,11 @@ import prctl
 _PROCESS_COUNT = 4
 
 
+class RidAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        return '%s %s' % (self.extra['rid'], msg), kwargs
+
+
 class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
     """Combaine aggregator custom plugin loader"""
 
@@ -79,19 +84,19 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
     def _is_candidate(name):
         return not name.startswith("_") and name[0].isupper()
 
-    def getClass(self, name, context):
+    def getClass(self, logger, name, context):
         klass = self.all_custom_parsers.get(name, None)
         if not klass:
             context.set_code(grpc.StatusCode.NOT_FOUND)
             msg = "Class '{}' not found!".format(name)
             context.set_details(msg)
-            self.log.error(msg)
+            logger.error(msg)
             raise NameError(msg)
         return klass
 
     def getConfig(self, request):
         cfg = msgpack.unpackb(request.task.config, raw=False)
-        logger = logging.LoggerAdapter(self.log, {'tid': request.task.id})
+        logger = RidAdapter(self.log, {'rid': request.task.id})
         cfg['logger'] = logger
         return cfg
 
@@ -106,7 +111,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         cfg = self.getConfig(request)
         logger = cfg['logger']
 
-        klass = self.getClass(request.class_name, context)
+        klass = self.getClass(logger, request.class_name, context)
 
         prevtime = request.task.frame.previous
         currtime = request.task.frame.current
@@ -128,7 +133,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         cfg = self.getConfig(request)
         logger = cfg['logger']
 
-        klass = self.getClass(request.class_name, context)
+        klass = self.getClass(logger, request.class_name, context)
         result = klass(cfg).aggregate_group(payload)
 
         if cfg.get("logGroupResult", False):
