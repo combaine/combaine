@@ -8,6 +8,7 @@ import multiprocessing
 import os
 import signal
 import socket
+import sys
 import time
 from concurrent import futures
 from logging.handlers import RotatingFileHandler
@@ -129,7 +130,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         Receives a list of results from the aggregate_host,
         and performs aggregation by group
         """
-        payload = [msgpack.unpackb(i) for i in request.payload]
+        payload = [msgpack.unpackb(i, raw=False) for i in request.payload]
         cfg = self.getConfig(request)
         logger = cfg['logger']
 
@@ -211,10 +212,19 @@ def serve():
 
 if __name__ == '__main__':
     root = logging.getLogger()
-    maxSize = 1024 * 1024 * 1024  # 1 Gb
+    maxSize = 512 * 1024 * 1024  # 0.5 Gb
     h = logging.handlers.RotatingFileHandler('/var/log/combaine/aggregator.log', 'a', maxSize, 8)
     f = logging.Formatter('%(asctime)s %(levelname)5s: %(lineno)4s#%(funcName)-12s %(message)s')
     h.setFormatter(f)
     root.addHandler(h)
-    logging.getLogger().setLevel(logging.DEBUG)
+    logLevelName = "INFO"
+    logLevel = logging.INFO
+    try:
+        name = sys.argv[sys.argv.index("-loglevel") + 1].upper()
+        logLevel = getattr(logging, name)
+        logLevelName = name
+    except:  # noqa pylint: disable=E722
+        pass
+    logging.getLogger().setLevel(logLevel)
+    logging.info("Current log level: %s", logLevelName)
     serve()

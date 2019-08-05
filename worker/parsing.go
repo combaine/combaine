@@ -110,7 +110,7 @@ func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 					Payload:   blob,
 				}
 				key := task.Host + ";" + k
-				ac := NewAggregatorClient(aggregatorConnection)
+				ac := NewAggregatorClient(NextAggregatorConn())
 				res, err := ac.AggregateHost(ctx, req)
 				if err != nil {
 					log.Errorf("Failed to call aggregator.AggregateHost: %v", err)

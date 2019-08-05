@@ -50,7 +50,7 @@ func DoAggregating(ctx context.Context, task *AggregatingTask) error {
 			continue
 		}
 		log.Infof("send %s to %s.%s", name, aggType, aggClass)
-		ac := NewAggregatorClient(aggregatorConnection)
+		ac := NewAggregatorClient(NextAggregatorConn())
 
 		for subGroup, hosts := range Hosts {
 			subGroupParsingResults := make([][]byte, 0, initCap)

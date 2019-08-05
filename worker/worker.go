@@ -19,11 +19,14 @@ import (
 
 var sLock sync.Mutex
 var services = map[string]*grpc.ClientConn{}
-var aggregatorConnection *grpc.ClientConn
 var aggregatorService = "aggregator.py"
 var appsDir = "/usr/lib/combaine/apps/"
 var logDir = "/var/log/combaine/"
 var envPrefix = "COMBAINE_WORKER_SERVICE_"
+
+var aggConnIdx int
+var aggClientConnMutex sync.Mutex
+var aggregatorConnections [16]*grpc.ClientConn
 
 // concurrent write access only on initialization step
 func register(name string, conn *grpc.ClientConn) {
@@ -40,15 +43,15 @@ func GetSenderClient(sType string) (senders.SenderClient, error) {
 	return nil, errors.New("Unknown sender type: " + sType)
 }
 
+// NextAggregatorConn return next connection from pool
+func NextAggregatorConn() *grpc.ClientConn {
+	aggClientConnMutex.Lock()
+	defer aggClientConnMutex.Unlock()
+	aggConnIdx = (aggConnIdx + 1) % len(aggregatorConnections)
+	return aggregatorConnections[aggConnIdx]
+}
+
 func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, error) {
-	options := []grpc.DialOption{
-		grpc.WithBlock(),
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(1024*1024*128),
-			grpc.MaxCallRecvMsgSize(1024*1024*128),
-		),
-	}
 	envServicePrefix := envPrefix + strings.ToUpper(name)
 	logoutput, found := os.LookupEnv(envServicePrefix + "_LOGOUTPUT")
 	if !found {
@@ -89,10 +92,22 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 			}
 		}
 	}()
+	return dialService(name, targetPort)
+}
+
+func dialService(name, addr string) (*grpc.ClientConn, error) {
+	options := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallSendMsgSize(1024*1024*128),
+			grpc.MaxCallRecvMsgSize(1024*1024*128),
+		),
+	}
 
 	var attempts = 20
 	for i := 0; i <= attempts; i++ {
-		cc, err := grpc.Dial(targetPort, options...)
+		cc, err := grpc.Dial(addr, options...)
 		if err != nil {
 			logrus.Warnf("Failed to dial %s: %v", name, err)
 			time.Sleep(time.Second * 5)
@@ -112,11 +127,24 @@ func SpawnServices(stopCh chan bool) error {
 	}
 
 	port := 10000
-	acc, err := spawnService("aggregator/"+aggregatorService, port, stopCh)
+	aggServiceName := "aggregator/" + aggregatorService
+	acc, err := spawnService(aggServiceName, port, stopCh)
 	if err != nil {
 		return err
 	}
-	aggregatorConnection = acc
+
+	aggregatorConnections[0] = acc
+	for idx := range aggregatorConnections {
+		if idx == 0 {
+			continue
+		}
+		addr := "127.0.0." + strconv.Itoa(idx+1) + ":" + strconv.Itoa(port)
+		acc, err := dialService(aggServiceName, addr)
+		if err != nil {
+			return err
+		}
+		aggregatorConnections[idx] = acc
+	}
 
 	files, err := ioutil.ReadDir(appsDir)
 	if err != nil {
