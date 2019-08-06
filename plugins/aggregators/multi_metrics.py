@@ -1,21 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import logging
-
-LOG = logging.getLogger("combaine")
 
 DEFAULT_QUANTILE_VALUES = [75, 90, 93, 94, 95, 96, 97, 98, 99]
 
 
-def _clean_timings(timings_str):
-    return timings_str.replace(',', ' ').replace('-', ' ').replace(':', ' ')
-
-
-def _check_name(name):
-    if '<' in name or '>' in name or ';' in name or '\\' in name:
-        raise NameError("Name of metric contains forbidden symbols: '<>;\\'")
-
-
-def _add_timings(container, name, timings_value, packed=False):
+def _add_timings(container, name, timings_value):
     """
     Pack comming timings in to compact dict where
     keys are timings, and values are count of timings
@@ -26,7 +15,7 @@ def _add_timings(container, name, timings_value, packed=False):
         container[name] = {}
         tim_dict = container[name]
 
-    if packed:
+    if name[0] == '@':
         if '@' in timings_value:
             timings_value, count = timings_value.split("@")
             if not timings_value:  # skip entries like '@25' treat as parses errors
@@ -80,13 +69,11 @@ class Multimetrics(object):
         # get prc of errors in info from metrics which contents 'ext_services'
         self.get_prc = config.get("get_prc", False)
 
-        self.log = config.get("logger", logging.LoggerAdapter(LOG, {"tid": self.__class__.__name__}))
+        self.log = config.get("logger", logging.getLogger())
 
     def is_timings(self, name):
         "Check metric name against is timings"
-        if isinstance(name, bytes):
-            return name.decode().endswith(self.timings_is)
-        return name.endswith(self.timings_is)
+        return name[0] == '@' or self.timings_is in name
 
     def aggregate_host(self, payload, prevtime, currtime, hostname=None):
         """ Convert strings of 'payload' into dict[string][]float and return """
@@ -103,27 +90,26 @@ class Multimetrics(object):
                 continue
 
             name, _, metrics_as_strings = map(lambda x: x.strip(), line.partition(' '))
-            if not metrics_as_strings:
-                self.log.debug("skip line %s", raw_line)
+            if any(c in name for c in "<>;\\"):
+                self.log.error("hostname=%s Name of metric contains forbidden symbols: '<>;\\'", hostname)
                 continue
 
             try:
-                _check_name(name)
-
                 if self.is_timings(name):
-                    timings_is_packed = name[0] == '@'
-                    if timings_is_packed:
-                        name = name[1:]  # make timings name valid
-
-                    metrics_as_strings = _clean_timings(metrics_as_strings)
+                    metrics_as_strings = metrics_as_strings.replace(',', ' ').replace('-', ' ').replace(':', ' ')
+                    if not metrics_as_strings:
+                        continue
 
                     if name not in result:
                         result[name] = {}
 
                     for tmn in metrics_as_strings.split():
-                        _add_timings(result, name, tmn, timings_is_packed)
+                        _add_timings(result, name, tmn)
                 else:
-                    metrics_as_values = sum(map(float, metrics_as_strings.split()))
+                    metrics_as_values = 0
+                    if metrics_as_strings:
+                        metrics_as_values = sum(map(float, metrics_as_strings.split()))
+
                     if self.rps:
                         metrics_as_values /= delta
 
@@ -160,6 +146,8 @@ class Multimetrics(object):
                 if not agg_timings:
                     continue
 
+                if metric[0] == '@':
+                    metric = metric[1:]  # make timings name valid
                 result[metric] = self.calculate_quantiles(agg_timings, count)
             else:
                 metric_sum = sum(item.get(metric, 0) for item in payload)
@@ -241,7 +229,7 @@ def test(datafile):
     from pprint import pprint
 
     logging.getLogger().setLevel(logging.DEBUG)
-    mms = Multimetrics({})
+    mms = Multimetrics({"timings_is": "_time"})
     print("+++ {} +++".format(mms.__dict__))
     with open(datafile, 'rb') as fname:
         _payload = fname.read()
@@ -259,4 +247,5 @@ def test(datafile):
 if __name__ == '__main__':
     import sys
     logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
     test(sys.argv[1])
