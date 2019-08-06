@@ -36,7 +36,7 @@ def _add_timings(container, name, timings_value):
         tim_dict[key] = count
 
 
-class Multimetrics(object):
+class Multimetrics():
     """
     General metrics count:
     ping.5xx 12
