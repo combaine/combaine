@@ -25,7 +25,7 @@ _PROCESS_COUNT = 4
 
 class RidAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
-        return '%s %s' % (self.extra['rid'], msg), kwargs
+        return '%s.%s %s' % (self.extra['rid'], self.extra['klass'], msg), kwargs
 
 
 class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
@@ -97,7 +97,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
 
     def getConfig(self, request):
         cfg = msgpack.unpackb(request.task.config, raw=False)
-        logger = RidAdapter(self.log, {'rid': request.task.id})
+        logger = RidAdapter(self.log, {'rid': request.task.id, "klass": request.class_name})
         cfg['logger'] = logger
         return cfg
 
@@ -130,11 +130,10 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         Receives a list of results from the aggregate_host,
         and performs aggregation by group
         """
-        payload = [msgpack.unpackb(i, raw=False) for i in request.payload]
         cfg = self.getConfig(request)
         logger = cfg['logger']
-
         klass = self.getClass(logger, request.class_name, context)
+        payload = [msgpack.unpackb(i, raw=False) for i in request.payload]
         result = klass(cfg).aggregate_group(payload)
 
         if cfg.get("logGroupResult", False):
