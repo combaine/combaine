@@ -45,6 +45,6 @@ func TestUpdateSessionParams(t *testing.T) {
 
 func TestGenerateSessionTimeFrame(t *testing.T) {
 	parsingTime, wholeTime := generateSessionTimeFrame(10)
-	assert.Equal(t, parsingTime, time.Duration(8*time.Second))
+	assert.Equal(t, parsingTime, time.Duration(7*time.Second))
 	assert.Equal(t, wholeTime, time.Duration(10*time.Second))
 }
