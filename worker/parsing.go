@@ -102,8 +102,8 @@ func DoParsing(ctx context.Context, task *ParsingTask) (*ParsingResult, error) {
 						Frame:  task.Frame,
 						Config: encodedCfg,
 						Meta: map[string]string{
-							"Host": task.Host,
-							"Key":  k,
+							"host": task.Host,
+							"key":  k,
 						},
 					},
 					ClassName: aggClass,
