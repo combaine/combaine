@@ -310,7 +310,8 @@ func (cl *Client) doAggregation(ctx context.Context, task *worker.AggregatingTas
 }
 
 func generateSessionTimeFrame(sessionDuration uint) (time.Duration, time.Duration) {
-	parsingTime := time.Duration(float64(sessionDuration)*0.8) * time.Second
+	// TODO make parsing time percentage configurable
+	parsingTime := time.Duration(float64(sessionDuration)*0.7) * time.Second
 	wholeTime := time.Duration(sessionDuration) * time.Second
 	return parsingTime, wholeTime
 }
