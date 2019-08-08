@@ -1,11 +1,11 @@
 FROM ubuntu:disco
-RUN apt update && apt install -y --force-yes --no-install-recommends \
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --force-yes --no-install-recommends \
     build-essential python3-pip libcap-dev gcc python3-dev wget locales \
     sudo less psmisc vim htop subversion openssh-client logrotate mawk \
     bind9-host unbound lsof jq zstd jnettop util-linux strace tcpdump \
     htop curl moreutils iptables moreutils iputils-tracepath util-linux \
     git iputils-ping netcat iproute2 sysstat traceroute jnettop \
-    dstat mtr-tiny \
+    dstat mtr-tiny tzdata \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
