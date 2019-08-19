@@ -5,7 +5,7 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --force-yes --no
     bind9-host unbound lsof jq zstd jnettop util-linux strace tcpdump \
     htop curl moreutils iptables moreutils iputils-tracepath util-linux \
     git iputils-ping netcat iproute2 sysstat traceroute jnettop \
-    dstat mtr-tiny tzdata \
+    dstat mtr-tiny tzdata libjemalloc2 \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -19,6 +19,7 @@ RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v
 
 RUN ln -vsTf /bin/bash /bin/sh
 RUN ln -vsTf /bin/bash /bin/dash
+RUN dpkg -L libjemalloc2|grep jemalloc.so|head -n1 > /etc/ld.so.preload
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 COPY plugins/aggregators/          /usr/lib/combaine/custom
