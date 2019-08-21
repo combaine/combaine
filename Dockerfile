@@ -19,7 +19,6 @@ RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v
 
 RUN ln -vsTf /bin/bash /bin/sh
 RUN ln -vsTf /bin/bash /bin/dash
-RUN dpkg -L libjemalloc2|grep jemalloc.so|head -n1 > /etc/ld.so.preload
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 COPY plugins/aggregators/          /usr/lib/combaine/custom
