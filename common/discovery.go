@@ -282,7 +282,7 @@ type RTCFetcher struct {
 	ReadTimeout int64
 	Geo         []string `mapstructure:"geo"`
 	BasicURL    string   `mapstructure:"BasicUrl"`
-	Delimiter   string
+	Delimiter   string   `mapstructure:"Delimiter"`
 }
 
 // newRTCFetcher return list of hosts fethed from http discovery service
