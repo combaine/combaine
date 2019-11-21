@@ -185,6 +185,15 @@ func TestRTCFetcher(t *testing.T) {
 				]
 			}`)
 			w.Write(payload)
+		case "/fetch/group1-json-rtc-dcC":
+			payload := []byte(`{
+				"result": [
+					{ "container_hostname": "host1.dcC" },
+					{ "container_hostname": "host2.dcC" },
+					{ "container_hostname": "host3.dcC" }
+				]
+			}`)
+			w.Write(payload)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintln(w, "Not Found")
@@ -208,6 +217,8 @@ func TestRTCFetcher(t *testing.T) {
 		{repository.PluginConfig{"type": "rtc", "geo": []string{"dc1", "dcB"}, "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
 			"group1-json-rtc", Ok, nil,
 			hosts.Hosts{"dc1": {"host1.dc1", "host2.dc1"}, "dcB": {"host1.dcB", "host2.dcB", "host3.dcB"}}},
+		{repository.PluginConfig{"type": "rtc", "geo": []string{"dcC"}, "Delimiter": "-", "BasicUrl": fmt.Sprintf("http://%s/fetch", ts.Listener.Addr()) + "/%s"},
+			"group1-json-rtc", Ok, nil, hosts.Hosts{"dcC": {"host1.dcC", "host2.dcC", "host3.dcC"}}},
 	}
 	for _, c := range cases {
 		hFetcher, err := LoadHostFetcher(c.config)

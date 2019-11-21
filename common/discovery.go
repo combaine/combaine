@@ -282,6 +282,7 @@ type RTCFetcher struct {
 	ReadTimeout int64
 	Geo         []string `mapstructure:"geo"`
 	BasicURL    string   `mapstructure:"BasicUrl"`
+	Delimiter   string   `mapstructure:"Delimiter"`
 }
 
 // newRTCFetcher return list of hosts fethed from http discovery service
@@ -289,6 +290,10 @@ func newRTCFetcher(config repository.PluginConfig) (HostFetcher, error) {
 	var fetcher RTCFetcher
 	if err := mapstructure.Decode(config, &fetcher); err != nil {
 		return nil, err
+	}
+
+	if fetcher.Delimiter == "" {
+		fetcher.Delimiter = "_"
 	}
 
 	if fetcher.ReadTimeout <= 0 {
@@ -308,7 +313,7 @@ func (s *RTCFetcher) Fetch(groupname string) (hosts.Hosts, error) {
 	for _, geo := range s.Geo {
 		suffix := geo
 		if suffix != "" {
-			suffix = "_" + suffix
+			suffix = s.Delimiter + suffix
 		}
 
 		urlGeo := fmt.Sprintf(s.BasicURL, groupname+suffix)
