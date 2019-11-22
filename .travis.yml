@@ -25,9 +25,9 @@ install:
   - type protoc-gen-go
 
   - pyenv global system 3.7.1
-  - python -m pip install --user grpcio
-  - python -m pip install --user grpcio-tools
-  - python -m grpc_tools.protoc --version
+  - python3 -m pip install --user grpcio
+  - python3 -m pip install --user grpcio-tools
+  - python3 -m grpc_tools.protoc --version
 
 script:
   - make build
