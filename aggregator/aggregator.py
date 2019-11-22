@@ -118,6 +118,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         currtime = request.task.frame.current
         hostname = request.task.meta.get("host")
         result = klass(cfg).aggregate_host(request.payload, prevtime, currtime, hostname)
+        cfg['logger'] = None
 
         if cfg.get("logHostResult", False):
             logger.info("Aggregate host result %s: %s", request.task.meta, result)
@@ -135,6 +136,7 @@ class Aggregator(aggregator_pb2_grpc.AggregatorServicer):
         klass = self.getClass(logger, request.class_name, context)
         payload = [msgpack.unpackb(i, raw=False) for i in request.payload]
         result = klass(cfg).aggregate_group(payload)
+        cfg['logger'] = None
 
         if cfg.get("logGroupResult", False):
             logger.info("Aggregate group result %s: %s", request.task.meta, result)
