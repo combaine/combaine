@@ -41,7 +41,7 @@ proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto rpc/senders.pro
 	protoc -I rpc/ rpc/worker.proto --go_out=plugins=grpc:worker
 	protoc -I rpc/ rpc/timeframe.proto --go_out=plugins=grpc:worker
 	protoc -I rpc/ rpc/senders.proto --go_out=plugins=grpc:senders
-	python -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
+	python3 -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
 
 
 clean:
