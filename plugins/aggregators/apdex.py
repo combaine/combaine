@@ -47,7 +47,7 @@ class Apdex(object):
         else:
             self.factor = lambda x: factor * float(x)
 
-    def aggregate_host(self, payload, prevtime, currtime):
+    def aggregate_host(self, payload, prevtime, currtime, hostname=None):
         factor = self.factor
         sat, tol = self.satisfied, self.tolerating
         result = {}
