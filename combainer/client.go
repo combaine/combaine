@@ -193,7 +193,10 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 }
 
 // Dispatch does one iteration of tasks dispatching
-func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID string, shouldWait bool) error {
+func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, shouldWait bool) (string, error) {
+	startTime := time.Now()
+	sessionID := utils.GenerateSessionID()
+
 	logger := cl.log
 	if logger == nil {
 		logger = logrus.StandardLogger()
@@ -203,26 +206,26 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 		"session":   sessionID,
 		"config":    parsingConfigName})
 
-	params, err := cl.updateSessionParams(parsingConfigName)
-	if err != nil {
-		return errors.Wrap(err, "update session params")
-	}
-
 	log.Info("Start new iteration")
 
-	var wg sync.WaitGroup
-	startTime := time.Now()
+	params, err := cl.updateSessionParams(parsingConfigName)
+	if err != nil {
+		return sessionID, errors.Wrap(err, "update session params, sessionID: "+sessionID)
+	}
+
 	// Context for the dispath.  It includes parsing, aggregation and wait stages
 	wctx, wcancel := context.WithDeadline(context.Background(), startTime.Add(params.WholeTime))
 	defer wcancel()
 
 	// Parsing phase
-	var mu sync.Mutex
 	pctx, pcancel := context.WithDeadline(wctx, startTime.Add(params.ParsingTime))
 	totalTasksAmount := len(params.PTasks)
 	log.Infof("Send %d tasks to parsing", totalTasksAmount)
 	parsingResult := worker.ParsingResult{Data: make(map[string][]byte)}
 	tokens := make(chan struct{}, params.ParallelParsings)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for _, task := range params.PTasks {
 		// Description of task
 		task.Frame.Previous = startTime.Unix()
@@ -264,10 +267,9 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, sessionID
 	if shouldWait {
 		<-wctx.Done()
 	}
-
 	log.Debug("Go to the next iteration")
 
-	return nil
+	return sessionID, nil
 }
 
 func (cl *Client) doParsing(ctx context.Context, task *worker.ParsingTask, m *sync.Mutex, r worker.ParsingResult) {

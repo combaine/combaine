@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/combaine/combaine/repository"
-	"github.com/combaine/combaine/utils"
 	"github.com/pkg/errors"
 )
 
@@ -232,9 +231,8 @@ RECLIENT:
 		}
 
 		iteration++
-		id := utils.GenerateSessionID()
-		if err = cl.Dispatch(iteration, config, id, shouldWait); err != nil {
-			log.Errorf("scheduler: Dispatch error %s, iteration: %d, session: %s", err, iteration, id)
+		if _, err = cl.Dispatch(iteration, config, shouldWait); err != nil {
+			log.Errorf("scheduler: Dispatch error %s, iteration: %d", err, iteration)
 			time.Sleep(c.config.RaftUpdateInterval)
 		}
 	}

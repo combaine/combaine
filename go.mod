@@ -31,7 +31,7 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f // indirect
 	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
-	golang.org/x/net v0.0.0-20190520210107-018c4d40a106 // indirect
+	golang.org/x/net v0.0.0-20190520210107-018c4d40a106
 	golang.org/x/sys v0.0.0-20190710143415-6ec70d6a5542 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135 // indirect
