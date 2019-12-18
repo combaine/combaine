@@ -196,7 +196,7 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cl.Close()
-	taskID, err = cl.Dispatch(0, name, false)
+	taskID, err := cl.Dispatch(0, name, false)
 	fmt.Fprintf(w, "%s\n", taskID)
 	w.(http.Flusher).Flush()
 	if err != nil {

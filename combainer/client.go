@@ -193,7 +193,7 @@ func (cl *Client) updateSessionParams(config string) (sp *sessionParams, err err
 }
 
 // Dispatch does one iteration of tasks dispatching
-func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, shouldWait bool) error {
+func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, shouldWait bool) (string, error) {
 	startTime := time.Now()
 	sessionID := utils.GenerateSessionID()
 
@@ -210,7 +210,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, shouldWai
 
 	params, err := cl.updateSessionParams(parsingConfigName)
 	if err != nil {
-		return errors.Wrap(err, "update session params, sessionID: "+sessionID)
+		return sessionID, errors.Wrap(err, "update session params, sessionID: "+sessionID)
 	}
 
 	// Context for the dispath.  It includes parsing, aggregation and wait stages
@@ -269,7 +269,7 @@ func (cl *Client) Dispatch(iteration uint64, parsingConfigName string, shouldWai
 	}
 	log.Debug("Go to the next iteration")
 
-	return nil
+	return sessionID, nil
 }
 
 func (cl *Client) doParsing(ctx context.Context, task *worker.ParsingTask, m *sync.Mutex, r worker.ParsingResult) {
