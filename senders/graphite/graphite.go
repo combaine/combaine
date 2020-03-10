@@ -28,9 +28,9 @@ type Sender struct {
 
 // Config extract sender config from task data
 type Config struct {
-	Cluster  string   `codec:"cluster"`
-	Endpoint string   `codec:"endpoint"`
-	Fields   []string `codec:"Fields"`
+	Cluster  string   `msgpack:"cluster"`
+	Endpoint string   `msgpack:"endpoint"`
+	Fields   []string `msgpack:"Fields"`
 }
 
 type pointFormat func(utils.NameStack, string, int64) string

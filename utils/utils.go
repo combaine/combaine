@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -21,13 +22,15 @@ var (
 )
 
 // Pack is helper for encode data in to msgpack
-func Pack(input interface{}) ([]byte, error) {
-	return msgpack.Marshal(input)
+func Pack(v interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	err := msgpack.NewEncoder(&buf).Encode(v)
+	return buf.Bytes(), err
 }
 
 // Unpack is helper for decoding data in to msgpack
-func Unpack(data []byte, res interface{}) error {
-	return msgpack.Unmarshal(data, res)
+func Unpack(data []byte, v interface{}) error {
+	return msgpack.NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
 // GetType return type of plugin or error if field type not present

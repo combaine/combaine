@@ -24,31 +24,31 @@ const (
 // Config contains config section from combainer's aggregations section
 // also it include default sender config (or user specified) yaml config
 type Config struct {
-	PluginsDir       string                       `codec:"plugins_dir"`
-	Plugin           string                       `codec:"plugin"`
-	Host             string                       `codec:"Host"`
-	Method           string                       `codec:"Method"`
-	Aggregator       string                       `codec:"Aggregator"`
-	AggregatorKWArgs repository.PluginConfig      `codec:"aggregator_kwargs"`
-	Notifications    []repository.PluginConfig    `codec:"notifications"`
-	TTL              int                          `codec:"ttl"`
-	CheckName        string                       `codec:"checkname"`
-	Description      string                       `codec:"description"`
-	Tags             []string                     `codec:"tags"`
-	Flaps            *jugglerFlapConfig           `codec:"flaps"`
-	Variables        map[string]string            `codec:"variables"`
-	FlapsByChecks    map[string]jugglerFlapConfig `codec:"flaps_by_checks"`
-	JPluginConfig    repository.PluginConfig      `codec:"config"`
-	JHosts           []string                     `codec:"juggler_hosts"`
-	JFrontend        []string                     `codec:"juggler_frontend"`
-	OK               []string                     `codec:"OK"`
-	INFO             []string                     `codec:"INFO"`
-	WARN             []string                     `codec:"WARN"`
-	CRIT             []string                     `codec:"CRIT"`
-	BatchSize        int                          `codec:"batch_size"`
-	BatchEndpoint    string                       `codec:"batch_endpoint"`
-	Namespace        string                       `codec:"namespace"`
-	Token            string                       `codec:"-"` // do not pass token
+	PluginsDir       string                       `msgpack:"plugins_dir"`
+	Plugin           string                       `msgpack:"plugin"`
+	Host             string                       `msgpack:"Host"`
+	Method           string                       `msgpack:"Method"`
+	Aggregator       string                       `msgpack:"Aggregator"`
+	AggregatorKWArgs repository.PluginConfig      `msgpack:"aggregator_kwargs"`
+	Notifications    []repository.PluginConfig    `msgpack:"notifications"`
+	TTL              int                          `msgpack:"ttl"`
+	CheckName        string                       `msgpack:"checkname"`
+	Description      string                       `msgpack:"description"`
+	Tags             []string                     `msgpack:"tags"`
+	Flaps            *jugglerFlapConfig           `msgpack:"flaps"`
+	Variables        map[string]string            `msgpack:"variables"`
+	FlapsByChecks    map[string]jugglerFlapConfig `msgpack:"flaps_by_checks"`
+	JPluginConfig    repository.PluginConfig      `msgpack:"config"`
+	JHosts           []string                     `msgpack:"juggler_hosts"`
+	JFrontend        []string                     `msgpack:"juggler_frontend"`
+	OK               []string                     `msgpack:"OK"`
+	INFO             []string                     `msgpack:"INFO"`
+	WARN             []string                     `msgpack:"WARN"`
+	CRIT             []string                     `msgpack:"CRIT"`
+	BatchSize        int                          `msgpack:"batch_size"`
+	BatchEndpoint    string                       `msgpack:"batch_endpoint"`
+	Namespace        string                       `msgpack:"namespace"`
+	Token            string                       `msgpack:"-"` // do not pass token
 }
 
 // SenderConfig contains configuration loaded from combaine's config file

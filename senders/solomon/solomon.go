@@ -28,13 +28,13 @@ var (
 
 // Config contains setting from combainers sender section
 type Config struct {
-	API     string   `codec:"api"`
-	Project string   `codec:"project"`
-	Cluster string   `codec:"cluster"`
-	Service string   `codec:"service"`
-	Timeout int      `codec:"timeout"`
-	Fields  []string `codec:"Fields"`
-	Schema  []string `codec:"schema"`
+	API     string   `msgpack:"api"`
+	Project string   `msgpack:"project"`
+	Cluster string   `msgpack:"cluster"`
+	Service string   `msgpack:"service"`
+	Timeout int      `msgpack:"timeout"`
+	Fields  []string `msgpack:"Fields"`
+	Schema  []string `msgpack:"schema"`
 }
 
 // Sender object

@@ -70,7 +70,7 @@ type ParsingConfig struct {
 	// Overrides the same section in combainer.yaml
 	DataFetcher PluginConfig `yaml:"DataFetcher,omitempty"`
 	// Overrides name of host group
-	Metahost string `yaml:"metahost" codec:"metahost"`
+	Metahost string `yaml:"metahost" msgpack:"metahost"`
 	// MainSection contains server configs
 	MainSection `yaml:"Combainer"`
 	// Overrides the same section in combainer.yaml

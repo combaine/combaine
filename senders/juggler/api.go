@@ -47,9 +47,9 @@ type jugglerChildrenCheck struct {
 }
 
 type jugglerFlapConfig struct {
-	BoostTime    int64 `codec:"boost_time" json:"boost_time"`
-	StableTime   int64 `codec:"stable_time" json:"stable_time"`
-	CriticalTime int64 `codec:"critical_time" json:"critical_time"`
+	BoostTime    int64 `msgpack:"boost_time" json:"boost_time"`
+	StableTime   int64 `msgpack:"stable_time" json:"stable_time"`
+	CriticalTime int64 `msgpack:"critical_time" json:"critical_time"`
 }
 
 type jugglerCheck struct {
