@@ -24,6 +24,7 @@ install:
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - type protoc-gen-go
 
+  - pyenv global 3.6 || pyenv global 3.7 || pyenv global 3.8
   - python --version|grep -i 'python 3'
   - python -m pip install --user grpcio
   - python -m pip install --user grpcio-tools
