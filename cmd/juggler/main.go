@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/combaine/combaine/common/logger"
@@ -21,6 +23,7 @@ var (
 	endpoint  string
 	logoutput string
 	tracing   bool
+	version   bool
 	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
@@ -29,6 +32,7 @@ func init() {
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
 	grpc.EnableTracing = tracing
 
@@ -77,6 +81,11 @@ func (s *sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*sende
 }
 
 func main() {
+	if version {
+		fmt.Println(utils.GetVersionString())
+		os.Exit(0)
+	}
+
 	log := logrus.WithField("source", "juggler/main.go")
 
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()

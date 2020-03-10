@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"time"
@@ -37,6 +38,7 @@ var (
 	endpoint  string
 	logoutput string
 	tracing   bool
+	version   bool
 	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
@@ -45,6 +47,7 @@ func init() {
 	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
 	grpc.EnableTracing = tracing
 
@@ -111,6 +114,11 @@ func (*sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*senders
 }
 
 func main() {
+	if version {
+		fmt.Println(utils.GetVersionString())
+		os.Exit(0)
+	}
+
 	log := logrus.WithField("source", "solomon/main.go")
 
 	solomon.StartWorkers(solomon.JobQueue, sleepInterval)

@@ -4,6 +4,9 @@ export CGO_ENABLED := 0
 
 PREFIX?=$(shell pwd)
 DIR := ${PREFIX}/build
+SHA1 := $(shell git rev-parse HEAD)
+NOW := $(shell date +%FT%T)
+TAG := $(shell git describe --abbrev=0 --tags)
 
 .PHONY: clean all fmt vet lint build test fast-test proto docker docker-image
 
@@ -17,23 +20,48 @@ build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite \
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/combainer/main.go
+	go build \
+		-ldflags \
+		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
+		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
+		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
+		-o $@ ./cmd/combainer/main.go
 
 ${PREFIX}/build/worker: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/worker/main.go
+	go build \
+		-ldflags \
+		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
+		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
+		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
+		-o $@ ./cmd/worker/main.go
 
 ${DIR}/graphite: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/graphite/main.go
+	go build \
+		-ldflags \
+		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
+		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
+		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
+		-o $@ ./cmd/graphite/main.go
 
 ${DIR}/solomon: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/solomon/main.go
+	go build \
+		-ldflags \
+		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
+		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
+		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
+		-o $@ ./cmd/solomon/main.go
 
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
-	go build -o $@ ./cmd/juggler/main.go
+	go build \
+		-ldflags \
+		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
+		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
+		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
+		-o $@ ./cmd/juggler/main.go
 
 proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto rpc/senders.proto
 	@echo "+ $@"
@@ -41,7 +69,7 @@ proto: rpc/aggregator.proto rpc/timeframe.proto rpc/worker.proto rpc/senders.pro
 	protoc -I rpc/ rpc/worker.proto --go_out=plugins=grpc:worker
 	protoc -I rpc/ rpc/timeframe.proto --go_out=plugins=grpc:worker
 	protoc -I rpc/ rpc/senders.proto --go_out=plugins=grpc:senders
-	python -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
+	python3 -m grpc_tools.protoc -I rpc --python_out=aggregator --grpc_python_out=aggregator rpc/timeframe.proto rpc/aggregator.proto
 
 
 clean:

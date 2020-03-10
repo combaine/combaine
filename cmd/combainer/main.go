@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -13,6 +15,7 @@ import (
 	"github.com/combaine/combaine/combainer"
 	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +26,7 @@ var (
 	configsPath string
 	active      bool
 	tracing     bool
+	version     bool
 	loglevel    = logger.LogrusLevelFlag(logrus.InfoLevel)
 )
 
@@ -33,6 +37,7 @@ func init() {
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")
 	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
 	grpc.EnableTracing = tracing
 
@@ -41,6 +46,11 @@ func init() {
 }
 
 func main() {
+	if version {
+		fmt.Println(utils.GetVersionString())
+		os.Exit(0)
+	}
+
 	log := logrus.WithField("source", "combainer/main.go")
 
 	//go func() { log.Println(http.ListenAndServe("[::]:8001", nil)) }()
