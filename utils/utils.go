@@ -6,33 +6,28 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"reflect"
 	"strconv"
 	"time"
 
-	"github.com/ugorji/go/codec"
+	"github.com/vmihailenco/msgpack"
 )
 
 var (
-	h = &codec.MsgpackHandle{
-		BasicHandle: codec.BasicHandle{
-			DecodeOptions: codec.DecodeOptions{
-				MapType:     reflect.TypeOf(map[string]interface{}(nil)),
-				RawToString: true,
-			},
-		},
-	}
+	// sha1ver revision used to build the program
+	sha1ver = "Undefined"
+	// buildTime when the executable was built
+	buildTime  = "Undefined"
+	versionTag = "Undefined"
 )
 
 // Pack is helper for encode data in to msgpack
-func Pack(input interface{}) (buf []byte, err error) {
-	err = codec.NewEncoderBytes(&buf, h).Encode(input)
-	return
+func Pack(input interface{}) ([]byte, error) {
+	return msgpack.Marshal(input)
 }
 
 // Unpack is helper for decoding data in to msgpack
 func Unpack(data []byte, res interface{}) error {
-	return codec.NewDecoderBytes(data, h).Decode(res)
+	return msgpack.Unmarshal(data, res)
 }
 
 // GetType return type of plugin or error if field type not present
@@ -111,4 +106,9 @@ func Hostname() string {
 		panic(err)
 	}
 	return hostname
+}
+
+// GetVersionString of the bianry
+func GetVersionString() string {
+	return fmt.Sprintf("Build on %s from sha1 %s (version %s)", buildTime, sha1ver, versionTag)
 }
