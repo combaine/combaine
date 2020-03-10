@@ -5,7 +5,7 @@ sudo: false
 
 matrix:
   include:
-  - go: 1.12.x
+  - go: 1.13.x
     env: GO111MODULE=on
 
 addons:
@@ -21,10 +21,11 @@ install:
   - wget -O $HOME/${PROTOC_FILENAME} https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOC_FILENAME}
   - unzip $HOME/${PROTOC_FILENAME} -d $HOME
   - protoc --version
-  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - go get github.com/golang/protobuf/protoc-gen-go@v1.3.2
   - type protoc-gen-go
 
-  - pyenv global system 3.7.1
+  - pyenv global 3.6 || pyenv global 3.7 || pyenv global 3.8
+  - python --version|grep -i 'python 3'
   - python -m pip install --user grpcio
   - python -m pip install --user grpcio-tools
   - python -m grpc_tools.protoc --version

@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/combaine/combaine/repository"
+	"github.com/combaine/combaine/utils"
 )
 
 // StatInfo contains stats about main operations (aggregating and parsing)
@@ -206,6 +207,12 @@ func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "DONE")
 }
 
+// Version of the binary
+func Version(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s\n", utils.GetVersionString())
+}
+
 func withDebugLaunchLoggerOpt(w http.ResponseWriter) func(*Client) error {
 	return func(c *Client) error {
 		logger := logrus.New()
@@ -244,6 +251,7 @@ func GetRouter(context ServerContext) http.Handler {
 
 	root.HandleFunc("/tasks/{name}", attachServer(context, Tasks)).Methods("GET")
 	root.HandleFunc("/launch/{name}", attachServer(context, Launch)).Methods("GET")
+	root.HandleFunc("/version", Version).Methods("GET")
 	root.HandleFunc("/", Dashboard).Methods("GET")
 
 	return root
