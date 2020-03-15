@@ -15,8 +15,7 @@ docker: clean build docker-image
 docker-image:
 	docker build . -t combainer
 
-build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite \
-	   ${DIR}/solomon ${DIR}/juggler \
+build: proto ${DIR}/combainer ${DIR}/worker ${DIR}/graphite ${DIR}/juggler
 
 ${DIR}/combainer: $(wildcard **/*.go)
 	@echo "+ $@"
@@ -44,15 +43,6 @@ ${DIR}/graphite: $(wildcard **/*.go)
 		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
 		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
 		-o $@ ./cmd/graphite/main.go
-
-${DIR}/solomon: $(wildcard **/*.go)
-	@echo "+ $@"
-	go build \
-		-ldflags \
-		"-X github.com/combaine/combaine/utils.sha1ver=${SHA1} \
-		 -X github.com/combaine/combaine/utils.buildTime=${NOW} \
-		 -X github.com/combaine/combaine/utils.versionTag=${TAG}"\
-		-o $@ ./cmd/solomon/main.go
 
 ${DIR}/juggler: $(wildcard **/*.go)
 	@echo "+ $@"
