@@ -1,17 +1,20 @@
-FROM ubuntu:disco
-RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y --force-yes --no-install-recommends \
-    build-essential python3-pip libcap-dev gcc python3-dev wget locales \
+FROM ubuntu:19.10
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt full-upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt install -y --force-yes --no-install-recommends \
+    build-essential python3-pip libcap-dev gcc g++ python3-dev libssl-dev wget locales \
     sudo less psmisc vim htop subversion openssh-client logrotate mawk \
     bind9-host unbound lsof jq zstd jnettop util-linux strace tcpdump \
-    htop curl moreutils iptables moreutils iputils-tracepath util-linux \
+    htop curl moreutils iptables iputils-tracepath util-linux \
     git iputils-ping netcat-openbsd iproute2 sysstat traceroute jnettop \
     dstat mtr-tiny tzdata libjemalloc2 \
     && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+
 RUN python3 -m pip install --no-cache-dir -U pip Cython setuptools
-RUN python3 -m pip install --no-cache-dir -U grpcio --no-binary grpcio
-RUN python3 -m pip install --no-cache-dir -U grpcio_tools python-prctl
+RUN python3 -m pip install --no-cache-dir -U grpcio==1.27.1 --no-binary grpcio
+RUN python3 -m pip install --no-cache-dir -U grpcio_tools==1.27.1 python-prctl
 RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests ps_mem
 
 RUN wget -O /usr/bin/combaine-client  https://github.com/combaine/combaine-client/releases/download/v0.0.1/combaine-client-static-linux-amd64
@@ -19,7 +22,6 @@ RUN wget -O /usr/bin/ttail https://github.com/sakateka/ttail/releases/download/v
 
 RUN ln -vsTf /bin/bash /bin/sh
 RUN ln -vsTf /bin/bash /bin/dash
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 COPY plugins/aggregators/          /usr/lib/combaine/custom
 RUN for f in /usr/lib/combaine/custom/*.py; do cythonize -3 -i $f; done
