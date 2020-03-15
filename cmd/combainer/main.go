@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 
 	//_ "net/http/pprof"
 
@@ -20,37 +19,21 @@ import (
 )
 
 var (
-	endpoint    string
-	profiler    string
-	logoutput   string
 	configsPath string
 	active      bool
-	tracing     bool
-	version     bool
-	loglevel    string
 )
 
 func init() {
-	flag.StringVar(&endpoint, "observer", "0.0.0.0:9000", "HTTP observer port")
-	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
 	flag.StringVar(&configsPath, "configspath", repository.DefaultConfigsPath, "path to root of configs")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
-	flag.BoolVar(&tracing, "trace", false, "enable tracing")
-	flag.StringVar(&loglevel, "loglevel", "info", "debug|info|warn|warning|error|panic in any case")
-	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
-	grpc.EnableTracing = tracing
+	grpc.EnableTracing = *utils.Flags.Tracing
 
-	lvl, err := logrus.ParseLevel(loglevel)
-	if err != nil {
-		logrus.Fatalf("failed to parse loglevel: %v", err)
-	}
-	logger.InitializeLogger(lvl, logoutput)
-	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
+	logger.InitializeLogger()
 }
 
 func main() {
-	if version {
+	if *utils.Flags.Version {
 		fmt.Println(utils.GetVersionString())
 		os.Exit(0)
 	}
@@ -66,7 +49,7 @@ func main() {
 	log.Info("filesystemRepository initialized")
 
 	cfg := combainer.CombaineServerConfig{
-		RestEndpoint: endpoint,
+		RestEndpoint: *utils.Flags.Endpoint,
 		Active:       active,
 	}
 
@@ -75,7 +58,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Infof("Listen REST endoint on: %s", endpoint)
+	log.Infof("Listen REST endoint on: %s", *utils.Flags.Endpoint)
 	if err = cmb.Serve(); err != nil {
 		log.Fatal(err)
 	}

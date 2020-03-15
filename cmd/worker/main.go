@@ -10,7 +10,6 @@ import (
 
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
-	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/combaine/combaine/common/logger"
@@ -23,14 +22,9 @@ import (
 
 func init() {
 	flag.Parse()
-	grpc.EnableTracing = *worker.Flags.Tracing
+	grpc.EnableTracing = *utils.Flags.Tracing
 
-	lvl, err := logrus.ParseLevel(*worker.Flags.LogLevel)
-	if err != nil {
-		logrus.Fatalf("failed to parse loglevel: %v", err)
-	}
-	logger.InitializeLogger(lvl, *worker.Flags.LogOutput)
-	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
+	logger.InitializeLogger()
 }
 
 type server struct{}
@@ -47,7 +41,7 @@ func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask
 }
 
 func main() {
-	if *worker.Flags.Version {
+	if *utils.Flags.Version {
 		fmt.Println(utils.GetVersionString())
 		os.Exit(0)
 	}
@@ -56,7 +50,7 @@ func main() {
 
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
-	lis, err := net.Listen("tcp", *worker.Flags.Endpoint)
+	lis, err := net.Listen("tcp", *utils.Flags.Endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -69,7 +63,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	log.Infof("Register as gRPC server on: %s", *worker.Flags.Endpoint)
+	log.Infof("Register as gRPC server on: %s", *utils.Flags.Endpoint)
 	worker.RegisterWorkerServer(s, &server{})
 
 	var stopCh = make(chan bool)

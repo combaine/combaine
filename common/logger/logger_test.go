@@ -16,7 +16,9 @@ import (
 
 func TestInitializeLogger(t *testing.T) {
 	tmpfile := "/tmp/__tmpLogFile.log"
-	InitializeLogger(logrus.DebugLevel, tmpfile)
+	*LogLevel = "debug"
+	*LogOutput = tmpfile
+	InitializeLogger()
 	if _, err := os.Stat(tmpfile); os.IsNotExist(err) {
 		t.Fatalf("Failed to initialize logger file %s", tmpfile)
 	}

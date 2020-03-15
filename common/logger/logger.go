@@ -9,10 +9,11 @@ import (
 	"syscall"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/grpclog"
 )
 
 // InitializeLogger initialize new logrus logger with rotate handler
-func InitializeLogger(loglevel logrus.Level, outputPath string) {
+func InitializeLogger() {
 	var (
 		file          io.WriteCloser
 		rotationMutex sync.Mutex
@@ -20,7 +21,12 @@ func InitializeLogger(loglevel logrus.Level, outputPath string) {
 	)
 
 	formatter := &CombaineFormatter{}
-	logrus.SetLevel(loglevel)
+
+	lvl, err := logrus.ParseLevel(*LogLevel)
+	if err != nil {
+		logrus.Fatalf("failed to parse loglevel: %v", err)
+	}
+	logrus.SetLevel(lvl)
 	logrus.SetFormatter(formatter)
 
 	rotateFile := func() error {
@@ -32,12 +38,12 @@ func InitializeLogger(loglevel logrus.Level, outputPath string) {
 		}
 
 		var err error
-		rawFile, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0666)
+		rawFile, err := os.OpenFile(*LogOutput, os.O_RDWR|os.O_CREATE, 0666)
 		if err != nil {
 			return err
 		}
 
-		if outputPath != "/dev/stderr" && outputPath != "/dev/stdout" {
+		if *LogOutput != "/dev/stderr" && *LogOutput != "/dev/stdout" {
 			if _, err := rawFile.Seek(0, os.SEEK_END); err != nil {
 				return err
 			}
@@ -63,4 +69,6 @@ func InitializeLogger(loglevel logrus.Level, outputPath string) {
 			}
 		}
 	}()
+
+	grpclog.SetLoggerV2(NewLoggerV2WithVerbosity(0))
 }

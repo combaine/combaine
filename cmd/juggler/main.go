@@ -15,33 +15,14 @@ import (
 	"github.com/combaine/combaine/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/keepalive"
 )
 
-var (
-	endpoint  string
-	logoutput string
-	tracing   bool
-	version   bool
-	loglevel  string
-)
-
 func init() {
-	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
-	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
-	flag.BoolVar(&tracing, "trace", false, "enable tracing")
-	flag.StringVar(&loglevel, "loglevel", "info", "debug|info|warn|warning|error|panic in any case")
-	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
-	grpc.EnableTracing = tracing
+	grpc.EnableTracing = *utils.Flags.Tracing
 
-	lvl, err := logrus.ParseLevel(loglevel)
-	if err != nil {
-		logrus.Fatalf("failed to parse loglevel: %v", err)
-	}
-	logger.InitializeLogger(lvl, logoutput)
-	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
+	logger.InitializeLogger()
 }
 
 type sender struct {
@@ -85,7 +66,7 @@ func (s *sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*sende
 }
 
 func main() {
-	if version {
+	if *utils.Flags.Version {
 		fmt.Println(utils.GetVersionString())
 		os.Exit(0)
 	}
@@ -114,7 +95,7 @@ func main() {
 	)
 	juggler.InitEventsStore(&cfg.Store)
 
-	lis, err := net.Listen("tcp", endpoint)
+	lis, err := net.Listen("tcp", *utils.Flags.Endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -127,7 +108,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	log.Infof("Register as gRPC server on: %s", endpoint)
+	log.Infof("Register as gRPC server on: %s", *utils.Flags.Endpoint)
 	senders.RegisterSenderServer(s, &sender{cfg: cfg})
 	s.Serve(lis)
 }

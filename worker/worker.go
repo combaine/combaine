@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/combaine/combaine/common/logger"
 	"github.com/combaine/combaine/senders"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -60,7 +61,7 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 	}
 	loglevel, found := os.LookupEnv(envServicePrefix + "_LOGLEVEL")
 	if !found {
-		loglevel = strings.ToLower(*Flags.LogLevel)
+		loglevel = strings.ToLower(*logger.LogLevel)
 	}
 	var targetPort = ":" + strconv.Itoa(port)
 	var endpoint = "[::]" + targetPort
