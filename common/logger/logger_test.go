@@ -14,13 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLogrusLevelFlag(t *testing.T) {
-	var lvl LogrusLevelFlag
-	assert.Error(t, lvl.Set("Unknown"))
-	assert.Nil(t, lvl.Set("DEBUG"))
-	assert.Equal(t, "debug", lvl.String())
-}
-
 func TestInitializeLogger(t *testing.T) {
 	tmpfile := "/tmp/__tmpLogFile.log"
 	InitializeLogger(logrus.DebugLevel, tmpfile)
