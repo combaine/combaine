@@ -32,5 +32,4 @@ RUN chmod -c +x /usr/bin/combaine* /usr/bin/ttail
 
 COPY aggregator/                   /usr/lib/combaine/apps/aggregator/
 COPY build/graphite                /usr/lib/combaine/apps/
-COPY build/solomon                 /usr/lib/combaine/apps/
 COPY build/juggler                 /usr/lib/combaine/apps/
