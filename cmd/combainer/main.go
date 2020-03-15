@@ -27,7 +27,7 @@ var (
 	active      bool
 	tracing     bool
 	version     bool
-	loglevel    = logger.LogrusLevelFlag(logrus.InfoLevel)
+	loglevel    string
 )
 
 func init() {
@@ -36,12 +36,16 @@ func init() {
 	flag.StringVar(&configsPath, "configspath", repository.DefaultConfigsPath, "path to root of configs")
 	flag.BoolVar(&active, "active", true, "enable a distribution of tasks")
 	flag.BoolVar(&tracing, "trace", false, "enable tracing")
-	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
+	flag.StringVar(&loglevel, "loglevel", "info", "debug|info|warn|warning|error|panic in any case")
 	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
 	grpc.EnableTracing = tracing
 
-	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	lvl, err := logrus.ParseLevel(loglevel)
+	if err != nil {
+		logrus.Fatalf("failed to parse loglevel: %v", err)
+	}
+	logger.InitializeLogger(lvl, logoutput)
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 

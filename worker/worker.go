@@ -52,14 +52,15 @@ func NextAggregatorConn() *grpc.ClientConn {
 }
 
 func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, error) {
-	envServicePrefix := envPrefix + strings.ToUpper(name)
+	envServicePrefix := envPrefix + strings.Replace(strings.ToUpper(name), "/", "_", -1)
+	envServicePrefix = strings.Replace(envServicePrefix, ".", "_", -1)
 	logoutput, found := os.LookupEnv(envServicePrefix + "_LOGOUTPUT")
 	if !found {
 		logoutput = logDir + name + ".log"
 	}
 	loglevel, found := os.LookupEnv(envServicePrefix + "_LOGLEVEL")
 	if !found {
-		loglevel = "info"
+		loglevel = strings.ToLower(*Flags.LogLevel)
 	}
 	var targetPort = ":" + strconv.Itoa(port)
 	var endpoint = "[::]" + targetPort

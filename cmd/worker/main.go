@@ -21,24 +21,15 @@ import (
 	//_ "golang.org/x/net/trace"
 )
 
-var (
-	endpoint  string
-	logoutput string
-	tracing   bool
-	version   bool
-	loglevel  = logger.LogrusLevelFlag(logrus.InfoLevel)
-)
-
 func init() {
-	flag.StringVar(&endpoint, "endpoint", ":10052", "endpoint")
-	flag.StringVar(&logoutput, "logoutput", "/dev/stderr", "path to logfile")
-	flag.BoolVar(&tracing, "trace", false, "enable tracing")
-	flag.Var(&loglevel, "loglevel", "debug|info|warn|warning|error|panic in any case")
-	flag.BoolVar(&version, "version", false, "print version and exit")
 	flag.Parse()
-	grpc.EnableTracing = tracing
+	grpc.EnableTracing = *worker.Flags.Tracing
 
-	logger.InitializeLogger(loglevel.ToLogrusLevel(), logoutput)
+	lvl, err := logrus.ParseLevel(*worker.Flags.LogLevel)
+	if err != nil {
+		logrus.Fatalf("failed to parse loglevel: %v", err)
+	}
+	logger.InitializeLogger(lvl, *worker.Flags.LogOutput)
 	grpclog.SetLoggerV2(logger.NewLoggerV2WithVerbosity(0))
 }
 
@@ -56,7 +47,7 @@ func (s *server) DoAggregating(ctx context.Context, task *worker.AggregatingTask
 }
 
 func main() {
-	if version {
+	if *worker.Flags.Version {
 		fmt.Println(utils.GetVersionString())
 		os.Exit(0)
 	}
@@ -65,7 +56,7 @@ func main() {
 
 	//go func() { log.Println(http.ListenAndServe("[::]:8002", nil)) }()
 
-	lis, err := net.Listen("tcp", endpoint)
+	lis, err := net.Listen("tcp", *worker.Flags.Endpoint)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -78,7 +69,7 @@ func main() {
 			PermitWithoutStream: true,
 		}),
 	)
-	log.Infof("Register as gRPC server on: %s", endpoint)
+	log.Infof("Register as gRPC server on: %s", *worker.Flags.Endpoint)
 	worker.RegisterWorkerServer(s, &server{})
 
 	var stopCh = make(chan bool)

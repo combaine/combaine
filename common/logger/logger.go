@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -64,27 +63,4 @@ func InitializeLogger(loglevel logrus.Level, outputPath string) {
 			}
 		}
 	}()
-}
-
-// LogrusLevelFlag flag for parsing logrus level
-type LogrusLevelFlag logrus.Level
-
-// Set flag
-func (l *LogrusLevelFlag) Set(val string) error {
-	level, err := logrus.ParseLevel(strings.ToLower(val))
-	if err != nil {
-		return err
-	}
-	(*l) = LogrusLevelFlag(level)
-	return nil
-}
-
-// ToLogrusLevel convert flag
-func (l *LogrusLevelFlag) ToLogrusLevel() logrus.Level {
-	return logrus.Level(*l)
-}
-
-// String convert flag
-func (l *LogrusLevelFlag) String() string {
-	return l.ToLogrusLevel().String()
 }
