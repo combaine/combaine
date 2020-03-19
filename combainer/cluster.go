@@ -21,7 +21,8 @@ const (
 
 	// statusReap is used to update the status of a node if we
 	// are handling a EventMemberReap
-	statusReap = serf.MemberStatus(-1)
+	statusReap   = serf.MemberStatus(-1)
+	leaderTagKey = "leader"
 )
 
 // NewCluster create and initialize Cluster instance
@@ -46,7 +47,7 @@ func NewCluster(cfg repository.ClusterConfig) (*Cluster, error) {
 	conf.LogOutput = log.Logger.Writer()
 	conf.MemberlistConfig.LogOutput = conf.LogOutput
 
-	ips, err := net.LookupIP(conf.MemberlistConfig.Name)
+	ips, err := net.LookupIP(conf.MemberlistConfig.Name) // is set to hostname in serf.DefaultConfig()
 	if err != nil || len(ips) == 0 {
 		return nil, errors.Wrapf(err, "failed to LookupIP for: %s", conf.MemberlistConfig.Name)
 	}
@@ -220,7 +221,7 @@ func (c *Cluster) maybeBootstrap() error {
 	return nil
 }
 
-// Peers is used to return alive raft peers.
+// Peers is used to return alive and valid raft peers.
 func (c *Cluster) Peers() ([]string, error) {
 	if c.raft == nil {
 		return nil, errors.New("Peers: cluster raft not configured")
@@ -233,7 +234,10 @@ func (c *Cluster) Peers() ([]string, error) {
 
 	aliveHosts := make(map[string]struct{})
 	for _, sm := range c.AliveMembers() {
-		aliveHosts[sm.Name] = struct{}{}
+		if l, ok := sm.Tags[leaderTagKey]; ok && l != "" {
+			// only members who see a leader
+			aliveHosts[sm.Name] = struct{}{}
+		}
 	}
 
 	var peers []string
@@ -375,5 +379,3 @@ func (c *Cluster) Shutdown() {
 		}
 	}
 }
-
-// GetRepository return config repository

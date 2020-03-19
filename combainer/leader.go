@@ -15,8 +15,17 @@ import (
 // If we are leader then we distribute tasks over cluster
 func (c *Cluster) Run() {
 	var stopCh chan struct{}
+	followerTagsUpdateTicker := time.NewTicker(c.config.RaftUpdateInterval)
+	defer followerTagsUpdateTicker.Stop()
 	for {
 		select {
+		case <-followerTagsUpdateTicker.C:
+			m := c.serf.LocalMember()
+			l := string(c.raft.Leader())
+			if leaderTag, ok := m.Tags[leaderTagKey]; !ok || leaderTag != l {
+				m.Tags[leaderTagKey] = l
+				c.serf.SetTags(m.Tags)
+			}
 		case isLeader := <-c.leaderCh:
 			if isLeader {
 				stopCh = make(chan struct{})
