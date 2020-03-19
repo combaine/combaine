@@ -68,11 +68,6 @@ func New(config CombaineServerConfig) (*CombaineServer, error) {
 	return server, nil
 }
 
-// GetHosts return alive cluster members
-func (c *CombaineServer) GetHosts() []string {
-	return c.cluster.Hosts()
-}
-
 // Serve run main event loop
 func (c *CombaineServer) Serve() error {
 	defer c.cluster.Shutdown()

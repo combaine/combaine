@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -114,14 +115,14 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // ParsingConfigs list parsing configs names
-func ParsingConfigs(s ServerContext, w http.ResponseWriter, r *http.Request) {
+func ParsingConfigs(w http.ResponseWriter, r *http.Request) {
 	list, _ := repository.ListParsingConfigs()
 	json.NewEncoder(w).Encode(&list)
 }
 
 // ReadParsingConfig return parsing config content
 // before return UpdateByCombainerConfig update config
-func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) {
+func ReadParsingConfig(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	combainerCfg := repository.GetCombainerConfig()
 	var parsingCfg repository.ParsingConfig
@@ -165,7 +166,7 @@ func ReadParsingConfig(s ServerContext, w http.ResponseWriter, r *http.Request) 
 
 // Tasks return information about parsing tasks
 // that should be performed by config
-func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
+func Tasks(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	cl, err := NewClient()
 	if err != nil {
@@ -187,7 +188,7 @@ func Tasks(s ServerContext, w http.ResponseWriter, r *http.Request) {
 }
 
 // Launch run full iteration for config
-func Launch(s ServerContext, w http.ResponseWriter, r *http.Request) {
+func Launch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	name := mux.Vars(r)["name"]
 
@@ -229,7 +230,35 @@ func withDebugLaunchLoggerOpt(w http.ResponseWriter) func(*Client) error {
 
 // ServerContext contains server context with repository
 type ServerContext interface {
-	GetHosts() []string
+	GetStats() map[string]map[string]string
+}
+
+// GetStats httpHandler to return encoded cluster stats
+func GetStats(context ServerContext, w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(context.GetStats())
+}
+
+// GetStats return cluster stats
+func (c *CombaineServer) GetStats() map[string]map[string]string {
+	stats := make(map[string]map[string]string)
+	if c.cluster.raft != nil {
+		stats["raft"] = c.cluster.raft.Stats()
+		l := string(c.cluster.raft.Leader())
+		for _, m := range c.cluster.AliveMembers() {
+			// [m.Addr]raft.port == raft.Leader() == raft.ServerAddress
+			if strings.Contains(l, m.Addr.String()) {
+				l = m.Name
+				break
+			}
+		}
+		stats["raft"]["leader"] = l
+		stats["raft"]["tasks"] = strings.Join(c.cluster.store.List(c.cluster.Name), ",")
+	}
+	if c.cluster.serf != nil {
+		stats["serf"] = c.cluster.serf.Stats()
+	}
+
+	return stats
 }
 
 func attachServer(s ServerContext,
@@ -246,11 +275,12 @@ func GetRouter(context ServerContext) http.Handler {
 
 	parsingRouter := root.PathPrefix("/parsing/").Subrouter()
 	parsingRouter.StrictSlash(true)
-	parsingRouter.HandleFunc("/", attachServer(context, ParsingConfigs)).Methods("GET")
-	parsingRouter.HandleFunc("/{name}", attachServer(context, ReadParsingConfig)).Methods("GET")
+	parsingRouter.HandleFunc("/", ParsingConfigs).Methods("GET")
+	parsingRouter.HandleFunc("/{name}", ReadParsingConfig).Methods("GET")
 
-	root.HandleFunc("/tasks/{name}", attachServer(context, Tasks)).Methods("GET")
-	root.HandleFunc("/launch/{name}", attachServer(context, Launch)).Methods("GET")
+	root.HandleFunc("/tasks/{name}", Tasks).Methods("GET")
+	root.HandleFunc("/launch/{name}", Launch).Methods("GET")
+	root.HandleFunc("/stats", attachServer(context, GetStats)).Methods("GET")
 	root.HandleFunc("/version", Version).Methods("GET")
 	root.HandleFunc("/", Dashboard).Methods("GET")
 
