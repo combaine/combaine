@@ -32,7 +32,7 @@ func (b *serfBuilder) Scheme() string {
 }
 
 // Build creates and starts a Serf resolver that watches cluster members
-func (b *serfBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
+func (b *serfBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &Resolver{
 		freq:   b.freq,
@@ -64,7 +64,7 @@ type Resolver struct {
 }
 
 // ResolveNow invoke an immediate resolution of the target that this serfResolver watches.
-func (r *Resolver) ResolveNow(opt resolver.ResolveNowOption) {
+func (r *Resolver) ResolveNow(opt resolver.ResolveNowOptions) {
 	select {
 	case r.rn <- struct{}{}:
 	default:

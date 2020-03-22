@@ -20,7 +20,12 @@ import (
 	//_ "golang.org/x/net/trace"
 )
 
+var numAggregators int
+var aggMemLimit int
+
 func init() {
+	flag.IntVar(&numAggregators, "aggNum", 4, "number of aggregator processes")
+	flag.IntVar(&aggMemLimit, "aggMemLimit", 512, "respawn aggregator memory threshold (Mb)")
 	flag.Parse()
 	grpc.EnableTracing = *utils.Flags.Tracing
 
@@ -68,7 +73,7 @@ func main() {
 
 	var stopCh = make(chan bool)
 	defer close(stopCh)
-	if err := worker.SpawnServices(stopCh); err != nil {
+	if err := worker.SpawnServices(numAggregators, aggMemLimit, stopCh); err != nil {
 		log.Fatalf("Failed to spawn worker services: %v", err)
 	}
 	s.Serve(lis)

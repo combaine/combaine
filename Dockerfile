@@ -12,9 +12,8 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt full-upgrade -y && \
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
-RUN python3 -m pip install --no-cache-dir -U pip Cython setuptools
-RUN python3 -m pip install --no-cache-dir -U grpcio==1.27.1 --no-binary grpcio
-RUN python3 -m pip install --no-cache-dir -U grpcio_tools==1.27.1 python-prctl
+RUN python3 -m pip install --no-cache-dir -U pip setuptools
+RUN python3 -m pip install --no-cache-dir -U Cython python-prctl
 RUN python3 -m pip install --no-cache-dir -U msgpack ujson PyYAML requests ps_mem
 
 RUN wget -O /usr/bin/combaine-client  https://github.com/combaine/combaine-client/releases/download/v0.0.1/combaine-client-static-linux-amd64
@@ -35,3 +34,4 @@ RUN chmod -c +x /usr/bin/combaine* /usr/bin/ttail
 COPY aggregator/                   /usr/lib/combaine/apps/aggregator/
 COPY build/graphite                /usr/lib/combaine/apps/
 COPY build/juggler                 /usr/lib/combaine/apps/
+RUN python3 -m pip install --no-cache-dir -U grpcio grpcio_tools

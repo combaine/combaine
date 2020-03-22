@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,26 +15,36 @@ import (
 	"github.com/combaine/combaine/senders"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/process"
 	"github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 )
 
-var sLock sync.Mutex
-var services = map[string]*grpc.ClientConn{}
-var aggregatorService = "aggregator.py"
-var appsDir = "/usr/lib/combaine/apps/"
-var logDir = "/var/log/combaine/"
-var envPrefix = "COMBAINE_WORKER_SERVICE_"
+var (
+	sLock     sync.Mutex
+	services  = map[string]*grpc.ClientConn{}
+	appsDir   = "/usr/lib/combaine/apps/"
+	logDir    = "/var/log/combaine/"
+	envPrefix = "COMBAINE_WORKER_SERVICE_"
 
-var aggConnIdx int
-var aggClientConnMutex sync.Mutex
-var aggregatorConnections [16]*grpc.ClientConn
+	servicesBasePort = 10000
+
+	aggregatorService  = "aggregator.py"
+	aggConnIdx         int
+	aggClientConnMutex sync.Mutex
+	aggConnections     []*aggService
+)
+
+type aggService struct {
+	target string
+	conn   *grpc.ClientConn
+}
 
 // concurrent write access only on initialization step
 func register(name string, conn *grpc.ClientConn) {
 	sLock.Lock()
+	defer sLock.Unlock()
 	services[name] = conn
-	sLock.Unlock()
 }
 
 // GetSenderClient return grpc client to locally spawned senders
@@ -48,36 +59,35 @@ func GetSenderClient(sType string) (senders.SenderClient, error) {
 func NextAggregatorConn() *grpc.ClientConn {
 	aggClientConnMutex.Lock()
 	defer aggClientConnMutex.Unlock()
-	aggConnIdx = (aggConnIdx + 1) % len(aggregatorConnections)
-	return aggregatorConnections[aggConnIdx]
+	aggConnIdx = (aggConnIdx + 1) % len(aggConnections)
+	return aggConnections[aggConnIdx].conn
 }
 
-func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, error) {
-	envServicePrefix := envPrefix + strings.Replace(strings.ToUpper(name), "/", "_", -1)
+func spawnService(name string, target string, stopCh chan bool) (*grpc.ClientConn, error) {
+	log := logrus.WithField("source", "spawnService")
+	envServicePrefix := envPrefix + filepath.Base(name)
 	envServicePrefix = strings.Replace(envServicePrefix, ".", "_", -1)
 	logoutput, found := os.LookupEnv(envServicePrefix + "_LOGOUTPUT")
 	if !found {
-		logoutput = logDir + name + ".log"
+		logoutput = logDir + filepath.Base(name) + ".log"
 	}
 	loglevel, found := os.LookupEnv(envServicePrefix + "_LOGLEVEL")
 	if !found {
 		loglevel = strings.ToLower(*logger.LogLevel)
 	}
-	var targetPort = ":" + strconv.Itoa(port)
-	var endpoint = "[::]" + targetPort
 	go func() {
-		logrus.Infof("Spawn %s", name)
+		log.Infof("Spawn %s", name)
 		for {
 			select {
 			case <-stopCh:
-				logrus.Infof("spawnService interrupted")
+				log.Infof("interrupted")
 				return
 			default:
 				cmd := exec.Command(
 					appsDir+name,
-					"-endpoint", endpoint,
-					"-logoutput", logoutput,
-					"-loglevel", loglevel,
+					"--endpoint", "[::]"+target,
+					"--logoutput", logoutput,
+					"--loglevel", loglevel,
 				)
 				cmd.SysProcAttr = &syscall.SysProcAttr{
 					Pdeathsig: syscall.SIGTERM,
@@ -86,15 +96,15 @@ func spawnService(name string, port int, stopCh chan bool) (*grpc.ClientConn, er
 				cmd.Stderr = os.Stderr
 				err := cmd.Run()
 				if err != nil {
-					logrus.Errorf("Run failed for %s: %v", name, err)
+					log.Errorf("Run failed for %s: %v", name, err)
 				}
-				logrus.Infof("Service %s stopped", name)
-				time.Sleep(time.Second * 3)
-				logrus.Infof("Respawn %s", name)
+				log.Infof("Service %s stopped", name)
+				time.Sleep(time.Second * 1)
+				log.Infof("Respawn %s", name)
 			}
 		}
 	}()
-	return dialService(name, targetPort)
+	return dialService(name, target)
 }
 
 func dialService(name, addr string) (*grpc.ClientConn, error) {
@@ -111,7 +121,8 @@ func dialService(name, addr string) (*grpc.ClientConn, error) {
 	for i := 0; i <= attempts; i++ {
 		cc, err := grpc.Dial(addr, options...)
 		if err != nil {
-			logrus.Warnf("Failed to dial %s: %v", name, err)
+			logrus.WithField("source", "dialService").
+				Warnf("Failed to dial %s: %v", name, err)
 			time.Sleep(time.Second * 5)
 		} else {
 			return cc, nil
@@ -120,33 +131,112 @@ func dialService(name, addr string) (*grpc.ClientConn, error) {
 	return nil, errors.Errorf("Failed to dial %s (%d times)", name, attempts)
 }
 
+func monitorAggServices(name string, memLimit int, stopCh chan bool) {
+	log := logrus.WithField("source", "monitorAggServices")
+	workerProcess, err := process.NewProcess(int32(os.Getpid()))
+	if err != nil {
+		log.Fatalf("worker failed to monitor aggregate service: %v", err)
+	}
+	checkMemTicker := time.NewTicker(time.Second * 5)
+	defer checkMemTicker.Stop()
+	for {
+		select {
+		case <-stopCh:
+			log.Infof("interrupted")
+			return
+		case <-checkMemTicker.C:
+			childs, err := workerProcess.Children()
+			if err != nil {
+				log.Fatalf("worker failed to monitor aggregate service: %v", err)
+			}
+			for _, child := range childs {
+				args, err := child.CmdlineSlice()
+				if err != nil {
+					log.Warnf("%d query child args: %v", child.Pid, err)
+					continue
+				}
+				if !strings.Contains(strings.Join(args, ","), name) {
+					continue
+				}
+				var ep string
+				for idx, val := range args {
+					if val == "--endpoint" {
+						if idx+1 < len(args) {
+							ep = args[idx+1]
+						}
+						break
+					}
+				}
+				if ep == "" {
+					log.Warnf("%d endpoint args not found: %v", child.Pid, args)
+					continue
+				}
+				memInfo, err := child.MemoryInfo()
+				if err != nil {
+					log.Warnf("%d failed to get memory info: %v", child.Pid, err)
+					continue
+				}
+				if memInfo.RSS > uint64(memLimit*1024*1024) {
+					for idx, srv := range aggConnections {
+						if strings.HasSuffix(ep, srv.target) {
+							log.Infof("service %s:%s eat to many memory (%d Mb), respawn pid=%d", name, ep, memInfo.RSS/1024/1024, child.Pid)
+							nextIdx := (idx + 1) % len(aggConnections)
+
+							// release this service
+							aggClientConnMutex.Lock()
+							aggConnections[idx] = aggConnections[nextIdx]
+							aggClientConnMutex.Unlock()
+
+							// inhibit on replace
+							time.Sleep(time.Second * 10)
+							log.Infof("terminate pid=%d", child.Pid)
+							_ = child.Terminate()
+							// inhibit on terminate
+							time.Sleep(time.Second * 3)
+							_ = child.Kill()
+							// inhibit on kill
+							time.Sleep(time.Second * 3)
+
+							// spawnService should restart process on this endpoint
+							acc, err := dialService(name, ep)
+							if err != nil {
+								log.Fatalf("failed to spawn service %s: %v", name, err)
+							}
+							_ = srv.conn.Close()
+							srv.conn = acc
+							// return back
+							aggClientConnMutex.Lock()
+							aggConnections[idx] = srv
+							aggClientConnMutex.Unlock()
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // SpawnServices spawn subprocesses with services
-func SpawnServices(stopCh chan bool) error {
+func SpawnServices(aggNum, memLimit int, stopCh chan bool) error {
 
 	os.Stdout.WriteString("ENVIRON\n")
 	for _, s := range os.Environ() {
 		os.Stdout.WriteString(s + "\n")
 	}
 
-	port := 10000
+	port := servicesBasePort - aggNum
 	aggServiceName := "aggregator/" + aggregatorService
-	acc, err := spawnService(aggServiceName, port, stopCh)
-	if err != nil {
-		return err
-	}
-
-	aggregatorConnections[0] = acc
-	for idx := range aggregatorConnections {
-		if idx == 0 {
-			continue
-		}
-		addr := "127.0.0." + strconv.Itoa(idx+1) + ":" + strconv.Itoa(port)
-		acc, err := dialService(aggServiceName, addr)
+	for idx := 0; idx < aggNum; idx++ {
+		target := ":" + strconv.Itoa(port)
+		acc, err := spawnService(aggServiceName, target, stopCh)
 		if err != nil {
 			return err
 		}
-		aggregatorConnections[idx] = acc
+		aggConnections = append(aggConnections, &aggService{target: target, conn: acc})
+		port++
 	}
+	go monitorAggServices(aggServiceName, memLimit, stopCh)
 
 	files, err := ioutil.ReadDir(appsDir)
 	if err != nil {
@@ -163,7 +253,8 @@ func SpawnServices(stopCh chan bool) error {
 		port++
 		wg.Add(1)
 		go func(n string, p int) {
-			sc, err := spawnService(n, p, stopCh)
+			t := ":" + strconv.Itoa(p)
+			sc, err := spawnService(n, t, stopCh)
 			if err != nil {
 				errCh <- err
 				return

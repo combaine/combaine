@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Aggregator with extensions support"""
 
+import argparse
 import contextlib
 import importlib
 import logging
@@ -212,20 +213,27 @@ def serve():
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Combaine aggregator.py')
+    parser.add_argument('--endpoint', help="Listen addr")
+    parser.add_argument('--logoutput', help="Logging output (enpoint port will be added at the end of file)")
+    parser.add_argument('--loglevel', help="Logging level", default="INFO")
+    args = parser.parse_args()
+
+    port = args.endpoint.split(":")[-1]
+    logoutput = args.logoutput.replace(".log", "." + port) + ".log"
+
     root = logging.getLogger()
     maxSize = 512 * 1024 * 1024  # 0.5 Gb
-    h = logging.handlers.RotatingFileHandler('/var/log/combaine/aggregator.log', 'a', maxSize, 8)
+    h = logging.handlers.RotatingFileHandler(logoutput, 'a', maxSize, 3)
     f = logging.Formatter('%(asctime)s %(levelname)5s: %(lineno)4s#%(funcName)-12s %(message)s')
     h.setFormatter(f)
     root.addHandler(h)
-    logLevelName = "INFO"
     logLevel = logging.INFO
     try:
-        name = sys.argv[sys.argv.index("-loglevel") + 1].upper()
-        logLevel = getattr(logging, name)
-        logLevelName = name
+        logLevel = getattr(logging, args.loglevel.upper())
     except:  # noqa pylint: disable=E722
         pass
     logging.getLogger().setLevel(logLevel)
-    logging.info("Current log level: %s", logLevelName)
-    serve()
+    logging.info("Current log level: %s", args.loglevel)
+    _run_server(args.endpoint)
