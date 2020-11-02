@@ -12,13 +12,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
 	"github.com/combaine/combaine/common/cache"
 	"github.com/combaine/combaine/common/chttp"
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -49,7 +48,7 @@ func NewSender(conf *Config, id string) (*Sender, error) {
 // Send make all things abount juggler sender tasks
 func (js *Sender) Send(ctx context.Context, task *senders.SenderTask) error {
 	logrus.Debugf("%s Load lua plugin %s", js.id, js.Plugin)
-	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin)
+	state, err := LoadPlugin(js.id, js.PluginsDir, js.Plugin, js.Debug)
 	if err != nil {
 		return errors.Wrap(err, "LoadPlugin")
 	}

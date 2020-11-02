@@ -1,4 +1,4 @@
-FROM ubuntu:19.10
+FROM ubuntu:20.10
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt full-upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt install -y --force-yes --no-install-recommends \
     build-essential python3-pip libcap-dev gcc g++ python3-dev libssl-dev wget locales \
