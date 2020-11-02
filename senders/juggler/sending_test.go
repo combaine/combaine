@@ -120,7 +120,7 @@ func TestEnsureCheck(t *testing.T) {
 	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
 
-	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
+	state, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin, true)
 	assert.NoError(t, err)
 	js.state = state
 	assert.NoError(t, js.preparePluginEnv(globalTestTask))

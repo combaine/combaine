@@ -82,7 +82,7 @@ func TestPluginSimple(t *testing.T) {
 
 	for _, c := range cases {
 		js.CRIT = c.checks
-		l, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin)
+		l, err := LoadPlugin("Test Id", js.PluginsDir, js.Plugin, true)
 		assert.NoError(t, err)
 		if err != nil {
 			t.FailNow()
@@ -122,7 +122,7 @@ func TestToLuaValueStruct(t *testing.T) {
 func BenchmarkPassGoLogger(b *testing.B) {
 	logrus.SetOutput(ioutil.Discard)
 	l := lua.NewState()
-	PreloadTools("BenchPassGoLog", l)
+	PreloadTools("BenchPassGoLog", true, l)
 	fn, err := l.LoadString(`
 		local log = require("log");
 		log.info("test %s %d %0.3f", "log", 10, 0.33)
@@ -139,7 +139,7 @@ func BenchmarkPassGoLogger(b *testing.B) {
 func BenchmarkStringFmtLogger(b *testing.B) {
 	logrus.SetOutput(ioutil.Discard)
 	l := lua.NewState()
-	PreloadTools("BenchStringFmtLog", l)
+	PreloadTools("BenchStringFmtLog", true, l)
 	fn, err := l.LoadString(`
 		local log = require("log");
 		local fmt = string.format
@@ -177,7 +177,7 @@ PASS
 ok  	github.com/combaine/combaine/senders/juggler	4.303s
 */
 func BenchmarkDataToLuaTable(b *testing.B) {
-	l, err := LoadPlugin("Test Id", "testdata/plugins", "test")
+	l, err := LoadPlugin("Test Id", "testdata/plugins", "test", true)
 	if err != nil {
 		panic(err)
 	}

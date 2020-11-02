@@ -32,10 +32,15 @@ func replace(l *lua.LState) int {
 	return 1
 }
 
-func logLoader(id string) func(*lua.LState) int {
+func logLoader(id string, debugLogs bool) func(*lua.LState) int {
 	return func(l *lua.LState) int {
+		debugLevel := "debug"
+		if debugLogs {
+			debugLevel = "info"
+		}
+
 		l.Push(l.SetFuncs(l.CreateTable(0, 4), map[string]lua.LGFunction{
-			"debug": getLogger(id, "debug"),
+			"debug": getLogger(id, debugLevel),
 			"info":  getLogger(id, "info"),
 			"warn":  getLogger(id, "warn"),
 			"error": getLogger(id, "error"),
@@ -99,11 +104,11 @@ func eventsHistoryLoader(id string) func(l *lua.LState) int {
 }
 
 // PreloadTools preload go functions in lua global environment
-func PreloadTools(id string, l *lua.LState) error {
+func PreloadTools(id string, debug bool, l *lua.LState) error {
 	l.SetGlobal("split", l.NewFunction(split))
 	l.SetGlobal("replace", l.NewFunction(replace))
 	l.SetGlobal("events_history", l.NewFunction(eventsHistoryLoader(id)))
 	l.PreloadModule("re", gluare.Loader)
-	l.PreloadModule("log", logLoader(id))
+	l.PreloadModule("log", logLoader(id, debug))
 	return nil
 }

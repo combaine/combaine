@@ -203,11 +203,11 @@ func (js *Sender) luaResultToJugglerEvents(result *lua.LTable) ([]jugglerEvent, 
 
 // LoadPlugin cleanup lua state global/local environment
 // and load lua plugin by name from juggler config section
-func LoadPlugin(id, dir, name string) (*lua.LState, error) {
+func LoadPlugin(id, dir, name string, debug bool) (*lua.LState, error) {
 	file := dir + "/" + name + ".lua"
 
 	l := lua.NewState()
-	if err := PreloadTools(id, l); err != nil {
+	if err := PreloadTools(id, debug, l); err != nil {
 		return nil, err
 	}
 	if err := l.DoFile(file); err != nil {

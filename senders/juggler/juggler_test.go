@@ -13,13 +13,12 @@ import (
 	"strings"
 	"testing"
 
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/combaine/combaine/senders"
 	"github.com/combaine/combaine/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var (
@@ -95,10 +94,10 @@ func TestUpdateTaskConfig(t *testing.T) {
 }
 
 func TestLoadPlugin(t *testing.T) {
-	if _, err := LoadPlugin("Test Id", ".", "file_not_exists.lua"); err == nil {
+	if _, err := LoadPlugin("Test Id", ".", "file_not_exists.lua", true); err == nil {
 		t.Fatalf("Loading non existing plugin should return error")
 	}
-	if _, err := LoadPlugin("Test Id", "testdata/plugins", "test"); err != nil {
+	if _, err := LoadPlugin("Test Id", "testdata/plugins", "test", true); err != nil {
 		t.Fatalf("Failed to load plugin 'test': %s", err)
 	}
 }
@@ -107,7 +106,7 @@ func TestPrepareLuaEnv(t *testing.T) {
 	jconf := DefaultJugglerTestConfig()
 	jconf.Plugin = "test"
 
-	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin, true)
 	assert.NoError(t, err)
 	js, err := NewSender(jconf, "Test ID")
 	assert.NoError(t, err)
@@ -129,7 +128,7 @@ func TestRunPlugin(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "correct"
-	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin, true)
 	assert.NoError(t, err)
 	js.state = l
 	t.Logf("Task: %#+v", globalTestTask)
@@ -142,7 +141,7 @@ func TestRunPlugin(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "incorrect"
-	l, err = LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
+	l, err = LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin, true)
 	assert.NoError(t, err)
 	js.state = l
 	assert.NoError(t, js.preparePluginEnv(globalTestTask))
@@ -160,7 +159,7 @@ func TestQueryLuaTable(t *testing.T) {
 	assert.NoError(t, err)
 
 	jconf.Plugin = "test"
-	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin)
+	l, err := LoadPlugin("Test Id", jconf.PluginsDir, jconf.Plugin, true)
 	assert.NoError(t, err)
 	js.state = l
 	assert.NoError(t, js.preparePluginEnv(globalTestTask))

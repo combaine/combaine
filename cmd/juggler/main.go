@@ -50,7 +50,11 @@ func (s *sender) DoSend(ctx context.Context, req *senders.SenderRequest) (*sende
 		log.Errorf("Failed to repack sender request: %v", err)
 		return nil, err
 	}
-	log.Debugf("Task.Data: %v", task.Data)
+
+	if cfg.Debug {
+		log.Infof("Task.Data: %+v", task.Data)
+	}
+
 	jCli, err := juggler.NewSender(&cfg, req.Id)
 	if err != nil {
 		log.Errorf("DoSend: Unexpected error %s", err)

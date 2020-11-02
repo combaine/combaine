@@ -26,6 +26,7 @@ const (
 type Config struct {
 	PluginsDir       string                       `msgpack:"plugins_dir"`
 	Plugin           string                       `msgpack:"plugin"`
+	Debug            bool                         `msgpack:"debug"`
 	Host             string                       `msgpack:"Host"`
 	Method           string                       `msgpack:"Method"`
 	Aggregator       string                       `msgpack:"Aggregator"`
