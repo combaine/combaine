@@ -49,7 +49,7 @@ func DoSending(ctx context.Context, meta string, task *AggregatingTask, sCfgs ma
 
 		wg.Add(1)
 		go func(sc senders.SenderClient, n string) {
-			log.Infof("send to sender %s.%s", n, senderType)
+			log.Infof("send to local sender %s.%s", n, senderType)
 			defer wg.Done()
 			req := &senders.SenderRequest{
 				Id:       task.Id,
